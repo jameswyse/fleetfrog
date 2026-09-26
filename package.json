@@ -34,6 +34,7 @@
     "@oxlint/plugins": "catalog:",
     "@stylistic/eslint-plugin": "5.10.0",
     "@types/node": "catalog:",
+    "effect": "catalog:",
     "eslint-plugin-react-you-might-not-need-an-effect": "1.0.2",
     "husky": "9.1.7",
     "lint-staged.sh": "0.6.9",

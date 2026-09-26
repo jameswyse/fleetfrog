@@ -232,6 +232,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.2
+      effect:
+        specifier: 'catalog:'
+        version: 4.0.0-rc.117
       eslint-plugin-react-you-might-not-need-an-effect:
         specifier: 1.0.2
         version: 1.0.2(eslint@10.11.0(jiti@2.7.0))
