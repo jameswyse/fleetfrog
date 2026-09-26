@@ -1,17 +1,84 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 
 import { knownFleet, useHub } from "@/rpc/hubConnection.ts";
-import { ChevronIcon, MachineIcon } from "@/ui/icons.tsx";
+import { MachineIcon } from "@/ui/icons.tsx";
 import { SidebarPage } from "@/ui/SidebarLayout.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
-import { SettingsSection } from "../SettingsSection.tsx";
-import { ConnectionStatus, describePlatform, repositoryCount } from "./MachineStatus.tsx";
+import { ConnectionStatus, describeHardware, repositoryCount } from "./MachineStatus.tsx";
+import { formatDiskSize, formatMemory, formatMemoryInUse } from "./systemFormat.ts";
+import { LoadPills, UsageMeter } from "./SystemMeters.tsx";
+
+import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 
 const pairLinkClass =
   "inline-flex min-h-9 items-center rounded-md bg-accent px-3 text-sm font-medium text-accent-ink hover:brightness-110";
 
-/** Every paired machine at a glance, each opening its own settings. */
+const cellClass = "px-4 py-3 align-middle";
+const headerClass = "px-4 py-2.5 text-start font-medium";
+
+function MachineRow({ fleet, machine }: { readonly fleet: Fleet; readonly machine: Machine }) {
+  const navigate = useNavigate();
+  const { system } = machine.info;
+  const { usage } = machine;
+  // Readings from a machine that is offline are its last ones, so they are shown faded.
+  const readingClass = `${cellClass} ${machine.connection._tag === "Offline" ? "opacity-60" : ""}`;
+
+  return (
+    <tr
+      // The name is the keyboard route to the machine; the whole row opens it by pointer.
+      onClick={(event) => {
+        if (!(event.target instanceof Element && event.target.closest("a") !== null)) {
+          void navigate({ to: "/settings/fleet/$machineId", params: { machineId: machine.id } });
+        }
+      }}
+      className="cursor-pointer hover:bg-surface-raised"
+    >
+      <th scope="row" className={`${cellClass} text-start font-normal`}>
+        <div className="flex items-center gap-3">
+          <MachineIcon className="size-5 text-ink-muted" />
+          <div className="min-w-0">
+            <Link
+              to="/settings/fleet/$machineId"
+              params={{ machineId: machine.id }}
+              className="font-medium underline-offset-2 hover:underline"
+            >
+              {machineLabel(machine)}
+            </Link>
+            <p className="mt-0.5 text-ink-muted">{describeHardware(machine)}</p>
+          </div>
+        </div>
+      </th>
+      <td className={readingClass}>
+        {system !== null && usage !== null && usage.memoryUsedBytes !== null && (
+          <UsageMeter
+            usedShare={system.memoryBytes === 0 ? 0 : usage.memoryUsedBytes / system.memoryBytes}
+            description={`${formatMemoryInUse(usage.memoryUsedBytes)} of ${formatMemory(system.memoryBytes)}`}
+          />
+        )}
+      </td>
+      <td className={readingClass}>
+        {usage !== null && usage.disk !== null && usage.disk.totalBytes > 0 && (
+          <UsageMeter
+            usedShare={1 - usage.disk.freeBytes / usage.disk.totalBytes}
+            description={`${formatDiskSize(usage.disk.totalBytes - usage.disk.freeBytes)} of ${formatDiskSize(usage.disk.totalBytes)}`}
+          />
+        )}
+      </td>
+      <td className={readingClass}>
+        {system !== null && usage !== null && (
+          <LoadPills loadAverage={usage.loadAverage} cores={system.cpu.cores} labels="Bare" />
+        )}
+      </td>
+      <td className={`${cellClass} text-end tabular-nums`}>{repositoryCount(fleet, machine)}</td>
+      <td className={cellClass}>
+        <ConnectionStatus machine={machine} />
+      </td>
+    </tr>
+  );
+}
+
+/** Every paired machine side by side, each opening its own settings. */
 export function FleetSettings() {
   const hub = useHub();
   const fleet = knownFleet(hub);
@@ -37,34 +104,40 @@ export function FleetSettings() {
         </div>
       )}
       {fleet !== null && fleet.machines.length > 0 && (
-        <SettingsSection title="Machines">
-          {fleet.machines.map((machine) => {
-            const repositories = repositoryCount(fleet, machine);
-
-            return (
-              <Link
-                key={machine.id}
-                to="/settings/fleet/$machineId"
-                params={{ machineId: machine.id }}
-                className="flex items-center gap-4 px-5 py-4 hover:bg-surface-raised"
-              >
-                <MachineIcon className="size-5 text-ink-muted" />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium">{machineLabel(machine)}</span>
-                  <span className="mt-0.5 block truncate text-sm text-ink-muted">
-                    {machine.info.system?.os ?? describePlatform(machine)}
-                    {machine.info.system !== null && ` · ${machine.info.system.cpu.model}`} ·{" "}
-                    {repositories} {repositories === 1 ? "repository" : "repositories"}
-                  </span>
-                </span>
-                <span className="shrink-0 text-sm">
-                  <ConnectionStatus machine={machine} />
-                </span>
-                <ChevronIcon className="size-4 text-ink-muted" />
-              </Link>
-            );
-          })}
-        </SettingsSection>
+        <div className="overflow-x-auto rounded-xl border border-line bg-surface">
+          <table className="w-full min-w-3xl text-sm">
+            <caption className="sr-only">
+              Paired machines. Open one to see its settings and system.
+            </caption>
+            <thead className="border-b border-line text-xs text-ink-muted">
+              <tr>
+                <th scope="col" className={headerClass}>
+                  Machine
+                </th>
+                <th scope="col" className={headerClass}>
+                  Memory
+                </th>
+                <th scope="col" className={headerClass}>
+                  Disk
+                </th>
+                <th scope="col" className={headerClass}>
+                  Load (1, 5 and 15 min)
+                </th>
+                <th scope="col" className={`${headerClass} text-end`}>
+                  Repositories
+                </th>
+                <th scope="col" className={headerClass}>
+                  Status
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {fleet.machines.map((machine) => (
+                <MachineRow key={machine.id} fleet={fleet} machine={machine} />
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </SidebarPage>
   );

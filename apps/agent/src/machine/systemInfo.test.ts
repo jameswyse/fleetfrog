@@ -1,6 +1,12 @@
 import { describe, expect, it } from "@effect/vitest";
 
-import { parseGitVersion, parseOsRelease, parseVmStat } from "./systemInfo.ts";
+import {
+  parseGitVersion,
+  parseHypervisor,
+  parseOsRelease,
+  parseProductName,
+  parseVmStat,
+} from "./systemInfo.ts";
 
 describe("system info parsing", () => {
   it("reads the distribution's pretty name, quoted or not", () => {
@@ -15,6 +21,28 @@ describe("system info parsing", () => {
     expect(parseGitVersion("git version 2.53.0\n")).toBe("2.53.0");
     expect(parseGitVersion("git version 2.50.1 (Apple Git-155)\n")).toBe("2.50.1");
     expect(parseGitVersion("command not found")).toBeNull();
+  });
+
+  it("splits the Mac's model name from its detail, as About This Mac shows them", () => {
+    expect(
+      parseProductName('  | |   "product-name" = <"MacBook Pro (13-inch, M1, 2020)">\n'),
+    ).toEqual({ name: "MacBook Pro", detail: "13-inch, M1, 2020" });
+    expect(parseProductName('"product-name" = <"Mac mini (2024)">')).toEqual({
+      name: "Mac mini",
+      detail: "2024",
+    });
+    expect(parseProductName('"product-name" = <"Virtual Mac">')).toEqual({
+      name: "Virtual Mac",
+      detail: null,
+    });
+    expect(parseProductName("")).toBeNull();
+  });
+
+  it("names the hypervisor, or none on a physical machine", () => {
+    expect(parseHypervisor("kvm\n")).toBe("KVM");
+    expect(parseHypervisor("microsoft\n")).toBe("Hyper-V");
+    expect(parseHypervisor("acrn\n")).toBe("acrn");
+    expect(parseHypervisor("none\n")).toBeNull();
   });
 
   it("counts app, wired and compressed memory from vm_stat, leaving out caches", () => {

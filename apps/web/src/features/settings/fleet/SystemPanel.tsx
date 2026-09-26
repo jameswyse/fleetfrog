@@ -5,100 +5,15 @@ import { RelativeTime, useNow } from "@/ui/RelativeTime.tsx";
 
 import { SideDetail, SidePanel } from "../SettingsSection.tsx";
 import {
+  describeProcessorCount,
   formatDiskSize,
-  formatLoad,
   formatMemory,
   formatMemoryInUse,
-  percent,
+  shortProcessorName,
 } from "./systemFormat.ts";
+import { LoadPills, UsageBar } from "./SystemMeters.tsx";
 
 import type { Machine } from "@fleetfrog/protocol/domain/fleet";
-import type { SystemUsage } from "@fleetfrog/protocol/domain/machine";
-
-/** The bar's colour at each level of use, from the highest threshold down. */
-const usageFills = [
-  { from: 0.9, fill: "bg-danger" },
-  { from: 0.8, fill: "bg-changes" },
-  { from: 0, fill: "bg-clean" },
-] as const;
-
-/** How full something is: the amounts above a bar that turns amber from 80% and red from 90%. */
-function UsageBar({
-  used,
-  total,
-  usedShare,
-}: {
-  readonly used: string;
-  readonly total: string;
-  readonly usedShare: number;
-}) {
-  const share = Math.min(1, Math.max(0, usedShare));
-  const { fill } = usageFills.find(({ from }) => share >= from) ?? usageFills[2];
-
-  return (
-    <>
-      <div className="flex items-baseline justify-between gap-3">
-        <span>
-          {used} <span className="text-ink-muted">of {total}</span>
-        </span>
-        <span className="text-ink-muted tabular-nums">{percent.format(share)} used</span>
-      </div>
-      <div aria-hidden="true" className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-line">
-        <div className={`h-full rounded-full ${fill}`} style={{ width: `${share * 100}%` }} />
-      </div>
-    </>
-  );
-}
-
-/**
- * How hard the processor is working, judged per core: below 0.7 leaves room to spare, and from 1
- * work is waiting for a core.
- */
-const loadLevels = [
-  { level: "light", below: 0.7, tone: "border-clean/30 bg-clean/10 text-clean" },
-  { level: "busy", below: 1, tone: "border-changes/30 bg-changes-soft text-changes" },
-  {
-    level: "overloaded",
-    below: Number.POSITIVE_INFINITY,
-    tone: "border-danger/30 bg-danger-soft text-danger",
-  },
-] as const;
-
-function LoadPills({
-  loadAverage,
-  cores,
-}: {
-  readonly loadAverage: SystemUsage["loadAverage"];
-  readonly cores: number;
-}) {
-  const [one, five, fifteen] = loadAverage;
-  const windows = [
-    ["1 min", one],
-    ["5 min", five],
-    ["15 min", fifteen],
-  ] as const;
-
-  return (
-    <ul className="flex flex-wrap gap-1.5">
-      {windows.map(([window, load]) => {
-        const { level, tone } =
-          loadLevels.find(({ below }) => load / Math.max(1, cores) < below) ?? loadLevels[2];
-
-        return (
-          <li
-            key={window}
-            title={`${formatLoad(load)} across ${cores} ${cores === 1 ? "core" : "cores"}: ${level}`}
-            className={`inline-flex items-baseline gap-1.5 rounded-full border px-2 py-px text-xs ${tone}`}
-          >
-            <span className="opacity-75">{window}</span>
-            <span className="font-medium tabular-nums">{formatLoad(load)}</span>
-            <span className="sr-only">, {level}</span>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
 
 /** How long the machine has been up: until now while it's connected, or until it was last seen. */
 function Uptime({
@@ -139,14 +54,25 @@ export function SystemPanel({ machine }: { readonly machine: Machine }) {
 
   return (
     <SidePanel title="System">
+      {system.model !== null && (
+        <SideDetail term="Model">
+          {system.model.name}
+          {system.model.detail !== null && (
+            <span className="block text-ink-muted">{system.model.detail}</span>
+          )}
+        </SideDetail>
+      )}
+      {system.model === null && system.hypervisor !== null && (
+        <SideDetail term="Model">
+          Virtual machine <span className="text-ink-muted">· {system.hypervisor}</span>
+        </SideDetail>
+      )}
       <SideDetail term="Operating system">
         {system.os} <span className="text-ink-muted">· {system.architecture}</span>
       </SideDetail>
       <SideDetail term="Processor">
-        {system.cpu.model}{" "}
-        <span className="text-ink-muted">
-          · {system.cpu.cores} {system.cpu.cores === 1 ? "core" : "cores"}
-        </span>
+        <span title={system.cpu.model}>{shortProcessorName(system.cpu.model)}</span>{" "}
+        <span className="text-ink-muted">· {describeProcessorCount(system)}</span>
       </SideDetail>
       <SideDetail term="Memory">
         {usage === null || usage.memoryUsedBytes === null || system.memoryBytes === 0 ? (
@@ -177,7 +103,7 @@ export function SystemPanel({ machine }: { readonly machine: Machine }) {
         {usage === null ? (
           "Not reported yet"
         ) : (
-          <LoadPills loadAverage={usage.loadAverage} cores={system.cpu.cores} />
+          <LoadPills loadAverage={usage.loadAverage} cores={system.cpu.cores} labels="Labelled" />
         )}
       </SideDetail>
       <SideDetail term="Uptime">

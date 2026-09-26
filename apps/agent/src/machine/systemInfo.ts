@@ -5,10 +5,17 @@ import { DateTime, Effect } from "effect";
 
 import { runTool } from "../process/runTool.ts";
 
-import type { Platform, SystemInfo, SystemUsage } from "@fleetfrog/protocol/domain/machine";
+import type {
+  MachineModel,
+  Platform,
+  SystemInfo,
+  SystemUsage,
+} from "@fleetfrog/protocol/domain/machine";
 
 const osReleaseName = /^PRETTY_NAME=(?<value>.*)$/m;
 const gitVersionNumber = /git version (?<version>\S+)/;
+const productName = /"product-name" = <"(?<name>[^"]+)">/;
+const nameAndDetail = /^(?<name>.+?) \((?<detail>.+)\)$/;
 const vmStatPageSize = /page size of (?<bytes>\d+) bytes/;
 const vmStatCount = /^"?(?<name>[^":\n]+)"?:\s+(?<count>\d+)\.$/gm;
 
@@ -58,6 +65,65 @@ export function parseVmStat(output: string): number | null {
   return (Math.max(0, anonymous - purgeable) + wired + compressed) * pageBytes;
 }
 
+/**
+ * The Mac's model from `ioreg`, as About This Mac shows it: "MacBook Pro (13-inch, M1, 2020)"
+ * becomes "MacBook Pro" with "13-inch, M1, 2020".
+ */
+export function parseProductName(output: string): MachineModel | null {
+  const full = productName.exec(output)?.groups?.name?.trim();
+
+  if (full === undefined || full === "") {
+    return null;
+  }
+
+  const parts = nameAndDetail.exec(full)?.groups;
+
+  return parts?.name !== undefined && parts.detail !== undefined
+    ? { name: parts.name, detail: parts.detail }
+    : { name: full, detail: null };
+}
+
+const hypervisorNames = new Map([
+  ["kvm", "KVM"],
+  ["qemu", "QEMU"],
+  ["vmware", "VMware"],
+  ["microsoft", "Hyper-V"],
+  ["oracle", "VirtualBox"],
+  ["xen", "Xen"],
+  ["parallels", "Parallels"],
+  ["apple", "Apple Virtualization"],
+  ["bhyve", "bhyve"],
+  ["amazon", "Amazon EC2"],
+  ["google", "Google Compute Engine"],
+]);
+
+/** The hypervisor's name from `systemd-detect-virt --vm`, or null on a physical machine. */
+export function parseHypervisor(output: string): string | null {
+  const id = output.trim();
+
+  return id === "" || id === "none" ? null : (hypervisorNames.get(id) ?? id);
+}
+
+const readModel = Effect.fn("readModel")(function* (platform: Platform) {
+  // Apple silicon Macs name themselves; Linux has no dependable equivalent.
+  return platform === "darwin"
+    ? yield* runTool("ioreg", os.homedir(), ["-rc", "IOPlatformDevice", "-k", "product-name"]).pipe(
+        Effect.map(parseProductName),
+        Effect.orElseSucceed(() => null),
+      )
+    : null;
+});
+
+const readHypervisor = Effect.fn("readHypervisor")(function* (platform: Platform) {
+  // It exits with a failure on a physical machine, which reads as no hypervisor.
+  return platform === "linux"
+    ? yield* runTool("systemd-detect-virt", os.homedir(), ["--vm"]).pipe(
+        Effect.map(parseHypervisor),
+        Effect.orElseSucceed(() => null),
+      )
+    : null;
+});
+
 const readOsName = Effect.fn("readOsName")(function* (platform: Platform) {
   if (platform === "darwin") {
     const [name, version] = yield* Effect.all([
@@ -83,6 +149,8 @@ export const readSystemInfo = Effect.fn("readSystemInfo")(function* (platform: P
 
   return {
     os: yield* readOsName(platform),
+    model: yield* readModel(platform),
+    hypervisor: yield* readHypervisor(platform),
     architecture: os.arch(),
     cpu: { model: os.cpus()[0]?.model.trim() ?? "Unknown", cores: os.availableParallelism() },
     memoryBytes: os.totalmem(),

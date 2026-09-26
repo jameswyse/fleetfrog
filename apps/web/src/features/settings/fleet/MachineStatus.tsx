@@ -2,6 +2,7 @@ import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { agentOutdated } from "@fleetfrog/protocol/domain/actionAvailability";
 
 import { machineBlocker } from "../../actions/actionAvailability.ts";
+import { shortProcessorName } from "./systemFormat.ts";
 
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 
@@ -72,4 +73,19 @@ export function repositoryCount(fleet: Fleet, machine: Machine): number {
 
 export function describePlatform(machine: Machine): string {
   return machine.info.platform === "darwin" ? "macOS" : "Linux";
+}
+
+/** What the machine is, briefly: its model, processor and operating system. */
+export function describeHardware(machine: Machine): string {
+  const { system } = machine.info;
+
+  if (system === null) {
+    return describePlatform(machine);
+  }
+
+  const kind = system.model?.name ?? (system.hypervisor === null ? null : "Virtual machine");
+
+  return [kind, shortProcessorName(system.cpu.model), system.os]
+    .filter((part) => part !== null)
+    .join(" · ");
 }

@@ -34,7 +34,16 @@ const actionEnvironment = {
 
 /** Runs a command-line tool in a directory and returns its standard output. */
 export function runTool(
-  tool: "git" | "gh" | "scutil" | "sw_vers" | "systemctl" | "launchctl" | "vm_stat",
+  tool:
+    | "git"
+    | "gh"
+    | "ioreg"
+    | "launchctl"
+    | "scutil"
+    | "sw_vers"
+    | "systemctl"
+    | "systemd-detect-virt"
+    | "vm_stat",
   cwd: string,
   args: ReadonlyArray<string>,
 ) {
