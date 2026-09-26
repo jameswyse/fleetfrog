@@ -1,11 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 
+import { temporaryDirectory } from "../testing/temporaryDirectory.ts";
 import { discoverCheckouts } from "./discoverCheckouts.ts";
 
 // Keeps the developer's global Git configuration, such as commit signing, out of the fixture.
@@ -39,7 +39,7 @@ describe("discoverCheckouts", () => {
     "finds repositories under the roots and their worktrees elsewhere, skipping hidden and dependency folders",
     () =>
       Effect.gen(function* () {
-        const home = mkdtempSync(path.join(tmpdir(), "fleetfrog-discovery-"));
+        const home = yield* temporaryDirectory("fleetfrog-discovery-");
         const projects = path.join(home, "Projects");
         const shop = path.join(projects, "acme", "shop");
         const outsideWorktree = path.join(home, "worktrees", "shop-feature");

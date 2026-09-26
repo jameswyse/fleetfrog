@@ -1,11 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, renameSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Option } from "effect";
 
+import { temporaryDirectory } from "../testing/temporaryDirectory.ts";
 import { locateCheckout, readGitStatus } from "./readCheckout.ts";
 
 function git(cwd: string, ...args: Array<string>): string {
@@ -24,8 +24,7 @@ function git(cwd: string, ...args: Array<string>): string {
 }
 
 /** An upstream repository, a clone one commit behind and one ahead of it, and a linked worktree. */
-function createFixture() {
-  const root = mkdtempSync(path.join(tmpdir(), "fleetfrog-agent-"));
+function createFixture(root: string) {
   const upstream = path.join(root, "upstream");
   const clone = path.join(root, "clone");
 
@@ -63,7 +62,7 @@ function createFixture() {
 describe("reading a checkout", () => {
   it.effect("reports branch tracking, changes, renames, untracked files and stashes", () =>
     Effect.gen(function* () {
-      const fixture = createFixture();
+      const fixture = createFixture(yield* temporaryDirectory("fleetfrog-agent-"));
       const location = Option.getOrThrow(yield* locateCheckout(fixture.clone));
       const status = yield* readGitStatus(location);
 
@@ -93,7 +92,7 @@ describe("reading a checkout", () => {
 
   it.effect("identifies a linked worktree with its main checkout", () =>
     Effect.gen(function* () {
-      const fixture = createFixture();
+      const fixture = createFixture(yield* temporaryDirectory("fleetfrog-agent-"));
       const location = Option.getOrThrow(yield* locateCheckout(path.join(fixture.root, "feature")));
 
       expect(location.worktree).toEqual({ _tag: "Linked", mainPath: fixture.clone });
@@ -104,7 +103,7 @@ describe("reading a checkout", () => {
 
   it.effect("gives an unborn orphan worktree the identity of its main checkout", () =>
     Effect.gen(function* () {
-      const fixture = createFixture();
+      const fixture = createFixture(yield* temporaryDirectory("fleetfrog-agent-"));
       const orphan = path.join(fixture.root, "orphan");
 
       git(fixture.clone, "worktree", "add", "-q", "--orphan", "-b", "scratch", orphan);
@@ -121,7 +120,7 @@ describe("reading a checkout", () => {
 
   it.effect("uses a normalised origin URL when the remote is hosted", () =>
     Effect.gen(function* () {
-      const fixture = createFixture();
+      const fixture = createFixture(yield* temporaryDirectory("fleetfrog-agent-"));
 
       git(fixture.clone, "remote", "set-url", "origin", "git@github.com:Acme/Shop.git");
 
