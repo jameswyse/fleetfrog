@@ -2,6 +2,8 @@
 
 /* Semantic colours, swapped for dark mode. Status colours always travel with a text label. */
 :root {
+  /* The main header's height once it fits on one row, so panels can sit just below it. */
+  --app-header-height: 3.8125rem;
   --canvas: #f6f6f3;
   --surface: #ffffff;
   --surface-raised: #fbfbf9;

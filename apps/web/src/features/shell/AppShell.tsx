@@ -116,8 +116,8 @@ export function AppShell() {
       >
         Skip to content
       </a>
-      <header className="sticky top-0 z-[5] border-b border-line bg-surface/90 backdrop-blur">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-6">
+      <header className="sticky top-0 z-[5] border-b border-line bg-surface/90 backdrop-blur lg:h-(--app-header-height)">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-6 lg:h-full lg:flex-nowrap lg:py-0">
           <Link to="/" className="flex items-center rounded-md">
             <Logo className="h-7 w-auto" />
           </Link>
@@ -127,7 +127,8 @@ export function AppShell() {
                 <li key={to}>
                   <Link
                     to={to}
-                    activeOptions={{ exact: true, includeSearch: false }}
+                    // Settings stays current on every settings page; the overview only on its own.
+                    activeOptions={{ exact: to === "/", includeSearch: false }}
                     className="rounded-md px-3 py-1.5 text-sm text-ink-muted hover:bg-surface-raised hover:text-ink aria-[current=page]:bg-surface-raised aria-[current=page]:text-ink"
                   >
                     {label}

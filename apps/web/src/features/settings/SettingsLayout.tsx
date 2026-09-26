@@ -1,11 +1,8 @@
 import { Link, Outlet } from "@tanstack/react-router";
 
 import { knownFleet, useHub } from "@/rpc/hubConnection.ts";
-import { BackIcon, FleetIcon, MachineIcon, PlusIcon, ScanIcon } from "@/ui/icons.tsx";
-import { Logo } from "@/ui/Logo.tsx";
+import { FleetIcon, MachineIcon, PlusIcon, ScanIcon } from "@/ui/icons.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
-
-import { StaleNotice } from "../shell/StaleNotice.tsx";
 
 const linkClass =
   "flex min-h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm text-ink-muted hover:bg-surface-raised hover:text-ink aria-[current=page]:bg-surface-raised aria-[current=page]:text-ink";
@@ -49,27 +46,14 @@ function MachineLinks() {
 }
 
 /**
- * Settings fills the window with its own sidebar in place of the main header, so each section and
- * each machine has room for its own page.
+ * Settings sits under the main header with its own sidebar. On wide screens the sidebar stays in
+ * place below the header while the page scrolls.
  */
 export function SettingsLayout() {
-  const hub = useHub();
-
   return (
-    <div className="flex min-h-dvh flex-col md:flex-row">
-      <a
-        href="#content"
-        className="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:z-10 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2"
-      >
-        Skip to content
-      </a>
-      <aside className="flex flex-col border-b border-line bg-surface md:sticky md:top-0 md:h-dvh md:w-64 md:shrink-0 md:overflow-y-auto md:border-e md:border-b-0">
-        <div className="flex min-h-14 items-center px-5">
-          <Link to="/" className="flex rounded-md" aria-label="FleetFrog overview">
-            <Logo className="h-6 w-auto" />
-          </Link>
-        </div>
-        <nav aria-label="Settings" className="flex-1 px-3 py-2">
+    <div className="flex flex-col md:flex-row">
+      <aside className="border-b border-line bg-surface md:w-64 md:shrink-0 md:border-e md:border-b-0 lg:sticky lg:top-(--app-header-height) lg:h-[calc(100dvh-var(--app-header-height))] lg:overflow-y-auto">
+        <nav aria-label="Settings" className="px-3 py-4">
           <ul className="space-y-0.5">
             <li>
               <Link to="/settings/scanning" className={linkClass}>
@@ -86,17 +70,10 @@ export function SettingsLayout() {
             </li>
           </ul>
         </nav>
-        <div className="px-3 py-3">
-          <Link to="/" className={linkClass}>
-            <BackIcon />
-            Back
-          </Link>
-        </div>
       </aside>
-      <main id="content" className="min-w-0 flex-1">
-        <StaleNotice hub={hub} />
+      <div className="min-w-0 flex-1">
         <Outlet />
-      </main>
+      </div>
     </div>
   );
 }

@@ -13,11 +13,14 @@ type Crumb =
 export function SettingsPage({
   trail,
   action,
+  aside,
   children,
 }: {
   /** The sections above this page, ending with the page itself. */
   readonly trail: ReadonlyArray<Crumb>;
   readonly action?: ReactNode;
+  /** Supporting facts, shown in a column beside the page on wide screens and after it otherwise. */
+  readonly aside?: ReactNode;
   readonly children: ReactNode;
 }) {
   const current = trail.at(-1);
@@ -52,7 +55,12 @@ export function SettingsPage({
         {action !== undefined && <div className="ms-auto">{action}</div>}
       </div>
       {current !== undefined && <h1 className="sr-only">{current.label}</h1>}
-      <div className="mx-auto w-full max-w-4xl space-y-8 px-4 py-8 sm:px-8">{children}</div>
+      <div className="flex flex-col gap-8 px-4 py-8 sm:px-8 xl:flex-row xl:items-start">
+        <div className="w-full max-w-3xl min-w-0 space-y-8">{children}</div>
+        {aside !== undefined && (
+          <aside className="w-full max-w-3xl space-y-6 xl:w-80 xl:shrink-0">{aside}</aside>
+        )}
+      </div>
     </>
   );
 }
@@ -116,37 +124,42 @@ export function SettingsRow({
   );
 }
 
-/** Read-only facts, one per row, with the value on the trailing side. */
-export function DetailList({ children }: { readonly children: ReactNode }) {
-  return <dl className="divide-y divide-line">{children}</dl>;
-}
-
-export function DetailRow({
-  term,
-  note,
-  children,
-}: {
-  readonly term: string;
-  /** A qualifier under the term, such as when a value was measured. */
-  readonly note?: ReactNode;
-  readonly children: ReactNode;
-}) {
-  return (
-    <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-5 py-3.5 text-sm">
-      <dt className="text-ink-muted">
-        {term}
-        {note !== undefined && <span className="block text-xs">{note}</span>}
-      </dt>
-      <dd className="min-w-0 text-end">{children}</dd>
-    </div>
-  );
-}
-
 /** The last row of a card, holding its submit button and outcome. */
 export function SettingsFooter({ children }: { readonly children: ReactNode }) {
   return (
     <div className="flex flex-wrap items-center justify-end gap-3 bg-surface-raised px-5 py-3">
       {children}
+    </div>
+  );
+}
+
+/** A compact card of facts for the side column: each term above its value. */
+export function SidePanel({
+  title,
+  children,
+}: {
+  readonly title: string;
+  readonly children: ReactNode;
+}) {
+  return (
+    <section>
+      <h2 className="mb-2 px-1 text-sm text-ink-muted">{title}</h2>
+      <dl className="space-y-3 rounded-xl border border-line bg-surface px-4 py-4">{children}</dl>
+    </section>
+  );
+}
+
+export function SideDetail({
+  term,
+  children,
+}: {
+  readonly term: string;
+  readonly children: ReactNode;
+}) {
+  return (
+    <div>
+      <dt className="text-xs text-ink-muted">{term}</dt>
+      <dd className="mt-0.5 text-sm break-words">{children}</dd>
     </div>
   );
 }

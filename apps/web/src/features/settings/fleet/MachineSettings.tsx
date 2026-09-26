@@ -9,12 +9,12 @@ import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import {
-  DetailList,
-  DetailRow,
   SettingsFooter,
   SettingsPage,
   SettingsRow,
   SettingsSection,
+  SideDetail,
+  SidePanel,
 } from "../SettingsPage.tsx";
 import { DiscoveryFolders } from "./DiscoveryFolders.tsx";
 import { ActionsText, ConnectionStatus, repositoryCount } from "./MachineStatus.tsx";
@@ -120,138 +120,94 @@ function RemoveMachineDialog({
   );
 }
 
-function StatusSection({ fleet, machine }: { readonly fleet: Fleet; readonly machine: Machine }) {
-  const [rescanning, startRescan] = useTransition();
-  const [notice, setNotice] = useState<Notice>({ _tag: "None" });
+/** Where the machine stands now, for the side column. */
+function StatusPanel({ fleet, machine }: { readonly fleet: Fleet; readonly machine: Machine }) {
   const repositories = repositoryCount(fleet, machine);
 
-  const rescan = () =>
-    startRescan(async () => {
-      const result = await requestHub((client) =>
-        client.Refresh({ target: { _tag: "Machine", machineId: machine.id } }),
-      );
-
-      setNotice(
-        result._tag === "Success"
-          ? {
-              _tag: "Succeeded",
-              message: "Rescan requested. The overview updates when it finishes.",
-            }
-          : { _tag: "Failed", message: `Couldn't start a rescan. ${result.message}` },
-      );
-    });
-
   return (
-    <SettingsSection title="Status">
-      <DetailList>
-        <DetailRow term="Connection">
-          <ConnectionStatus machine={machine} />
-        </DetailRow>
-        <DetailRow term="Repositories">
-          {repositories} {repositories === 1 ? "repository" : "repositories"}
-        </DetailRow>
-        <DetailRow term="Last scan">
-          {machine.lastStatusAt === null ? "Not yet" : <RelativeTime at={machine.lastStatusAt} />}
-        </DetailRow>
-        <DetailRow term="Last discovery walk">
-          {machine.lastDiscoveryAt === null ? (
-            "Not yet"
-          ) : (
-            <RelativeTime at={machine.lastDiscoveryAt} />
-          )}
-        </DetailRow>
-        <DetailRow term="Actions">
-          <ActionsText machine={machine} />
-        </DetailRow>
-        <DetailRow term="GitHub CLI">
-          {machine.info.githubCli._tag === "Available"
-            ? `Signed in as ${machine.info.githubCli.login}`
-            : "Not available"}
-        </DetailRow>
-        <DetailRow term="Paired">
-          <RelativeTime at={machine.pairedAt} />
-        </DetailRow>
-      </DetailList>
-      <SettingsRow
-        title="Rescan"
-        description="Walk the discovery folders and read every checkout again now."
-        control={
-          <Button disabled={machine.connection._tag === "Offline" || rescanning} onClick={rescan}>
-            {rescanning ? "Requesting rescan…" : "Rescan now"}
-          </Button>
-        }
-      >
-        {notice._tag === "None" ? undefined : <NoticeText notice={notice} />}
-      </SettingsRow>
-      <SettingsRow
-        title="Activity"
-        description="Actions and changes that involved this machine."
-        control={
-          <Link
-            to="/activity"
-            search={{ machine: machine.id }}
-            className="inline-flex min-h-9 items-center rounded-md border border-line px-3 text-sm font-medium hover:bg-surface-raised"
-          >
-            View activity
-          </Link>
-        }
-      />
-    </SettingsSection>
+    <SidePanel title="Status">
+      <SideDetail term="Connection">
+        <ConnectionStatus machine={machine} />
+      </SideDetail>
+      <SideDetail term="Repositories">
+        {repositories} {repositories === 1 ? "repository" : "repositories"}
+      </SideDetail>
+      <SideDetail term="Last scan">
+        {machine.lastStatusAt === null ? "Not yet" : <RelativeTime at={machine.lastStatusAt} />}
+      </SideDetail>
+      <SideDetail term="Last discovery walk">
+        {machine.lastDiscoveryAt === null ? (
+          "Not yet"
+        ) : (
+          <RelativeTime at={machine.lastDiscoveryAt} />
+        )}
+      </SideDetail>
+      <SideDetail term="Actions">
+        <ActionsText machine={machine} />
+      </SideDetail>
+      <SideDetail term="GitHub CLI">
+        {machine.info.githubCli._tag === "Available"
+          ? `Signed in as ${machine.info.githubCli.login}`
+          : "Not available"}
+      </SideDetail>
+      <SideDetail term="Paired">
+        <RelativeTime at={machine.pairedAt} />
+      </SideDetail>
+    </SidePanel>
   );
 }
 
-/** Hardware, software and resources, as the agent last reported them. */
-function SystemSection({ machine }: { readonly machine: Machine }) {
+/** Hardware, software and resources as the agent last reported them, for the side column. */
+function SystemPanel({ machine }: { readonly machine: Machine }) {
   const { system } = machine.info;
   const { usage } = machine;
-  const offline = machine.connection._tag === "Offline";
-  const measured =
-    usage === null ? undefined : (
-      <>
-        {offline ? "Last measured" : "Measured"} <RelativeTime at={usage.sampledAt} />
-      </>
-    );
 
   if (system === null) {
     return (
-      <SettingsSection title="System">
-        <SettingsRow
-          title="System details aren't available"
-          description="This machine's agent is too old to report them. Update the agent to see its processor, memory, disk and versions."
-        />
-      </SettingsSection>
+      <SidePanel title="System">
+        <SideDetail term="Not available">
+          This machine's agent is too old to report its system. Update the agent to see its
+          processor, memory, disk and versions.
+        </SideDetail>
+      </SidePanel>
     );
   }
 
   return (
-    <SettingsSection title="System">
-      <DetailList>
-        <DetailRow term="Operating system">
-          {system.os} <span className="text-ink-muted">· {system.architecture}</span>
-        </DetailRow>
-        <DetailRow term="Kernel">{system.kernel}</DetailRow>
-        <DetailRow term="Processor">
-          {system.cpu.model}{" "}
-          <span className="text-ink-muted">
-            · {system.cpu.cores} {system.cpu.cores === 1 ? "core" : "cores"}
-          </span>
-        </DetailRow>
-        <DetailRow term="Memory">{formatMemory(system.memoryBytes)}</DetailRow>
-        <DetailRow term="Disk" note={measured}>
-          {usage === null || usage.disk === null ? "Not reported yet" : describeDisk(usage.disk)}
-        </DetailRow>
-        <DetailRow term="Load average" note="Over 1, 5 and 15 minutes">
-          {usage === null ? "Not reported yet" : describeLoad(usage.loadAverage)}
-        </DetailRow>
-        <DetailRow term="Last restarted">
-          <RelativeTime at={system.bootedAt} />
-        </DetailRow>
-        <DetailRow term="Versions">
-          Agent {machine.info.agentVersion} · Node {system.versions.node}
-          {system.versions.git !== null && ` · Git ${system.versions.git}`}
-        </DetailRow>
-      </DetailList>
-    </SettingsSection>
+    <SidePanel title="System">
+      <SideDetail term="Operating system">
+        {system.os} <span className="text-ink-muted">· {system.architecture}</span>
+      </SideDetail>
+      <SideDetail term="Kernel">{system.kernel}</SideDetail>
+      <SideDetail term="Processor">
+        {system.cpu.model}{" "}
+        <span className="text-ink-muted">
+          · {system.cpu.cores} {system.cpu.cores === 1 ? "core" : "cores"}
+        </span>
+      </SideDetail>
+      <SideDetail term="Memory">{formatMemory(system.memoryBytes)}</SideDetail>
+      <SideDetail term="Disk">
+        {usage === null || usage.disk === null ? "Not reported yet" : describeDisk(usage.disk)}
+      </SideDetail>
+      <SideDetail term="Load average (1, 5 and 15 minutes)">
+        {usage === null ? "Not reported yet" : describeLoad(usage.loadAverage)}
+      </SideDetail>
+      <SideDetail term="Last restarted">
+        <RelativeTime at={system.bootedAt} />
+      </SideDetail>
+      <SideDetail term="Versions">
+        Agent {machine.info.agentVersion} · Node {system.versions.node}
+        {system.versions.git !== null && ` · Git ${system.versions.git}`}
+      </SideDetail>
+      {usage !== null && (
+        <p className="text-xs text-ink-muted">
+          {machine.connection._tag === "Offline"
+            ? "Disk and load last measured"
+            : "Disk and load measured"}{" "}
+          <RelativeTime at={usage.sampledAt} />
+        </p>
+      )}
+    </SidePanel>
   );
 }
 
@@ -346,12 +302,55 @@ function ConfigurationSection({ machine }: { readonly machine: Machine }) {
   );
 }
 
-function RemoveSection({ machine }: { readonly machine: Machine }) {
+/** Things to do to the machine now, apart from its saved configuration. */
+function ActionsSection({ machine }: { readonly machine: Machine }) {
+  const [rescanning, startRescan] = useTransition();
+  const [notice, setNotice] = useState<Notice>({ _tag: "None" });
   const [removing, setRemoving] = useState(false);
   const navigate = useNavigate();
 
+  const rescan = () =>
+    startRescan(async () => {
+      const result = await requestHub((client) =>
+        client.Refresh({ target: { _tag: "Machine", machineId: machine.id } }),
+      );
+
+      setNotice(
+        result._tag === "Success"
+          ? {
+              _tag: "Succeeded",
+              message: "Rescan requested. The overview updates when it finishes.",
+            }
+          : { _tag: "Failed", message: `Couldn't start a rescan. ${result.message}` },
+      );
+    });
+
   return (
-    <SettingsSection title="Removal">
+    <SettingsSection title="Actions">
+      <SettingsRow
+        title="Rescan"
+        description="Walk the discovery folders and read every checkout again now."
+        control={
+          <Button disabled={machine.connection._tag === "Offline" || rescanning} onClick={rescan}>
+            {rescanning ? "Requesting rescan…" : "Rescan now"}
+          </Button>
+        }
+      >
+        {notice._tag === "None" ? undefined : <NoticeText notice={notice} />}
+      </SettingsRow>
+      <SettingsRow
+        title="Activity"
+        description="Actions and changes that involved this machine."
+        control={
+          <Link
+            to="/activity"
+            search={{ machine: machine.id }}
+            className="inline-flex min-h-9 items-center rounded-md border border-line px-3 text-sm font-medium hover:bg-surface-raised"
+          >
+            View activity
+          </Link>
+        }
+      />
       <SettingsRow
         title="Remove machine"
         description="Disconnects its agent and revokes its token. Its repositories leave the overview until it is paired again."
@@ -374,9 +373,9 @@ function RemoveSection({ machine }: { readonly machine: Machine }) {
   );
 }
 
-/** One machine's status, system, configuration and removal. */
+/** One machine's configuration and actions, with its status and system beside them. */
 export function MachineSettings() {
-  const { machineId } = useParams({ from: "/settings/fleet/$machineId" });
+  const { machineId } = useParams({ from: "/_app/settings/fleet/$machineId" });
   const hub = useHub();
   const fleet = knownFleet(hub);
   const machine = fleet?.machines.find(({ id }) => id === machineId);
@@ -405,11 +404,15 @@ export function MachineSettings() {
       key={machine.id}
       trail={[{ label: "Fleet", to: "/settings/fleet" }, { label: machineLabel(machine) }]}
       action={<span className="font-mono text-[13px] text-ink-muted">{machine.info.hostname}</span>}
+      aside={
+        <>
+          <StatusPanel fleet={fleet} machine={machine} />
+          <SystemPanel machine={machine} />
+        </>
+      }
     >
-      <StatusSection fleet={fleet} machine={machine} />
-      <SystemSection machine={machine} />
       <ConfigurationSection machine={machine} />
-      <RemoveSection machine={machine} />
+      <ActionsSection machine={machine} />
     </SettingsPage>
   );
 }
