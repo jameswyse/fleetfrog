@@ -53,7 +53,7 @@ export function PullDialog({
             <ul className="mt-2 max-h-64 space-y-1 overflow-auto rounded-md border border-line bg-canvas px-3 py-2">
               {skipped.map(({ repository, machine, checkout, skip }) => (
                 <li key={`${machine.id}:${checkout.path}`}>
-                  <span className="font-medium">{repository.name}</span> on {machineLabel(machine)}
+                  <span className="font-medium">{repository.label}</span> on {machineLabel(machine)}
                   <span className="text-ink-muted">: {skip}</span>
                 </li>
               ))}

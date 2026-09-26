@@ -35,7 +35,7 @@ export function RepositoryActions({
 
   return (
     <>
-      <Menu label={`Actions for ${repository.name}`}>
+      <Menu label={`Actions for ${repository.label}`}>
         {(close) => (
           <>
             <MenuItem

@@ -80,7 +80,7 @@ export function repositoryMatches(options: {
 }): boolean {
   const query = options.query.trim().toLowerCase();
 
-  if (query !== "" && !options.repository.name.toLowerCase().includes(query)) {
+  if (query !== "" && !options.repository.label.toLowerCase().includes(query)) {
     return false;
   }
 

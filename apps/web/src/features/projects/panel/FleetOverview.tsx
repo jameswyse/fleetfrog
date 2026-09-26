@@ -66,7 +66,7 @@ function CellRow({
         }
         className="flex w-full items-center gap-3 rounded-lg px-1.5 py-1 text-start text-sm hover:bg-canvas"
       >
-        <span className="min-w-0 flex-1 truncate font-medium">{item.repository.name}</span>
+        <span className="min-w-0 flex-1 truncate font-medium">{item.repository.label}</span>
         <span className="flex max-w-[35%] shrink-0 items-center gap-1.5 text-xs text-ink-muted">
           <MachineKindIcon kind={machineKind(item.machine)} />
           <span className="truncate">{machineLabel(item.machine)}</span>
@@ -317,7 +317,7 @@ export function FleetOverview({
                       {pull.draft && <span className="text-ink-muted"> · draft</span>}
                     </span>
                     <span className="max-w-[40%] shrink-0 truncate text-xs text-ink-muted">
-                      {repository.name}
+                      {repository.label}
                     </span>
                     <span className="sr-only"> (opens in a new tab)</span>
                   </a>

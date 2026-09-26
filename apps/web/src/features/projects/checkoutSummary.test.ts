@@ -46,6 +46,7 @@ function repository(name: string, checkouts: ReadonlyArray<Checkout>): Repositor
     key: RepositoryKey.make(`remote:github.com/acme/${name}`),
     identity: { _tag: "Remote", host: "github.com", path: `acme/${name}` },
     name,
+    label: name,
     checkouts: checkouts.map((entry) => ({
       machineId: MachineId.make("5b0c7a1e-7a0e-4f3e-9d63-2f8f7a8d0a01"),
       checkout: entry,

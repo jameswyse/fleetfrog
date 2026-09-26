@@ -43,7 +43,7 @@ function Whereabouts({
   let missing = `Not on ${label}.`;
 
   if (machine.lastDiscoveryAt === null) {
-    missing = `${label} hasn't finished scanning its project folders, so it may have ${repository.name} already.`;
+    missing = `${label} hasn't finished scanning its project folders, so it may have ${repository.label} already.`;
   } else if (machine.connection._tag === "Offline") {
     missing = `Not on ${label} at its last scan.`;
   }

@@ -104,10 +104,10 @@ export function CloneDialog({
   };
 
   return (
-    <Dialog title={`Clone ${repository.name}`} onClose={onClose}>
+    <Dialog title={`Clone ${repository.label}`} onClose={onClose}>
       {candidates.length === 0 ? (
         <div className="space-y-4 text-sm">
-          <p>Every paired machine already has {repository.name}.</p>
+          <p>Every paired machine already has {repository.label}.</p>
           <div className="flex justify-end">
             <Button onClick={onClose}>Close</Button>
           </div>
@@ -126,7 +126,7 @@ export function CloneDialog({
             machine's project folders.
           </p>
           <fieldset className="space-y-3">
-            <legend className="mb-2 font-medium">Machines without {repository.name}</legend>
+            <legend className="mb-2 font-medium">Machines without {repository.label}</legend>
             {candidates.map(({ machine, blocked, warning }) => {
               const checked = chosen.has(machine.id);
               const problem = problems.get(machine.id);

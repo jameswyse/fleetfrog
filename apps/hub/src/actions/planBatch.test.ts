@@ -91,6 +91,7 @@ function fleetWith(checkouts: Repository["checkouts"]): Fleet {
         key: shopKey,
         identity: { _tag: "Remote", host: "github.com", path: "acme/shop" },
         name: "shop",
+        label: "shop",
         checkouts,
       },
     ],

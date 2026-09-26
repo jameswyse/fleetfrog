@@ -71,6 +71,7 @@ function repositoryAt(...checkouts: ReadonlyArray<Checkout>): Repository {
     key: RepositoryKey.make("remote:github.com/acme/shop"),
     identity: { _tag: "Remote", host: "github.com", path: "acme/shop" },
     name: "shop",
+    label: "shop",
     checkouts: checkouts.map((entry) => ({ machineId: studio.id, checkout: entry })),
   };
 }

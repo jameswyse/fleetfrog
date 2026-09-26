@@ -33,6 +33,47 @@ function repositoryName(checkouts: CheckoutGroup): string {
   );
 }
 
+/**
+ * What tells a repository apart from others with its name: the owner path on its host, such as
+ * `acme` for `acme/shop`, leaving out Azure DevOps' `_git` segment. A local-only repository has no
+ * owner, so its root commit stands in.
+ */
+function qualifier(identity: Repository["identity"]): string {
+  if (identity._tag === "RootCommit") {
+    return identity.sha.slice(0, 7);
+  }
+
+  const owner = identity.path.split("/").slice(0, -1);
+
+  return (owner.at(-1) === "_git" ? owner.slice(0, -1) : owner).join("/");
+}
+
+/** Each name once, or qualified when repositories share it, even differing only in case. */
+function labelsFor(
+  repositories: ReadonlyArray<Omit<Repository, "label">>,
+): Map<RepositoryKey, string> {
+  const counts = new Map<string, number>();
+
+  for (const { name } of repositories) {
+    counts.set(name.toLowerCase(), (counts.get(name.toLowerCase()) ?? 0) + 1);
+  }
+
+  return new Map(
+    repositories.map(({ key, identity, name }) => {
+      if ((counts.get(name.toLowerCase()) ?? 0) < 2) {
+        return [key, name];
+      }
+
+      return [
+        key,
+        identity._tag === "Remote"
+          ? `${qualifier(identity)}/${name}`
+          : `${name} (${qualifier(identity)})`,
+      ];
+    }),
+  );
+}
+
 /** Groups every machine's checkouts into repositories and attaches live connection state. */
 export function buildFleet(sources: {
   readonly machines: ReadonlyArray<MachineRecord>;
@@ -76,14 +117,22 @@ export function buildFleet(sources: {
     }
   }
 
-  const repositories = [...groups].map(([key, checkouts]): Repository => ({
+  const named = [...groups].map(([key, checkouts]) => ({
     key,
     identity: checkouts[0].checkout.identity,
     name: repositoryName(checkouts),
     checkouts,
   }));
+  const labels = labelsFor(named);
+  const repositories = named.map((repository): Repository => ({
+    ...repository,
+    label: labels.get(repository.key) ?? repository.name,
+  }));
 
-  repositories.sort((left, right) => collator.compare(left.name, right.name));
+  repositories.sort(
+    (left, right) =>
+      collator.compare(left.name, right.name) || collator.compare(left.label, right.label),
+  );
 
   return { machines, repositories, polling: sources.polling };
 }

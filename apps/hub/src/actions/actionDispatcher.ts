@@ -113,7 +113,7 @@ export class ActionDispatcher extends Context.Service<
                 machineId: run.machine.id,
                 machineName: machineLabel(run.machine),
                 repositoryKey: run.repository.key,
-                repositoryName: run.repository.name,
+                repositoryName: run.repository.label,
                 path: run.path,
                 request: run.request,
                 outcome: run.outcome,

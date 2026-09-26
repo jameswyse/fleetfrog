@@ -119,7 +119,7 @@ export function CellPanel({
     <>
       <PanelHeader
         headingId={headingId}
-        title={repository.name}
+        title={repository.label}
         back={
           <button
             type="button"

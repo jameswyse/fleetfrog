@@ -60,7 +60,10 @@ export type MachineCheckout = typeof MachineCheckout.Type;
 export const Repository = Schema.Struct({
   key: RepositoryKey,
   identity: RepositoryIdentity,
+  /** The repository's own name, which a clone's folder takes. */
   name: Schema.String,
+  /** What the dashboard shows: the name, prefixed by its owner when another repository shares it. */
+  label: Schema.String,
   checkouts: Schema.Array(MachineCheckout),
 });
 export type Repository = typeof Repository.Type;

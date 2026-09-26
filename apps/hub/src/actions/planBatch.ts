@@ -100,7 +100,7 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
             scope: {
               _tag: "Checkout",
               machineName: machineLabel(machine),
-              repositoryName: selected.repository.name,
+              repositoryName: selected.repository.label,
               path,
             },
           } satisfies Resolved;
@@ -109,7 +109,7 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
         findRepository(repositoryKey).pipe(
           Effect.map((repository): Resolved => ({
             targets: repository.checkouts.map((entry) => ({ repository, entry })),
-            scope: { _tag: "Repository", repositoryName: repository.name },
+            scope: { _tag: "Repository", repositoryName: repository.label },
           })),
         ),
       Machine: ({ machineId }): Effect.Effect<Resolved, PlanError> =>
@@ -193,7 +193,7 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
 
         return {
           kind: "Clone",
-          scope: { _tag: "Repository", repositoryName: repository.name },
+          scope: { _tag: "Repository", repositoryName: repository.label },
           runs,
         };
       }),

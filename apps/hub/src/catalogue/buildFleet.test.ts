@@ -119,4 +119,47 @@ describe("buildFleet", () => {
 
     expect(fleet.repositories.map(({ name }) => name)).toEqual(["API", "notes"]);
   });
+
+  it("labels a repository with its owner only when another shares its name", () => {
+    const remote = (host: string, path: string): RepositoryIdentity => ({
+      _tag: "Remote",
+      host,
+      path,
+    });
+    const fleet = buildFleet({
+      machines: [machine(laptop, "laptop")],
+      checkouts: [
+        {
+          machineId: laptop,
+          checkout: checkout("/home/dev/a", remote("github.com", "jameswyse/dhf")),
+        },
+        {
+          machineId: laptop,
+          checkout: checkout("/home/dev/b", remote("github.com", "airteamaus/DHF")),
+        },
+        {
+          machineId: laptop,
+          checkout: checkout("/home/dev/c", remote("dev.azure.com", "acme/web/_git/dhf")),
+        },
+        {
+          machineId: laptop,
+          checkout: checkout("/home/dev/dhf", { _tag: "RootCommit", sha: "abc1234ff" }),
+        },
+        {
+          machineId: laptop,
+          checkout: checkout("/home/dev/shop", remote("github.com", "acme/shop")),
+        },
+      ],
+      online: new Map(),
+      polling: defaultPollingSettings,
+    });
+
+    expect(fleet.repositories.map(({ name, label }) => [name, label])).toEqual([
+      ["dhf", "acme/web/dhf"],
+      ["DHF", "airteamaus/DHF"],
+      ["dhf", "dhf (abc1234)"],
+      ["dhf", "jameswyse/dhf"],
+      ["shop", "shop"],
+    ]);
+  });
 });

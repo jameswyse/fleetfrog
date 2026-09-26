@@ -58,7 +58,7 @@ export function RepositoryPanel({
     <>
       <PanelHeader
         headingId={headingId}
-        title={repository.name}
+        title={repository.label}
         subtitle={
           identity._tag === "Remote" ? (
             <a

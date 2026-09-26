@@ -301,7 +301,7 @@ export function ProjectGrid({
                     >
                       <HostIcon host={host} className="text-ink-muted" />
                       <span className={shrinkableName}>
-                        <span className="truncate">{repository.name}</span>
+                        <span className="truncate">{repository.label}</span>
                       </span>
                     </button>
                     <RepositoryActions fleet={fleet} repository={repository} />
