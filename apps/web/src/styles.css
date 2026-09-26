@@ -17,6 +17,7 @@
   --danger: #b3261e;
   --danger-soft: #fbe6e4;
   --clean: #2f7a45;
+  --logo-frog: #2d9c40;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -36,6 +37,7 @@
     --danger: #f0857c;
     --danger-soft: #3a1a17;
     --clean: #6fcf8a;
+    --logo-frog: #78df3e;
   }
 }
 
@@ -55,6 +57,7 @@
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --color-clean: var(--clean);
+  --color-logo-frog: var(--logo-frog);
 }
 
 html {

@@ -4,6 +4,7 @@ import { Link, Outlet } from "@tanstack/react-router";
 
 import { requestHub, useHub } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
+import { Logo } from "@/ui/Logo.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 
 import type { HubState } from "@/rpc/hubConnection.ts";
@@ -97,9 +98,8 @@ export function AppShell() {
       </a>
       <header className="sticky top-0 z-[5] border-b border-line bg-surface/90 backdrop-blur">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-6">
-          <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
-            <img src="/favicon.svg" alt="" className="size-6" />
-            FleetFrog
+          <Link to="/" className="flex items-center rounded-md">
+            <Logo className="h-7 w-auto" />
           </Link>
           <nav aria-label="Main">
             <ul className="flex gap-1">

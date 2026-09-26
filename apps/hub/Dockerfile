@@ -3,6 +3,9 @@ FROM node:26.10.0-slim AS build
 WORKDIR /repo
 RUN npm install --global pnpm@12.6.0
 COPY . .
+# The build context keeps its owner's file modes; a strict umask would leave the dashboard
+# unreadable by the unprivileged runtime user.
+RUN chmod -R u=rwX,go=rX .
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @fleetfrog/web build && pnpm --filter @fleetfrog/hub build
 RUN pnpm --filter @fleetfrog/hub deploy --prod --legacy /deploy
