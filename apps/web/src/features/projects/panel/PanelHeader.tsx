@@ -61,9 +61,7 @@ export function Crumb({
 }) {
   return (
     <>
-      <span
-        className={`flex min-w-0 items-center gap-1.5 ${last ? "" : "shrink-0 text-ink-muted"}`}
-      >
+      <span className={`flex min-w-0 items-center gap-1.5 ${last ? "shrink-0" : "text-ink-muted"}`}>
         {children}
       </span>
       {!last && (

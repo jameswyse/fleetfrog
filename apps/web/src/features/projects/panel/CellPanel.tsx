@@ -118,20 +118,20 @@ export function CellPanel({
         title={
           <>
             <Crumb>
-              <MachineKindIcon kind={machineKind(machine)} />
-              <span className="truncate">{machineLabel(machine)}</span>
-              {offline && <span className="font-normal">(offline)</span>}
-            </Crumb>
-            <Crumb last>
               {/* The repository on every machine, where "Every machine" used to lead. */}
               <button
                 type="button"
                 onClick={() => onSelect({ repository: repository.key, machine: null }, "Push")}
                 title="Show it on every machine"
-                className="truncate rounded underline-offset-2 hover:underline"
+                className="truncate rounded underline-offset-2 hover:text-ink hover:underline"
               >
                 {repository.label}
               </button>
+            </Crumb>
+            <Crumb last>
+              <MachineKindIcon kind={machineKind(machine)} />
+              <span className="truncate">{machineLabel(machine)}</span>
+              {offline && <span className="font-normal text-ink-muted">(offline)</span>}
             </Crumb>
           </>
         }
