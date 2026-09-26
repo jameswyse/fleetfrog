@@ -298,7 +298,7 @@ export function MachineSettings() {
 
   if (fleet === null || machine === undefined) {
     return (
-      <SidebarPage title="Machine">
+      <SidebarPage title="Machine" parents={[{ label: "Fleet", to: "/settings/fleet" }]}>
         {fleet === null ? (
           <p className="py-16 text-center text-sm text-ink-muted">Waiting for the hub…</p>
         ) : (
@@ -319,6 +319,7 @@ export function MachineSettings() {
     <SidebarPage
       key={machine.id}
       title={machineLabel(machine)}
+      parents={[{ label: "Fleet", to: "/settings/fleet" }]}
       action={<span className="font-mono text-[13px] text-ink-muted">{machine.info.hostname}</span>}
       aside={
         <>

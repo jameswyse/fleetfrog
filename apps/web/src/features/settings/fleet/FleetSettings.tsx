@@ -33,17 +33,15 @@ function MachineRow({ fleet, machine }: { readonly fleet: Fleet; readonly machin
           void navigate({ to: "/settings/fleet/$machineId", params: { machineId: machine.id } });
         }
       }}
-      className="group cursor-pointer hover:bg-surface-raised"
+      className="cursor-pointer hover:bg-surface-raised"
     >
       <th scope="row" className={`${cellClass} text-start font-normal`}>
         <div className="flex items-center gap-3">
-          <span className="relative shrink-0">
-            <MachineKindIcon kind={machineKind(machine)} className="size-5 text-ink-muted" />
-            <span
-              aria-hidden="true"
-              className={`absolute -end-1 -bottom-1 size-2.5 rounded-full ring-2 ring-surface group-hover:ring-surface-raised ${online ? "bg-clean" : "bg-ink-muted"}`}
-            />
-          </span>
+          <span
+            aria-hidden="true"
+            className={`size-2 shrink-0 rounded-full ${online ? "bg-clean" : "bg-ink-muted"}`}
+          />
+          <MachineKindIcon kind={machineKind(machine)} className="size-5 text-ink-muted" />
           <div className="min-w-0">
             <Link
               to="/settings/fleet/$machineId"
@@ -62,6 +60,12 @@ function MachineRow({ fleet, machine }: { readonly fleet: Fleet; readonly machin
           </div>
         </div>
       </th>
+      <td className={`${cellClass} tabular-nums`}>{repositoryCount(fleet, machine)}</td>
+      <td className={readingClass}>
+        {system !== null && usage !== null && (
+          <LoadPills loadAverage={usage.loadAverage} cores={system.cpu.cores} labels="Bare" />
+        )}
+      </td>
       <td className={readingClass}>
         {system !== null && usage !== null && usage.memoryUsedBytes !== null && (
           <UsageMeter
@@ -78,12 +82,6 @@ function MachineRow({ fleet, machine }: { readonly fleet: Fleet; readonly machin
           />
         )}
       </td>
-      <td className={readingClass}>
-        {system !== null && usage !== null && (
-          <LoadPills loadAverage={usage.loadAverage} cores={system.cpu.cores} labels="Bare" />
-        )}
-      </td>
-      <td className={`${cellClass} text-end tabular-nums`}>{repositoryCount(fleet, machine)}</td>
     </tr>
   );
 }
@@ -125,16 +123,16 @@ export function FleetSettings() {
                   Machine
                 </th>
                 <th scope="col" className={headerClass}>
-                  Memory
-                </th>
-                <th scope="col" className={headerClass}>
-                  Disk
+                  Repositories
                 </th>
                 <th scope="col" className={headerClass}>
                   Load (1, 5 and 15 min)
                 </th>
-                <th scope="col" className={`${headerClass} text-end`}>
-                  Repositories
+                <th scope="col" className={headerClass}>
+                  Memory
+                </th>
+                <th scope="col" className={headerClass}>
+                  Disk
                 </th>
               </tr>
             </thead>

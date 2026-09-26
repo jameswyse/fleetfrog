@@ -1,3 +1,6 @@
+import { Link } from "@tanstack/react-router";
+
+import type { LinkProps } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
 /** A sidebar entry: an icon, its label and anything trailing, highlighted on its own page. */
@@ -25,14 +28,23 @@ export function SidebarLayout({
   );
 }
 
-/** One page beside a sidebar: a bar with its name and any page-wide action, above its content. */
+/**
+ * One page beside a sidebar: a bar with its name, after any pages it sits under, and any page-wide
+ * action, above its content.
+ */
 export function SidebarPage({
   title,
+  parents = [],
   action,
   aside,
   children,
 }: {
   readonly title: string;
+  /** The pages above this one, outermost first, shown as a breadcrumb before its name. */
+  readonly parents?: ReadonlyArray<{
+    readonly label: string;
+    readonly to: NonNullable<LinkProps["to"]>;
+  }>;
   readonly action?: ReactNode;
   /** Supporting facts, shown in a column beside the page on wide screens and after it otherwise. */
   readonly aside?: ReactNode;
@@ -41,7 +53,31 @@ export function SidebarPage({
   return (
     <>
       <div className="flex min-h-14 flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-4 py-2 sm:px-8">
-        <h1 className="min-w-0 text-base font-semibold">{title}</h1>
+        {parents.length === 0 ? (
+          <h1 className="min-w-0 text-base font-semibold">{title}</h1>
+        ) : (
+          <nav aria-label="Breadcrumb" className="min-w-0">
+            <ol className="flex flex-wrap items-center gap-x-2 text-base">
+              {parents.map((parent) => (
+                <li key={parent.label} className="flex items-center gap-x-2">
+                  <Link
+                    to={parent.to}
+                    activeOptions={{ exact: true }}
+                    className="text-ink-muted hover:text-ink hover:underline"
+                  >
+                    {parent.label}
+                  </Link>
+                  <span aria-hidden="true" className="text-ink-muted">
+                    /
+                  </span>
+                </li>
+              ))}
+              <li aria-current="page">
+                <h1 className="font-semibold">{title}</h1>
+              </li>
+            </ol>
+          </nav>
+        )}
         {action !== undefined && <div className="ms-auto">{action}</div>}
       </div>
       <div className="flex flex-col gap-8 px-4 py-8 sm:px-8 xl:flex-row xl:items-start">

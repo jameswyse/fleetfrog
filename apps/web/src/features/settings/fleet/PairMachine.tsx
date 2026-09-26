@@ -68,7 +68,7 @@ export function PairMachine() {
   const copy = copyOutcome !== null && copyOutcome.command === offer?.command ? copyOutcome : null;
 
   return (
-    <SidebarPage title="Pair a machine">
+    <SidebarPage title="Pair a machine" parents={[{ label: "Fleet", to: "/settings/fleet" }]}>
       <SettingsSection title="New machine">
         <div className="space-y-4 px-5 py-5 text-sm">
           {paired === undefined && (
