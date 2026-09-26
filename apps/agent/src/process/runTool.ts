@@ -41,6 +41,7 @@ export function runTool(
     | "launchctl"
     | "scutil"
     | "sw_vers"
+    | "sysctl"
     | "systemctl"
     | "systemd-detect-virt"
     | "vm_stat",

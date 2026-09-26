@@ -18,6 +18,18 @@ export type GithubCli = typeof GithubCli.Type;
 const Count = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
 const Bytes = Schema.Finite.check(Schema.isGreaterThanOrEqualTo(0));
 
+/** The shape of a machine, which picks its icon. */
+export const MachineKind = Schema.Literals([
+  "server",
+  "cloud",
+  "linux",
+  "desktop",
+  "laptop",
+  "mac-mini",
+  "mac-studio",
+]);
+export type MachineKind = typeof MachineKind.Type;
+
 /** The kind of machine as its maker names it, such as "MacBook Pro" and "13-inch, M1, 2020". */
 export const MachineModel = Schema.Struct({
   name: Schema.String,
@@ -31,6 +43,11 @@ export const SystemInfo = Schema.Struct({
   os: Schema.String,
   /** Null when the agent can't tell, and from agents that predate it. */
   model: Schema.NullOr(MachineModel).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(null))),
+  /**
+   * The kind the agent detected from the hardware. Null without a usable signal, and from agents
+   * that predate it.
+   */
+  kind: Schema.NullOr(MachineKind).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(null))),
   /**
    * The hypervisor running the machine, such as "KVM", or null for a physical machine. Its
    * processor count is then virtual processors, not the chip's cores.

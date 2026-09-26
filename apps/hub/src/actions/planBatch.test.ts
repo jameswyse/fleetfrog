@@ -34,6 +34,7 @@ function machine(
       system: null,
     },
     customName: null,
+    customKind: null,
     connection:
       connection === "offline"
         ? { _tag: "Offline", lastSeenAt: null }

@@ -44,6 +44,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
             to: machineLabel({ ...before, customName: rename.customName }),
           });
         }),
+      SetMachineKind: (update) => machines.setKind(update).pipe(Effect.andThen(feed.invalidate)),
       SetDiscoveryRoots: (update) =>
         Effect.gen(function* () {
           const machine = yield* machines.find(update.machineId);

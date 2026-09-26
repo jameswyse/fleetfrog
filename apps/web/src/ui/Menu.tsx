@@ -10,17 +10,23 @@ export function MenuItem({ className = "", ...props }: ButtonHTMLAttributes<HTML
   return <button type="button" className={`${menuItemClass} ${className}`} {...props} />;
 }
 
+const moreButtonClass =
+  "-me-2 grid size-8 shrink-0 place-items-center rounded-md text-ink-muted hover:bg-surface-raised hover:text-ink";
+
 /**
- * A "more actions" button that opens a list of actions beside it. It is a native popover, so it
- * closes on Escape or a click elsewhere, and it sits beside its button where the browser can
- * anchor it. Entries receive `close` to dismiss it after acting.
+ * A button that opens a list of entries beside it, by default a "more actions" button. It is a
+ * native popover, so it closes on Escape or a click elsewhere, and it sits beside its button where
+ * the browser can anchor it. Entries receive `close` to dismiss it after acting.
  */
 export function Menu({
   label,
+  trigger,
   children,
 }: {
   /** Names the button, such as "Actions for shop". */
   readonly label: string;
+  /** The button's visible content and look, in place of the "more" icon. */
+  readonly trigger?: { readonly content: ReactNode; readonly className: string };
   readonly children: (close: () => void) => ReactNode;
 }) {
   const menuId = useId();
@@ -32,13 +38,15 @@ export function Menu({
         type="button"
         popoverTarget={menuId}
         aria-label={label}
-        className="-me-2 grid size-8 shrink-0 place-items-center rounded-md text-ink-muted hover:bg-surface-raised hover:text-ink"
+        className={trigger?.className ?? moreButtonClass}
       >
-        <svg aria-hidden="true" viewBox="0 0 16 16" className="size-4" fill="currentColor">
-          <circle cx="3" cy="8" r="1.4" />
-          <circle cx="8" cy="8" r="1.4" />
-          <circle cx="13" cy="8" r="1.4" />
-        </svg>
+        {trigger?.content ?? (
+          <svg aria-hidden="true" viewBox="0 0 16 16" className="size-4" fill="currentColor">
+            <circle cx="3" cy="8" r="1.4" />
+            <circle cx="8" cy="8" r="1.4" />
+            <circle cx="13" cy="8" r="1.4" />
+          </svg>
+        )}
       </button>
       <div
         id={menuId}

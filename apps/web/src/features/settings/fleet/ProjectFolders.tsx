@@ -1,8 +1,9 @@
 import { useState } from "react";
 
+import { FolderIcon, XIcon } from "lucide-react";
+
 import { Button } from "@/ui/Button.tsx";
 import { Chip } from "@/ui/Chip.tsx";
-import { CloseIcon, FolderIcon } from "@/ui/icons.tsx";
 import { expandHome, isWithin } from "@fleetfrog/protocol/domain/cloneDestination";
 
 import type { DiscoveryRoot, FolderStatus } from "@fleetfrog/protocol/domain/fleet";
@@ -135,7 +136,7 @@ export function ProjectFolders({
                 title="Remove"
                 className="grid size-8 place-items-center rounded-md text-ink-muted hover:bg-surface-raised hover:text-danger"
               >
-                <CloseIcon />
+                <XIcon />
               </button>
             </li>
           );

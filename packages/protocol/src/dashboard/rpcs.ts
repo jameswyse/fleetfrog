@@ -11,7 +11,7 @@ import {
   RunsSnapshot,
 } from "../domain/activity.ts";
 import { Fleet } from "../domain/fleet.ts";
-import { MachineId } from "../domain/machine.ts";
+import { MachineId, MachineKind } from "../domain/machine.ts";
 import { PollingSettings } from "../domain/polling.ts";
 import { RepositoryKey } from "../domain/repositoryIdentity.ts";
 
@@ -75,6 +75,11 @@ export class DashboardRpcs extends RpcGroup.make(
   Rpc.make("Refresh", { payload: { target: RefreshTarget }, error: MachineNotFound }),
   Rpc.make("RenameMachine", {
     payload: { machineId: MachineId, customName: Schema.NullOr(Schema.NonEmptyString) },
+    error: MachineNotFound,
+  }),
+  /** A null kind follows what the agent detects. */
+  Rpc.make("SetMachineKind", {
+    payload: { machineId: MachineId, kind: Schema.NullOr(MachineKind) },
     error: MachineNotFound,
   }),
   Rpc.make("SetDiscoveryRoots", {

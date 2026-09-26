@@ -20,6 +20,7 @@
   "dependencies": {
     "@tanstack/react-router": "1.170.39",
     "effect": "catalog:",
+    "lucide-react": "1.48.0",
     "react": "catalog:",
     "react-dom": "catalog:"
   },

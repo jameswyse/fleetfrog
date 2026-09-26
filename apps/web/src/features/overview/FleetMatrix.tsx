@@ -1,8 +1,9 @@
 import { Link } from "@tanstack/react-router";
 
 import { useRuns } from "@/rpc/hubConnection.ts";
+import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
-import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
+import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { activeCloneFor, activeRunFor } from "../actions/runLookup.ts";
 import { RunStateText } from "../actions/RunStateText.tsx";
@@ -29,8 +30,9 @@ function MachineHeader({ fleet, machine }: { readonly fleet: Fleet; readonly mac
     >
       <div className="flex items-end justify-between gap-2">
         <div className="min-w-0">
-          <span className="block truncate font-semibold" title={label}>
-            {label}
+          <span className="flex items-center gap-1.5 font-semibold" title={label}>
+            <MachineKindIcon kind={machineKind(machine)} className="text-ink-muted" />
+            <span className="truncate">{label}</span>
           </span>
           <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-ink-muted">
             {machine.connection._tag === "Online" ? (

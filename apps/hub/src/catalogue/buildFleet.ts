@@ -48,6 +48,7 @@ export function buildFleet(sources: {
       id: record.id,
       info: record.info,
       customName: record.customName,
+      customKind: record.customKind,
       connection:
         agent === undefined
           ? Connection.cases.Offline.make({ lastSeenAt: record.lastSeenAt })

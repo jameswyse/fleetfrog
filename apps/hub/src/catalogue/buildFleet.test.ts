@@ -28,6 +28,7 @@ function machine(id: MachineId, hostname: string): MachineRecord {
       system: null,
     },
     customName: null,
+    customKind: null,
     discoveryRoots: ["~/Projects", "~/Code"],
     rootStatuses: [{ path: "~/Projects", status: "Folder" }],
     usage: null,

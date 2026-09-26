@@ -3,7 +3,12 @@ import { SqlClient } from "effect/unstable/sql";
 
 import { ReportedRoot } from "@fleetfrog/protocol/agent/rpcs";
 import { MachineNotFound } from "@fleetfrog/protocol/dashboard/rpcs";
-import { MachineId, MachineInfo, SystemUsage } from "@fleetfrog/protocol/domain/machine";
+import {
+  MachineId,
+  MachineInfo,
+  MachineKind,
+  SystemUsage,
+} from "@fleetfrog/protocol/domain/machine";
 
 import { JsonColumn } from "../persistence/database.ts";
 
@@ -15,6 +20,7 @@ const MachineRow = Schema.Struct({
   id: MachineId,
   info_json: JsonColumn(MachineInfo),
   custom_name: Schema.NullOr(Schema.String),
+  custom_kind: Schema.NullOr(MachineKind),
   discovery_roots_json: JsonColumn(Schema.Array(Schema.String)),
   root_statuses_json: JsonColumn(Schema.Array(ReportedRoot)),
   usage_json: Schema.NullOr(JsonColumn(SystemUsage)),
@@ -29,6 +35,7 @@ export interface MachineRecord {
   readonly id: MachineId;
   readonly info: MachineInfo;
   readonly customName: string | null;
+  readonly customKind: MachineKind | null;
   readonly discoveryRoots: ReadonlyArray<string>;
   /** What the agent found at each folder on its last walk, which may predate the current list. */
   readonly rootStatuses: ReadonlyArray<ReportedRoot>;
@@ -79,6 +86,10 @@ export class MachineStore extends Context.Service<
       readonly machineId: MachineId;
       readonly customName: string | null;
     }) => Effect.Effect<void, MachineNotFound>;
+    readonly setKind: (update: {
+      readonly machineId: MachineId;
+      readonly kind: MachineKind | null;
+    }) => Effect.Effect<void, MachineNotFound>;
     readonly setDiscoveryRoots: (update: {
       readonly machineId: MachineId;
       readonly roots: ReadonlyArray<string>;
@@ -98,6 +109,7 @@ export class MachineStore extends Context.Service<
               id: row.id,
               info: row.info_json,
               customName: row.custom_name,
+              customKind: row.custom_kind,
               discoveryRoots: row.discovery_roots_json,
               rootStatuses: row.root_statuses_json,
               usage: row.usage_json,
@@ -187,6 +199,11 @@ export class MachineStore extends Context.Service<
           updateOne(
             machineId,
             sql`update machines set custom_name = ${customName} where id = ${machineId} returning id`,
+          ),
+        setKind: ({ machineId, kind }) =>
+          updateOne(
+            machineId,
+            sql`update machines set custom_kind = ${kind} where id = ${machineId} returning id`,
           ),
         setDiscoveryRoots: ({ machineId, roots }) =>
           updateOne(

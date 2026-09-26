@@ -1,7 +1,7 @@
 import { Link, Outlet, useMatch, useNavigate, useSearch } from "@tanstack/react-router";
+import { CirclePlayIcon, HistoryIcon } from "lucide-react";
 
 import { useRuns } from "@/rpc/hubConnection.ts";
-import { HistoryIcon, RunningIcon } from "@/ui/icons.tsx";
 import { SidebarLayout, sidebarLinkClass } from "@/ui/SidebarLayout.tsx";
 import { Spinner } from "@/ui/Spinner.tsx";
 
@@ -31,7 +31,7 @@ export function ActivityLayout() {
                   activeOptions={{ includeSearch: false }}
                   className={sidebarLinkClass}
                 >
-                  <RunningIcon />
+                  <CirclePlayIcon />
                   <span className="flex-1">Running</span>
                   {activeBatches.length > 0 && (
                     <span className="flex items-center gap-1.5 text-xs text-sync tabular-nums">

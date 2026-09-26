@@ -6,10 +6,30 @@ import { shortProcessorName } from "./systemFormat.ts";
 
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 
-/** Whether the machine is connected, and since or until when. */
-export function ConnectionStatus({ machine }: { readonly machine: Machine }) {
+/** Whether the machine is connected, and since or until when, in words. */
+export function ConnectionText({ machine }: { readonly machine: Machine }) {
   const { connection } = machine;
-  const online = connection._tag === "Online";
+
+  if (connection._tag === "Online") {
+    return (
+      <>
+        Online since <RelativeTime at={connection.since} />
+      </>
+    );
+  }
+
+  return connection.lastSeenAt === null ? (
+    "Never connected"
+  ) : (
+    <>
+      Offline, last seen <RelativeTime at={connection.lastSeenAt} />
+    </>
+  );
+}
+
+/** Whether the machine is connected, with a coloured dot. */
+export function ConnectionStatus({ machine }: { readonly machine: Machine }) {
+  const online = machine.connection._tag === "Online";
 
   return (
     <span className={`flex items-center gap-2 ${online ? "text-clean" : "text-ink-muted"}`}>
@@ -18,17 +38,7 @@ export function ConnectionStatus({ machine }: { readonly machine: Machine }) {
         className={`size-2 shrink-0 rounded-full ${online ? "bg-clean" : "bg-ink-muted"}`}
       />
       <span>
-        {connection._tag === "Online" && (
-          <>
-            Online since <RelativeTime at={connection.since} />
-          </>
-        )}
-        {connection._tag === "Offline" && connection.lastSeenAt === null && "Never connected"}
-        {connection._tag === "Offline" && connection.lastSeenAt !== null && (
-          <>
-            Offline, last seen <RelativeTime at={connection.lastSeenAt} />
-          </>
-        )}
+        <ConnectionText machine={machine} />
       </span>
     </span>
   );

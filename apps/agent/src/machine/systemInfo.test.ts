@@ -1,6 +1,8 @@
 import { describe, expect, it } from "@effect/vitest";
 
 import {
+  kindFromAppleName,
+  kindFromFirmware,
   parseGitVersion,
   parseHypervisor,
   parseOsRelease,
@@ -36,6 +38,42 @@ describe("system info parsing", () => {
       detail: null,
     });
     expect(parseProductName("")).toBeNull();
+  });
+
+  it("reads a Mac's kind from its marketing name or model identifier", () => {
+    expect(kindFromAppleName("Mac mini")).toBe("mac-mini");
+    expect(kindFromAppleName("Macmini8,1")).toBe("mac-mini");
+    expect(kindFromAppleName("Mac Studio")).toBe("mac-studio");
+    expect(kindFromAppleName("MacBook Pro")).toBe("laptop");
+    expect(kindFromAppleName("iMac")).toBe("desktop");
+    expect(kindFromAppleName("Virtual Mac")).toBeNull();
+  });
+
+  it("reads a Linux machine's kind from its firmware, with any virtual machine as a cloud VM", () => {
+    const firmware = { chassisType: null, vendor: null, product: null };
+
+    expect(
+      kindFromFirmware({
+        ...firmware,
+        vendor: "QEMU",
+        product: "Standard PC (i440FX + PIIX, 1996)",
+      }),
+    ).toBe("cloud");
+    expect(
+      kindFromFirmware({
+        ...firmware,
+        vendor: "Microsoft Corporation",
+        product: "Virtual Machine",
+      }),
+    ).toBe("cloud");
+    expect(
+      kindFromFirmware({ chassisType: "9", vendor: "Microsoft Corporation", product: "Surface" }),
+    ).toBe("laptop");
+    expect(kindFromFirmware({ ...firmware, chassisType: "23", vendor: "Dell Inc." })).toBe(
+      "server",
+    );
+    expect(kindFromFirmware({ ...firmware, product: "MacBookAir10,1" })).toBe("laptop");
+    expect(kindFromFirmware({ ...firmware, chassisType: "12" })).toBeNull();
   });
 
   it("names the hypervisor, or none on a physical machine", () => {

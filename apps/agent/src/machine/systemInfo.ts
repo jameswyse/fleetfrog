@@ -6,6 +6,7 @@ import { DateTime, Effect } from "effect";
 import { runTool } from "../process/runTool.ts";
 
 import type {
+  MachineKind,
   MachineModel,
   Platform,
   SystemInfo,
@@ -16,6 +17,7 @@ const osReleaseName = /^PRETTY_NAME=(?<value>.*)$/m;
 const gitVersionNumber = /git version (?<version>\S+)/;
 const productName = /"product-name" = <"(?<name>[^"]+)">/;
 const nameAndDetail = /^(?<name>.+?) \((?<detail>.+)\)$/;
+const whitespace = /\s+/g;
 const vmStatPageSize = /page size of (?<bytes>\d+) bytes/;
 const vmStatCount = /^"?(?<name>[^":\n]+)"?:\s+(?<count>\d+)\.$/gm;
 
@@ -104,6 +106,143 @@ export function parseHypervisor(output: string): string | null {
   return id === "" || id === "none" ? null : (hypervisorNames.get(id) ?? id);
 }
 
+/** Apple's marketing names and model identifiers share these prefixes, such as "Mac mini" and "Macmini8,1". */
+export function kindFromAppleName(name: string): MachineKind | null {
+  const compact = name.toLowerCase().replace(whitespace, "");
+
+  if (compact.startsWith("macmini")) {
+    return "mac-mini";
+  }
+
+  if (compact.startsWith("macstudio")) {
+    return "mac-studio";
+  }
+
+  if (compact.startsWith("macbook")) {
+    return "laptop";
+  }
+
+  return compact.startsWith("imac") || compact.startsWith("macpro") ? "desktop" : null;
+}
+
+/**
+ * SMBIOS enclosure types. Codes that describe a shape rather than a machine, such as docking
+ * stations, have no kind.
+ */
+const chassisKinds = new Map<string, MachineKind>([
+  ["3", "desktop"],
+  ["4", "desktop"],
+  ["5", "desktop"],
+  ["6", "desktop"],
+  ["7", "desktop"],
+  ["8", "laptop"],
+  ["9", "laptop"],
+  ["10", "laptop"],
+  ["13", "desktop"],
+  ["14", "laptop"],
+  ["15", "desktop"],
+  ["16", "desktop"],
+  ["17", "server"],
+  ["18", "server"],
+  ["19", "server"],
+  ["20", "server"],
+  ["21", "server"],
+  ["22", "server"],
+  ["23", "server"],
+  ["24", "server"],
+  ["28", "server"],
+  ["31", "laptop"],
+  ["32", "laptop"],
+  ["35", "desktop"],
+]);
+
+/**
+ * Hypervisors and cloud providers that name themselves in the firmware's vendor or product.
+ * Hyper-V is matched on its "Virtual Machine" product, not the vendor Surface devices share.
+ */
+const virtualMarkers = [
+  "qemu",
+  "kvm",
+  "bochs",
+  "vmware",
+  "virtualbox",
+  "innotek",
+  "xen",
+  "parallels",
+  "amazon ec2",
+  "google compute engine",
+  "digitalocean",
+  "hetzner",
+  "linode",
+  "vultr",
+  "scaleway",
+  "openstack",
+  "cloud",
+  "virtual machine",
+];
+
+/** A Linux machine's kind from its firmware tables. Any virtual machine reads as a cloud VM. */
+export function kindFromFirmware(firmware: {
+  readonly chassisType: string | null;
+  readonly vendor: string | null;
+  readonly product: string | null;
+}): MachineKind | null {
+  const product = firmware.product ?? "";
+  const vendorAndProduct = `${firmware.vendor ?? ""} ${product}`.toLowerCase();
+
+  if (virtualMarkers.some((marker) => vendorAndProduct.includes(marker))) {
+    return "cloud";
+  }
+
+  // Apple hardware running Linux still reports its Apple product name.
+  return (
+    kindFromAppleName(product) ??
+    (firmware.chassisType === null ? null : (chassisKinds.get(firmware.chassisType) ?? null))
+  );
+}
+
+const readTrimmed = (file: string) =>
+  readFile(file, "utf8").then(
+    (text) => text.trim() || null,
+    () => null,
+  );
+
+/** The machine's kind for its icon, detected as T3 Code does. Null without a usable signal. */
+const readKind = Effect.fn("readKind")(function* (
+  platform: Platform,
+  model: MachineModel | null,
+  hypervisor: string | null,
+) {
+  if (platform === "darwin") {
+    const fromModel = model === null ? null : kindFromAppleName(model.name);
+
+    // Intel Macs have no marketing name, but their model identifier shares its prefix.
+    return (
+      fromModel ??
+      (yield* runTool("sysctl", os.homedir(), ["-n", "hw.model"]).pipe(
+        Effect.map(kindFromAppleName),
+        Effect.orElseSucceed(() => null),
+      ))
+    );
+  }
+
+  const [release, chassisType, vendor, product] = yield* Effect.promise(() =>
+    Promise.all([
+      readTrimmed("/proc/sys/kernel/osrelease"),
+      readTrimmed("/sys/class/dmi/id/chassis_type"),
+      readTrimmed("/sys/class/dmi/id/sys_vendor"),
+      readTrimmed("/sys/class/dmi/id/product_name"),
+    ]),
+  );
+
+  // WSL names Microsoft in its kernel release, and WSL 2 would otherwise read as a Hyper-V VM.
+  if (release?.toLowerCase().includes("microsoft") === true) {
+    return "linux";
+  }
+
+  return hypervisor === null ? kindFromFirmware({ chassisType, vendor, product }) : "cloud";
+});
+
 const readModel = Effect.fn("readModel")(function* (platform: Platform) {
   // Apple silicon Macs name themselves; Linux has no dependable equivalent.
   return platform === "darwin"
@@ -146,11 +285,14 @@ export const readSystemInfo = Effect.fn("readSystemInfo")(function* (platform: P
     Effect.orElseSucceed(() => null),
   );
   const now = yield* DateTime.now;
+  const model = yield* readModel(platform);
+  const hypervisor = yield* readHypervisor(platform);
 
   return {
     os: yield* readOsName(platform),
-    model: yield* readModel(platform),
-    hypervisor: yield* readHypervisor(platform),
+    model,
+    kind: yield* readKind(platform, model, hypervisor),
+    hypervisor,
     architecture: os.arch(),
     cpu: { model: os.cpus()[0]?.model.trim() ?? "Unknown", cores: os.availableParallelism() },
     memoryBytes: os.totalmem(),

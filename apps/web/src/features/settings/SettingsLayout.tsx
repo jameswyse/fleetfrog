@@ -1,9 +1,10 @@
 import { Link, Outlet } from "@tanstack/react-router";
+import { LayersIcon, PlusIcon, RefreshCwIcon } from "lucide-react";
 
 import { knownFleet, useHub } from "@/rpc/hubConnection.ts";
-import { FleetIcon, MachineIcon, PlusIcon, ScanIcon } from "@/ui/icons.tsx";
+import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
 import { SidebarLayout, sidebarLinkClass } from "@/ui/SidebarLayout.tsx";
-import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
+import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 /** The machines in the fleet, nested under it, then a way to add one. */
 function MachineLinks() {
@@ -22,7 +23,7 @@ function MachineLinks() {
               params={{ machineId: machine.id }}
               className={sidebarLinkClass}
             >
-              <MachineIcon />
+              <MachineKindIcon kind={machineKind(machine)} />
               <span className="min-w-0 flex-1 truncate">{machineLabel(machine)}</span>
               <span
                 aria-hidden="true"
@@ -52,7 +53,7 @@ export function SettingsLayout() {
           <ul className="space-y-0.5">
             <li>
               <Link to="/settings/scanning" className={sidebarLinkClass}>
-                <ScanIcon />
+                <RefreshCwIcon />
                 Scanning
               </Link>
             </li>
@@ -62,7 +63,7 @@ export function SettingsLayout() {
                 activeOptions={{ exact: true }}
                 className={sidebarLinkClass}
               >
-                <FleetIcon />
+                <LayersIcon />
                 Fleet
               </Link>
               <MachineLinks />

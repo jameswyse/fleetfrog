@@ -1,17 +1,18 @@
 import { useActionState, useState, useTransition } from "react";
 
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
+import { ArrowUpRightIcon } from "lucide-react";
 
 import { knownFleet, requestHub, useHub } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
 import { Dialog } from "@/ui/Dialog.tsx";
-import { ExternalIcon } from "@/ui/icons.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { SidebarPage } from "@/ui/SidebarLayout.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { SettingsRow, SettingsSection, SideDetail, SidePanel } from "../SettingsSection.tsx";
 import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
+import { MachineKindPicker } from "./MachineKindPicker.tsx";
 import { ActionsText, ConnectionStatus, repositoryCount } from "./MachineStatus.tsx";
 import { ProjectFolders } from "./ProjectFolders.tsx";
 import { SystemPanel } from "./SystemPanel.tsx";
@@ -114,7 +115,7 @@ function StatusPanel({ fleet, machine }: { readonly fleet: Fleet; readonly machi
               className="inline-flex items-center gap-0.5 text-sync underline-offset-2 hover:underline"
             >
               {githubCli.login}
-              <ExternalIcon className="size-3.5" />
+              <ArrowUpRightIcon className="size-3.5" />
               <span className="sr-only"> (opens in a new tab)</span>
             </a>
           </>
@@ -178,6 +179,20 @@ function ConfigurationSection({
               }
             }}
             className="min-h-9 w-64 rounded-md border border-line bg-canvas px-2.5 text-sm"
+          />
+        }
+      />
+      <SettingsRow
+        title="Icon"
+        description="Detected from the hardware unless you choose another."
+        control={
+          <MachineKindPicker
+            machine={machine}
+            onChange={(kind) =>
+              save(() =>
+                requestHub((client) => client.SetMachineKind({ machineId: machine.id, kind })),
+              )
+            }
           />
         }
       />

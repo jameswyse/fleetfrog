@@ -2,7 +2,7 @@ import { Schema } from "effect";
 
 import { AgentCapabilities } from "./action.ts";
 import { Checkout } from "./checkout.ts";
-import { MachineId, MachineInfo, SystemUsage } from "./machine.ts";
+import { MachineId, MachineInfo, MachineKind, SystemUsage } from "./machine.ts";
 import { PollingSettings } from "./polling.ts";
 import { RepositoryIdentity, RepositoryKey } from "./repositoryIdentity.ts";
 
@@ -28,6 +28,8 @@ export const Machine = Schema.Struct({
   info: MachineInfo,
   /** The dashboard's name for the machine, overriding the pretty name and hostname. */
   customName: Schema.NullOr(Schema.String),
+  /** The owner's choice of kind, overriding the one the agent detected. */
+  customKind: Schema.NullOr(MachineKind),
   connection: Connection,
   /** In the owner's order. The first is the default destination for clones. */
   discoveryRoots: Schema.Array(DiscoveryRoot),
@@ -61,6 +63,11 @@ export const Fleet = Schema.Struct({
   polling: PollingSettings,
 });
 export type Fleet = typeof Fleet.Type;
+
+/** The kind that picks the machine's icon: the owner's choice, what the agent detected, or a server. */
+export function machineKind(machine: Pick<Machine, "customKind" | "info">): MachineKind {
+  return machine.customKind ?? machine.info.system?.kind ?? "server";
+}
 
 export function machineLabel(machine: Pick<Machine, "customName" | "info">): string {
   return machine.customName ?? machine.info.prettyName ?? machine.info.hostname;

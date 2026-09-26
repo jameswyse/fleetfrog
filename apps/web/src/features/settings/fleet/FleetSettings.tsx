@@ -1,11 +1,11 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 
 import { knownFleet, useHub } from "@/rpc/hubConnection.ts";
-import { MachineIcon } from "@/ui/icons.tsx";
+import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
 import { SidebarPage } from "@/ui/SidebarLayout.tsx";
-import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
+import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
-import { ConnectionStatus, describeHardware, repositoryCount } from "./MachineStatus.tsx";
+import { ConnectionText, describeHardware, repositoryCount } from "./MachineStatus.tsx";
 import { formatDiskSize, formatMemory, formatMemoryInUse } from "./systemFormat.ts";
 import { LoadPills, UsageMeter } from "./SystemMeters.tsx";
 
@@ -20,9 +20,10 @@ const headerClass = "px-4 py-2.5 text-start font-medium";
 function MachineRow({ fleet, machine }: { readonly fleet: Fleet; readonly machine: Machine }) {
   const navigate = useNavigate();
   const { system } = machine.info;
-  const { usage } = machine;
+  const { usage, connection } = machine;
+  const online = connection._tag === "Online";
   // Readings from a machine that is offline are its last ones, so they are shown faded.
-  const readingClass = `${cellClass} ${machine.connection._tag === "Offline" ? "opacity-60" : ""}`;
+  const readingClass = `${cellClass} ${online ? "" : "opacity-60"}`;
 
   return (
     <tr
@@ -32,11 +33,17 @@ function MachineRow({ fleet, machine }: { readonly fleet: Fleet; readonly machin
           void navigate({ to: "/settings/fleet/$machineId", params: { machineId: machine.id } });
         }
       }}
-      className="cursor-pointer hover:bg-surface-raised"
+      className="group cursor-pointer hover:bg-surface-raised"
     >
       <th scope="row" className={`${cellClass} text-start font-normal`}>
         <div className="flex items-center gap-3">
-          <MachineIcon className="size-5 text-ink-muted" />
+          <span className="relative shrink-0">
+            <MachineKindIcon kind={machineKind(machine)} className="size-5 text-ink-muted" />
+            <span
+              aria-hidden="true"
+              className={`absolute -end-1 -bottom-1 size-2.5 rounded-full ring-2 ring-surface group-hover:ring-surface-raised ${online ? "bg-clean" : "bg-ink-muted"}`}
+            />
+          </span>
           <div className="min-w-0">
             <Link
               to="/settings/fleet/$machineId"
@@ -45,7 +52,13 @@ function MachineRow({ fleet, machine }: { readonly fleet: Fleet; readonly machin
             >
               {machineLabel(machine)}
             </Link>
+            <span className="sr-only">{online ? ", online" : ", offline"}</span>
             <p className="mt-0.5 text-ink-muted">{describeHardware(machine)}</p>
+            {!online && (
+              <p className="mt-0.5 text-ink-muted">
+                <ConnectionText machine={machine} />
+              </p>
+            )}
           </div>
         </div>
       </th>
@@ -71,9 +84,6 @@ function MachineRow({ fleet, machine }: { readonly fleet: Fleet; readonly machin
         )}
       </td>
       <td className={`${cellClass} text-end tabular-nums`}>{repositoryCount(fleet, machine)}</td>
-      <td className={cellClass}>
-        <ConnectionStatus machine={machine} />
-      </td>
     </tr>
   );
 }
@@ -125,9 +135,6 @@ export function FleetSettings() {
                 </th>
                 <th scope="col" className={`${headerClass} text-end`}>
                   Repositories
-                </th>
-                <th scope="col" className={headerClass}>
-                  Status
                 </th>
               </tr>
             </thead>

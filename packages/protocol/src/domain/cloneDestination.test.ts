@@ -27,6 +27,7 @@ function machine(options: {
       system: null,
     },
     customName: null,
+    customKind: null,
     connection: { _tag: "Offline", lastSeenAt: null },
     discoveryRoots: options.roots.map((path) => ({ path, status: "Folder" })),
     lastDiscoveryAt: null,
