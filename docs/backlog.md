@@ -12,6 +12,12 @@ Ideas for after phase 2. They're captured, not planned: an entry doesn't mean it
 - **Cloning new projects.** Clone a repository that no machine has yet from GitHub, onto every machine.
 - **More pull requests.** The GitHub reader checks only the 100 most recent open pull requests per repository.
 
+## Projects page
+
+- **Choosing machine columns.** Hide or reorder machines on the Projects page, for fleets too wide to show every column.
+- **Status-only cells.** A denser grid whose cells show only the state symbols, without branch names, to fit many machines.
+- **Repository list view.** An alternative to the grid: one row per repository with a status dot for each machine, beside a detail pane. It was prototyped against the grid on 26/09/2026 and set aside while fleets are small.
+
 ## Git actions
 
 - **Automatic pull.** Pull the default branch periodically, as T3 Code does, only when the working tree is clean.

@@ -5,10 +5,10 @@ import { Link } from "@tanstack/react-router";
 import { requestHub, useRuns } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
 
-import { machineBlocker, pullSkipReason } from "../actions/actionAvailability.ts";
-import { activeRunFor, latestRunFor } from "../actions/runLookup.ts";
-import { RunStateText } from "../actions/RunStateText.tsx";
-import { useStartBatch } from "../actions/useStartBatch.ts";
+import { machineBlocker, pullSkipReason } from "../../actions/actionAvailability.ts";
+import { activeRunFor, latestRunFor } from "../../actions/runLookup.ts";
+import { RunStateText } from "../../actions/RunStateText.tsx";
+import { useStartBatch } from "../../actions/useStartBatch.ts";
 
 import type { Checkout } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine } from "@fleetfrog/protocol/domain/fleet";
@@ -32,7 +32,7 @@ export function CheckoutActions({
   const shown = active ?? latest;
 
   return (
-    <section aria-labelledby="checkout-actions" className="mb-4 space-y-2">
+    <section aria-labelledby="checkout-actions" className="space-y-2">
       <h3 id="checkout-actions" className="sr-only">
         Actions
       </h3>
