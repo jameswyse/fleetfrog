@@ -1,24 +1,29 @@
 {
-  "name": "@fleetfrog/hub",
+  "name": "fleetfrog",
   "version": "0.0.0",
   "private": true,
+  "description": "The FleetFrog agent: reports a development machine's repositories to a FleetFrog hub.",
   "license": "MIT",
+  "bin": {
+    "ff": "dist/bin.mjs",
+    "fleetfrog": "dist/bin.mjs"
+  },
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "scripts": {
     "build": "tsdown",
-    "dev": "FLEETFROG_DATA_DIR=../../data node --watch src/main.ts",
     "format": "oxfmt .",
     "format:check": "oxfmt --list-different .",
     "lint": "oxlint .",
     "lint:fix": "oxlint --fix .",
-    "start": "node dist/main.mjs",
     "test:unit": "vitest run",
     "test:unit:changed": "vitest run --changed HEAD --bail=1 --passWithNoTests",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@effect/platform-node": "catalog:",
-    "@effect/sql-sqlite-node": "catalog:",
     "effect": "catalog:"
   },
   "devDependencies": {
@@ -28,5 +33,8 @@
     "tsdown": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=26"
   }
 }

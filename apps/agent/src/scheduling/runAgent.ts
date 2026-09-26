@@ -1,0 +1,148 @@
+import { HubCommand } from "@fleetfrog/protocol/agent/rpcs";
+import { Data, Duration, Effect, FiberHandle, Option, Stream } from "effect";
+
+import { loadAgentConfig } from "../config/agentConfig.ts";
+import { makeHubClient } from "../connection/hubClient.ts";
+import { readMachineInfo } from "../machine/machineInfo.ts";
+import { makeScanner } from "./scanner.ts";
+
+import type { AgentConfig } from "../config/agentConfig.ts";
+
+export class NotPaired extends Data.TaggedError("NotPaired")<{}> {}
+
+/** The hub no longer accepts this machine's token, usually because it was removed from the dashboard. */
+export class MachineRemoved extends Data.TaggedError("MachineRemoved")<{}> {}
+
+type Configuration = (typeof HubCommand.cases.Configure)["Type"];
+
+const firstRetryDelay = Duration.seconds(1);
+const maximumRetryDelay = Duration.seconds(60);
+/** A connection that lasted this long was healthy, so the next retry starts from the shortest delay. */
+const healthyConnection = Duration.seconds(60);
+
+function sameRoots(left: ReadonlyArray<string>, right: ReadonlyArray<string>): boolean {
+  return left.length === right.length && left.every((root, index) => root === right[index]);
+}
+
+/** One connection to the hub: follows its commands until the connection ends. */
+const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
+  const { client, disconnected } = yield* makeHubClient(config);
+  const info = yield* readMachineInfo;
+  const scanner = makeScanner({
+    githubEnabled: info.githubCli._tag === "Available",
+    report: (report) => client.Report({ report }),
+  });
+  const timers = yield* FiberHandle.make();
+  let configuration: Configuration | null = null;
+  let lastDiscoveryAt: number | null = null;
+  let lastStatusAt: number | null = null;
+
+  const discover = (current: Configuration) =>
+    scanner
+      .discover({
+        roots: current.discoveryRoots,
+        githubMaximumAge: Duration.seconds(current.schedule.githubSeconds),
+      })
+      .pipe(
+        Effect.tap(() =>
+          Effect.sync(() => {
+            lastDiscoveryAt = Date.now();
+            lastStatusAt = lastDiscoveryAt;
+          }),
+        ),
+        Effect.catchCause((cause) => Effect.logWarning("Discovery failed", cause)),
+      );
+
+  const status = (current: Configuration) =>
+    scanner.status(Duration.seconds(current.schedule.githubSeconds)).pipe(
+      Effect.tap(() =>
+        Effect.sync(() => {
+          lastStatusAt = Date.now();
+        }),
+      ),
+      Effect.catchCause((cause) => Effect.logWarning("Status scan failed", cause)),
+    );
+
+  /** Restarts both timers, keeping each on its cadence from its last completed pass. */
+  const schedule = (current: Configuration, discoverNow: boolean) => {
+    const now = Date.now();
+    const remaining = (seconds: number, since: number | null) =>
+      since === null ? Duration.zero : Duration.millis(Math.max(0, seconds * 1000 - (now - since)));
+    const untilDiscovery = discoverNow
+      ? Duration.zero
+      : remaining(current.schedule.discoverySeconds, lastDiscoveryAt);
+    const untilStatus =
+      lastStatusAt === null
+        ? Duration.seconds(current.schedule.statusSeconds)
+        : remaining(current.schedule.statusSeconds, lastStatusAt);
+    const every = (seconds: number, pass: Effect.Effect<void>) =>
+      pass.pipe(Effect.andThen(Effect.sleep(Duration.seconds(seconds))), Effect.forever);
+
+    return FiberHandle.run(
+      timers,
+      Effect.all(
+        [
+          Effect.sleep(untilDiscovery).pipe(
+            Effect.andThen(every(current.schedule.discoverySeconds, discover(current))),
+          ),
+          Effect.sleep(untilStatus).pipe(
+            Effect.andThen(every(current.schedule.statusSeconds, status(current))),
+          ),
+        ],
+        { concurrency: 2, discard: true },
+      ),
+    );
+  };
+
+  yield* client.Connect({ info }).pipe(
+    Stream.runForEach((command) =>
+      HubCommand.match(command, {
+        Configure: (next) => {
+          const rootsChanged =
+            configuration === null || !sameRoots(configuration.discoveryRoots, next.discoveryRoots);
+
+          configuration = next;
+
+          return schedule(next, rootsChanged);
+        },
+        Refresh: () => (configuration === null ? Effect.void : schedule(configuration, true)),
+      }),
+    ),
+    Effect.catchTag("Unauthorised", () => Effect.fail(new MachineRemoved())),
+    Effect.raceFirst(disconnected),
+  );
+});
+
+/** Stays connected to the hub, reconnecting with backoff, until the machine is removed. */
+export const runAgent = Effect.gen(function* () {
+  const config = yield* loadAgentConfig;
+
+  if (Option.isNone(config)) {
+    return yield* new NotPaired();
+  }
+
+  let delay = firstRetryDelay;
+
+  const connectOnce = Effect.gen(function* () {
+    const startedAt = Date.now();
+
+    // Only a removed machine stops the agent. Everything else, including defects, is retried.
+    yield* Effect.scoped(runSession(config.value)).pipe(
+      Effect.andThen(Effect.logInfo("The hub closed the connection")),
+      Effect.catchIf(
+        (error) => error._tag !== "MachineRemoved",
+        (error) => Effect.logWarning("Disconnected from hub", error),
+      ),
+      Effect.catchDefect((defect) => Effect.logError("Agent session crashed", defect)),
+    );
+
+    if (Duration.isGreaterThan(Duration.millis(Date.now() - startedAt), healthyConnection)) {
+      delay = firstRetryDelay;
+    }
+
+    yield* Effect.sleep(delay);
+    delay = Duration.min(Duration.times(delay, 2), maximumRetryDelay);
+  });
+
+  return yield* Effect.forever(connectOnce);
+});
