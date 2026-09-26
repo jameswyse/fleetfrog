@@ -102,10 +102,28 @@ describe("repositoryMatches", () => {
     }),
   ]);
 
-  it("filters by name and by the state of any checkout", () => {
+  const unreadable = repository("legacy", [
+    { ...checkout({}), status: { _tag: "Failed", message: "fatal: not a git repository" } },
+  ]);
+
+  it("matches names case-insensitively", () => {
     expect(repositoryMatches({ repository: clean, filter: "all", query: "SHO" })).toBe(true);
+    expect(repositoryMatches({ repository: clean, filter: "all", query: "api" })).toBe(false);
+  });
+
+  it("shows only repositories with a checkout that is out of sync", () => {
     expect(repositoryMatches({ repository: clean, filter: "out-of-sync", query: "" })).toBe(false);
     expect(repositoryMatches({ repository: behind, filter: "out-of-sync", query: "" })).toBe(true);
+  });
+
+  it("does not count commits to pull as changes", () => {
     expect(repositoryMatches({ repository: behind, filter: "changes", query: "" })).toBe(false);
+  });
+
+  it("keeps unreadable checkouts in every filter", () => {
+    expect(repositoryMatches({ repository: unreadable, filter: "changes", query: "" })).toBe(true);
+    expect(repositoryMatches({ repository: unreadable, filter: "out-of-sync", query: "" })).toBe(
+      true,
+    );
   });
 });

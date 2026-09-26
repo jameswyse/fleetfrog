@@ -8,13 +8,18 @@ import { checkoutKey, summariseCheckout } from "./checkoutSummary.ts";
 
 import type { Machine, MachineCheckout, Repository } from "@fleetfrog/protocol/domain/fleet";
 
+/** Offline columns sit on the canvas colour so their last known state reads as stale. */
+function columnBackground(machine: Machine): string {
+  return machine.connection._tag === "Offline" ? "bg-canvas" : "bg-surface";
+}
+
 function MachineHeader({ machine }: { readonly machine: Machine }) {
   const label = machineLabel(machine);
 
   return (
     <th
       scope="col"
-      className="w-64 min-w-56 border-b border-line bg-surface px-3 py-2.5 text-start align-bottom font-normal"
+      className={`w-64 min-w-56 border-b border-line px-3 py-2.5 text-start align-bottom font-normal ${columnBackground(machine)}`}
     >
       <span className="block truncate font-semibold" title={label}>
         {label}
@@ -43,7 +48,13 @@ function MachineHeader({ machine }: { readonly machine: Machine }) {
   );
 }
 
-function CheckoutLink({ entry }: { readonly entry: MachineCheckout }) {
+function CheckoutLink({
+  entry,
+  offline,
+}: {
+  readonly entry: MachineCheckout;
+  readonly offline: boolean;
+}) {
   const summary = summariseCheckout(entry.checkout);
   const branch = summary._tag === "Read" ? summary.branch : "Status unavailable";
   const worktree = entry.checkout.worktree._tag === "Linked";
@@ -55,7 +66,10 @@ function CheckoutLink({ entry }: { readonly entry: MachineCheckout }) {
       className="block rounded-md px-2 py-1.5 hover:bg-surface-raised"
     >
       <span className="flex items-baseline gap-2">
-        <span className="truncate font-mono text-[13px]" title={entry.checkout.path}>
+        <span
+          className={`truncate font-mono text-[13px] ${offline ? "text-ink-muted" : ""}`}
+          title={entry.checkout.path}
+        >
           {branch}
         </span>
         {worktree && <span className="shrink-0 text-xs text-ink-muted">worktree</span>}
@@ -63,6 +77,7 @@ function CheckoutLink({ entry }: { readonly entry: MachineCheckout }) {
       <span className="mt-1 flex flex-wrap gap-1">
         <CheckoutBadges summary={summary} />
       </span>
+      {offline && <span className="sr-only">Last known state, machine offline</span>}
     </Link>
   );
 }
@@ -75,16 +90,21 @@ function MatrixCell({
   readonly machine: Machine;
 }) {
   const entries = repository.checkouts.filter(({ machineId }) => machineId === machine.id);
+  const offline = machine.connection._tag === "Offline";
 
   if (entries.length === 0) {
     return (
-      <td className="border-b border-line px-3 py-2 align-top text-sm text-ink-muted">
+      <td
+        className={`border-b border-line px-3 py-2 align-top text-sm text-ink-muted ${columnBackground(machine)}`}
+      >
         {machine.lastDiscoveryAt === null ? (
           <span className="italic">Not scanned</span>
         ) : (
           <>
             <span aria-hidden="true">–</span>
-            <span className="sr-only">Not on this machine</span>
+            <span className="sr-only">
+              {offline ? "Not on this machine at the last scan" : "Not on this machine"}
+            </span>
           </>
         )}
       </td>
@@ -92,11 +112,11 @@ function MatrixCell({
   }
 
   return (
-    <td className="border-b border-line px-1 py-1 align-top">
+    <td className={`border-b border-line px-1 py-1 align-top ${columnBackground(machine)}`}>
       <ul className="space-y-0.5">
         {entries.map((entry) => (
           <li key={entry.checkout.path}>
-            <CheckoutLink entry={entry} />
+            <CheckoutLink entry={entry} offline={offline} />
           </li>
         ))}
       </ul>

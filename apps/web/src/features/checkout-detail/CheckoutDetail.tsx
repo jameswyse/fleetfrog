@@ -1,10 +1,12 @@
+import { Link } from "@tanstack/react-router";
+
 import { Chip } from "@/ui/Chip.tsx";
 import { Dialog } from "@/ui/Dialog.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { CheckoutBadges } from "../overview/CheckoutBadges.tsx";
-import { summariseCheckout } from "../overview/checkoutSummary.ts";
+import { checkoutKey, summariseCheckout } from "../overview/checkoutSummary.ts";
 
 import type { ReactNode } from "react";
 
@@ -15,7 +17,7 @@ import type {
   GitStatus,
   Upstream,
 } from "@fleetfrog/protocol/domain/checkout";
-import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
+import type { Machine, MachineCheckout, Repository } from "@fleetfrog/protocol/domain/fleet";
 
 const stateWords = {
   ".": "",
@@ -186,6 +188,62 @@ function GithubDetails({ github }: { readonly github: NonNullable<Checkout["gith
   );
 }
 
+function WorktreeList({
+  current,
+  entries,
+}: {
+  readonly current: Checkout;
+  readonly entries: ReadonlyArray<MachineCheckout>;
+}) {
+  return (
+    <Section title="Worktrees on this machine">
+      <ul className="space-y-1 text-sm">
+        {entries.map((entry) => {
+          const summary = summariseCheckout(entry.checkout);
+          const isCurrent = entry.checkout.path === current.path;
+
+          return (
+            <li key={entry.checkout.path}>
+              {/* Every entry stays a link, so focus survives switching to it. */}
+              <Link
+                to="/"
+                search={(previous) => ({ ...previous, checkout: checkoutKey(entry) })}
+                aria-current={isCurrent ? "true" : undefined}
+                className="-mx-2 block rounded-md px-2 py-1.5 hover:bg-surface-raised aria-[current=true]:bg-surface-raised"
+              >
+                <span className="block font-mono text-[13px] break-all">{entry.checkout.path}</span>
+                <span className="block text-ink-muted">
+                  <span className="font-mono text-[13px]">
+                    {summary._tag === "Read" ? summary.branch : "Status unavailable"}
+                  </span>
+                  {" · "}
+                  {entry.checkout.worktree._tag === "Main" ? "Main worktree" : "Linked worktree"}
+                  {isCurrent && " · Shown here"}
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </Section>
+  );
+}
+
+/** Explains why a GitHub-hosted checkout has no GitHub details. */
+function GithubUnavailable({ machine }: { readonly machine: Machine }) {
+  const label = machineLabel(machine);
+
+  return (
+    <Section title="GitHub">
+      <p className="text-sm text-ink-muted">
+        {machine.info.githubCli._tag === "Unavailable"
+          ? `Pull requests and the default branch aren't available because the GitHub CLI (gh) isn't installed or signed in on ${label}.`
+          : "Pull requests and the default branch aren't available because GitHub couldn't be reached on the last check."}
+      </p>
+    </Section>
+  );
+}
+
 export function CheckoutDetail({
   repository,
   machine,
@@ -198,6 +256,9 @@ export function CheckoutDetail({
   readonly onClose: () => void;
 }) {
   const summary = summariseCheckout(checkout);
+  const onThisMachine = repository.checkouts.filter(({ machineId }) => machineId === machine.id);
+  const onGithub =
+    repository.identity._tag === "Remote" && repository.identity.host === "github.com";
 
   return (
     <Dialog
@@ -237,7 +298,9 @@ export function CheckoutDetail({
       ) : (
         <GitDetails git={checkout.status.git} />
       )}
+      {onThisMachine.length > 1 && <WorktreeList current={checkout} entries={onThisMachine} />}
       {checkout.github !== null && <GithubDetails github={checkout.github} />}
+      {checkout.github === null && onGithub && <GithubUnavailable machine={machine} />}
     </Dialog>
   );
 }

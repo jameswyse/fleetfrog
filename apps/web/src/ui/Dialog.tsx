@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, useRef } from "react";
 
 import type { ReactNode } from "react";
 
@@ -18,6 +18,7 @@ export function Dialog({
   readonly placement?: "centre" | "side";
 }) {
   const titleId = useId();
+  const opener = useRef<Element | null>(null);
   const position =
     placement === "side"
       ? "ms-auto me-0 h-dvh max-h-dvh w-full max-w-2xl rounded-none border-s"
@@ -25,12 +26,26 @@ export function Dialog({
 
   return (
     <dialog
-      // Removing an open dialog from the page also closes it, so no cleanup is needed. Calling
-      // close() here would fire onClose when React re-attaches the ref in development.
       ref={(node) => {
-        if (node !== null && !node.open) {
+        if (node === null) {
+          return undefined;
+        }
+
+        if (!node.open) {
+          opener.current = document.activeElement;
           node.showModal();
         }
+
+        // Callers close the dialog by unmounting it, which skips the native focus return. In
+        // development React also detaches and reattaches the ref, so only a removed dialog
+        // hands focus back.
+        return () => {
+          queueMicrotask(() => {
+            if (!node.isConnected && opener.current instanceof HTMLElement) {
+              opener.current.focus();
+            }
+          });
+        };
       }}
       aria-labelledby={titleId}
       onClose={onClose}

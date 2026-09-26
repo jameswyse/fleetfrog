@@ -2,7 +2,7 @@ import { useState, useTransition } from "react";
 
 import { Schema } from "effect";
 
-import { requestHub, useHub } from "@/rpc/hubConnection.ts";
+import { knownFleet, requestHub, useHub } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
 import { PollingSettings } from "@fleetfrog/protocol/domain/polling";
 
@@ -45,19 +45,23 @@ const validatePolling = Schema.decodeUnknownOption(PollingSettings);
 type SaveState =
   | { readonly _tag: "Idle" }
   | { readonly _tag: "Saved" }
-  | { readonly _tag: "Invalid" }
+  | { readonly _tag: "Invalid"; readonly fields: ReadonlySet<keyof PollingSettings> }
   | { readonly _tag: "Failed"; readonly message: string };
+
+const minimumSeconds = 5;
 
 export function SettingsPage() {
   const hub = useHub();
   const [state, setState] = useState<SaveState>({ _tag: "Idle" });
   const [saving, startSaving] = useTransition();
+  const fleet = knownFleet(hub);
 
-  if (hub._tag !== "Live") {
+  if (fleet === null) {
     return <p className="px-6 py-24 text-center text-sm text-ink-muted">Waiting for the hub…</p>;
   }
 
-  const { polling } = hub.fleet;
+  const { polling } = fleet;
+  const live = hub._tag === "Live";
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-5 sm:px-6">
@@ -68,17 +72,28 @@ export function SettingsPage() {
         onSubmit={(event) => {
           event.preventDefault();
 
-          const form = new FormData(event.currentTarget);
+          const form = event.currentTarget;
+          const values = new FormData(form);
           const candidate = Object.fromEntries(
             fields.map(({ name, unit }) => [
               name,
-              Math.round(Number(form.get(name)) * (unit === "minutes" ? 60 : 1)),
+              Math.round(Number(values.get(name)) * (unit === "minutes" ? 60 : 1)),
             ]),
           );
           const settings = validatePolling(candidate);
 
           if (settings._tag === "None") {
-            setState({ _tag: "Invalid" });
+            const invalid = fields
+              .map(({ name }) => name)
+              .filter((name) => !Schema.is(PollingSettings.fields[name])(candidate[name]));
+            const [first] = invalid;
+            const input = first === undefined ? null : form.elements.namedItem(first);
+
+            setState({ _tag: "Invalid", fields: new Set(invalid) });
+
+            if (input instanceof HTMLInputElement) {
+              input.focus();
+            }
 
             return;
           }
@@ -97,43 +112,61 @@ export function SettingsPage() {
         }}
         className="mt-5 space-y-5 rounded-lg border border-line bg-surface px-5 py-5"
       >
-        {fields.map(({ name, label, hint, unit }) => (
-          <div key={name}>
-            <label htmlFor={name} className="block text-sm font-medium">
-              {label}
-            </label>
-            <p id={`${name}-hint`} className="text-sm text-ink-muted">
-              {hint}
-            </p>
-            <div className="mt-1 flex items-center gap-2 text-sm">
-              <span>Every</span>
-              <input
-                id={name}
-                name={name}
-                type="number"
-                inputMode="decimal"
-                min={unit === "minutes" ? 1 : 5}
-                step="any"
-                required
-                aria-describedby={`${name}-hint`}
-                aria-invalid={state._tag === "Invalid" ? true : undefined}
-                defaultValue={unit === "minutes" ? polling[name] / 60 : polling[name]}
-                className="min-h-9 w-24 rounded-md border border-line bg-canvas px-2.5 tabular-nums"
-              />
-              <span>{unit}</span>
+        {fields.map(({ name, label, hint, unit }) => {
+          const invalid = state._tag === "Invalid" && state.fields.has(name);
+
+          return (
+            <div key={name}>
+              <label htmlFor={name} className="block text-sm font-medium">
+                {label}
+              </label>
+              <p id={`${name}-hint`} className="text-sm text-ink-muted">
+                {hint}
+              </p>
+              <div className="mt-1 flex items-center gap-2 text-sm">
+                <span>Every</span>
+                <input
+                  // Keyed on the saved value, so a change from the hub replaces what is shown.
+                  key={polling[name]}
+                  id={name}
+                  name={name}
+                  type="number"
+                  inputMode="decimal"
+                  min={unit === "minutes" ? minimumSeconds / 60 : minimumSeconds}
+                  step="any"
+                  required
+                  aria-describedby={invalid ? `${name}-hint ${name}-error` : `${name}-hint`}
+                  aria-invalid={invalid ? true : undefined}
+                  defaultValue={unit === "minutes" ? polling[name] / 60 : polling[name]}
+                  className="min-h-9 w-24 rounded-md border border-line bg-canvas px-2.5 tabular-nums aria-invalid:border-danger"
+                />
+                <span>{unit}</span>
+              </div>
+              {invalid && (
+                <p id={`${name}-error`} className="mt-1 text-sm text-danger">
+                  Enter an interval of at least 5 seconds.
+                </p>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
         <div className="flex flex-wrap items-center gap-3">
-          <Button tone="primary" type="submit" disabled={saving}>
+          <Button tone="primary" type="submit" disabled={saving || !live}>
             {saving ? "Saving…" : "Save"}
           </Button>
+          {!live && (
+            <p className="text-sm text-ink-muted">
+              Saving is paused until the dashboard reconnects to the hub.
+            </p>
+          )}
           <p role="status" className="text-sm">
             {state._tag === "Saved" && (
               <span className="text-clean">Saved. Agents pick up the new intervals now.</span>
             )}
             {state._tag === "Invalid" && (
-              <span className="text-danger">Each interval must be at least 5 seconds.</span>
+              <span className="text-danger">
+                Each interval must be at least 5 seconds. Check the marked fields.
+              </span>
             )}
             {state._tag === "Failed" && <span className="text-danger">{state.message}</span>}
           </p>

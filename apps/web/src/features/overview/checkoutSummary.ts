@@ -6,7 +6,6 @@ export type CheckoutSummary =
   | {
       readonly _tag: "Read";
       readonly branch: string;
-      readonly detached: boolean;
       readonly changed: number;
       readonly untracked: number;
       readonly stashes: number;
@@ -55,7 +54,6 @@ export function summariseCheckout(checkout: Checkout): CheckoutSummary {
   return {
     _tag: "Read",
     branch,
-    detached: head._tag === "Detached",
     changed,
     untracked,
     stashes,
@@ -93,6 +91,7 @@ export function repositoryMatches(options: {
   return options.repository.checkouts.some(({ checkout }) => {
     const summary = summariseCheckout(checkout);
 
+    // An unreadable checkout matches every filter because it needs attention either way.
     if (summary._tag === "Unreadable") {
       return true;
     }

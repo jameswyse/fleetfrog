@@ -6,12 +6,85 @@ import { Dialog } from "@/ui/Dialog.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
+import type { HubResult } from "@/rpc/hubConnection.ts";
 import type { Machine } from "@fleetfrog/protocol/domain/fleet";
 
-type SaveState =
-  | { readonly _tag: "Idle" }
-  | { readonly _tag: "Saved" }
+/** The last save or rescan, reported in the card's status line. Its wording carries the outcome. */
+type Notice =
+  | { readonly _tag: "None" }
+  | { readonly _tag: "Succeeded"; readonly message: string }
   | { readonly _tag: "Failed"; readonly message: string };
+
+type Update = { readonly part: string; readonly result: HubResult<void> };
+
+function parseRoots(text: string): ReadonlyArray<string> {
+  return text
+    .split("\n")
+    .map((root) => root.trim())
+    .filter((root) => root !== "");
+}
+
+function sameRoots(left: ReadonlyArray<string>, right: ReadonlyArray<string>): boolean {
+  return left.length === right.length && left.every((root, index) => root === right[index]);
+}
+
+function formText(form: FormData, name: string): string {
+  const value = form.get(name);
+
+  return value === null || value instanceof File ? "" : value;
+}
+
+/** Describes a save in which only some of the updates may have succeeded. */
+function describeSave(updates: ReadonlyArray<Update>): Notice {
+  const failures = updates.flatMap(({ part, result }) =>
+    result._tag === "Failure" ? [{ part, message: result.message }] : [],
+  );
+  const [firstFailure] = failures;
+
+  if (firstFailure === undefined) {
+    return { _tag: "Succeeded", message: "Saved." };
+  }
+
+  const notSaved = failures.map(({ part }) => part).join(" or the ");
+  const saved = updates
+    .filter(({ result }) => result._tag === "Success")
+    .map(({ part }) => part)
+    .join(" and the ");
+
+  return {
+    _tag: "Failed",
+    message:
+      saved === ""
+        ? `Couldn't save the ${notSaved}. ${firstFailure.message}`
+        : `Saved the ${saved}, but not the ${notSaved}. ${firstFailure.message}`,
+  };
+}
+
+/** Keeps its own draft so the box grows with the list. Remount it to discard the draft. */
+function RootsField({
+  id,
+  hintId,
+  roots,
+}: {
+  readonly id: string;
+  readonly hintId: string;
+  readonly roots: ReadonlyArray<string>;
+}) {
+  const [draft, setDraft] = useState(roots.join("\n"));
+
+  return (
+    <textarea
+      id={id}
+      name="roots"
+      aria-describedby={hintId}
+      value={draft}
+      onChange={(event) => setDraft(event.currentTarget.value)}
+      rows={Math.max(2, draft.split("\n").length + 1)}
+      spellCheck={false}
+      className="mt-1 block w-full max-w-xl rounded-md border border-line bg-canvas px-2.5 py-2 font-mono text-[13px]"
+    />
+  );
+}
 
 function RemoveMachineDialog({
   machine,
@@ -72,33 +145,57 @@ function ConnectionText({ connection }: { readonly connection: Machine["connecti
 export function MachineCard({ machine }: { readonly machine: Machine }) {
   const [removing, setRemoving] = useState(false);
   const online = machine.connection._tag === "Online";
-  const [name, setName] = useState(machine.customName ?? "");
-  const [roots, setRoots] = useState(machine.discoveryRoots.join("\n"));
-  const [saveState, setSaveState] = useState<SaveState>({ _tag: "Idle" });
+  const [notice, setNotice] = useState<Notice>({ _tag: "None" });
   const [saving, startSaving] = useTransition();
+  const [rescanning, startRescan] = useTransition();
+  const rootsId = `roots-${machine.id}`;
+  const hintId = `roots-hint-${machine.id}`;
 
-  const save = () =>
+  const save = (form: FormData) =>
     startSaving(async () => {
-      const customName = name.trim();
-      const discoveryRoots = roots
-        .split("\n")
-        .map((root) => root.trim())
-        .filter((root) => root !== "");
-      const renamed = await requestHub((client) =>
-        client.RenameMachine({
-          machineId: machine.id,
-          customName: customName === "" ? null : customName,
-        }),
-      );
-      const rooted =
-        renamed._tag === "Failure"
-          ? renamed
-          : await requestHub((client) =>
-              client.SetDiscoveryRoots({ machineId: machine.id, roots: discoveryRoots }),
-            );
+      const typedName = formText(form, "name").trim();
+      const customName = typedName === "" ? null : typedName;
+      const roots = parseRoots(formText(form, "roots"));
+      const updates: Array<Update> = [];
 
-      setSaveState(
-        rooted._tag === "Failure" ? { _tag: "Failed", message: rooted.message } : { _tag: "Saved" },
+      if (customName !== machine.customName) {
+        updates.push({
+          part: "display name",
+          result: await requestHub((client) =>
+            client.RenameMachine({ machineId: machine.id, customName }),
+          ),
+        });
+      }
+
+      if (!sameRoots(roots, machine.discoveryRoots)) {
+        updates.push({
+          part: "discovery folders",
+          result: await requestHub((client) =>
+            client.SetDiscoveryRoots({ machineId: machine.id, roots }),
+          ),
+        });
+      }
+
+      setNotice(
+        updates.length === 0
+          ? { _tag: "Succeeded", message: "No changes to save." }
+          : describeSave(updates),
+      );
+    });
+
+  const rescan = () =>
+    startRescan(async () => {
+      const result = await requestHub((client) =>
+        client.Refresh({ target: { _tag: "Machine", machineId: machine.id } }),
+      );
+
+      setNotice(
+        result._tag === "Success"
+          ? {
+              _tag: "Succeeded",
+              message: "Rescan requested. The overview updates when it finishes.",
+            }
+          : { _tag: "Failed", message: `Couldn't start a rescan. ${result.message}` },
       );
     });
 
@@ -153,59 +250,50 @@ export function MachineCard({ machine }: { readonly machine: Machine }) {
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          save();
+          save(new FormData(event.currentTarget));
         }}
         className="space-y-4 px-5 py-4"
       >
+        {/* Drafts are keyed on the saved values, so a change from the hub replaces the draft. */}
         <label className="block text-sm">
           <span className="font-medium">Display name</span>
           <input
+            key={machine.customName ?? ""}
             name="name"
-            value={name}
-            onChange={(event) => setName(event.currentTarget.value)}
+            defaultValue={machine.customName ?? ""}
             placeholder={machine.info.prettyName ?? machine.info.hostname}
             autoComplete="off"
             className="mt-1 block min-h-9 w-full max-w-sm rounded-md border border-line bg-canvas px-2.5"
           />
         </label>
-        <label className="block text-sm">
-          <span className="font-medium">Discovery folders</span>
-          <span id={`roots-hint-${machine.id}`} className="block text-ink-muted">
+        <div className="text-sm">
+          <label htmlFor={rootsId} className="font-medium">
+            Discovery folders
+          </label>
+          <p id={hintId} className="text-ink-muted">
             One per line. The agent looks for repositories up to five folders deep. <code>~</code>{" "}
             means the home folder.
-          </span>
-          <textarea
-            name="roots"
-            aria-describedby={`roots-hint-${machine.id}`}
-            value={roots}
-            onChange={(event) => setRoots(event.currentTarget.value)}
-            rows={Math.max(2, machine.discoveryRoots.length + 1)}
-            spellCheck={false}
-            className="mt-1 block w-full max-w-xl rounded-md border border-line bg-canvas px-2.5 py-2 font-mono text-[13px]"
+          </p>
+          <RootsField
+            key={machine.discoveryRoots.join("\n")}
+            id={rootsId}
+            hintId={hintId}
+            roots={machine.discoveryRoots}
           />
-        </label>
+        </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button tone="primary" type="submit" disabled={saving}>
             {saving ? "Saving…" : "Save"}
           </Button>
-          <Button
-            disabled={!online}
-            onClick={() => {
-              void requestHub((client) =>
-                client.Refresh({ target: { _tag: "Machine", machineId: machine.id } }),
-              );
-            }}
-          >
-            Rescan now
+          <Button disabled={!online || rescanning} onClick={rescan}>
+            {rescanning ? "Requesting rescan…" : "Rescan now"}
           </Button>
           <Button tone="quiet" className="ms-auto text-danger" onClick={() => setRemoving(true)}>
             Remove machine
           </Button>
           <p role="status" className="basis-full text-sm">
-            {saveState._tag === "Saved" && <span className="text-clean">Saved.</span>}
-            {saveState._tag === "Failed" && (
-              <span className="text-danger">{saveState.message}</span>
-            )}
+            {notice._tag === "Succeeded" && <span className="text-clean">{notice.message}</span>}
+            {notice._tag === "Failed" && <span className="text-danger">{notice.message}</span>}
           </p>
         </div>
       </form>

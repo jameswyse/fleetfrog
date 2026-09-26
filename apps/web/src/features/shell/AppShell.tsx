@@ -1,7 +1,12 @@
+import { useState, useTransition } from "react";
+
 import { Link, Outlet } from "@tanstack/react-router";
 
 import { requestHub, useHub } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
+import { RelativeTime } from "@/ui/RelativeTime.tsx";
+
+import type { HubState } from "@/rpc/hubConnection.ts";
 
 const navigation = [
   { to: "/", label: "Overview" },
@@ -22,6 +27,60 @@ function HubStatus() {
       <span aria-hidden="true" className={`size-2 rounded-full ${tone}`} />
       {label}
     </p>
+  );
+}
+
+function RescanAll({ live }: { readonly live: boolean }) {
+  const [failure, setFailure] = useState<string | null>(null);
+  const [pending, startRescan] = useTransition();
+
+  return (
+    <div className="flex items-center gap-3">
+      <p role="status" className="text-sm text-danger">
+        {failure}
+      </p>
+      <Button
+        disabled={!live || pending}
+        onClick={() =>
+          startRescan(async () => {
+            const result = await requestHub((client) =>
+              client.Refresh({ target: { _tag: "All" } }),
+            );
+
+            setFailure(result._tag === "Failure" ? `Rescan failed. ${result.message}` : null);
+          })
+        }
+      >
+        {pending ? "Requesting rescan…" : "Rescan all"}
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Says when the page shows a fleet the hub may since have changed. The live region stays mounted
+ * so screen readers announce the text when it appears.
+ */
+function StaleNotice({ hub }: { readonly hub: HubState }) {
+  const stale = hub._tag === "Reconnecting" ? hub.snapshot : null;
+
+  return (
+    <div
+      className={
+        stale === null
+          ? undefined
+          : "flex flex-wrap gap-x-2 border-b border-changes/30 bg-changes-soft px-4 py-2.5 text-sm text-changes sm:px-6"
+      }
+    >
+      <p role="status" className="font-medium">
+        {stale !== null && "Can't reach the hub. Showing the last known state."}
+      </p>
+      {stale !== null && (
+        <p>
+          Last updated <RelativeTime at={stale.receivedAt} />.
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -59,18 +118,12 @@ export function AppShell() {
           </nav>
           <div className="ms-auto flex items-center gap-4">
             <HubStatus />
-            <Button
-              disabled={hub._tag !== "Live"}
-              onClick={() => {
-                void requestHub((client) => client.Refresh({ target: { _tag: "All" } }));
-              }}
-            >
-              Rescan all
-            </Button>
+            <RescanAll live={hub._tag === "Live"} />
           </div>
         </div>
       </header>
       <main id="content" className="flex-1">
+        <StaleNotice hub={hub} />
         <Outlet />
       </main>
     </div>

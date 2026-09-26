@@ -1,6 +1,6 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 
-import { useHub } from "@/rpc/hubConnection.ts";
+import { knownFleet, useHub } from "@/rpc/hubConnection.ts";
 
 import { CheckoutDetail } from "../checkout-detail/CheckoutDetail.tsx";
 import { checkoutKey, repositoryMatches } from "./checkoutSummary.ts";
@@ -14,16 +14,21 @@ const filters: ReadonlyArray<{ readonly value: RepositoryFilter; readonly label:
   { value: "out-of-sync", label: "Out of sync" },
 ];
 
+/** Use heading level 2 inside a page that already has its own h1. */
 function EmptyState({
   title,
+  level = 1,
   children,
 }: {
   readonly title: string;
+  readonly level?: 1 | 2;
   readonly children: React.ReactNode;
 }) {
+  const Heading = level === 1 ? "h1" : "h2";
+
   return (
     <div className="mx-auto max-w-md px-4 py-24 text-center">
-      <h1 className="text-lg font-semibold">{title}</h1>
+      <Heading className="text-lg font-semibold">{title}</Heading>
       <div className="mt-2 text-sm text-ink-muted">{children}</div>
     </div>
   );
@@ -36,7 +41,9 @@ export function OverviewPage() {
   const filter = search.filter ?? "all";
   const query = search.q ?? "";
 
-  if (hub._tag === "Connecting" || hub.fleet === null) {
+  const fleet = knownFleet(hub);
+
+  if (fleet === null) {
     return (
       <EmptyState
         title={hub._tag === "Connecting" ? "Connecting to the hub…" : "Can't reach the hub"}
@@ -48,7 +55,7 @@ export function OverviewPage() {
     );
   }
 
-  const { machines, repositories } = hub.fleet;
+  const { machines, repositories } = fleet;
 
   if (machines.length === 0) {
     return (
@@ -91,7 +98,9 @@ export function OverviewPage() {
             <span className="text-ink-muted">Find</span>
             <input
               type="search"
-              value={query}
+              // Uncontrolled: the router commits search updates in a transition, so a controlled
+              // value would lag behind typing and move the caret.
+              defaultValue={query}
               placeholder="Repository name"
               onChange={(event) => {
                 const q = event.currentTarget.value;
@@ -132,7 +141,7 @@ export function OverviewPage() {
         </div>
       </div>
       {repositories.length === 0 && (
-        <EmptyState title="Waiting for the first scan">
+        <EmptyState title="Waiting for the first scan" level={2}>
           Repositories appear once an agent finishes walking its discovery folders.
         </EmptyState>
       )}

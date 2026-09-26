@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 
-import { Deferred, Duration, Effect, Layer, Stream } from "effect";
+import { Cause, DateTime, Deferred, Duration, Effect, Layer, Result, Stream } from "effect";
 import { RpcClient, RpcSerialization } from "effect/unstable/rpc";
 import { Socket } from "effect/unstable/socket";
 
@@ -8,15 +8,22 @@ import { DashboardRpcs } from "@fleetfrog/protocol/dashboard/rpcs";
 
 import type { RpcClientError } from "effect/unstable/rpc";
 
+import type { MachineNotFound } from "@fleetfrog/protocol/dashboard/rpcs";
 import type { Fleet } from "@fleetfrog/protocol/domain/fleet";
 
 type DashboardClient = RpcClient.FromGroup<typeof DashboardRpcs, RpcClientError.RpcClientError>;
 
+/** Every typed failure a dashboard call can report. */
+type DashboardError = MachineNotFound | RpcClientError.RpcClientError;
+
+/** The most recent fleet from the hub and when the dashboard received it. */
+export type FleetSnapshot = { readonly fleet: Fleet; readonly receivedAt: DateTime.Utc };
+
 export type HubState =
   | { readonly _tag: "Connecting" }
-  | { readonly _tag: "Live"; readonly fleet: Fleet }
-  /** The last fleet received stays visible, marked stale, while the dashboard reconnects. */
-  | { readonly _tag: "Reconnecting"; readonly fleet: Fleet | null };
+  | { readonly _tag: "Live"; readonly snapshot: FleetSnapshot }
+  /** The last snapshot stays visible, marked stale, while the dashboard reconnects. */
+  | { readonly _tag: "Reconnecting"; readonly snapshot: FleetSnapshot | null };
 
 const retryDelay = Duration.seconds(2);
 
@@ -32,8 +39,9 @@ function setState(next: HubState): void {
   }
 }
 
-function lastFleet(): Fleet | null {
-  return state._tag === "Connecting" ? null : state.fleet;
+/** The fleet to show, which may be stale while reconnecting, or null before the first one arrives. */
+export function knownFleet(hub: HubState): Fleet | null {
+  return hub._tag === "Connecting" ? null : (hub.snapshot?.fleet ?? null);
 }
 
 function subscribe(listener: () => void): () => void {
@@ -70,7 +78,11 @@ const session = Effect.gen(function* () {
 
   client = connected;
   yield* connected.WatchFleet().pipe(
-    Stream.runForEach((fleet) => Effect.sync(() => setState({ _tag: "Live", fleet }))),
+    Stream.runForEach((fleet) =>
+      DateTime.now.pipe(
+        Effect.map((receivedAt) => setState({ _tag: "Live", snapshot: { fleet, receivedAt } })),
+      ),
+    ),
     Effect.raceFirst(Deferred.await(dropped)),
   );
 }).pipe(
@@ -78,7 +90,10 @@ const session = Effect.gen(function* () {
   Effect.ensuring(
     Effect.sync(() => {
       client = null;
-      setState({ _tag: "Reconnecting", fleet: lastFleet() });
+      setState({
+        _tag: "Reconnecting",
+        snapshot: state._tag === "Connecting" ? null : state.snapshot,
+      });
     }),
   ),
 );
@@ -98,29 +113,41 @@ export type HubResult<A> =
   | { readonly _tag: "Success"; readonly value: A }
   | { readonly _tag: "Failure"; readonly message: string };
 
-function describeFailure(error: { readonly _tag: string }): string {
-  switch (error._tag) {
-    case "MachineNotFound":
-      return "That machine is no longer paired.";
-    default:
-      return "The hub did not respond. Check that it is still running.";
-  }
+const unreachable = "Can't reach the hub right now. Try again once it reconnects.";
+
+const failureMessages = {
+  MachineNotFound: "That machine is no longer paired.",
+  RpcClientError: "The hub did not respond. Check that it is still running.",
+} satisfies Record<DashboardError["_tag"], string>;
+
+function describeCause(cause: Cause.Cause<DashboardError>): string {
+  const error = Cause.findError(cause);
+
+  return Result.isSuccess(error)
+    ? failureMessages[error.success._tag]
+    : "Something went wrong talking to the hub. Try again.";
 }
 
-/** Runs one dashboard call and turns any failure into a sentence for the interface. */
-export function requestHub<A, E extends { readonly _tag: string }>(
-  call: (hub: DashboardClient) => Effect.Effect<A, E>,
+/**
+ * Runs one dashboard call and turns any failure, including defects and interruptions, into a
+ * sentence for the interface. The promise never rejects.
+ */
+export function requestHub<A>(
+  call: (hub: DashboardClient) => Effect.Effect<A, DashboardError>,
 ): Promise<HubResult<A>> {
   if (client === null) {
-    return Promise.resolve({ _tag: "Failure", message: "Not connected to the hub yet." });
+    return Promise.resolve({ _tag: "Failure", message: unreachable });
   }
 
   return Effect.runPromise(
     call(client).pipe(
-      Effect.map((value): HubResult<A> => ({ _tag: "Success", value })),
-      Effect.catch((error) =>
-        Effect.succeed<HubResult<A>>({ _tag: "Failure", message: describeFailure(error) }),
-      ),
+      Effect.matchCauseEffect({
+        onSuccess: (value) => Effect.succeed<HubResult<A>>({ _tag: "Success", value }),
+        onFailure: (cause) =>
+          Effect.logWarning("Hub request failed", cause).pipe(
+            Effect.as<HubResult<A>>({ _tag: "Failure", message: describeCause(cause) }),
+          ),
+      }),
     ),
   );
 }

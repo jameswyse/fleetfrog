@@ -12,21 +12,40 @@ const units = [
 ] as const;
 
 let now = Date.now();
+let timer: ReturnType<typeof setInterval> | null = null;
 const listeners = new Set<() => void>();
 
-// One shared clock keeps every relative time on the page in step.
-setInterval(() => {
+function tick() {
   now = Date.now();
 
   for (const listener of listeners) {
     listener();
   }
-}, tickMilliseconds);
+}
 
+// One shared clock keeps every relative time on the page in step. It runs only while something
+// on the page is showing the time.
 function subscribe(listener: () => void) {
   listeners.add(listener);
 
-  return () => listeners.delete(listener);
+  if (timer === null) {
+    now = Date.now();
+    timer = setInterval(tick, tickMilliseconds);
+  }
+
+  return () => {
+    listeners.delete(listener);
+
+    if (listeners.size === 0 && timer !== null) {
+      clearInterval(timer);
+      timer = null;
+    }
+  };
+}
+
+/** The current time in epoch milliseconds, updated every 15 seconds from the shared clock. */
+export function useNow(): number {
+  return useSyncExternalStore(subscribe, () => now);
 }
 
 export function formatRelative(at: DateTime.Utc, currentTime: number): string {
@@ -42,7 +61,7 @@ export function formatRelative(at: DateTime.Utc, currentTime: number): string {
 }
 
 export function RelativeTime({ at }: { readonly at: DateTime.Utc }) {
-  const currentTime = useSyncExternalStore(subscribe, () => now);
+  const currentTime = useNow();
   const date = DateTime.toDate(at);
 
   return (

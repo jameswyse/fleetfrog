@@ -1,6 +1,6 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
-import { useHub } from "@/rpc/hubConnection.ts";
+import { knownFleet, useHub } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
 
 import { MachineCard } from "./MachineCard.tsx";
@@ -10,7 +10,8 @@ export function MachinesPage() {
   const hub = useHub();
   const { pair = false } = useSearch({ from: "/machines" });
   const navigate = useNavigate({ from: "/machines" });
-  const machines = hub._tag === "Connecting" || hub.fleet === null ? [] : hub.fleet.machines;
+  const fleet = knownFleet(hub);
+  const machines = fleet?.machines ?? [];
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-5 sm:px-6">
@@ -42,7 +43,8 @@ export function MachinesPage() {
           ))}
         </div>
       )}
-      {pair && hub._tag === "Live" && (
+      {/* Stays open through a reconnect so a code the machine is still using isn't lost. */}
+      {pair && fleet !== null && (
         <PairMachineDialog
           onClose={() => {
             void navigate({ search: {} });
