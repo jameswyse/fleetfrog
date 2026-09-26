@@ -157,7 +157,7 @@ export function PairMachine() {
             {paired !== undefined && (
               <>
                 <span className="font-semibold">{machineLabel(paired)}</span> is paired. Its
-                repositories appear on the overview after its first scan.
+                repositories appear on the Projects page after its first scan.
               </>
             )}
             {paired === undefined &&

@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 
 import { useRuns } from "@/rpc/hubConnection.ts";
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
-import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { activeCloneFor, activeRunFor } from "../actions/runLookup.ts";
@@ -22,39 +21,23 @@ function columnBackground(machine: Machine): string {
 
 function MachineHeader({ fleet, machine }: { readonly fleet: Fleet; readonly machine: Machine }) {
   const label = machineLabel(machine);
+  const online = machine.connection._tag === "Online";
 
   return (
     <th
       scope="col"
       className={`w-64 min-w-56 border-b border-line px-3 py-2.5 text-start align-bottom font-normal ${columnBackground(machine)}`}
     >
-      <div className="flex items-end justify-between gap-2">
-        <div className="min-w-0">
-          <span className="flex items-center gap-1.5 font-semibold" title={label}>
-            <MachineKindIcon kind={machineKind(machine)} className="text-ink-muted" />
-            <span className="truncate">{label}</span>
-          </span>
-          <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-ink-muted">
-            {machine.connection._tag === "Online" ? (
-              <span className="flex items-center gap-1.5 text-clean">
-                <span aria-hidden="true" className="size-1.5 rounded-full bg-clean" />
-                Online
-              </span>
-            ) : (
-              <span className="flex items-center gap-1.5">
-                <span aria-hidden="true" className="size-1.5 rounded-full bg-ink-muted" />
-                Offline
-              </span>
-            )}
-            {machine.lastStatusAt === null ? (
-              <span>Not scanned yet</span>
-            ) : (
-              <span>
-                Scanned <RelativeTime at={machine.lastStatusAt} />
-              </span>
-            )}
-          </span>
-        </div>
+      <div className="flex items-center gap-2">
+        <span
+          aria-hidden="true"
+          className={`size-2 shrink-0 rounded-full ${online ? "bg-clean" : "bg-ink-muted"}`}
+        />
+        <MachineKindIcon kind={machineKind(machine)} className="text-ink-muted" />
+        <span className="min-w-0 flex-1 truncate font-semibold" title={label}>
+          {label}
+        </span>
+        <span className="sr-only">{online ? ", online" : ", offline"}</span>
         <MachineActions fleet={fleet} machine={machine} />
       </div>
     </th>
@@ -171,7 +154,8 @@ export function FleetMatrix({
   const { machines } = fleet;
 
   return (
-    <div className="w-fit max-w-full overflow-auto rounded-lg border border-line bg-surface">
+    // Positioned so screen-reader text in the cells is clipped here instead of widening the page.
+    <div className="relative w-fit max-w-full overflow-auto rounded-lg border border-line bg-surface">
       <table className="border-separate border-spacing-0 text-sm">
         <caption className="sr-only">Repositories by machine</caption>
         <thead className="sticky top-0 z-[2]">

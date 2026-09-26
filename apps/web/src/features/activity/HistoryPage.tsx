@@ -156,7 +156,7 @@ export function HistoryPage() {
       )}
       {page._tag === "Ready" && page.value.entries.length > 0 && (
         <div>
-          <div className="overflow-x-auto rounded-xl border border-line bg-surface">
+          <div className="relative overflow-x-auto rounded-xl border border-line bg-surface">
             <table className="w-full min-w-2xl text-sm">
               <caption className="sr-only">
                 Activity, newest first. Open an action to see each of its runs.

@@ -60,7 +60,7 @@ function RemoveMachineDialog({
       <form action={remove} className="space-y-4 text-sm">
         <p>
           Its agent will be disconnected and its token will stop working. Its repositories disappear
-          from the overview. To add it back, pair it again.
+          from the Projects page. To add it back, pair it again.
         </p>
         {error !== null && (
           <p role="alert" className="text-danger">
@@ -235,7 +235,7 @@ function ActionsSection({ machine }: { readonly machine: Machine }) {
         result._tag === "Success"
           ? {
               _tag: "Succeeded",
-              message: "Rescan requested. The overview updates when it finishes.",
+              message: "Rescan requested. The Projects page updates when it finishes.",
             }
           : { _tag: "Failed", message: `Couldn't start a rescan. ${result.message}` },
       );
@@ -269,7 +269,7 @@ function ActionsSection({ machine }: { readonly machine: Machine }) {
       />
       <SettingsRow
         title="Remove machine"
-        description="Disconnects its agent and revokes its token. Its repositories leave the overview until it is paired again."
+        description="Disconnects its agent and revokes its token. Its repositories leave the Projects page until it is paired again."
         control={
           <Button tone="danger" onClick={() => setRemoving(true)}>
             Remove machine…

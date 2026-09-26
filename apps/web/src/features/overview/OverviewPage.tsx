@@ -4,6 +4,7 @@ import { knownFleet, useHub } from "@/rpc/hubConnection.ts";
 
 import { CheckoutDetail } from "../checkout-detail/CheckoutDetail.tsx";
 import { checkoutKey, repositoryMatches } from "./checkoutSummary.ts";
+import { FleetActions } from "./FleetActions.tsx";
 import { FleetMatrix } from "./FleetMatrix.tsx";
 
 import type { RepositoryFilter } from "./checkoutSummary.ts";
@@ -85,63 +86,66 @@ export function OverviewPage() {
     <div className="px-4 py-5 sm:px-6">
       <div className="mb-4 flex flex-wrap items-end gap-x-6 gap-y-3">
         <div>
-          <h1 className="text-lg font-semibold">Repositories</h1>
+          <h1 className="text-lg font-semibold">Projects</h1>
           <p className="text-sm text-ink-muted">
             {visible.length === repositories.length ? "" : `${visible.length} of `}
             {repositories.length} {repositories.length === 1 ? "repository" : "repositories"} across{" "}
             {machines.length} {machines.length === 1 ? "machine" : "machines"}
           </p>
         </div>
-        <div className="ms-auto flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-sm">
-            <span className="text-ink-muted">Find</span>
-            <input
-              type="search"
-              // Uncontrolled: the router commits search updates in a transition, so a controlled
-              // value would lag behind typing and move the caret.
-              defaultValue={query}
-              placeholder="Repository name"
-              onChange={(event) => {
-                const q = event.currentTarget.value;
+        <div className="ms-auto flex flex-wrap items-center gap-x-6 gap-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-sm">
+              <span className="text-ink-muted">Find</span>
+              <input
+                type="search"
+                // Uncontrolled: the router commits search updates in a transition, so a controlled
+                // value would lag behind typing and move the caret.
+                defaultValue={query}
+                placeholder="Repository name"
+                onChange={(event) => {
+                  const q = event.currentTarget.value;
 
-                void navigate({
-                  search: ({ q: _previous, ...rest }) => (q === "" ? rest : { ...rest, q }),
-                  replace: true,
-                });
-              }}
-              className="min-h-9 w-52 rounded-md border border-line bg-surface px-2.5"
-            />
-          </label>
-          <fieldset className="flex rounded-md border border-line bg-surface p-0.5">
-            <legend className="sr-only">Show</legend>
-            {filters.map(({ value, label }) => (
-              <label
-                key={value}
-                className="cursor-pointer rounded px-3 py-1.5 text-sm text-ink-muted has-checked:bg-surface-raised has-checked:text-ink has-focus-visible:outline-2 has-focus-visible:outline-accent"
-              >
-                <input
-                  type="radio"
-                  name="filter"
-                  value={value}
-                  checked={filter === value}
-                  onChange={() => {
-                    void navigate({
-                      search: ({ filter: _previous, ...rest }) =>
-                        value === "all" ? rest : { ...rest, filter: value },
-                      replace: true,
-                    });
-                  }}
-                  className="sr-only"
-                />
-                {label}
-              </label>
-            ))}
-          </fieldset>
+                  void navigate({
+                    search: ({ q: _previous, ...rest }) => (q === "" ? rest : { ...rest, q }),
+                    replace: true,
+                  });
+                }}
+                className="min-h-9 w-52 rounded-md border border-line bg-surface px-2.5"
+              />
+            </label>
+            <fieldset className="flex rounded-md border border-line bg-surface p-0.5">
+              <legend className="sr-only">Show</legend>
+              {filters.map(({ value, label }) => (
+                <label
+                  key={value}
+                  className="cursor-pointer rounded px-3 py-1.5 text-sm text-ink-muted has-checked:bg-surface-raised has-checked:text-ink has-focus-visible:outline-2 has-focus-visible:outline-accent"
+                >
+                  <input
+                    type="radio"
+                    name="filter"
+                    value={value}
+                    checked={filter === value}
+                    onChange={() => {
+                      void navigate({
+                        search: ({ filter: _previous, ...rest }) =>
+                          value === "all" ? rest : { ...rest, filter: value },
+                        replace: true,
+                      });
+                    }}
+                    className="sr-only"
+                  />
+                  {label}
+                </label>
+              ))}
+            </fieldset>
+          </div>
+          <FleetActions hub={hub} />
         </div>
       </div>
       {repositories.length === 0 && (
         <EmptyState title="Waiting for the first scan" level={2}>
-          Repositories appear once an agent finishes walking its discovery folders.
+          Repositories appear once an agent finishes searching its project folders.
         </EmptyState>
       )}
       {repositories.length > 0 && visible.length === 0 && (

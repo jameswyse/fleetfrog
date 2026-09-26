@@ -155,7 +155,7 @@ export function CloneDialog({
         >
           <p>
             Clones the default branch into a new folder. The folder must be inside one of the
-            machine's discovery folders.
+            machine's project folders.
           </p>
           <fieldset className="space-y-3">
             <legend className="mb-2 font-medium">Machines without {repository.name}</legend>

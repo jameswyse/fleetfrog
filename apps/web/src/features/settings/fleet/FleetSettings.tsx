@@ -112,7 +112,8 @@ export function FleetSettings() {
         </div>
       )}
       {fleet !== null && fleet.machines.length > 0 && (
-        <div className="overflow-x-auto rounded-xl border border-line bg-surface">
+        // Positioned so screen-reader text in the cells is clipped here instead of widening the page.
+        <div className="relative overflow-x-auto rounded-xl border border-line bg-surface">
           <table className="w-full min-w-3xl text-sm">
             <caption className="sr-only">
               Paired machines. Open one to see its settings and system.
