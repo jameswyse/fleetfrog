@@ -99,6 +99,20 @@ export function summariseCell(entries: ReadonlyArray<MachineCheckout>): CellSumm
   };
 }
 
+/**
+ * Every open pull request any machine knows of. Each checkout reports only those from its own local
+ * branches, so no single reading has them all.
+ */
+export function openPullRequests(repository: Repository) {
+  const pulls = new Map(
+    repository.checkouts.flatMap(({ checkout }) =>
+      (checkout.github?.pullRequests ?? []).map((pull) => [pull.number, pull] as const),
+    ),
+  );
+
+  return [...pulls.values()].toSorted((left, right) => right.number - left.number);
+}
+
 /** The newest GitHub reading any machine has for the repository. */
 export function latestGithub(repository: Repository) {
   return repository.checkouts

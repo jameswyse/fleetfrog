@@ -1,21 +1,17 @@
-import {
-  ChevronLeftIcon,
-  FolderGit2Icon,
-  GitForkIcon,
-  LayersIcon,
-  TriangleAlertIcon,
-} from "lucide-react";
+import { FolderGit2Icon, GitForkIcon, LayersIcon, TriangleAlertIcon } from "lucide-react";
 
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { CellState, problemWords } from "../CellContent.tsx";
 import { summariseCell } from "../cellSummary.ts";
+import { RepositoryActions } from "../RepositoryActions.tsx";
 import { CheckoutSections } from "./CheckoutSections.tsx";
 import { CloneSections } from "./CloneSections.tsx";
 import { FocusHeading } from "./FocusHeading.tsx";
-import { PanelHeader } from "./PanelHeader.tsx";
+import { Crumb, PanelHeader } from "./PanelHeader.tsx";
 import { PanelSection } from "./PanelSection.tsx";
+import { RepositoryLink } from "./RepositoryLink.tsx";
 
 import type { Fleet, Machine, MachineCheckout, Repository } from "@fleetfrog/protocol/domain/fleet";
 
@@ -119,24 +115,28 @@ export function CellPanel({
     <>
       <PanelHeader
         headingId={headingId}
-        title={repository.label}
-        back={
-          <button
-            type="button"
-            onClick={() => onSelect({ repository: repository.key, machine: null }, "Push")}
-            className="-ms-1.5 mb-1 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-sm text-ink-muted hover:bg-surface-raised hover:text-ink"
-          >
-            <ChevronLeftIcon />
-            Every machine
-          </button>
+        title={
+          <>
+            <Crumb>
+              <MachineKindIcon kind={machineKind(machine)} />
+              <span className="truncate">{machineLabel(machine)}</span>
+              {offline && <span className="font-normal">(offline)</span>}
+            </Crumb>
+            <Crumb last>
+              {/* The repository on every machine, where "Every machine" used to lead. */}
+              <button
+                type="button"
+                onClick={() => onSelect({ repository: repository.key, machine: null }, "Push")}
+                title="Show it on every machine"
+                className="truncate rounded underline-offset-2 hover:underline"
+              >
+                {repository.label}
+              </button>
+            </Crumb>
+          </>
         }
-        subtitle={
-          <span className="flex items-center gap-1.5">
-            <MachineKindIcon kind={machineKind(machine)} />
-            {machineLabel(machine)}
-            {offline && " · offline, showing the last scan"}
-          </span>
-        }
+        subtitle={<RepositoryLink identity={repository.identity} />}
+        actions={<RepositoryActions fleet={fleet} repository={repository} />}
         onClose={onClose}
       />
       {/* A finished clone swaps the clone form for the checkout, taking focus with it. */}

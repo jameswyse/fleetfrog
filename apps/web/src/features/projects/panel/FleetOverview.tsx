@@ -14,7 +14,7 @@ import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { Glyph, plural, problemWords } from "../CellContent.tsx";
-import { latestGithub, summariseCell } from "../cellSummary.ts";
+import { openPullRequests, summariseCell } from "../cellSummary.ts";
 import { PanelHeader } from "./PanelHeader.tsx";
 import { PanelSection, ShortList } from "./PanelSection.tsx";
 
@@ -153,7 +153,7 @@ export function FleetOverview({
     .filter(({ cell }) => cell.behind > 0 || cell.remoteMoved)
     .toSorted((left, right) => right.cell.behind - left.cell.behind);
   const pullRequests = repositories.flatMap((repository) =>
-    (latestGithub(repository)?.pullRequests ?? []).map((pull) => ({ repository, pull })),
+    openPullRequests(repository).map((pull) => ({ repository, pull })),
   );
   const online = machines.filter(({ connection }) => connection._tag === "Online").length;
   const settled = problems.length + changed.length + toPush.length + toPull.length === 0;

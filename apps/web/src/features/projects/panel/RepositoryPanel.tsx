@@ -1,7 +1,7 @@
-import { ExternalLinkIcon, GitPullRequestIcon, MonitorIcon } from "lucide-react";
+import { GitPullRequestIcon, MonitorIcon } from "lucide-react";
 
 import { useRuns } from "@/rpc/hubConnection.ts";
-import { GitHubIcon, gitHost, HostIcon } from "@/ui/HostIcon.tsx";
+import { GitHubIcon } from "@/ui/HostIcon.tsx";
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
@@ -9,10 +9,11 @@ import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 import { RunActivity } from "../../actions/RunActivity.tsx";
 import { activeCloneFor, activeRunFor } from "../../actions/runLookup.ts";
 import { CellContent } from "../CellContent.tsx";
-import { latestGithub, summariseCell } from "../cellSummary.ts";
+import { latestGithub, openPullRequests, summariseCell } from "../cellSummary.ts";
 import { RepositoryActions } from "../RepositoryActions.tsx";
 import { PanelHeader } from "./PanelHeader.tsx";
 import { Fact, Facts, PanelSection } from "./PanelSection.tsx";
+import { RepositoryLink } from "./RepositoryLink.tsx";
 
 import type { Fleet, Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
@@ -52,33 +53,14 @@ export function RepositoryPanel({
 }) {
   const runs = useRuns();
   const github = latestGithub(repository);
-  const { identity } = repository;
+  const pullRequests = openPullRequests(repository);
 
   return (
     <>
       <PanelHeader
         headingId={headingId}
-        title={repository.label}
-        subtitle={
-          identity._tag === "Remote" ? (
-            <a
-              href={`https://${identity.host}/${identity.path}`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-accent-text underline-offset-2 hover:underline"
-            >
-              <HostIcon host={gitHost(identity)} />
-              {identity.host}/{identity.path}
-              <ExternalLinkIcon className="size-3.5" />
-              <span className="sr-only"> (opens in a new tab)</span>
-            </a>
-          ) : (
-            <span className="inline-flex items-center gap-1.5">
-              <HostIcon host={gitHost(identity)} />
-              Local repository with no remote
-            </span>
-          )
-        }
+        title={<span className="truncate">{repository.label}</span>}
+        subtitle={<RepositoryLink identity={repository.identity} />}
         actions={<RepositoryActions fleet={fleet} repository={repository} />}
         onClose={onClose}
       />
@@ -90,19 +72,19 @@ export function RepositoryPanel({
                 <span className="font-mono text-[13px]">{github.defaultBranch}</span>
               </Fact>
               <Fact term="Pull requests">
-                {github.pullRequests.length === 0 ? (
+                {pullRequests.length === 0 ? (
                   <span className="text-ink-muted">None open</span>
                 ) : (
-                  `${github.pullRequests.length} open`
+                  `${pullRequests.length} open`
                 )}
               </Fact>
               <Fact term="Checked">
                 <RelativeTime at={github.checkedAt} />
               </Fact>
             </Facts>
-            {github.pullRequests.length > 0 && (
+            {pullRequests.length > 0 && (
               <ul className="mt-3 space-y-1.5">
-                {github.pullRequests.map((pull) => (
+                {pullRequests.map((pull) => (
                   <li key={pull.number}>
                     <a
                       href={pull.url}
