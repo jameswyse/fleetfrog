@@ -62,6 +62,8 @@ const makeHarness = Effect.fn("makeHarness")(function* (options: {
   const updates = new Map<RunId, Array<ActionUpdate>>();
   const audit: Array<AuditEntry> = [];
   const tracked: Array<string> = [];
+  /** For each rescan, whether it came before any run reported its outcome. */
+  const rescannedBeforeFinishing: Array<boolean> = [];
   const signals = new Map<string, Deferred.Deferred<ActionUpdate>>();
 
   /** Resolves when the run first reports an update of this kind. */
@@ -84,7 +86,12 @@ const makeHarness = Effect.fn("makeHarness")(function* (options: {
     catalogue: {
       locate: (checkoutPath) =>
         checkoutPath === options.location.path ? options.location : undefined,
-      rescanRepository: () => Effect.void,
+      rescanRepository: () =>
+        Effect.sync(() => {
+          rescannedBeforeFinishing.push(
+            [...updates.values()].every((sent) => sent.every(({ _tag }) => _tag !== "Finished")),
+          );
+        }),
       track: (trackedPath) => Effect.sync(() => tracked.push(trackedPath)),
     },
     discoveryRoots: () => options.roots,
@@ -106,6 +113,7 @@ const makeHarness = Effect.fn("makeHarness")(function* (options: {
     runner,
     audit,
     tracked,
+    rescannedBeforeFinishing,
     updates: (runId: RunId) => (updates.get(runId) ?? []).map(({ _tag }) => _tag),
     /** Starts an action and waits for its outcome. */
     run: (request: ActionRequest, runId: RunId = runIds.first) =>
@@ -136,7 +144,7 @@ const setUp = (policy: AgentPolicy = { allowedTiers: ["git"] }) =>
 describe("action runner", () => {
   it.effect("pulls by fetching and fast-forwarding a clean checkout", () =>
     Effect.gen(function* () {
-      const { run, updates, audit, clone, upstream } = yield* setUp();
+      const { run, updates, audit, rescannedBeforeFinishing, clone, upstream } = yield* setUp();
 
       expect(yield* run({ _tag: "Pull", path: clone })).toMatchObject({
         outcome: { _tag: "Succeeded", result: { _tag: "FastForwarded", commits: 1 } },
@@ -144,6 +152,8 @@ describe("action runner", () => {
       expect(git(clone, "rev-parse", "HEAD")).toBe(git(upstream, "rev-parse", "HEAD"));
       expect(updates(runIds.first).at(0)).toBe("Started");
       expect(audit.map(({ event }) => event)).toEqual(["ActionStarted", "ActionFinished"]);
+      // The hub hears the outcome after the checkout's new state, never before it.
+      expect(rescannedBeforeFinishing).toEqual([true]);
     }),
   );
 

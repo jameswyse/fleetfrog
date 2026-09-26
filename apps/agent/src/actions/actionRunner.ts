@@ -194,7 +194,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
   /**
    * Checks the policy, waits for the repository and a network slot, checks the policy again in
    * case the owner changed it meanwhile, then runs the action. Returns its outcome and the rescan
-   * to follow, or null when the request was refused.
+   * to do before reporting it, or null when the request was refused.
    */
   const perform = (runId: RunId, request: ActionRequest, output: ActionOutput) =>
     Effect.gen(function* () {
@@ -266,11 +266,14 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
       Effect.flatMap((performed) =>
         performed === null
           ? Effect.void
-          : // A cancel arriving now must not stop the outcome reaching the hub.
-            Effect.uninterruptible(finish(runId, performed.outcome, output.tail())).pipe(
-              Effect.andThen(performed.afterwards),
-              Effect.catchCause((cause) =>
-                Effect.logWarning("Could not rescan after an action", cause),
+          : // The rescan goes first, so the hub has the checkout's new state, or a new clone's
+            // checkout, by the time it hears the outcome. The outcome is sent even when the rescan
+            // fails or a cancel arrives during it.
+            Effect.catchCause(performed.afterwards, (cause) =>
+              Effect.logWarning("Could not rescan after an action", cause),
+            ).pipe(
+              Effect.ensuring(
+                Effect.uninterruptible(finish(runId, performed.outcome, output.tail())),
               ),
             ),
       ),
