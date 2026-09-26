@@ -24,7 +24,14 @@
     "verbatimModuleSyntax": true,
     "plugins": [
       {
-        "name": "@effect/language-service"
+        "name": "@effect/language-service",
+        "diagnosticSeverity": {
+          "globalConsoleInEffect": "error",
+          "globalDateInEffect": "error",
+          "globalRandomInEffect": "error",
+          "globalTimersInEffect": "error",
+          "processEnvInEffect": "error"
+        }
       }
     ]
   }
