@@ -1,52 +1,111 @@
 @import "tailwindcss";
 
-/* Semantic colours, swapped for dark mode. Status colours always travel with a text label. */
+/*
+ * Colour comes in two tiers. The palette names each colour by hue and OKLCH lightness, and only the
+ * roles use it. The roles name each colour by its job and switch with the colour scheme, and they
+ * are the only colours components can use, as Tailwind colours. Tailwind's own palette is off.
+ *
+ * Each hue has one meaning: blue is anything you can act on (buttons, links, focus and selection),
+ * violet is commits to push or pull and work in progress, amber is uncommitted changes, red is a
+ * problem, and green is clean. Status colours always travel with a symbol or a label.
+ */
 :root {
+  --neutral-100: #ffffff;
+  --neutral-99: #fafcfa;
+  --neutral-97: #f4f6f4;
+  --neutral-93: #e5e9e5;
+  --neutral-91: #dee3de;
+  --neutral-72: #9fa89f;
+  --neutral-48: #5c605c;
+  --neutral-31: #2c312c;
+  --neutral-25: #1e221e;
+  --neutral-23: #1b1c1b;
+  --neutral-22: #181b18;
+  --neutral-18: #111311;
+  --blue-95: #e7f1fe;
+  --blue-75: #7eb1f3;
+  --blue-70: #6ea0e1;
+  --blue-52: #1f68bc;
+  --blue-47: #155aa7;
+  --blue-28: #1b2a3c;
+  --blue-20: #0b1726;
+  --violet-95: #f2edfd;
+  --violet-76: #bca1ed;
+  --violet-50: #7347af;
+  --violet-27: #2a2139;
+  --amber-96: #fdf1dc;
+  --amber-79: #e8b04f;
+  --amber-53: #9a5b06;
+  --amber-28: #33280f;
+  --red-94: #fbe6e4;
+  --red-73: #f0857c;
+  --red-50: #b3261e;
+  --red-26: #3a1a17;
+  --green-81: #78df3e;
+  --green-78: #6fcf8a;
+  --green-61: #2d9c40;
+  --green-52: #2f7a45;
+  /* Atlassian's blues, so Bitbucket's logo reads as Bitbucket's. */
+  --atlassian-69: #4c9aff;
+  --atlassian-48: #0052cc;
+
   /* The main header's height once it fits on one row, so panels can sit just below it. */
   --app-header-height: 3.8125rem;
-  --canvas: #f6f6f3;
-  --surface: #ffffff;
-  --surface-raised: #fbfbf9;
-  --line: #e2e2dc;
-  --ink: #1c1c1a;
-  --ink-muted: #5f5f59;
-  /* The logo's green. Text on it is dark, and text in it uses the deeper accent-text. */
-  --accent: var(--logo-frog);
-  --accent-ink: #0d1a10;
-  --accent-text: #2f8048;
-  /* A selection's tint, opaque so pinned cells still cover what scrolls beneath them. */
-  --accent-soft: color-mix(in oklab, var(--accent) 14%, var(--surface));
-  --changes: #9a5b06;
-  --changes-soft: #fdf1dc;
-  --sync: #1f5fa3;
-  --sync-soft: #e5eefb;
-  --danger: #b3261e;
-  --danger-soft: #fbe6e4;
-  --clean: #2f7a45;
-  --logo-frog: #2d9c40;
-  /* Atlassian's blue, so Bitbucket's logo reads as Bitbucket's. */
-  --bitbucket: #0052cc;
+
+  --canvas: var(--neutral-97);
+  --surface: var(--neutral-100);
+  --surface-raised: var(--neutral-99);
+  --line: var(--neutral-91);
+  --ink: var(--neutral-23);
+  --ink-muted: var(--neutral-48);
+  --scrim: color-mix(in oklab, var(--neutral-18) 55%, transparent);
+  /* Filled primary actions, focus rings and the selection ring. */
+  --accent: var(--blue-52);
+  --accent-hover: var(--blue-47);
+  /* Text on an accent fill. */
+  --accent-ink: var(--neutral-100);
+  /* Links and other accent text on a surface or an accent tint. */
+  --accent-text: var(--blue-52);
+  /* The tint behind a selection. Opaque, so pinned cells still cover what scrolls beneath them. */
+  --accent-soft: var(--blue-95);
+  --changes: var(--amber-53);
+  --changes-soft: var(--amber-96);
+  --sync: var(--violet-50);
+  --sync-soft: var(--violet-95);
+  --danger: var(--red-50);
+  --danger-soft: var(--red-94);
+  --clean: var(--green-52);
+  --logo-frog: var(--green-61);
+  --bitbucket: var(--atlassian-48);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --canvas: #111311;
-    --surface: #181b18;
-    --surface-raised: #1e221e;
-    --line: #2c312c;
-    --ink: #e7e9e4;
-    --ink-muted: #a1a79d;
-    --accent-text: var(--logo-frog);
-    --changes: #e8b04f;
-    --changes-soft: #33280f;
-    --sync: #78aef0;
-    --sync-soft: #16263a;
-    --danger: #f0857c;
-    --danger-soft: #3a1a17;
-    --clean: #6fcf8a;
-    --logo-frog: #78df3e;
-    --bitbucket: #4c9aff;
+    --canvas: var(--neutral-18);
+    --surface: var(--neutral-22);
+    --surface-raised: var(--neutral-25);
+    --line: var(--neutral-31);
+    --ink: var(--neutral-93);
+    --ink-muted: var(--neutral-72);
+    --accent: var(--blue-70);
+    --accent-hover: var(--blue-75);
+    --accent-ink: var(--blue-20);
+    --accent-text: var(--blue-70);
+    --accent-soft: var(--blue-28);
+    --changes: var(--amber-79);
+    --changes-soft: var(--amber-28);
+    --sync: var(--violet-76);
+    --sync-soft: var(--violet-27);
+    --danger: var(--red-73);
+    --danger-soft: var(--red-26);
+    --clean: var(--green-78);
+    --logo-frog: var(--green-81);
+    --bitbucket: var(--atlassian-69);
   }
+}
+
+@theme {
+  --color-*: initial;
 }
 
 @theme inline {
@@ -57,6 +116,7 @@
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
   --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
   --color-accent-ink: var(--accent-ink);
   --color-accent-text: var(--accent-text);
   --color-accent-soft: var(--accent-soft);
@@ -94,6 +154,6 @@
   }
 
   dialog::backdrop {
-    background: rgb(0 0 0 / 0.45);
+    background: var(--scrim);
   }
 }

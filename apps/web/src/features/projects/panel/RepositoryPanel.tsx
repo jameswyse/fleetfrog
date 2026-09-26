@@ -6,8 +6,8 @@ import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
+import { RunActivity } from "../../actions/RunActivity.tsx";
 import { activeCloneFor, activeRunFor } from "../../actions/runLookup.ts";
-import { RunStateText } from "../../actions/RunStateText.tsx";
 import { CellContent } from "../CellContent.tsx";
 import { latestGithub, summariseCell } from "../cellSummary.ts";
 import { RepositoryActions } from "../RepositoryActions.tsx";
@@ -65,7 +65,7 @@ export function RepositoryPanel({
               href={`https://${identity.host}/${identity.path}`}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-sync underline-offset-2 hover:underline"
+              className="inline-flex items-center gap-1.5 text-accent-text underline-offset-2 hover:underline"
             >
               <HostIcon host={gitHost(identity)} />
               {identity.host}/{identity.path}
@@ -108,7 +108,7 @@ export function RepositoryPanel({
                       href={pull.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="flex items-start gap-2 rounded-lg bg-sync-soft px-2.5 py-2 text-sm text-sync hover:underline"
+                      className="flex items-start gap-2 rounded-lg bg-canvas px-2.5 py-2 text-sm text-accent-text hover:underline"
                     >
                       <GitPullRequestIcon className="mt-0.5" />
                       <span className="min-w-0 flex-1">
@@ -151,7 +151,7 @@ export function RepositoryPanel({
                       {cloning === undefined ? (
                         "Not on this machine"
                       ) : (
-                        <RunStateText run={cloning} length="short" />
+                        <RunActivity run={cloning} layout="Stacked" />
                       )}
                     </p>
                   </li>
@@ -181,8 +181,8 @@ export function RepositoryPanel({
                         cell={cell}
                         activity={
                           active === undefined ? null : (
-                            <span className="mt-0.5 flex text-xs">
-                              <RunStateText run={active} length="short" />
+                            <span className="mt-0.5 block text-xs">
+                              <RunActivity run={active} layout="Inline" />
                             </span>
                           )
                         }

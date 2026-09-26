@@ -98,7 +98,7 @@ export function ShortList<Item>({
         <button
           type="button"
           onClick={() => setExpanded(true)}
-          className="mt-2 text-sm text-sync underline-offset-2 hover:underline"
+          className="mt-2 text-sm text-accent-text underline-offset-2 hover:underline"
         >
           Show {items.length - limit} more {noun}
         </button>

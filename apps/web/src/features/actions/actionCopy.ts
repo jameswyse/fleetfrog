@@ -112,15 +112,22 @@ export function describeCounts(counts: RunCounts): string {
     .join(", ");
 }
 
-/** What a queued or running run is doing now. */
-export function describeActiveRun(run: ActionRun): string {
-  const verb = { Fetch: "Fetching", Pull: "Pulling", Clone: "Cloning" }[run.request._tag];
+/** What a queued or running run is doing, in a word or two: "Cloning", or "Waiting to clone". */
+export function describeActiveRunBriefly(run: ActionRun): string {
+  return run.state._tag === "Running"
+    ? { Fetch: "Fetching", Pull: "Pulling", Clone: "Cloning" }[run.request._tag]
+    : `Waiting to ${run.request._tag.toLowerCase()}`;
+}
 
-  if (run.state._tag === "Running") {
-    return run.state.progress === null ? `${verb}…` : `${verb}: ${run.state.progress}`;
+/** What a queued or running run is doing now, with Git's latest progress line. */
+export function describeActiveRun(run: ActionRun): string {
+  const brief = describeActiveRunBriefly(run);
+
+  if (run.state._tag !== "Running") {
+    return brief;
   }
 
-  return `Waiting to ${run.request._tag.toLowerCase()}`;
+  return run.state.progress === null ? `${brief}…` : `${brief}: ${run.state.progress}`;
 }
 
 export function describeEvent(event: HubEvent): string {

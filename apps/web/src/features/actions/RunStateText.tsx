@@ -14,15 +14,11 @@ const outcomeTones = {
   MachineOffline: "text-ink-muted",
 } as const;
 
-/** A run's state in one line: what it is doing now, or how it ended and when. */
-export function RunStateText({
-  run,
-  length,
-}: {
-  readonly run: ActionRun;
-  /** `short` leaves out the time and detail, for tight spaces such as matrix cells. */
-  readonly length: "full" | "short";
-}) {
+/**
+ * A run's state in one line: what it is doing now, or how it ended, why and when. `RunActivity`
+ * shows a running one where there is less room.
+ */
+export function RunStateText({ run }: { readonly run: ActionRun }) {
   const { state } = run;
 
   if (state._tag !== "Finished") {
@@ -39,13 +35,11 @@ export function RunStateText({
   return (
     <span className="min-w-0">
       <span className={`font-medium ${outcomeTones[state.outcome._tag]}`}>{summary}</span>
-      {length === "full" && detail !== null && <span className="break-words">: {detail}</span>}
-      {length === "full" && (
-        <span className="text-ink-muted">
-          {" · "}
-          <RelativeTime at={state.finishedAt} />
-        </span>
-      )}
+      {detail !== null && <span className="break-words">: {detail}</span>}
+      <span className="text-ink-muted">
+        {" · "}
+        <RelativeTime at={state.finishedAt} />
+      </span>
     </span>
   );
 }

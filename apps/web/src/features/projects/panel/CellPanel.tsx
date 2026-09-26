@@ -53,7 +53,7 @@ function CheckoutPicker({
                 aria-current={entry === current ? "true" : undefined}
                 onClick={() => onChoose(entry.checkout.path)}
                 title={entry.checkout.path}
-                className="flex w-full items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-start text-sm hover:bg-canvas aria-[current=true]:bg-sync-soft"
+                className="flex w-full items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-start text-sm hover:bg-canvas aria-[current=true]:bg-accent-soft"
               >
                 {linked ? (
                   <GitForkIcon className="text-ink-muted" />

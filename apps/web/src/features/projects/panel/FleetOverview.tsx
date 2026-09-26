@@ -313,7 +313,7 @@ export function FleetOverview({
                     className="flex items-baseline gap-2 rounded-lg px-1.5 py-1 text-sm hover:bg-canvas"
                   >
                     <span className="min-w-0 flex-1 truncate">
-                      <span className="text-sync">#{pull.number}</span> {pull.title}
+                      <span className="text-accent-text">#{pull.number}</span> {pull.title}
                       {pull.draft && <span className="text-ink-muted"> · draft</span>}
                     </span>
                     <span className="max-w-[40%] shrink-0 truncate text-xs text-ink-muted">

@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes } from "react";
 
 const tones = {
-  primary: "bg-accent text-accent-ink hover:brightness-110",
+  primary: "bg-accent text-accent-ink hover:bg-accent-hover",
   secondary: "border border-line bg-surface text-ink hover:bg-surface-raised",
   danger: "border border-danger/40 bg-danger-soft text-danger hover:border-danger",
   quiet: "text-ink-muted hover:bg-surface-raised hover:text-ink",

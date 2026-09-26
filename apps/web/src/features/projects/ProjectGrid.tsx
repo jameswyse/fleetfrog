@@ -3,8 +3,8 @@ import { gitHost, HostIcon } from "@/ui/HostIcon.tsx";
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
+import { RunActivity } from "../actions/RunActivity.tsx";
 import { activeCloneFor, activeRunFor } from "../actions/runLookup.ts";
-import { RunStateText } from "../actions/RunStateText.tsx";
 import { CellContent } from "./CellContent.tsx";
 import { summariseCell } from "./cellSummary.ts";
 import { MachineActions } from "./MachineActions.tsx";
@@ -147,8 +147,8 @@ function MatrixCell({
           className={`flex ${cellHeight} ${columnWidth} items-center px-3 py-2 text-sm text-ink-muted`}
         >
           {cloning !== undefined && (
-            <span className="flex text-xs">
-              <RunStateText run={cloning} length="short" />
+            <span className="w-full min-w-0 text-xs">
+              <RunActivity run={cloning} layout="Stacked" />
             </span>
           )}
           {cloning === undefined && machine.lastDiscoveryAt === null && (
@@ -188,8 +188,8 @@ function MatrixCell({
           cell={cell}
           activity={
             active === undefined ? null : (
-              <span className="mt-0.5 flex text-xs">
-                <RunStateText run={active} length="short" />
+              <span className="mt-0.5 block text-xs">
+                <RunActivity run={active} layout="Inline" />
               </span>
             )
           }

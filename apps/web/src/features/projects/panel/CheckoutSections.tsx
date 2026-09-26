@@ -246,7 +246,7 @@ function GitSections({ git, checkout }: { readonly git: GitStatus; readonly chec
               href={pullRequest.url}
               target="_blank"
               rel="noreferrer"
-              className="mt-3 flex items-start gap-2 rounded-lg bg-sync-soft px-2.5 py-2 text-sm text-sync hover:underline"
+              className="mt-3 flex items-start gap-2 rounded-lg bg-canvas px-2.5 py-2 text-sm text-accent-text hover:underline"
             >
               <GitPullRequestIcon className="mt-0.5" />
               <span className="min-w-0">

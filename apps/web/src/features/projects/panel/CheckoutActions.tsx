@@ -77,11 +77,11 @@ export function CheckoutActions({
         {failure === null && shown !== undefined && (
           <span className="flex flex-wrap items-baseline gap-x-2">
             <span className="text-ink-muted">{shown.request._tag}:</span>
-            <RunStateText run={shown} length="full" />
+            <RunStateText run={shown} />
             <Link
               to="/activity"
               search={{ batch: shown.batchId }}
-              className="text-sync underline-offset-2 hover:underline"
+              className="text-accent-text underline-offset-2 hover:underline"
             >
               View in Activity
             </Link>

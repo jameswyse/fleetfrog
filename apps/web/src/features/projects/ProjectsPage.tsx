@@ -63,7 +63,7 @@ export function ProjectsPage() {
         <div className="mt-5">
           <Link
             to="/settings/fleet/pair"
-            className="inline-flex min-h-9 items-center rounded-md bg-accent px-3 text-sm font-medium text-accent-ink"
+            className="inline-flex min-h-9 items-center rounded-md bg-accent px-3 text-sm font-medium text-accent-ink hover:bg-accent-hover"
           >
             Pair a machine
           </Link>

@@ -46,7 +46,7 @@ function RunItem({ detail }: { readonly detail: RunDetail }) {
         )}
       </div>
       <p className="mt-1 text-sm">
-        <RunStateText run={run} length="full" />
+        <RunStateText run={run} />
       </p>
       {output.length > 0 && (
         <details className="mt-2">

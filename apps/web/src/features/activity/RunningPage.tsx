@@ -109,7 +109,7 @@ export function RunningPage() {
           <Link
             to="/activity"
             search={({ batch: _batch, ...filters }) => filters}
-            className="mt-4 inline-block text-sync hover:underline"
+            className="mt-4 inline-block text-accent-text hover:underline"
           >
             See the history
           </Link>

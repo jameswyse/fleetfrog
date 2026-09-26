@@ -112,7 +112,7 @@ function StatusPanel({ fleet, machine }: { readonly fleet: Fleet; readonly machi
               href={`https://github.com/${encodeURIComponent(githubCli.login)}`}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-0.5 text-sync underline-offset-2 hover:underline"
+              className="inline-flex items-center gap-0.5 text-accent-text underline-offset-2 hover:underline"
             >
               {githubCli.login}
               <ArrowUpRightIcon className="size-3.5" />
@@ -305,7 +305,10 @@ export function MachineSettings() {
           <div className="py-16 text-center text-sm">
             <p className="font-medium">This machine isn't paired</p>
             <p className="mt-1 text-ink-muted">It may have been removed.</p>
-            <Link to="/settings/fleet" className="mt-4 inline-block text-sync hover:underline">
+            <Link
+              to="/settings/fleet"
+              className="mt-4 inline-block text-accent-text hover:underline"
+            >
               See all machines
             </Link>
           </div>
