@@ -8,12 +8,14 @@ import { Button } from "@/ui/Button.tsx";
 import { cloneSource, suggestCloneDestination } from "@fleetfrog/protocol/domain/cloneDestination";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
-import {
-  checkoutPaths,
-  cloneBlocker,
-  cloneDestinationProblem,
-} from "../../actions/actionAvailability.ts";
+import { checkoutPaths, cloneBlocker } from "../../actions/actionAvailability.ts";
 import { describeOutcome } from "../../actions/actionCopy.ts";
+import {
+  draftFromSuggestion,
+  draftPath,
+  draftProblem,
+} from "../../actions/cloneDestinationDraft.ts";
+import { CloneDestinationField } from "../../actions/CloneDestinationField.tsx";
 import { RunActivity } from "../../actions/RunActivity.tsx";
 import { activeCloneFor, latestCloneFor } from "../../actions/runLookup.ts";
 import { useStartBatch } from "../../actions/useStartBatch.ts";
@@ -110,14 +112,15 @@ function CloneForm({
     machines: fleet.machines,
     occupied: checkoutPaths(fleet.repositories, machine.id),
   });
-  const [destination, setDestination] = useState(suggestion?.destination ?? "");
+  const [draft, setDraft] = useState(() =>
+    draftFromSuggestion({ machine, suggestion, repositoryName: repository.name }),
+  );
   const [problem, setProblem] = useState<string | null>(null);
   const { start, pending, failure } = useStartBatch();
   const inputId = useId();
   const label = machineLabel(machine);
-  const rootMissing =
-    suggestion !== null &&
-    (suggestion.root.status === "Missing" || suggestion.root.status === "NotFolder");
+  const root = machine.discoveryRoots.find(({ path }) => path === draft.root);
+  const rootMissing = root?.status === "Missing" || root?.status === "NotFolder";
   let submitLabel = lastFailure === null ? `Clone to ${label}` : "Clone again";
 
   if (pending) {
@@ -130,11 +133,7 @@ function CloneForm({
       onSubmit={(event) => {
         event.preventDefault();
 
-        const found = cloneDestinationProblem({
-          destination,
-          machine,
-          repositories: fleet.repositories,
-        });
+        const found = draftProblem({ draft, machine, repositories: fleet.repositories });
 
         setProblem(found);
 
@@ -147,7 +146,7 @@ function CloneForm({
         start({
           _tag: "Clone",
           repositoryKey: repository.key,
-          targets: [{ machineId: machine.id, destination: destination.trim() }],
+          targets: [{ machineId: machine.id, destination: draftPath(draft) }],
         });
       }}
       className="space-y-3 text-sm"
@@ -163,28 +162,24 @@ function CloneForm({
         <p className="mt-1 font-mono text-[13px] break-all">{source}</p>
       </div>
       <div>
-        <label htmlFor={inputId} className="block text-ink-muted">
-          Into
-        </label>
-        <input
+        <CloneDestinationField
           id={inputId}
-          value={destination}
-          onChange={(event) => setDestination(event.currentTarget.value)}
-          aria-invalid={problem === null ? undefined : true}
-          aria-describedby={`${inputId}-help`}
-          autoComplete="off"
-          spellCheck={false}
-          className="mt-1 block min-h-9 w-full rounded-md border border-line bg-canvas px-2.5 font-mono text-[13px] aria-invalid:border-danger"
+          label="Into"
+          machine={machine}
+          value={draft}
+          invalid={problem !== null}
+          describedBy={`${inputId}-help`}
+          onChange={setDraft}
         />
         <p
           id={`${inputId}-help`}
           className={`mt-1 ${problem === null ? "text-ink-muted" : "text-danger"}`}
         >
-          {problem ?? `A new folder inside one of ${label}'s project folders.`}
+          {problem ?? "A new folder for the clone to create."}
         </p>
         {problem === null && rootMissing && (
           <p className="mt-1 text-changes">
-            Its folder {suggestion.root.path} doesn't exist. Choose another folder, or fix it on the
+            {draft.root} doesn't exist on {label}. Choose another project folder, or fix it on the
             Machines page.
           </p>
         )}

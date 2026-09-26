@@ -5,11 +5,15 @@ import { Dialog } from "@/ui/Dialog.tsx";
 import { suggestCloneDestination } from "@fleetfrog/protocol/domain/cloneDestination";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
-import { checkoutPaths, cloneBlocker, cloneDestinationProblem } from "./actionAvailability.ts";
+import { checkoutPaths, cloneBlocker } from "./actionAvailability.ts";
+import { draftFromSuggestion, draftPath, draftProblem } from "./cloneDestinationDraft.ts";
+import { CloneDestinationField } from "./CloneDestinationField.tsx";
 import { useStartBatch } from "./useStartBatch.ts";
 
 import type { Fleet, Repository } from "@fleetfrog/protocol/domain/fleet";
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
+
+import type { DestinationDraft } from "./cloneDestinationDraft.ts";
 
 /** Chooses machines to clone a repository onto, each with a destination it can edit. */
 export function CloneDialog({
@@ -38,7 +42,7 @@ export function CloneDialog({
       return {
         machine,
         blocked: cloneBlocker(machine),
-        suggestion: suggestion?.destination,
+        draft: draftFromSuggestion({ machine, suggestion, repositoryName: repository.name }),
         // Said before anything is chosen, so a mistyped default folder is fixed first.
         warning:
           suggestion !== null && rootMissing
@@ -47,12 +51,13 @@ export function CloneDialog({
       };
     });
   const [chosen, setChosen] = useState<ReadonlySet<MachineId>>(() => new Set());
-  const [destinations, setDestinations] = useState<ReadonlyMap<MachineId, string>>(
-    () => new Map(candidates.map(({ machine, suggestion }) => [machine.id, suggestion ?? ""])),
+  const [drafts, setDrafts] = useState<ReadonlyMap<MachineId, DestinationDraft>>(
+    () => new Map(candidates.map(({ machine, draft }) => [machine.id, draft])),
   );
   const [problems, setProblems] = useState<ReadonlyMap<MachineId, string>>(() => new Map());
   const [nothingChosen, setNothingChosen] = useState(false);
-  const destinationOf = (machineId: MachineId) => destinations.get(machineId) ?? "";
+  const draftOf = (machineId: MachineId) =>
+    drafts.get(machineId) ?? { root: "", name: repository.name };
   let submitLabel = chosen.size > 1 ? `Clone to ${chosen.size} machines` : "Clone";
 
   if (pending) {
@@ -63,8 +68,8 @@ export function CloneDialog({
     const targets = candidates.filter(({ machine }) => chosen.has(machine.id));
     const found = new Map(
       targets.flatMap(({ machine }) => {
-        const problem = cloneDestinationProblem({
-          destination: destinationOf(machine.id),
+        const problem = draftProblem({
+          draft: draftOf(machine.id),
           machine,
           repositories: fleet.repositories,
         });
@@ -90,7 +95,7 @@ export function CloneDialog({
 
     const [head, ...rest] = targets.map(({ machine }) => ({
       machineId: machine.id,
-      destination: destinationOf(machine.id).trim(),
+      destination: draftPath(draftOf(machine.id)),
     }));
 
     if (head !== undefined) {
@@ -155,23 +160,14 @@ export function CloneDialog({
                   )}
                   {checked && (
                     <div className="mt-2 ms-6">
-                      <label htmlFor={inputId} className="block text-ink-muted">
-                        Destination
-                      </label>
-                      <input
+                      <CloneDestinationField
                         id={inputId}
-                        name={inputId}
-                        value={destinationOf(machine.id)}
-                        onChange={(event) =>
-                          setDestinations(
-                            new Map(destinations).set(machine.id, event.currentTarget.value),
-                          )
-                        }
-                        aria-invalid={problem === undefined ? undefined : true}
-                        aria-describedby={problem === undefined ? undefined : `${inputId}-error`}
-                        autoComplete="off"
-                        spellCheck={false}
-                        className="mt-1 block min-h-9 w-full rounded-md border border-line bg-canvas px-2.5 font-mono text-[13px] aria-invalid:border-danger"
+                        label="Destination"
+                        machine={machine}
+                        value={draftOf(machine.id)}
+                        invalid={problem !== undefined}
+                        describedBy={`${inputId}-error`}
+                        onChange={(next) => setDrafts(new Map(drafts).set(machine.id, next))}
                       />
                       {problem !== undefined && (
                         <p id={`${inputId}-error`} className="mt-1 text-danger">
