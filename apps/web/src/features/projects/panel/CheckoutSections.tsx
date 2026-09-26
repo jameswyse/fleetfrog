@@ -1,9 +1,18 @@
-import { GitBranchIcon } from "lucide-react";
+import {
+  ArchiveIcon,
+  FilePenIcon,
+  FolderOpenIcon,
+  GitBranchIcon,
+  GitCommitHorizontalIcon,
+  GitPullRequestIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
 
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
-import type { ReactNode } from "react";
+import { CheckoutActions } from "./CheckoutActions.tsx";
+import { Fact, Facts, PanelSection, ShortList } from "./PanelSection.tsx";
 
 import type {
   ChangedFile,
@@ -32,11 +41,6 @@ function describeChange(file: ChangedFile): string {
   return [staged && `${staged}, staged`, unstaged].filter(Boolean).join("; ");
 }
 
-/** Git's two status letters, staged then unstaged, with a space for no change. */
-function statusLetters(file: ChangedFile): string {
-  return `${file.staged === "." ? " " : file.staged}${file.unstaged === "." ? " " : file.unstaged}`;
-}
-
 function describeUpstream(upstream: Upstream | null): string {
   if (upstream === null) {
     return "No upstream branch";
@@ -54,48 +58,138 @@ function describeUpstream(upstream: Upstream | null): string {
   return `Tracks ${upstream.name}${parts.length > 0 ? `, ${parts.join(", ")}` : ", up to date"}`;
 }
 
-/** An upstream's state in a few characters: a tick, arrows with counts, or a word. */
-function UpstreamMark({ upstream }: { readonly upstream: Upstream | null }) {
-  if (upstream === null) {
-    return <span className="text-ink-muted">no upstream</span>;
+/** Conflicts and deletions in red, additions in green, and other edits in amber. */
+const letterTones = new Map([
+  ["??", "bg-canvas text-ink-muted"],
+  ["U", "bg-danger-soft text-danger"],
+  ["D", "bg-danger-soft text-danger"],
+  ["A", "bg-clean/15 text-clean"],
+]);
+
+/** The letter that matters for a change: the unstaged one when there is one, or ?? when untracked. */
+function changeLetter(file: ChangedFile | null): string {
+  if (file === null) {
+    return "??";
   }
 
-  if (upstream.gone) {
-    return <span className="text-danger">deleted</span>;
-  }
+  return file.unstaged === "." ? file.staged : file.unstaged;
+}
 
-  if (upstream.ahead + upstream.behind === 0) {
-    return <span className="text-clean">✓</span>;
-  }
+/** A file's change as one short, coloured code. */
+function ChangeCode({ file }: { readonly file: ChangedFile | null }) {
+  const letter = changeLetter(file);
 
   return (
-    <span className="text-sync tabular-nums">
-      {upstream.ahead > 0 && `↑${upstream.ahead} `}
-      {upstream.behind > 0 && `↓${upstream.behind}`}
+    <span
+      aria-hidden="true"
+      className={`inline-grid h-5 w-6 shrink-0 place-items-center rounded font-mono text-[11px] font-semibold ${letterTones.get(letter) ?? "bg-changes-soft text-changes"}`}
+    >
+      {letter}
     </span>
   );
 }
 
-/** A part of the panel: a small heading over its content. */
-export function Section({
-  title,
-  children,
+/** A small stat: a number over what it counts, coloured when it asks for attention. */
+function Tile({
+  value,
+  label,
+  tone,
 }: {
-  readonly title: string;
-  readonly children: ReactNode;
+  readonly value: number;
+  readonly label: string;
+  readonly tone: string;
 }) {
   return (
-    <section className="border-t border-line px-5 py-4">
-      <h3 className="mb-2 text-xs font-medium tracking-wide text-ink-muted uppercase">{title}</h3>
-      {children}
-    </section>
+    <div className="rounded-lg bg-canvas px-2 py-1.5 text-center">
+      <p
+        className={`text-lg leading-6 font-semibold tabular-nums ${value > 0 ? tone : "text-ink-muted"}`}
+      >
+        {value}
+      </p>
+      <p className="text-xs text-ink-muted">{label}</p>
+    </div>
   );
 }
 
-function More({ shown, total }: { readonly shown: number; readonly total: number }) {
-  return total > shown ? (
-    <p className="mt-1.5 text-xs text-ink-muted">and {total - shown} more</p>
-  ) : null;
+/** The problem with a checkout that needs fixing by hand, if there is one. */
+function problemOf(checkout: Checkout): string | null {
+  if (checkout.status._tag === "Failed") {
+    return `Couldn't read this checkout: ${checkout.status.message}`;
+  }
+
+  const { git } = checkout.status;
+  const conflicted = git.changed.items.filter(
+    ({ staged, unstaged }) => staged === "U" || unstaged === "U",
+  ).length;
+
+  if (conflicted > 0) {
+    return conflicted === 1
+      ? "1 file has merge conflicts"
+      : `${conflicted} files have merge conflicts`;
+  }
+
+  return git.head._tag === "Branch" && git.head.upstream?.gone === true
+    ? `Its upstream, ${git.head.upstream.name}, was deleted on the remote`
+    : null;
+}
+
+/** The branch, how it stands against its upstream, and the actions for it. */
+function Overview({
+  git,
+  machine,
+  checkout,
+}: {
+  readonly git: GitStatus | null;
+  readonly machine: Machine;
+  readonly checkout: Checkout;
+}) {
+  const head = git?.head ?? null;
+  const upstream = head?._tag === "Branch" ? head.upstream : null;
+
+  return (
+    <div className="space-y-3 rounded-xl border border-line p-3">
+      {git !== null && head !== null && (
+        <>
+          <p className="flex items-center gap-2 text-sm">
+            <GitBranchIcon className="text-sync" />
+            <span className="min-w-0 font-mono font-medium break-all">
+              {head._tag === "Detached" ? "Detached HEAD" : head.name}
+            </span>
+            {upstream !== null && (
+              <span className="min-w-0 truncate text-ink-muted">
+                → <span className="font-mono">{upstream.name}</span>
+              </span>
+            )}
+          </p>
+          <div className="grid grid-cols-4 gap-2">
+            {upstream === null || upstream.gone ? (
+              <div className="col-span-2 grid place-items-center rounded-lg bg-canvas px-2 py-1.5 text-center text-xs text-ink-muted">
+                {head._tag !== "Branch" && "Not on a branch"}
+                {head._tag === "Branch" && upstream === null && "No upstream branch"}
+                {upstream?.gone === true && <span className="text-danger">Upstream deleted</span>}
+              </div>
+            ) : (
+              <>
+                <Tile value={upstream.ahead} label="to push" tone="text-sync" />
+                <Tile value={upstream.behind} label="to pull" tone="text-sync" />
+              </>
+            )}
+            <Tile
+              value={git.changed.total + git.untracked.total}
+              label="changed"
+              tone="text-changes"
+            />
+            <Tile
+              value={git.stashes.total}
+              label={git.stashes.total === 1 ? "stash" : "stashes"}
+              tone="text-ink"
+            />
+          </div>
+        </>
+      )}
+      <CheckoutActions machine={machine} checkout={checkout} />
+    </div>
+  );
 }
 
 function GitSections({ git, checkout }: { readonly git: GitStatus; readonly checkout: Checkout }) {
@@ -105,134 +199,128 @@ function GitSections({ git, checkout }: { readonly git: GitStatus; readonly chec
       ? (checkout.github?.pullRequests.find(({ branch }) => branch === head.name) ?? null)
       : null;
   const changes = git.changed.total + git.untracked.total;
+  const files: ReadonlyArray<{ readonly path: string; readonly file: ChangedFile | null }> = [
+    ...git.changed.items.map((file) => ({
+      path: file.originalPath === null ? file.path : `${file.originalPath} → ${file.path}`,
+      file,
+    })),
+    ...git.untracked.items.map((path) => ({ path, file: null })),
+  ];
 
   return (
     <>
-      <Section title="Branch">
-        <p className="flex items-center gap-2 text-sm">
-          <GitBranchIcon className="text-ink-muted" />
-          <span className="min-w-0 font-mono break-all">
-            {head._tag === "Detached" ? "Detached HEAD" : head.name}
-          </span>
-        </p>
-        <p className="mt-1 text-sm text-ink-muted">
-          {head._tag === "Branch" && describeUpstream(head.upstream)}
-          {head._tag === "Unborn" && "No commits yet"}
-          {head._tag === "Detached" && "Not on a branch"}
-        </p>
-        {git.lastCommit !== null && (
-          <p className="mt-2 flex items-baseline gap-2 text-sm">
-            <span className="font-mono text-xs text-ink-muted">
+      {changes > 0 && (
+        <PanelSection title="Uncommitted changes" icon={FilePenIcon} tone="changes" count={changes}>
+          <ShortList
+            items={files}
+            total={changes}
+            noun="files"
+            render={({ path, file }) => (
+              <li
+                key={path}
+                className="flex items-start gap-2 text-[13px]"
+                title={file === null ? "untracked" : describeChange(file)}
+              >
+                <ChangeCode file={file} />
+                <span className="min-w-0 font-mono break-all">{path}</span>
+                <span className="sr-only">
+                  , {file === null ? "untracked" : describeChange(file)}
+                </span>
+              </li>
+            )}
+          />
+        </PanelSection>
+      )}
+      {git.lastCommit !== null && (
+        <PanelSection title="Latest commit" icon={GitCommitHorizontalIcon} tone="neutral">
+          <p className="text-sm">{git.lastCommit.subject}</p>
+          <p className="mt-1.5 flex items-center gap-2 text-xs text-ink-muted">
+            <span className="rounded bg-canvas px-1.5 py-0.5 font-mono">
               {git.lastCommit.sha.slice(0, 7)}
             </span>
-            <span className="min-w-0 flex-1">{git.lastCommit.subject}</span>
-            <span className="shrink-0 text-xs text-ink-muted">
-              <RelativeTime at={git.lastCommit.committedAt} />
-            </span>
+            <RelativeTime at={git.lastCommit.committedAt} />
           </p>
-        )}
-        {pullRequest !== null && (
-          <a
-            href={pullRequest.url}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-2 inline-block text-sm text-sync underline-offset-2 hover:underline"
-          >
-            Pull request #{pullRequest.number}: {pullRequest.title}
-            {pullRequest.draft && " (draft)"}
-            <span className="sr-only"> (opens in a new tab)</span>
-          </a>
-        )}
-      </Section>
-      {changes > 0 && (
-        <Section title={`Changes (${changes})`}>
-          <ul className="space-y-1 text-[13px]">
-            {git.changed.items.map((file) => (
-              <li key={file.path} className="flex gap-2" title={describeChange(file)}>
-                <span
-                  aria-hidden="true"
-                  className={`w-5 shrink-0 font-mono whitespace-pre ${file.staged === "U" || file.unstaged === "U" ? "text-danger" : "text-changes"}`}
-                >
-                  {statusLetters(file)}
-                </span>
-                <span className="min-w-0 font-mono break-all">
-                  {file.originalPath === null ? file.path : `${file.originalPath} → ${file.path}`}
-                </span>
-                <span className="sr-only">, {describeChange(file)}</span>
-              </li>
-            ))}
-            {git.untracked.items.map((path) => (
-              <li key={path} className="flex gap-2" title="untracked">
-                <span aria-hidden="true" className="w-5 shrink-0 font-mono text-ink-muted">
-                  ??
-                </span>
-                <span className="min-w-0 font-mono break-all">{path}</span>
-                <span className="sr-only">, untracked</span>
-              </li>
-            ))}
-          </ul>
-          <More shown={git.changed.items.length + git.untracked.items.length} total={changes} />
-        </Section>
+          {pullRequest !== null && (
+            <a
+              href={pullRequest.url}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 flex items-start gap-2 rounded-lg bg-sync-soft px-2.5 py-2 text-sm text-sync hover:underline"
+            >
+              <GitPullRequestIcon className="mt-0.5" />
+              <span className="min-w-0">
+                #{pullRequest.number} {pullRequest.title}
+                {pullRequest.draft && <span className="text-ink-muted"> · draft</span>}
+              </span>
+              <span className="sr-only"> (opens in a new tab)</span>
+            </a>
+          )}
+        </PanelSection>
       )}
-      {git.stashes.total > 0 && (
-        <Section title={`Stashes (${git.stashes.total})`}>
-          <ol className="space-y-1 text-sm">
-            {git.stashes.items.map((stash) => (
-              <li key={stash.index} className="flex gap-2">
-                <span className="shrink-0 font-mono text-xs text-ink-muted">{stash.index}</span>
-                <span className="min-w-0">{stash.message}</span>
-              </li>
-            ))}
-          </ol>
-          <More shown={git.stashes.items.length} total={git.stashes.total} />
-        </Section>
-      )}
-      <Section title={`Local branches (${git.branches.total})`}>
-        <ul className="space-y-1 text-sm">
-          {git.branches.items.map((branch) => (
+      <PanelSection
+        title="Local branches"
+        icon={GitBranchIcon}
+        tone="sync"
+        count={git.branches.total}
+      >
+        <ShortList
+          items={git.branches.items}
+          total={git.branches.total}
+          noun="branches"
+          render={(branch) => (
             <li
               key={branch.name}
-              className="flex items-baseline gap-3"
+              className="flex items-center gap-2 text-sm"
               title={describeUpstream(branch.upstream)}
             >
-              <span className="min-w-0 flex-1 truncate font-mono text-[13px]">
-                {branch.name}
-                {head._tag !== "Detached" && branch.name === head.name && (
-                  <span className="ms-2 font-sans text-xs text-ink-muted">current</span>
-                )}
-              </span>
-              <span className="shrink-0 text-xs">
-                <UpstreamMark upstream={branch.upstream} />
+              <span className="min-w-0 flex-1 truncate font-mono text-[13px]">{branch.name}</span>
+              {head._tag !== "Detached" && branch.name === head.name && (
+                <span className="rounded-full bg-sync-soft px-2 text-xs text-sync">current</span>
+              )}
+              <span className="shrink-0 text-xs tabular-nums">
+                {branch.upstream === null && <span className="text-ink-muted">no upstream</span>}
+                {branch.upstream?.gone === true && <span className="text-danger">deleted</span>}
+                {branch.upstream !== null &&
+                  !branch.upstream.gone &&
+                  (branch.upstream.ahead + branch.upstream.behind === 0 ? (
+                    <span className="text-clean">✓</span>
+                  ) : (
+                    <span className="text-sync">
+                      {branch.upstream.ahead > 0 && `↑${branch.upstream.ahead} `}
+                      {branch.upstream.behind > 0 && `↓${branch.upstream.behind}`}
+                    </span>
+                  ))}
               </span>
               <span className="sr-only">, {describeUpstream(branch.upstream)}</span>
             </li>
-          ))}
-        </ul>
-        <More shown={git.branches.items.length} total={git.branches.total} />
-      </Section>
+          )}
+        />
+      </PanelSection>
+      {git.stashes.total > 0 && (
+        <PanelSection title="Stashes" icon={ArchiveIcon} tone="neutral" count={git.stashes.total}>
+          <ShortList
+            items={git.stashes.items}
+            total={git.stashes.total}
+            noun="stashes"
+            render={(stash) => (
+              <li key={stash.index} className="flex gap-2 text-sm">
+                <span className="shrink-0 rounded bg-canvas px-1.5 font-mono text-xs text-ink-muted">
+                  {stash.index}
+                </span>
+                <span className="min-w-0">{stash.message}</span>
+              </li>
+            )}
+          />
+        </PanelSection>
+      )}
     </>
   );
 }
 
-function GithubSection({ github }: { readonly github: NonNullable<Checkout["github"]> }) {
-  return (
-    <Section title="GitHub">
-      <p className="text-sm">
-        Default branch <span className="font-mono text-[13px]">{github.defaultBranch}</span>
-        {github.trackingSha === null && " hasn't been fetched here"}
-        {github.trackingSha !== null &&
-          (github.trackingSha === github.remoteSha
-            ? " matches the last fetch"
-            : " has commits this checkout hasn't fetched")}
-      </p>
-      <p className="mt-1 text-xs text-ink-muted">
-        Checked <RelativeTime at={github.checkedAt} />
-      </p>
-    </Section>
-  );
-}
-
-/** Everything known about one checkout, section by section. */
+/**
+ * Everything known about one checkout: any problem first, then an overview with its actions,
+ * then a card for each part, and finally where it lives.
+ */
 export function CheckoutSections({
   repository,
   machine,
@@ -242,28 +330,74 @@ export function CheckoutSections({
   readonly machine: Machine;
   readonly checkout: Checkout;
 }) {
+  const git = checkout.status._tag === "Read" ? checkout.status.git : null;
+  const problem = problemOf(checkout);
   const onGithub =
     repository.identity._tag === "Remote" && repository.identity.host === "github.com";
 
   return (
-    <>
-      {checkout.status._tag === "Failed" ? (
-        <Section title="Status unavailable">
-          <p className="font-mono text-[13px] break-all text-danger">{checkout.status.message}</p>
-        </Section>
-      ) : (
-        <GitSections git={checkout.status.git} checkout={checkout} />
+    <div className="space-y-3">
+      {problem !== null && (
+        <p className="flex items-start gap-2 rounded-xl border border-danger/30 bg-danger-soft px-3 py-2.5 text-sm text-danger">
+          <TriangleAlertIcon className="mt-0.5" />
+          <span className="min-w-0 break-words">{problem}</span>
+        </p>
       )}
-      {checkout.github !== null && <GithubSection github={checkout.github} />}
-      {checkout.github === null && onGithub && (
-        <Section title="GitHub">
-          <p className="text-sm text-ink-muted">
-            {machine.info.githubCli._tag === "Unavailable"
-              ? `Pull requests and the default branch aren't available because the GitHub CLI (gh) isn't installed or signed in on ${machineLabel(machine)}.`
-              : "Pull requests and the default branch aren't available because GitHub couldn't be reached on the last check."}
-          </p>
-        </Section>
+      <Overview git={git} machine={machine} checkout={checkout} />
+      {git !== null && <GitSections git={git} checkout={checkout} />}
+      {(checkout.github !== null || onGithub) && (
+        <PanelSection title="GitHub" icon={GitPullRequestIcon} tone="neutral">
+          {checkout.github === null ? (
+            <p className="text-sm text-ink-muted">
+              {machine.info.githubCli._tag === "Unavailable"
+                ? `Not available: the GitHub CLI (gh) isn't installed or signed in on ${machineLabel(machine)}.`
+                : "Not available: GitHub couldn't be reached on the last check."}
+            </p>
+          ) : (
+            <Facts>
+              <Fact term="Default branch">
+                <span className="font-mono text-[13px]">{checkout.github.defaultBranch}</span>
+              </Fact>
+              <Fact term="Remote">
+                {checkout.github.trackingSha === null && (
+                  <span className="text-ink-muted">Not fetched here yet</span>
+                )}
+                {checkout.github.trackingSha !== null &&
+                  (checkout.github.trackingSha === checkout.github.remoteSha ? (
+                    <span className="text-clean">Matches the last fetch</span>
+                  ) : (
+                    <span className="text-sync">Has commits not fetched yet</span>
+                  ))}
+              </Fact>
+              <Fact term="Checked">
+                <RelativeTime at={checkout.github.checkedAt} />
+              </Fact>
+            </Facts>
+          )}
+        </PanelSection>
       )}
-    </>
+      <PanelSection title="Location" icon={FolderOpenIcon} tone="neutral">
+        <Facts>
+          <Fact term="Path">
+            <span className="font-mono text-[13px] break-all">{checkout.path}</span>
+          </Fact>
+          {checkout.worktree._tag === "Linked" && (
+            <Fact term="Worktree of">
+              <span className="font-mono text-[13px] break-all">{checkout.worktree.mainPath}</span>
+            </Fact>
+          )}
+          <Fact term="Fetched">
+            {git === null || git.lastFetchedAt === null ? (
+              <span className="text-ink-muted">Never</span>
+            ) : (
+              <RelativeTime at={git.lastFetchedAt} />
+            )}
+          </Fact>
+          <Fact term="Scanned">
+            <RelativeTime at={checkout.scannedAt} />
+          </Fact>
+        </Facts>
+      </PanelSection>
+    </div>
   );
 }

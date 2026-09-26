@@ -1,4 +1,5 @@
 import { useRuns } from "@/rpc/hubConnection.ts";
+import { gitHost, HostIcon } from "@/ui/HostIcon.tsx";
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
@@ -37,6 +38,13 @@ function columnBackground(machine: Machine): string {
 
 /** Machine columns have a fixed width, so a long branch or machine name is cut short, not widened. */
 const columnWidth = "w-52";
+
+/**
+ * Every cell is at least two lines tall, so rows line up whether or not a cell has a second line.
+ * Cells are 1px tall to start with, which a table grows to the row's height, so their contents can
+ * fill the row with a full height.
+ */
+const cellHeight = "min-h-[3.375rem]";
 
 function stepFor(key: string): readonly [number, number] | null {
   switch (key) {
@@ -104,7 +112,7 @@ function MatrixCell({
 
     return (
       <td className={`border-b border-line p-0 align-top ${columnBackground(machine)}`}>
-        <div className={`${columnWidth} px-3 py-2 text-sm text-ink-muted`}>
+        <div className={`${cellHeight} ${columnWidth} px-3 py-2 text-sm text-ink-muted`}>
           {cloning !== undefined && (
             <span className="flex text-xs">
               <RunStateText run={cloning} length="short" />
@@ -133,7 +141,7 @@ function MatrixCell({
 
   return (
     <td
-      className={`border-b border-line p-0 align-top ${cell.problem === null ? columnBackground(machine) : "bg-danger-soft"}`}
+      className={`h-px border-b border-line p-0 align-top ${cell.problem === null ? columnBackground(machine) : "bg-danger-soft"}`}
     >
       <button
         type="button"
@@ -141,7 +149,7 @@ function MatrixCell({
         data-selection={selectionKey(selection)}
         aria-current={selected ? "true" : undefined}
         onClick={() => onSelect(selection, "Push")}
-        className={`block ${columnWidth} px-3 py-2 text-start -outline-offset-2 hover:bg-surface-raised aria-[current=true]:ring-2 aria-[current=true]:ring-accent aria-[current=true]:ring-inset ${offline ? "opacity-75" : ""}`}
+        className={`block h-full ${cellHeight} ${columnWidth} px-3 py-2 text-start -outline-offset-2 hover:bg-surface-raised aria-[current=true]:ring-2 aria-[current=true]:ring-accent aria-[current=true]:ring-inset ${offline ? "opacity-75" : ""}`}
       >
         <CellContent
           cell={cell}
@@ -223,12 +231,12 @@ export function ProjectGrid({
 
   return (
     // Positioned so screen-reader text in the cells is clipped here instead of widening the page.
-    <div className="relative min-h-0 w-fit max-w-full overflow-auto rounded-lg border border-line bg-surface">
+    <div className="relative w-fit max-w-full overflow-x-auto rounded-lg border border-line bg-surface">
       <table className="border-separate border-spacing-0 text-sm">
         <caption className="sr-only">
           Repositories by machine. Choose a repository or a cell to see its details.
         </caption>
-        <thead className="sticky top-0 z-[2]">
+        <thead>
           <tr>
             <th
               scope="col"
@@ -244,10 +252,11 @@ export function ProjectGrid({
         <tbody onKeyDown={moveFocus}>
           {repositories.map((repository, row) => {
             const rowSelection = { repository: repository.key, machine: null };
+            const host = gitHost(repository.identity);
             const identity =
               repository.identity._tag === "Remote"
-                ? `${repository.identity.host}/${repository.identity.path}`
-                : "Local repository";
+                ? `${host.name}: ${repository.identity.path}`
+                : host.name;
 
             return (
               <tr key={repository.key}>
@@ -267,9 +276,10 @@ export function ProjectGrid({
                       }
                       onClick={() => onSelect(rowSelection, "Push")}
                       title={identity}
-                      className="min-w-0 flex-1 truncate px-4 py-2 text-start -outline-offset-2 hover:underline aria-[current=true]:text-accent"
+                      className="flex min-w-0 flex-1 items-center gap-2 px-4 py-2 text-start -outline-offset-2 hover:underline aria-[current=true]:text-accent"
                     >
-                      {repository.name}
+                      <HostIcon host={host} className="text-ink-muted" />
+                      <span className="min-w-0 truncate">{repository.name}</span>
                     </button>
                     <RepositoryActions fleet={fleet} repository={repository} />
                   </div>

@@ -27,8 +27,9 @@ function FocusOnNarrowScreens({ targetId }: { readonly targetId: string }) {
 export const projectPanelId = "project-panel";
 
 /**
- * The side panel beside the grid: a repository on every machine, or on one machine. On wide
- * screens it sits beside the grid, which stays usable; on narrow ones it covers the page.
+ * The side panel: a repository on every machine, or on one machine. On wide screens it is fixed
+ * to the window's edge below the header, full height, while the page scrolls beside it; on narrow
+ * ones it covers the page.
  */
 export function ProjectPanel({
   fleet,
@@ -54,7 +55,7 @@ export function ProjectPanel({
     <aside
       id={projectPanelId}
       aria-labelledby={headingId}
-      className="fixed inset-0 z-10 overflow-y-auto bg-surface lg:static lg:z-auto lg:h-full lg:w-[30rem] lg:shrink-0 lg:border-s lg:border-line"
+      className="fixed inset-0 z-10 overflow-y-auto bg-surface lg:inset-auto lg:end-0 lg:top-(--app-header-height) lg:bottom-0 lg:z-[4] lg:w-[30rem] lg:border-s lg:border-line"
     >
       <FocusOnNarrowScreens key={key} targetId={headingId} />
       {repository === undefined && (

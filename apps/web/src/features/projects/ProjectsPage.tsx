@@ -37,9 +37,8 @@ function EmptyState({
 }
 
 /**
- * Every repository on every machine as a grid, with a panel beside it for whatever is chosen. On
- * wide screens the page fills the window below the header and the grid scrolls inside it, so its
- * headings stay in view.
+ * Every repository on every machine as a grid, with a panel for whatever is chosen. The page
+ * scrolls; on wide screens the panel stays fixed to the window's edge beside it.
  */
 export function ProjectsPage() {
   const hub = useHub();
@@ -119,9 +118,11 @@ export function ProjectsPage() {
           close();
         }
       }}
-      className="lg:flex lg:h-[calc(100dvh-var(--app-header-height))]"
     >
-      <div className="flex min-w-0 flex-1 flex-col px-4 pt-5 pb-4 sm:px-6">
+      <div
+        // The fixed panel takes the right of the window, so the page keeps clear of it.
+        className={`px-4 pt-5 pb-8 sm:px-6 ${selection === null ? "" : "lg:me-[30rem]"}`}
+      >
         <div className="mb-4 flex flex-wrap items-end gap-x-6 gap-y-3">
           <div>
             <h1 className="text-lg font-semibold">Projects</h1>

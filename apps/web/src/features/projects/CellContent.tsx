@@ -6,7 +6,8 @@ function plural(value: number, singular: string, pluralForm = `${singular}s`): s
   return `${value} ${value === 1 ? singular : pluralForm}`;
 }
 
-const problemWords = {
+/** What each problem means, in words. */
+export const problemWords = {
   Unreadable: "A checkout couldn't be read",
   Conflicts: "Merge conflicts",
   UpstreamGone: "The upstream branch was deleted",

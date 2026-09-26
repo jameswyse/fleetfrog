@@ -1,6 +1,7 @@
-import { ExternalLinkIcon } from "lucide-react";
+import { ExternalLinkIcon, GitPullRequestIcon, MonitorIcon } from "lucide-react";
 
 import { useRuns } from "@/rpc/hubConnection.ts";
+import { gitHost, HostIcon } from "@/ui/HostIcon.tsx";
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
@@ -10,8 +11,8 @@ import { RunStateText } from "../../actions/RunStateText.tsx";
 import { CellContent } from "../CellContent.tsx";
 import { summariseCell } from "../cellSummary.ts";
 import { RepositoryActions } from "../RepositoryActions.tsx";
-import { Section } from "./CheckoutSections.tsx";
 import { PanelHeader } from "./PanelHeader.tsx";
+import { Fact, Facts, PanelSection } from "./PanelSection.tsx";
 
 import type { Fleet, Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
@@ -72,130 +73,144 @@ export function RepositoryPanel({
               href={`https://${identity.host}/${identity.path}`}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1 text-sync underline-offset-2 hover:underline"
+              className="inline-flex items-center gap-1.5 text-sync underline-offset-2 hover:underline"
             >
+              <HostIcon host={gitHost(identity)} />
               {identity.host}/{identity.path}
               <ExternalLinkIcon className="size-3.5" />
               <span className="sr-only"> (opens in a new tab)</span>
             </a>
           ) : (
-            "Local repository with no remote"
+            <span className="inline-flex items-center gap-1.5">
+              <HostIcon host={gitHost(identity)} />
+              Local repository with no remote
+            </span>
           )
         }
         actions={<RepositoryActions fleet={fleet} repository={repository} />}
         onClose={onClose}
       />
-      {github !== undefined && (
-        <Section title="GitHub">
-          <p className="text-sm">
-            Default branch <span className="font-mono text-[13px]">{github.defaultBranch}</span>
-            <span className="text-ink-muted">
-              {" · "}
-              {github.pullRequests.length === 1
-                ? "1 open pull request"
-                : `${github.pullRequests.length} open pull requests`}
-            </span>
-          </p>
-          {github.pullRequests.length > 0 && (
-            <ul className="mt-2 space-y-1 text-sm">
-              {github.pullRequests.map((pull) => (
-                <li key={pull.number} className="flex gap-2">
-                  <a
-                    href={pull.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="min-w-0 text-sync underline-offset-2 hover:underline"
-                  >
-                    #{pull.number} {pull.title}
-                    <span className="sr-only"> (opens in a new tab)</span>
-                  </a>
-                  <span className="shrink-0 font-mono text-xs text-ink-muted">
-                    {pull.branch}
-                    {pull.draft && " · draft"}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="mt-2 text-xs text-ink-muted">
-            Checked <RelativeTime at={github.checkedAt} />
-          </p>
-        </Section>
-      )}
-      <Section title="Machines">
-        <ul className="space-y-2">
-          {fleet.machines.map((machine) => {
-            const cell = summariseCell(
-              repository.checkouts.filter(({ machineId }) => machineId === machine.id),
-            );
+      <div className="space-y-3 px-4 pb-6">
+        {github !== undefined && (
+          <PanelSection title="GitHub" icon={GitPullRequestIcon} tone="neutral">
+            <Facts>
+              <Fact term="Default branch">
+                <span className="font-mono text-[13px]">{github.defaultBranch}</span>
+              </Fact>
+              <Fact term="Pull requests">
+                {github.pullRequests.length === 0 ? (
+                  <span className="text-ink-muted">None open</span>
+                ) : (
+                  `${github.pullRequests.length} open`
+                )}
+              </Fact>
+              <Fact term="Checked">
+                <RelativeTime at={github.checkedAt} />
+              </Fact>
+            </Facts>
+            {github.pullRequests.length > 0 && (
+              <ul className="mt-3 space-y-1.5">
+                {github.pullRequests.map((pull) => (
+                  <li key={pull.number}>
+                    <a
+                      href={pull.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-start gap-2 rounded-lg bg-sync-soft px-2.5 py-2 text-sm text-sync hover:underline"
+                    >
+                      <GitPullRequestIcon className="mt-0.5" />
+                      <span className="min-w-0 flex-1">
+                        #{pull.number} {pull.title}
+                        <span className="block font-mono text-xs text-ink-muted">
+                          {pull.branch}
+                          {pull.draft && " · draft"}
+                        </span>
+                      </span>
+                      <span className="sr-only"> (opens in a new tab)</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </PanelSection>
+        )}
+        <PanelSection
+          title="Machines"
+          icon={MonitorIcon}
+          tone="sync"
+          count={`${fleet.machines.filter((machine) => repository.checkouts.some(({ machineId }) => machineId === machine.id)).length} of ${fleet.machines.length}`}
+        >
+          <ul className="-mx-3 -my-3 divide-y divide-line">
+            {fleet.machines.map((machine) => {
+              const cell = summariseCell(
+                repository.checkouts.filter(({ machineId }) => machineId === machine.id),
+              );
 
-            if (cell === null) {
-              const cloning = activeCloneFor(runs, {
-                machineId: machine.id,
-                repositoryKey: repository.key,
-              });
+              if (cell === null) {
+                const cloning = activeCloneFor(runs, {
+                  machineId: machine.id,
+                  repositoryKey: repository.key,
+                });
+
+                return (
+                  <li key={machine.id} className="px-3 py-2.5 text-ink-muted">
+                    <MachineLine machine={machine} />
+                    <p className="mt-1 text-xs">
+                      {cloning === undefined ? (
+                        "Not on this machine"
+                      ) : (
+                        <RunStateText run={cloning} length="short" />
+                      )}
+                    </p>
+                  </li>
+                );
+              }
+
+              const git =
+                cell.primary.checkout.status._tag === "Read"
+                  ? cell.primary.checkout.status.git
+                  : null;
+              const active = cell.entries
+                .map(({ checkout }) => activeRunFor(runs, { machineId: machine.id, checkout }))
+                .find((run) => run !== undefined);
 
               return (
-                <li
-                  key={machine.id}
-                  className="rounded-lg border border-dashed border-line px-3 py-2.5 text-ink-muted"
-                >
-                  <MachineLine machine={machine} />
-                  <p className="mt-1 text-xs">
-                    {cloning === undefined ? (
-                      "Not on this machine"
-                    ) : (
-                      <RunStateText run={cloning} length="short" />
+                <li key={machine.id}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onSelect({ repository: repository.key, machine: machine.id }, "Push")
+                    }
+                    className={`block w-full px-3 py-2.5 text-start hover:bg-canvas ${cell.problem === null ? "" : "bg-danger-soft"}`}
+                  >
+                    <MachineLine machine={machine} />
+                    <span className="mt-1.5 block">
+                      <CellContent
+                        cell={cell}
+                        activity={
+                          active === undefined ? null : (
+                            <span className="mt-0.5 flex text-xs">
+                              <RunStateText run={active} length="short" />
+                            </span>
+                          )
+                        }
+                      />
+                    </span>
+                    {git !== null && git.lastCommit !== null && (
+                      <span className="mt-1 flex gap-2 text-xs text-ink-muted">
+                        <span className="min-w-0 flex-1 truncate">{git.lastCommit.subject}</span>
+                        <span className="shrink-0">
+                          <RelativeTime at={git.lastCommit.committedAt} />
+                        </span>
+                      </span>
                     )}
-                  </p>
+                  </button>
                 </li>
               );
-            }
-
-            const git =
-              cell.primary.checkout.status._tag === "Read"
-                ? cell.primary.checkout.status.git
-                : null;
-            const active = cell.entries
-              .map(({ checkout }) => activeRunFor(runs, { machineId: machine.id, checkout }))
-              .find((run) => run !== undefined);
-
-            return (
-              <li key={machine.id}>
-                <button
-                  type="button"
-                  onClick={() =>
-                    onSelect({ repository: repository.key, machine: machine.id }, "Push")
-                  }
-                  className={`block w-full rounded-lg border border-line px-3 py-2.5 text-start hover:bg-surface-raised ${cell.problem === null ? "" : "bg-danger-soft"}`}
-                >
-                  <MachineLine machine={machine} />
-                  <span className="mt-1.5 block">
-                    <CellContent
-                      cell={cell}
-                      activity={
-                        active === undefined ? null : (
-                          <span className="mt-0.5 flex text-xs">
-                            <RunStateText run={active} length="short" />
-                          </span>
-                        )
-                      }
-                    />
-                  </span>
-                  {git !== null && git.lastCommit !== null && (
-                    <span className="mt-1 flex gap-2 text-xs text-ink-muted">
-                      <span className="min-w-0 flex-1 truncate">{git.lastCommit.subject}</span>
-                      <span className="shrink-0">
-                        <RelativeTime at={git.lastCommit.committedAt} />
-                      </span>
-                    </span>
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </Section>
+            })}
+          </ul>
+        </PanelSection>
+      </div>
     </>
   );
 }
