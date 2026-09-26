@@ -24,6 +24,7 @@ function machine(options: {
       homeDirectory: options.home,
       agentVersion: "0.0.0",
       githubCli: { _tag: "Unavailable", reason: "" },
+      system: null,
     },
     customName: null,
     connection: { _tag: "Offline", lastSeenAt: null },
@@ -31,6 +32,7 @@ function machine(options: {
     lastDiscoveryAt: null,
     lastStatusAt: null,
     pairedAt: now,
+    usage: null,
   };
 }
 

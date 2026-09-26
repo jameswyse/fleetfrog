@@ -31,6 +31,7 @@ function machine(
       homeDirectory: "/home/dev",
       agentVersion: "0.0.0",
       githubCli: { _tag: "Unavailable", reason: "" },
+      system: null,
     },
     customName: null,
     connection:
@@ -41,6 +42,7 @@ function machine(
     lastDiscoveryAt: now,
     lastStatusAt: now,
     pairedAt: now,
+    usage: null,
   };
 }
 

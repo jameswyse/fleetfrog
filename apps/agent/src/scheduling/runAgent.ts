@@ -9,6 +9,7 @@ import { loadAgentConfig } from "../config/agentConfig.ts";
 import { loadPolicy, policyPath } from "../config/agentPolicy.ts";
 import { makeHubClient } from "../connection/hubClient.ts";
 import { readMachineInfo } from "../machine/machineInfo.ts";
+import { readSystemUsage } from "../machine/systemInfo.ts";
 import { makeScanner } from "./scanner.ts";
 
 import type { AgentCapabilities } from "@fleetfrog/protocol/domain/action";
@@ -24,6 +25,8 @@ type Configuration = (typeof HubCommand.cases.Configure)["Type"];
 
 const firstRetryDelay = Duration.seconds(1);
 const maximumRetryDelay = Duration.seconds(60);
+/** Disk space and load change slowly, and a minute keeps the dashboard current enough. */
+const usageInterval = Duration.minutes(1);
 /** A connection that lasted this long was healthy, so the next retry starts from the shortest delay. */
 const healthyConnection = Duration.seconds(60);
 
@@ -163,6 +166,13 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
     );
   };
 
+  yield* readSystemUsage.pipe(
+    Effect.flatMap((usage) => client.ReportUsage({ usage })),
+    Effect.catchCause((cause) => Effect.logWarning("Could not report system usage", cause)),
+    Effect.andThen(Effect.sleep(usageInterval)),
+    Effect.forever,
+    Effect.forkScoped,
+  );
   yield* client
     .Heartbeat()
     .pipe(

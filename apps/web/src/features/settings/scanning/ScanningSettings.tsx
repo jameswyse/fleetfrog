@@ -6,7 +6,7 @@ import { knownFleet, requestHub, useHub } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
 import { PollingSettings } from "@fleetfrog/protocol/domain/polling";
 
-import { SettingsHeading } from "../SettingsHeading.tsx";
+import { SettingsFooter, SettingsPage, SettingsRow, SettingsSection } from "../SettingsPage.tsx";
 
 type Field = {
   readonly name: keyof PollingSettings;
@@ -59,17 +59,18 @@ export function ScanningSettings() {
   const fleet = knownFleet(hub);
 
   if (fleet === null) {
-    return <p className="py-24 text-center text-sm text-ink-muted">Waiting for the hub…</p>;
+    return (
+      <SettingsPage trail={[{ label: "Scanning" }]}>
+        <p className="py-16 text-center text-sm text-ink-muted">Waiting for the hub…</p>
+      </SettingsPage>
+    );
   }
 
   const { polling } = fleet;
   const live = hub._tag === "Live";
 
   return (
-    <div>
-      <SettingsHeading title="Scanning">
-        How often agents check their repositories. These intervals apply to every machine.
-      </SettingsHeading>
+    <SettingsPage trail={[{ label: "Scanning" }]}>
       <form
         noValidate
         onSubmit={(event) => {
@@ -113,68 +114,72 @@ export function ScanningSettings() {
             );
           });
         }}
-        className="space-y-5 rounded-lg border border-line bg-surface px-5 py-5"
       >
-        {fields.map(({ name, label, hint, unit }) => {
-          const invalid = state._tag === "Invalid" && state.fields.has(name);
+        <SettingsSection title="Intervals for every machine">
+          {fields.map(({ name, label, hint, unit }) => {
+            const invalid = state._tag === "Invalid" && state.fields.has(name);
 
-          return (
-            <div key={name}>
-              <label htmlFor={name} className="block text-sm font-medium">
-                {label}
-              </label>
-              <p id={`${name}-hint`} className="text-sm text-ink-muted">
-                {hint}
-              </p>
-              <div className="mt-1 flex items-center gap-2 text-sm">
-                <span>Every</span>
-                <input
-                  // Keyed on the saved value, so a change from the hub replaces what is shown.
-                  key={polling[name]}
-                  id={name}
-                  name={name}
-                  type="number"
-                  inputMode="decimal"
-                  min={unit === "minutes" ? minimumSeconds / 60 : minimumSeconds}
-                  step="any"
-                  required
-                  aria-describedby={invalid ? `${name}-hint ${name}-error` : `${name}-hint`}
-                  aria-invalid={invalid ? true : undefined}
-                  defaultValue={unit === "minutes" ? polling[name] / 60 : polling[name]}
-                  className="min-h-9 w-24 rounded-md border border-line bg-canvas px-2.5 tabular-nums aria-invalid:border-danger"
-                />
-                <span>{unit}</span>
-              </div>
-              {invalid && (
-                <p id={`${name}-error`} className="mt-1 text-sm text-danger">
-                  Enter an interval of at least 5 seconds.
-                </p>
+            return (
+              <SettingsRow
+                key={name}
+                title={label}
+                description={hint}
+                htmlFor={name}
+                control={
+                  <span className="flex items-center gap-2 text-sm">
+                    <span className="text-ink-muted">Every</span>
+                    <input
+                      // Keyed on the saved value, so a change from the hub replaces what is shown.
+                      key={polling[name]}
+                      id={name}
+                      name={name}
+                      type="number"
+                      inputMode="decimal"
+                      min={unit === "minutes" ? minimumSeconds / 60 : minimumSeconds}
+                      step="any"
+                      required
+                      aria-describedby={
+                        invalid ? `${name}-description ${name}-error` : `${name}-description`
+                      }
+                      aria-invalid={invalid ? true : undefined}
+                      defaultValue={unit === "minutes" ? polling[name] / 60 : polling[name]}
+                      className="min-h-9 w-20 rounded-md border border-line bg-canvas px-2.5 text-end tabular-nums aria-invalid:border-danger"
+                    />
+                    <span className="w-14 text-ink-muted">{unit}</span>
+                  </span>
+                }
+              >
+                {invalid ? (
+                  <p id={`${name}-error`} className="text-sm text-danger">
+                    Enter an interval of at least 5 seconds.
+                  </p>
+                ) : undefined}
+              </SettingsRow>
+            );
+          })}
+          <SettingsFooter>
+            <p role="status" className="me-auto text-sm">
+              {!live && (
+                <span className="text-ink-muted">
+                  Saving is paused until the dashboard reconnects to the hub.
+                </span>
               )}
-            </div>
-          );
-        })}
-        <div className="flex flex-wrap items-center gap-3">
-          <Button tone="primary" type="submit" disabled={saving || !live}>
-            {saving ? "Saving…" : "Save"}
-          </Button>
-          {!live && (
-            <p className="text-sm text-ink-muted">
-              Saving is paused until the dashboard reconnects to the hub.
+              {state._tag === "Saved" && (
+                <span className="text-clean">Saved. Agents pick up the new intervals now.</span>
+              )}
+              {state._tag === "Invalid" && (
+                <span className="text-danger">
+                  Each interval must be at least 5 seconds. Check the marked fields.
+                </span>
+              )}
+              {state._tag === "Failed" && <span className="text-danger">{state.message}</span>}
             </p>
-          )}
-          <p role="status" className="text-sm">
-            {state._tag === "Saved" && (
-              <span className="text-clean">Saved. Agents pick up the new intervals now.</span>
-            )}
-            {state._tag === "Invalid" && (
-              <span className="text-danger">
-                Each interval must be at least 5 seconds. Check the marked fields.
-              </span>
-            )}
-            {state._tag === "Failed" && <span className="text-danger">{state.message}</span>}
-          </p>
-        </div>
+            <Button tone="primary" type="submit" disabled={saving || !live}>
+              {saving ? "Saving…" : "Save"}
+            </Button>
+          </SettingsFooter>
+        </SettingsSection>
       </form>
-    </div>
+    </SettingsPage>
   );
 }

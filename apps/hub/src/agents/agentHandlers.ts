@@ -56,6 +56,10 @@ export const AgentHandlers = AgentRpcs.toLayer(
       Heartbeat: () => CurrentMachine.use(({ id }) => sessions.heartbeat(id)),
       Advertise: ({ capabilities }) =>
         CurrentMachine.use(({ id }) => sessions.advertise({ machineId: id, capabilities })),
+      ReportUsage: ({ usage }) =>
+        CurrentMachine.use(({ id }) =>
+          machines.recordUsage({ machineId: id, usage }).pipe(Effect.andThen(feed.invalidate)),
+        ),
       ReportAction: ({ runId, update }) =>
         CurrentMachine.use(({ id }) => dispatcher.receive({ machineId: id, runId, update })),
     };

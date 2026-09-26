@@ -59,6 +59,7 @@ export function buildFleet(sources: {
       lastDiscoveryAt: record.lastDiscoveryAt,
       lastStatusAt: record.lastStatusAt,
       pairedAt: record.pairedAt,
+      usage: record.usage,
     };
   });
   const groups = new Map<RepositoryKey, CheckoutGroup>();

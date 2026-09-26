@@ -9,6 +9,7 @@ import { GithubCli } from "@fleetfrog/protocol/domain/machine";
 import packageJson from "../../package.json" with { type: "json" };
 import { rootPath } from "../discovery/discoverCheckouts.ts";
 import { runTool } from "../process/runTool.ts";
+import { readSystemInfo } from "./systemInfo.ts";
 
 import type { MachineInfo, Platform } from "@fleetfrog/protocol/domain/machine";
 
@@ -59,6 +60,7 @@ export const readMachineInfo = Effect.gen(function* () {
     homeDirectory: homedir(),
     agentVersion,
     githubCli: yield* readGithubCli,
+    system: yield* readSystemInfo(platform),
   } satisfies MachineInfo;
 });
 

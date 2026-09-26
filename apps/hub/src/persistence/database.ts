@@ -7,6 +7,7 @@ import { Effect, Layer, Schema } from "effect";
 import { HubConfig } from "../hubConfig.ts";
 import initial from "./migrations/0001_initial.ts";
 import actions from "./migrations/0002_actions.ts";
+import machineUsage from "./migrations/0003_machine_usage.ts";
 
 const client = Layer.unwrap(
   Effect.gen(function* () {
@@ -20,7 +21,11 @@ const client = Layer.unwrap(
 
 /** Brings any SQLite database up to the latest schema. */
 export const Migrations = SqliteMigrator.layer({
-  loader: SqliteMigrator.fromRecord({ "0001_initial": initial, "0002_actions": actions }),
+  loader: SqliteMigrator.fromRecord({
+    "0001_initial": initial,
+    "0002_actions": actions,
+    "0003_machine_usage": machineUsage,
+  }),
 });
 
 /** The hub's SQLite database, migrated to the latest schema. */

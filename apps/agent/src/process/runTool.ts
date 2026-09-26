@@ -34,7 +34,7 @@ const actionEnvironment = {
 
 /** Runs a command-line tool in a directory and returns its standard output. */
 export function runTool(
-  tool: "git" | "gh" | "scutil" | "systemctl" | "launchctl",
+  tool: "git" | "gh" | "scutil" | "sw_vers" | "systemctl" | "launchctl",
   cwd: string,
   args: ReadonlyArray<string>,
 ) {

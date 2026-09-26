@@ -2,7 +2,7 @@ import { Schema } from "effect";
 
 import { AgentCapabilities } from "./action.ts";
 import { Checkout } from "./checkout.ts";
-import { MachineId, MachineInfo } from "./machine.ts";
+import { MachineId, MachineInfo, SystemUsage } from "./machine.ts";
 import { PollingSettings } from "./polling.ts";
 import { RepositoryIdentity, RepositoryKey } from "./repositoryIdentity.ts";
 
@@ -35,6 +35,8 @@ export const Machine = Schema.Struct({
   lastDiscoveryAt: Schema.NullOr(Schema.DateTimeUtc),
   lastStatusAt: Schema.NullOr(Schema.DateTimeUtc),
   pairedAt: Schema.DateTimeUtc,
+  /** The latest disk and load readings, kept while the machine is offline. */
+  usage: Schema.NullOr(SystemUsage),
 });
 export type Machine = typeof Machine.Type;
 

@@ -8,16 +8,17 @@ import { Dialog } from "@/ui/Dialog.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
-import { SettingsHeading } from "../SettingsHeading.tsx";
-import { DiscoveryFolders } from "./DiscoveryFolders.tsx";
 import {
-  ActionsText,
-  ConnectionStatus,
-  describePlatform,
-  repositoryCount,
-} from "./MachineStatus.tsx";
-
-import type { ReactNode } from "react";
+  DetailList,
+  DetailRow,
+  SettingsFooter,
+  SettingsPage,
+  SettingsRow,
+  SettingsSection,
+} from "../SettingsPage.tsx";
+import { DiscoveryFolders } from "./DiscoveryFolders.tsx";
+import { ActionsText, ConnectionStatus, repositoryCount } from "./MachineStatus.tsx";
+import { describeDisk, describeLoad, formatMemory } from "./systemFormat.ts";
 
 import type { HubResult } from "@/rpc/hubConnection.ts";
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
@@ -72,24 +73,6 @@ function NoticeText({ notice }: { readonly notice: Notice }) {
       {notice._tag === "Succeeded" && <span className="text-clean">{notice.message}</span>}
       {notice._tag === "Failed" && <span className="text-danger">{notice.message}</span>}
     </p>
-  );
-}
-
-function Section({ title, children }: { readonly title: string; readonly children: ReactNode }) {
-  return (
-    <section className="mb-5 rounded-lg border border-line bg-surface px-5 py-5">
-      <h2 className="mb-4 font-semibold">{title}</h2>
-      {children}
-    </section>
-  );
-}
-
-function Detail({ term, children }: { readonly term: string; readonly children: ReactNode }) {
-  return (
-    <div>
-      <dt className="text-ink-muted">{term}</dt>
-      <dd>{children}</dd>
-    </div>
   );
 }
 
@@ -159,55 +142,123 @@ function StatusSection({ fleet, machine }: { readonly fleet: Fleet; readonly mac
     });
 
   return (
-    <Section title="Status">
-      <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
-        <Detail term="Repositories">
+    <SettingsSection title="Status">
+      <DetailList>
+        <DetailRow term="Connection">
+          <ConnectionStatus machine={machine} />
+        </DetailRow>
+        <DetailRow term="Repositories">
           {repositories} {repositories === 1 ? "repository" : "repositories"}
-        </Detail>
-        <Detail term="Last scan">
+        </DetailRow>
+        <DetailRow term="Last scan">
           {machine.lastStatusAt === null ? "Not yet" : <RelativeTime at={machine.lastStatusAt} />}
-        </Detail>
-        <Detail term="Last discovery walk">
+        </DetailRow>
+        <DetailRow term="Last discovery walk">
           {machine.lastDiscoveryAt === null ? (
             "Not yet"
           ) : (
             <RelativeTime at={machine.lastDiscoveryAt} />
           )}
-        </Detail>
-        <Detail term="GitHub CLI">
+        </DetailRow>
+        <DetailRow term="Actions">
+          <ActionsText machine={machine} />
+        </DetailRow>
+        <DetailRow term="GitHub CLI">
           {machine.info.githubCli._tag === "Available"
             ? `Signed in as ${machine.info.githubCli.login}`
             : "Not available"}
-        </Detail>
-        <Detail term="Actions">
-          <ActionsText machine={machine} />
-        </Detail>
-        <Detail term="Paired">
+        </DetailRow>
+        <DetailRow term="Paired">
           <RelativeTime at={machine.pairedAt} />
-        </Detail>
-      </dl>
-      <div className="mt-5 flex flex-wrap items-center gap-3">
-        <Button disabled={machine.connection._tag === "Offline" || rescanning} onClick={rescan}>
-          {rescanning ? "Requesting rescan…" : "Rescan now"}
-        </Button>
-        <Link
-          to="/activity"
-          search={{ machine: machine.id }}
-          className="text-sm text-sync underline-offset-2 hover:underline"
-        >
-          View this machine's activity
-        </Link>
-        <div className="basis-full">
-          <NoticeText notice={notice} />
-        </div>
-      </div>
-    </Section>
+        </DetailRow>
+      </DetailList>
+      <SettingsRow
+        title="Rescan"
+        description="Walk the discovery folders and read every checkout again now."
+        control={
+          <Button disabled={machine.connection._tag === "Offline" || rescanning} onClick={rescan}>
+            {rescanning ? "Requesting rescan…" : "Rescan now"}
+          </Button>
+        }
+      >
+        {notice._tag === "None" ? undefined : <NoticeText notice={notice} />}
+      </SettingsRow>
+      <SettingsRow
+        title="Activity"
+        description="Actions and changes that involved this machine."
+        control={
+          <Link
+            to="/activity"
+            search={{ machine: machine.id }}
+            className="inline-flex min-h-9 items-center rounded-md border border-line px-3 text-sm font-medium hover:bg-surface-raised"
+          >
+            View activity
+          </Link>
+        }
+      />
+    </SettingsSection>
+  );
+}
+
+/** Hardware, software and resources, as the agent last reported them. */
+function SystemSection({ machine }: { readonly machine: Machine }) {
+  const { system } = machine.info;
+  const { usage } = machine;
+  const offline = machine.connection._tag === "Offline";
+  const measured =
+    usage === null ? undefined : (
+      <>
+        {offline ? "Last measured" : "Measured"} <RelativeTime at={usage.sampledAt} />
+      </>
+    );
+
+  if (system === null) {
+    return (
+      <SettingsSection title="System">
+        <SettingsRow
+          title="System details aren't available"
+          description="This machine's agent is too old to report them. Update the agent to see its processor, memory, disk and versions."
+        />
+      </SettingsSection>
+    );
+  }
+
+  return (
+    <SettingsSection title="System">
+      <DetailList>
+        <DetailRow term="Operating system">
+          {system.os} <span className="text-ink-muted">· {system.architecture}</span>
+        </DetailRow>
+        <DetailRow term="Kernel">{system.kernel}</DetailRow>
+        <DetailRow term="Processor">
+          {system.cpu.model}{" "}
+          <span className="text-ink-muted">
+            · {system.cpu.cores} {system.cpu.cores === 1 ? "core" : "cores"}
+          </span>
+        </DetailRow>
+        <DetailRow term="Memory">{formatMemory(system.memoryBytes)}</DetailRow>
+        <DetailRow term="Disk" note={measured}>
+          {usage === null || usage.disk === null ? "Not reported yet" : describeDisk(usage.disk)}
+        </DetailRow>
+        <DetailRow term="Load average" note="Over 1, 5 and 15 minutes">
+          {usage === null ? "Not reported yet" : describeLoad(usage.loadAverage)}
+        </DetailRow>
+        <DetailRow term="Last restarted">
+          <RelativeTime at={system.bootedAt} />
+        </DetailRow>
+        <DetailRow term="Versions">
+          Agent {machine.info.agentVersion} · Node {system.versions.node}
+          {system.versions.git !== null && ` · Git ${system.versions.git}`}
+        </DetailRow>
+      </DetailList>
+    </SettingsSection>
   );
 }
 
 function ConfigurationSection({ machine }: { readonly machine: Machine }) {
   const [saving, startSaving] = useTransition();
   const [notice, setNotice] = useState<Notice>({ _tag: "None" });
+  const nameId = `name-${machine.id}`;
 
   const save = (form: FormData) =>
     startSaving(async () => {
@@ -250,39 +301,48 @@ function ConfigurationSection({ machine }: { readonly machine: Machine }) {
     });
 
   return (
-    <Section title="Configuration">
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          save(new FormData(event.currentTarget));
-        }}
-        className="space-y-5"
-      >
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        save(new FormData(event.currentTarget));
+      }}
+    >
+      <SettingsSection title="Configuration">
         {/* Drafts are keyed on the saved values, so a change from the hub replaces the draft. */}
-        <label className="block text-sm">
-          <span className="font-medium">Display name</span>
-          <input
-            key={machine.customName ?? ""}
-            name="name"
-            defaultValue={machine.customName ?? ""}
-            placeholder={machine.info.prettyName ?? machine.info.hostname}
-            autoComplete="off"
-            className="mt-1 block min-h-9 w-full max-w-sm rounded-md border border-line bg-canvas px-2.5"
-          />
-        </label>
-        <DiscoveryFolders
-          key={machine.discoveryRoots.map(({ path }) => path).join("\n")}
-          machineId={machine.id}
-          roots={machine.discoveryRoots}
+        <SettingsRow
+          title="Display name"
+          description={`Shown instead of the computer's own name, ${machine.info.prettyName ?? machine.info.hostname}.`}
+          htmlFor={nameId}
+          control={
+            <input
+              key={machine.customName ?? ""}
+              id={nameId}
+              name="name"
+              aria-describedby={`${nameId}-description`}
+              defaultValue={machine.customName ?? ""}
+              placeholder={machine.info.prettyName ?? machine.info.hostname}
+              autoComplete="off"
+              className="min-h-9 w-64 rounded-md border border-line bg-canvas px-2.5 text-sm"
+            />
+          }
         />
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="px-5 py-4">
+          <DiscoveryFolders
+            key={machine.discoveryRoots.map(({ path }) => path).join("\n")}
+            machineId={machine.id}
+            roots={machine.discoveryRoots}
+          />
+        </div>
+        <SettingsFooter>
+          <div className="me-auto">
+            <NoticeText notice={notice} />
+          </div>
           <Button tone="primary" type="submit" disabled={saving}>
             {saving ? "Saving…" : "Save"}
           </Button>
-          <NoticeText notice={notice} />
-        </div>
-      </form>
-    </Section>
+        </SettingsFooter>
+      </SettingsSection>
+    </form>
   );
 }
 
@@ -291,16 +351,16 @@ function RemoveSection({ machine }: { readonly machine: Machine }) {
   const navigate = useNavigate();
 
   return (
-    <Section title="Remove machine">
-      <div className="flex flex-wrap items-center justify-between gap-4 text-sm">
-        <p className="max-w-md text-ink-muted">
-          Disconnects its agent and revokes its token. Its repositories leave the overview until it
-          is paired again.
-        </p>
-        <Button tone="danger" onClick={() => setRemoving(true)}>
-          Remove machine…
-        </Button>
-      </div>
+    <SettingsSection title="Removal">
+      <SettingsRow
+        title="Remove machine"
+        description="Disconnects its agent and revokes its token. Its repositories leave the overview until it is paired again."
+        control={
+          <Button tone="danger" onClick={() => setRemoving(true)}>
+            Remove machine…
+          </Button>
+        }
+      />
       {removing && (
         <RemoveMachineDialog
           machine={machine}
@@ -310,50 +370,46 @@ function RemoveSection({ machine }: { readonly machine: Machine }) {
           }}
         />
       )}
-    </Section>
+    </SettingsSection>
   );
 }
 
-/** One machine's status, configuration and removal. */
+/** One machine's status, system, configuration and removal. */
 export function MachineSettings() {
   const { machineId } = useParams({ from: "/settings/fleet/$machineId" });
   const hub = useHub();
   const fleet = knownFleet(hub);
   const machine = fleet?.machines.find(({ id }) => id === machineId);
 
-  if (fleet === null) {
-    return <p className="py-24 text-center text-sm text-ink-muted">Waiting for the hub…</p>;
-  }
-
-  if (machine === undefined) {
+  if (fleet === null || machine === undefined) {
     return (
-      <div className="py-24 text-center text-sm">
-        <p className="font-medium">This machine isn't paired</p>
-        <p className="mt-1 text-ink-muted">It may have been removed.</p>
-        <Link to="/settings/fleet" className="mt-4 inline-block text-sync hover:underline">
-          See all machines
-        </Link>
-      </div>
+      <SettingsPage trail={[{ label: "Fleet", to: "/settings/fleet" }, { label: "Machine" }]}>
+        {fleet === null ? (
+          <p className="py-16 text-center text-sm text-ink-muted">Waiting for the hub…</p>
+        ) : (
+          <div className="py-16 text-center text-sm">
+            <p className="font-medium">This machine isn't paired</p>
+            <p className="mt-1 text-ink-muted">It may have been removed.</p>
+            <Link to="/settings/fleet" className="mt-4 inline-block text-sync hover:underline">
+              See all machines
+            </Link>
+          </div>
+        )}
+      </SettingsPage>
     );
   }
 
   // Keyed on the machine so drafts and notices never carry over to another machine.
   return (
-    <div key={machine.id}>
-      <SettingsHeading
-        title={machineLabel(machine)}
-        action={
-          <span className="text-sm">
-            <ConnectionStatus machine={machine} />
-          </span>
-        }
-      >
-        <span className="font-mono text-[13px]">{machine.info.hostname}</span> ·{" "}
-        {describePlatform(machine)} · agent {machine.info.agentVersion}
-      </SettingsHeading>
+    <SettingsPage
+      key={machine.id}
+      trail={[{ label: "Fleet", to: "/settings/fleet" }, { label: machineLabel(machine) }]}
+      action={<span className="font-mono text-[13px] text-ink-muted">{machine.info.hostname}</span>}
+    >
       <StatusSection fleet={fleet} machine={machine} />
+      <SystemSection machine={machine} />
       <ConfigurationSection machine={machine} />
       <RemoveSection machine={machine} />
-    </div>
+    </SettingsPage>
   );
 }

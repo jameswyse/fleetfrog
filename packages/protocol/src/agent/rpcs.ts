@@ -10,7 +10,7 @@ import {
 import { RunId } from "../domain/activity.ts";
 import { Checkout } from "../domain/checkout.ts";
 import { FolderStatus } from "../domain/fleet.ts";
-import { MachineInfo } from "../domain/machine.ts";
+import { MachineInfo, SystemUsage } from "../domain/machine.ts";
 
 import type { MachineId } from "../domain/machine.ts";
 
@@ -78,6 +78,8 @@ export class AgentRpcs extends RpcGroup.make(
   /** Sent when the machine's owner changes its policy while connected. */
   Rpc.make("Advertise", { payload: { capabilities: AgentCapabilities } }),
   Rpc.make("ReportAction", { payload: { runId: RunId, update: ActionUpdate } }),
+  /** Sent on connecting and every minute after. */
+  Rpc.make("ReportUsage", { payload: { usage: SystemUsage } }),
   /**
    * Sent every 15 seconds. The hub ends a connection that goes quiet, because a sleeping or
    * disconnected machine never closes its socket.

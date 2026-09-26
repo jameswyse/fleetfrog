@@ -9,7 +9,7 @@ import { RelativeTime, useNow } from "@/ui/RelativeTime.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 import { encodePairingString } from "@fleetfrog/protocol/pairing/pairingString";
 
-import { SettingsHeading } from "../SettingsHeading.tsx";
+import { SettingsPage, SettingsSection } from "../SettingsPage.tsx";
 
 import type { PairingOffer } from "@fleetfrog/protocol/dashboard/rpcs";
 
@@ -67,119 +67,121 @@ export function PairMachine() {
   const copy = copyOutcome !== null && copyOutcome.command === offer?.command ? copyOutcome : null;
 
   return (
-    <div>
-      <SettingsHeading title="Pair a machine">
-        Add a development machine to the fleet.
-      </SettingsHeading>
-      <div className="space-y-4 rounded-lg border border-line bg-surface px-5 py-5 text-sm">
-        {paired === undefined && (
-          <>
-            <p>
-              Install the FleetFrog agent on the machine you want to add, then run the command below
-              there. The code works once and expires after 10 minutes.
-            </p>
-            {offer === null && (
-              <form action={createOffer} className="space-y-3">
-                {state._tag === "Failed" && (
-                  <p role="alert" className="text-danger">
-                    {state.message}
-                  </p>
-                )}
-                <Button tone="primary" type="submit" disabled={creating}>
-                  {creating ? "Creating code…" : "Create pairing code"}
-                </Button>
-              </form>
-            )}
-            {offer !== null && (
-              <>
-                {!expired && (
-                  <div className="rounded-md border border-line bg-canvas p-3">
-                    <code className="block font-mono text-xs break-all select-all">
-                      {offer.command}
-                    </code>
-                  </div>
-                )}
-                <div className="flex flex-wrap items-center gap-3">
-                  {!expired && clipboardAvailable && (
-                    <Button
-                      tone="primary"
-                      onClick={() => {
-                        const { command } = offer;
-
-                        navigator.clipboard.writeText(command).then(
-                          () => setCopyOutcome({ _tag: "Copied", command }),
-                          () => setCopyOutcome({ _tag: "Failed", command }),
-                        );
-                      }}
-                    >
-                      {copy?._tag === "Copied" ? "Copied" : "Copy command"}
-                    </Button>
-                  )}
-                  <form action={createOffer}>
-                    <Button
-                      type="submit"
-                      tone={expired ? "primary" : "secondary"}
-                      disabled={creating}
-                    >
-                      New code
-                    </Button>
-                  </form>
-                  <span className="text-ink-muted">
-                    {expired ? (
-                      "Expired"
-                    ) : (
-                      <>
-                        Expires <RelativeTime at={offer.offer.expiresAt} />
-                      </>
-                    )}
-                  </span>
-                </div>
-                {!expired && !clipboardAvailable && (
-                  <p className="text-ink-muted">Select the command to copy it.</p>
-                )}
-                {copy?._tag === "Failed" && (
-                  <p role="alert" className="text-danger">
-                    Couldn't copy the command. Select it and copy it yourself.
-                  </p>
-                )}
-                {offer.offer.endpoint._tag === "DashboardHost" &&
-                  loopbackHosts.has(window.location.hostname) && (
-                    <p className="rounded-md border border-changes/30 bg-changes-soft p-3 text-changes">
-                      This command points at localhost, so it only works on the hub's own computer.
-                      To pair another machine, open the dashboard at the hub's network address
-                      first.
+    <SettingsPage trail={[{ label: "Fleet", to: "/settings/fleet" }, { label: "Pair a machine" }]}>
+      <SettingsSection title="New machine">
+        <div className="space-y-4 px-5 py-5 text-sm">
+          {paired === undefined && (
+            <>
+              <p>
+                Install the FleetFrog agent on the machine you want to add, then run the command
+                below there. The code works once and expires after 10 minutes.
+              </p>
+              {offer === null && (
+                <form action={createOffer} className="space-y-3">
+                  {state._tag === "Failed" && (
+                    <p role="alert" className="text-danger">
+                      {state.message}
                     </p>
                   )}
-              </>
-            )}
-          </>
-        )}
-        <p role="status" className={paired === undefined ? "text-ink-muted" : undefined}>
-          {paired !== undefined && (
-            <>
-              <span className="font-semibold">{machineLabel(paired)}</span> is paired. Its
-              repositories appear on the overview after its first scan.
+                  <Button tone="primary" type="submit" disabled={creating}>
+                    {creating ? "Creating code…" : "Create pairing code"}
+                  </Button>
+                </form>
+              )}
+              {offer !== null && (
+                <>
+                  {!expired && (
+                    <div className="rounded-md border border-line bg-canvas p-3">
+                      <code className="block font-mono text-xs break-all select-all">
+                        {offer.command}
+                      </code>
+                    </div>
+                  )}
+                  <div className="flex flex-wrap items-center gap-3">
+                    {!expired && clipboardAvailable && (
+                      <Button
+                        tone="primary"
+                        onClick={() => {
+                          const { command } = offer;
+
+                          navigator.clipboard.writeText(command).then(
+                            () => setCopyOutcome({ _tag: "Copied", command }),
+                            () => setCopyOutcome({ _tag: "Failed", command }),
+                          );
+                        }}
+                      >
+                        {copy?._tag === "Copied" ? "Copied" : "Copy command"}
+                      </Button>
+                    )}
+                    <form action={createOffer}>
+                      <Button
+                        type="submit"
+                        tone={expired ? "primary" : "secondary"}
+                        disabled={creating}
+                      >
+                        New code
+                      </Button>
+                    </form>
+                    <span className="text-ink-muted">
+                      {expired ? (
+                        "Expired"
+                      ) : (
+                        <>
+                          Expires <RelativeTime at={offer.offer.expiresAt} />
+                        </>
+                      )}
+                    </span>
+                  </div>
+                  {!expired && !clipboardAvailable && (
+                    <p className="text-ink-muted">Select the command to copy it.</p>
+                  )}
+                  {copy?._tag === "Failed" && (
+                    <p role="alert" className="text-danger">
+                      Couldn't copy the command. Select it and copy it yourself.
+                    </p>
+                  )}
+                  {offer.offer.endpoint._tag === "DashboardHost" &&
+                    loopbackHosts.has(window.location.hostname) && (
+                      <p className="rounded-md border border-changes/30 bg-changes-soft p-3 text-changes">
+                        This command points at localhost, so it only works on the hub's own
+                        computer. To pair another machine, open the dashboard at the hub's network
+                        address first.
+                      </p>
+                    )}
+                </>
+              )}
             </>
           )}
-          {paired === undefined && offer !== null && !expired && "Waiting for the machine to pair…"}
-          {paired === undefined && expired && "This code has expired. Create a new code to pair."}
-        </p>
-        {paired !== undefined && (
-          // Pairing replaces the controls that had focus, so focus moves to the only next step.
-          <Button
-            tone="primary"
-            autoFocus
-            onClick={() => {
-              void navigate({
-                to: "/settings/fleet/$machineId",
-                params: { machineId: paired.id },
-              });
-            }}
-          >
-            Open {machineLabel(paired)}
-          </Button>
-        )}
-      </div>
-    </div>
+          <p role="status" className={paired === undefined ? "text-ink-muted" : undefined}>
+            {paired !== undefined && (
+              <>
+                <span className="font-semibold">{machineLabel(paired)}</span> is paired. Its
+                repositories appear on the overview after its first scan.
+              </>
+            )}
+            {paired === undefined &&
+              offer !== null &&
+              !expired &&
+              "Waiting for the machine to pair…"}
+            {paired === undefined && expired && "This code has expired. Create a new code to pair."}
+          </p>
+          {paired !== undefined && (
+            // Pairing replaces the controls that had focus, so focus moves to the only next step.
+            <Button
+              tone="primary"
+              autoFocus
+              onClick={() => {
+                void navigate({
+                  to: "/settings/fleet/$machineId",
+                  params: { machineId: paired.id },
+                });
+              }}
+            >
+              Open {machineLabel(paired)}
+            </Button>
+          )}
+        </div>
+      </SettingsSection>
+    </SettingsPage>
   );
 }
