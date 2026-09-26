@@ -8,6 +8,7 @@ import {
   TriangleAlertIcon,
 } from "lucide-react";
 
+import { GitHubIcon } from "@/ui/HostIcon.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
@@ -346,7 +347,7 @@ export function CheckoutSections({
       <Overview git={git} machine={machine} checkout={checkout} />
       {git !== null && <GitSections git={git} checkout={checkout} />}
       {(checkout.github !== null || onGithub) && (
-        <PanelSection title="GitHub" icon={GitPullRequestIcon} tone="neutral">
+        <PanelSection title="GitHub" icon={GitHubIcon} tone="neutral">
           {checkout.github === null ? (
             <p className="text-sm text-ink-muted">
               {machine.info.githubCli._tag === "Unavailable"

@@ -20,6 +20,8 @@
   --danger-soft: #fbe6e4;
   --clean: #2f7a45;
   --logo-frog: #2d9c40;
+  /* Atlassian's blue, so Bitbucket's logo reads as Bitbucket's. */
+  --bitbucket: #0052cc;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -40,6 +42,7 @@
     --danger-soft: #3a1a17;
     --clean: #6fcf8a;
     --logo-frog: #78df3e;
+    --bitbucket: #4c9aff;
   }
 }
 

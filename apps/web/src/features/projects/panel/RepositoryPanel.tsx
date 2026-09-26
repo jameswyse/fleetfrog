@@ -1,7 +1,7 @@
 import { ExternalLinkIcon, GitPullRequestIcon, MonitorIcon } from "lucide-react";
 
 import { useRuns } from "@/rpc/hubConnection.ts";
-import { gitHost, HostIcon } from "@/ui/HostIcon.tsx";
+import { GitHubIcon, gitHost, HostIcon } from "@/ui/HostIcon.tsx";
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
@@ -92,7 +92,7 @@ export function RepositoryPanel({
       />
       <div className="space-y-3 px-4 pb-6">
         {github !== undefined && (
-          <PanelSection title="GitHub" icon={GitPullRequestIcon} tone="neutral">
+          <PanelSection title="GitHub" icon={GitHubIcon} tone="neutral">
             <Facts>
               <Fact term="Default branch">
                 <span className="font-mono text-[13px]">{github.defaultBranch}</span>

@@ -92,13 +92,17 @@ export function ProjectsPage() {
           ? { ...rest, repo: next.repository }
           : { ...rest, repo: next.repository, machine: next.machine },
       replace: history === "Replace",
+      resetScroll: false,
     });
   };
 
   const close = () => {
     const panelHadFocus = (document.activeElement?.closest(`#${projectPanelId}`) ?? null) !== null;
 
-    void navigate({ search: ({ repo: _repo, machine: _machine, path: _path, ...rest }) => rest });
+    void navigate({
+      search: ({ repo: _repo, machine: _machine, path: _path, ...rest }) => rest,
+      resetScroll: false,
+    });
 
     // Focus returns to what opened the panel, rather than falling back to the page.
     if (panelHadFocus && selection !== null) {
@@ -206,7 +210,11 @@ export function ProjectsPage() {
           path={search.path ?? null}
           onSelect={select}
           onChoosePath={(path) => {
-            void navigate({ search: (previous) => ({ ...previous, path }), replace: true });
+            void navigate({
+              search: (previous) => ({ ...previous, path }),
+              replace: true,
+              resetScroll: false,
+            });
           }}
           onClose={close}
         />

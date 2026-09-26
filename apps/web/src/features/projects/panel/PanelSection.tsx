@@ -1,7 +1,6 @@
 import { useState } from "react";
 
-import type { LucideIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 
 /**
  * What a section is about, which colours its header: amber for uncommitted work, blue for branches
@@ -25,7 +24,8 @@ export function PanelSection({
   children,
 }: {
   readonly title: string;
-  readonly icon: LucideIcon;
+  /** A Lucide icon, or a logo drawn to the same grid. */
+  readonly icon: ComponentType<{ readonly className?: string }>;
   readonly tone: SectionTone;
   readonly count?: number | string;
   readonly children: ReactNode;

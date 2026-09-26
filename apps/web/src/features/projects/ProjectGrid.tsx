@@ -46,6 +46,21 @@ const columnWidth = "w-52";
  */
 const cellHeight = "min-h-[3.375rem]";
 
+/**
+ * Keyboard focus and selection draw the same single ring, so a focused, selected cell shows one
+ * border, not two.
+ */
+const focusRing =
+  "outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset";
+const selectedRing =
+  "aria-[current=true]:ring-2 aria-[current=true]:ring-accent aria-[current=true]:ring-inset";
+
+/**
+ * A chosen repository's whole row. Opaque, so the pinned repository column still covers the cells
+ * that scroll beneath it.
+ */
+const selectedRowBackground = "bg-[color-mix(in_oklab,var(--accent)_14%,var(--surface))]";
+
 function stepFor(key: string): readonly [number, number] | null {
   switch (key) {
     case "ArrowUp":
@@ -92,6 +107,7 @@ function MatrixCell({
   runs,
   position,
   selected,
+  rowSelected,
   onSelect,
 }: {
   readonly repository: Repository;
@@ -100,8 +116,11 @@ function MatrixCell({
   /** `<row>:<column>` for moving between cells with the arrow keys. */
   readonly position: string;
   readonly selected: boolean;
+  /** The cell's repository is chosen as a whole, which tints its row. */
+  readonly rowSelected: boolean;
   readonly onSelect: (selection: ProjectSelection, history: SelectionHistory) => void;
 }) {
+  const background = rowSelected ? selectedRowBackground : columnBackground(machine);
   const cell = summariseCell(
     repository.checkouts.filter(({ machineId }) => machineId === machine.id),
   );
@@ -111,7 +130,7 @@ function MatrixCell({
     const cloning = activeCloneFor(runs, { machineId: machine.id, repositoryKey: repository.key });
 
     return (
-      <td className={`border-b border-line p-0 align-top ${columnBackground(machine)}`}>
+      <td className={`border-b border-line p-0 align-top ${background}`}>
         <div className={`${cellHeight} ${columnWidth} px-3 py-2 text-sm text-ink-muted`}>
           {cloning !== undefined && (
             <span className="flex text-xs">
@@ -141,7 +160,7 @@ function MatrixCell({
 
   return (
     <td
-      className={`h-px border-b border-line p-0 align-top ${cell.problem === null ? columnBackground(machine) : "bg-danger-soft"}`}
+      className={`h-px border-b border-line p-0 align-top ${cell.problem === null ? background : "bg-danger-soft"}`}
     >
       <button
         type="button"
@@ -149,7 +168,7 @@ function MatrixCell({
         data-selection={selectionKey(selection)}
         aria-current={selected ? "true" : undefined}
         onClick={() => onSelect(selection, "Push")}
-        className={`block h-full ${cellHeight} ${columnWidth} px-3 py-2 text-start -outline-offset-2 hover:bg-surface-raised aria-[current=true]:ring-2 aria-[current=true]:ring-accent aria-[current=true]:ring-inset ${offline ? "opacity-75" : ""}`}
+        className={`block h-full ${cellHeight} ${columnWidth} px-3 py-2 text-start hover:bg-surface-raised ${focusRing} ${selectedRing} ${offline ? "opacity-75" : ""}`}
       >
         <CellContent
           cell={cell}
@@ -258,25 +277,24 @@ export function ProjectGrid({
                 ? `${host.name}: ${repository.identity.path}`
                 : host.name;
 
+            const rowSelected =
+              selection?.repository === repository.key && selection.machine === null;
+
             return (
               <tr key={repository.key}>
                 <th
                   scope="row"
-                  className="sticky start-0 z-[1] border-e border-b border-line bg-surface p-0 text-start align-top font-medium"
+                  className={`sticky start-0 z-[1] border-e border-b border-line p-0 text-start align-top font-medium ${rowSelected ? selectedRowBackground : "bg-surface"}`}
                 >
                   <div className="flex w-60 items-center gap-1 pe-2">
                     <button
                       type="button"
                       data-cell={`${row}:0`}
                       data-selection={selectionKey(rowSelection)}
-                      aria-current={
-                        selection?.repository === repository.key && selection.machine === null
-                          ? "true"
-                          : undefined
-                      }
+                      aria-current={rowSelected ? "true" : undefined}
                       onClick={() => onSelect(rowSelection, "Push")}
                       title={identity}
-                      className="flex min-w-0 flex-1 items-center gap-2 px-4 py-2 text-start -outline-offset-2 hover:underline aria-[current=true]:text-accent"
+                      className={`flex min-w-0 flex-1 items-center gap-2 px-4 py-2 text-start hover:underline aria-[current=true]:text-accent ${focusRing}`}
                     >
                       <HostIcon host={host} className="text-ink-muted" />
                       <span className="min-w-0 truncate">{repository.name}</span>
@@ -294,6 +312,7 @@ export function ProjectGrid({
                     selected={
                       selection?.repository === repository.key && selection.machine === machine.id
                     }
+                    rowSelected={rowSelected}
                     onSelect={onSelect}
                   />
                 ))}
