@@ -12,10 +12,12 @@ import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 import { CellState, problemWords } from "../CellContent.tsx";
 import { summariseCell } from "../cellSummary.ts";
 import { CheckoutSections } from "./CheckoutSections.tsx";
+import { CloneSections } from "./CloneSections.tsx";
+import { FocusHeading } from "./FocusHeading.tsx";
 import { PanelHeader } from "./PanelHeader.tsx";
 import { PanelSection } from "./PanelSection.tsx";
 
-import type { Machine, MachineCheckout, Repository } from "@fleetfrog/protocol/domain/fleet";
+import type { Fleet, Machine, MachineCheckout, Repository } from "@fleetfrog/protocol/domain/fleet";
 
 import type { ProjectSelection, SelectionHistory } from "../ProjectGrid.tsx";
 
@@ -83,8 +85,12 @@ function CheckoutPicker({
   );
 }
 
-/** One repository on one machine: its checkouts, then everything about the chosen one. */
+/**
+ * One repository on one machine: its checkouts, then everything about the chosen one, or its clone
+ * when the machine doesn't have it.
+ */
 export function CellPanel({
+  fleet,
   repository,
   machine,
   path,
@@ -93,6 +99,7 @@ export function CellPanel({
   onChoosePath,
   onClose,
 }: {
+  readonly fleet: Fleet;
   readonly repository: Repository;
   readonly machine: Machine;
   /** The checkout to show, when the machine has several. */
@@ -132,10 +139,12 @@ export function CellPanel({
         }
         onClose={onClose}
       />
+      {/* A finished clone swaps the clone form for the checkout, taking focus with it. */}
+      <FocusHeading key={cell === null ? "missing" : "present"} targetId={headingId} />
       {cell === null || entry === undefined ? (
-        <p className="px-5 pb-6 text-sm text-ink-muted">
-          {repository.name} isn't on {machineLabel(machine)}.
-        </p>
+        <div className="space-y-3 px-4 pb-6">
+          <CloneSections fleet={fleet} repository={repository} machine={machine} />
+        </div>
       ) : (
         <div className="space-y-3 px-4 pb-6">
           {cell.entries

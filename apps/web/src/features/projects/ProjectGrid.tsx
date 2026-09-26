@@ -8,7 +8,7 @@ import { activeRunFor } from "../actions/runLookup.ts";
 import { CellContent } from "./CellContent.tsx";
 import { summariseCell } from "./cellSummary.ts";
 import { MachineActions } from "./MachineActions.tsx";
-import { MissingCell } from "./MissingCell.tsx";
+import { MissingCellContent } from "./MissingCell.tsx";
 import { RepositoryActions } from "./RepositoryActions.tsx";
 
 import type { KeyboardEvent } from "react";
@@ -115,7 +115,6 @@ function MachineHeader({ fleet, machine }: { readonly fleet: Fleet; readonly mac
 }
 
 function MatrixCell({
-  fleet,
   repository,
   machine,
   runs,
@@ -124,7 +123,6 @@ function MatrixCell({
   rowSelected,
   onSelect,
 }: {
-  readonly fleet: Fleet;
   readonly repository: Repository;
   readonly machine: Machine;
   readonly runs: RunsSnapshot;
@@ -140,48 +138,41 @@ function MatrixCell({
     repository.checkouts.filter(({ machineId }) => machineId === machine.id),
   );
   const offline = machine.connection._tag === "Offline";
-
-  if (cell === null) {
-    return (
-      <td className={`h-px border-b border-line p-0 align-middle ${background}`}>
-        <MissingCell
-          fleet={fleet}
-          repository={repository}
-          machine={machine}
-          runs={runs}
-          className={`${cellHeight} ${columnWidth} ${focusRing}`}
-        />
-      </td>
-    );
-  }
-
-  const active = cell.entries
+  const active = cell?.entries
     .map(({ checkout }) => activeRunFor(runs, { machineId: machine.id, checkout }))
     .find((run) => run !== undefined);
   const selection = { repository: repository.key, machine: machine.id };
 
   return (
     <td
-      className={`h-px border-b border-line p-0 align-middle ${cell.problem === null ? background : "bg-danger-soft"}`}
+      className={`h-px border-b border-line p-0 align-middle ${cell === null || cell.problem === null ? background : "bg-danger-soft"}`}
     >
+      {/* Every cell can be chosen, including one the machine lacks, so the arrow keys reach it. */}
       <button
         type="button"
         data-cell={position}
         data-selection={selectionKey(selection)}
         aria-current={selected ? "true" : undefined}
         onClick={() => onSelect(selection, "Push")}
-        className={`block h-full ${cellHeight} ${columnWidth} px-3 py-2 text-start hover:bg-surface-raised ${focusRing} ${selectedRing} ${offline ? "opacity-75" : ""}`}
+        className={`flex h-full ${cellHeight} ${columnWidth} flex-col items-center justify-center px-3 py-2 text-center hover:bg-surface-raised ${focusRing} ${selectedRing} ${offline ? "opacity-75" : ""}`}
       >
-        <CellContent
-          cell={cell}
-          activity={
-            active === undefined ? null : (
-              <span className="mt-0.5 block text-xs">
-                <RunActivity run={active} layout="Inline" />
-              </span>
-            )
-          }
-        />
+        {cell === null ? (
+          <MissingCellContent repository={repository} machine={machine} runs={runs} />
+        ) : (
+          <span className="w-full min-w-0">
+            <CellContent
+              cell={cell}
+              align="Center"
+              activity={
+                active === undefined ? null : (
+                  <span className="mt-0.5 block text-xs">
+                    <RunActivity run={active} layout="Inline" align="Center" />
+                  </span>
+                )
+              }
+            />
+          </span>
+        )}
         {offline && <span className="sr-only">, last known state, machine offline</span>}
       </button>
     </td>
@@ -221,32 +212,24 @@ export function ProjectGrid({
 
     event.preventDefault();
 
-    // Skip cells with nothing to open, such as a repository missing from a machine.
-    for (
-      let [nextRow, nextColumn] = [row + rowStep, column + columnStep];
-      nextRow >= 0 &&
-      nextRow < repositories.length &&
-      nextColumn >= 0 &&
-      nextColumn <= machines.length;
-      nextRow += rowStep, nextColumn += columnStep
-    ) {
-      const target = event.currentTarget.querySelector<HTMLElement>(
-        `[data-cell="${nextRow}:${nextColumn}"]`,
+    const [nextRow, nextColumn] = [row + rowStep, column + columnStep];
+    const target = event.currentTarget.querySelector<HTMLElement>(
+      `[data-cell="${nextRow}:${nextColumn}"]`,
+    );
+    const repository = repositories[nextRow];
+
+    // Past the grid's edge there is no cell, so focus stays put.
+    if (target === null || repository === undefined) {
+      return;
+    }
+
+    target.focus();
+
+    if (selection !== null) {
+      onSelect(
+        { repository: repository.key, machine: machines[nextColumn - 1]?.id ?? null },
+        "Replace",
       );
-      const repository = repositories[nextRow];
-
-      if (target !== null && repository !== undefined) {
-        target.focus();
-
-        if (selection !== null) {
-          onSelect(
-            { repository: repository.key, machine: machines[nextColumn - 1]?.id ?? null },
-            "Replace",
-          );
-        }
-
-        return;
-      }
     }
   };
 
@@ -311,7 +294,6 @@ export function ProjectGrid({
                 {machines.map((machine, index) => (
                   <MatrixCell
                     key={machine.id}
-                    fleet={fleet}
                     repository={repository}
                     machine={machine}
                     runs={runs}

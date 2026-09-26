@@ -1,31 +1,15 @@
-import { useEffect, useId } from "react";
+import { useId } from "react";
 
 import { selectionKey } from "../ProjectGrid.tsx";
 import { CellPanel } from "./CellPanel.tsx";
 import { FleetOverview } from "./FleetOverview.tsx";
+import { FocusHeading } from "./FocusHeading.tsx";
 import { PanelHeader } from "./PanelHeader.tsx";
 import { RepositoryPanel } from "./RepositoryPanel.tsx";
 
 import type { Fleet } from "@fleetfrog/protocol/domain/fleet";
 
 import type { ProjectSelection, SelectionHistory } from "../ProjectGrid.tsx";
-
-/**
- * Moves focus to the panel's heading when the panel covers the page on narrow screens, or when
- * whatever had focus went away with the panel's previous contents. Keyed on the selection, it
- * mounts, and so runs, each time the panel shows something new.
- */
-function FocusHeading({ targetId }: { readonly targetId: string }) {
-  useEffect(() => {
-    const focusLost = document.activeElement === null || document.activeElement === document.body;
-
-    if (focusLost || !window.matchMedia("(min-width: 64rem)").matches) {
-      document.getElementById(targetId)?.focus();
-    }
-  }, [targetId]);
-
-  return null;
-}
 
 /** The panel's element id, for telling whether focus is inside it. */
 export const projectPanelId = "project-panel";
@@ -81,7 +65,8 @@ export function ProjectPanel({
       aria-labelledby={headingId}
       className={`fixed inset-0 z-10 lg:relative lg:inset-auto lg:z-auto ${panelClassName}`}
     >
-      <FocusHeading key={key} targetId={headingId} />
+      {/* Keyed on the selection, so it runs each time the panel shows something new. */}
+      <FocusHeading key={`focus:${key}`} targetId={headingId} />
       {repository === undefined && (
         <>
           <PanelHeader headingId={headingId} title="Repository not found" onClose={onClose} />
@@ -102,6 +87,7 @@ export function ProjectPanel({
       {repository !== undefined && machine !== undefined && (
         <CellPanel
           key={key}
+          fleet={fleet}
           repository={repository}
           machine={machine}
           path={path}

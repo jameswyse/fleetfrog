@@ -2,51 +2,14 @@ import { useState } from "react";
 
 import { Button } from "@/ui/Button.tsx";
 import { Dialog } from "@/ui/Dialog.tsx";
-import {
-  checkCloneDestination,
-  suggestCloneDestination,
-} from "@fleetfrog/protocol/domain/cloneDestination";
+import { suggestCloneDestination } from "@fleetfrog/protocol/domain/cloneDestination";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
-import { checkoutPaths, cloneBlocker } from "./actionAvailability.ts";
+import { checkoutPaths, cloneBlocker, cloneDestinationProblem } from "./actionAvailability.ts";
 import { useStartBatch } from "./useStartBatch.ts";
 
-import type { Fleet, Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
+import type { Fleet, Repository } from "@fleetfrog/protocol/domain/fleet";
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
-
-const destinationHints = {
-  NotAbsolute: "Enter a full path, or one starting with ~.",
-  Hidden: "Choose a folder that isn't hidden and has no . or .. in its path.",
-  OutsideRoots: "Choose a folder inside one of this machine's project folders.",
-} as const;
-
-/** Why the destination won't work on this machine, or null when it looks fine. */
-function destinationProblem(options: {
-  readonly destination: string;
-  readonly machine: Machine;
-  readonly repositories: ReadonlyArray<Repository>;
-}): string | null {
-  const { machine } = options;
-  const check = checkCloneDestination({
-    destination: options.destination,
-    home: machine.info.homeDirectory,
-    roots: machine.discoveryRoots.map(({ path }) => path),
-  });
-
-  if (check._tag !== "Valid") {
-    return destinationHints[check._tag];
-  }
-
-  const root = machine.discoveryRoots.find(({ path }) => path === check.root);
-
-  if (root?.status === "Missing" || root?.status === "NotFolder") {
-    return `${check.root} doesn't exist on ${machineLabel(machine)}. Fix it on the Machines page.`;
-  }
-
-  return checkoutPaths(options.repositories, machine.id).has(check.path)
-    ? "Another repository is already there. Choose a different folder."
-    : null;
-}
 
 /** Chooses machines to clone a repository onto, each with a destination it can edit. */
 export function CloneDialog({
@@ -100,7 +63,7 @@ export function CloneDialog({
     const targets = candidates.filter(({ machine }) => chosen.has(machine.id));
     const found = new Map(
       targets.flatMap(({ machine }) => {
-        const problem = destinationProblem({
+        const problem = cloneDestinationProblem({
           destination: destinationOf(machine.id),
           machine,
           repositories: fleet.repositories,

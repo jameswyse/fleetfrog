@@ -103,17 +103,22 @@ export function describeHoldings(cell: CellSummary): string {
 export function CellContent({
   cell,
   activity,
+  align,
 }: {
   readonly cell: CellSummary;
   /** Shown in place of the holdings while an action runs. */
   readonly activity: ReactNode;
+  /** The grid centres its cells; lists start at the leading edge. */
+  readonly align: "Start" | "Center";
 }) {
   const holdings = describeHoldings(cell);
   const branch = cell.branch ?? "Unreadable";
 
   return (
     <>
-      <span className="flex min-w-0 items-baseline gap-2">
+      <span
+        className={`flex min-w-0 items-baseline gap-2 ${align === "Center" ? "justify-center" : ""}`}
+      >
         <span
           className={`min-w-0 truncate font-mono text-[13px] ${cell.offDefault ? "font-medium text-ink" : "text-ink-muted"}`}
           title={cell.offDefault ? `${branch}, not the default branch` : branch}

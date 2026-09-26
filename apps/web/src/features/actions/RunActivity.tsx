@@ -13,9 +13,12 @@ import type { ActionRun } from "@fleetfrog/protocol/domain/activity";
 export function RunActivity({
   run,
   layout,
+  align,
 }: {
   readonly run: ActionRun;
   readonly layout: "Stacked" | "Inline";
+  /** Where the words sit when stacked. Inline, the bar fills the rest of the line either way. */
+  readonly align: "Start" | "Center";
 }) {
   const progress = run.state._tag === "Running" ? run.state.progress : null;
   const fraction = progressFraction(progress);
@@ -25,7 +28,9 @@ export function RunActivity({
       title={progress ?? undefined}
       className={`min-w-0 text-sync ${layout === "Inline" ? "flex items-center gap-2" : "block"}`}
     >
-      <span className="flex min-w-0 items-center gap-1.5">
+      <span
+        className={`flex min-w-0 items-center gap-1.5 ${align === "Center" ? "justify-center" : ""}`}
+      >
         <Spinner />
         <span className="truncate">{describeActiveRunBriefly(run)}</span>
       </span>

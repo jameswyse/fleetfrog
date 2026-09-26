@@ -151,7 +151,7 @@ export function RepositoryPanel({
                       {cloning === undefined ? (
                         "Not on this machine"
                       ) : (
-                        <RunActivity run={cloning} layout="Stacked" />
+                        <RunActivity run={cloning} layout="Stacked" align="Start" />
                       )}
                     </p>
                   </li>
@@ -179,10 +179,11 @@ export function RepositoryPanel({
                     <span className="mt-1.5 block">
                       <CellContent
                         cell={cell}
+                        align="Start"
                         activity={
                           active === undefined ? null : (
                             <span className="mt-0.5 block text-xs">
-                              <RunActivity run={active} layout="Inline" />
+                              <RunActivity run={active} layout="Inline" align="Start" />
                             </span>
                           )
                         }
