@@ -130,8 +130,8 @@ export function describeEvent(event: HubEvent): string {
     MachineRenamed: ({ from, to }) => `Renamed ${from} to ${to}`,
     DiscoveryRootsChanged: ({ machineName, roots }) =>
       roots.length === 0
-        ? `Removed every discovery folder on ${machineName}`
-        : `Set the discovery folders on ${machineName} to ${roots.join(", ")}`,
+        ? `Removed every project folder on ${machineName}`
+        : `Set the project folders on ${machineName} to ${roots.join(", ")}`,
     PollingChanged: () => "Changed the polling intervals",
   });
 }

@@ -78,7 +78,7 @@ export const pullCheckout = (location: CheckoutLocation, output: ActionOutput) =
 export const destinationProblems = {
   NotAbsolute: "The destination must be an absolute path or start with ~.",
   Hidden: "The destination can't be in a hidden folder or contain . or .. segments.",
-  OutsideRoots: "The destination must be inside one of this machine's discovery folders.",
+  OutsideRoots: "The destination must be inside one of this machine's project folders.",
 } satisfies Record<Exclude<DestinationCheck["_tag"], "Valid">, string>;
 
 /** The path with every existing ancestor's symbolic links resolved. */
@@ -113,7 +113,7 @@ async function destinationProblem(options: {
   const rootStat = await stat(options.root).catch(() => null);
 
   if (rootStat === null || !rootStat.isDirectory()) {
-    return `The discovery folder ${options.root} doesn't exist on this machine.`;
+    return `The project folder ${options.root} doesn't exist on this machine.`;
   }
 
   if (

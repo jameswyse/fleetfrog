@@ -31,8 +31,8 @@ const fields: ReadonlyArray<Field> = [
   },
   {
     name: "discoverySeconds",
-    label: "Discovery",
-    hint: "How often agents walk their discovery folders for new repositories.",
+    label: "New repositories",
+    hint: "How often agents search their project folders for repositories.",
     unit: "minutes",
   },
   {

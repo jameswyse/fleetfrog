@@ -25,7 +25,7 @@ export function machineBlocker(machine: Machine, kind: ActionKind): string | nul
 export function cloneBlocker(machine: Machine): string | null {
   return (
     machineBlocker(machine, "Clone") ??
-    (machine.discoveryRoots.length === 0 ? "No discovery folders set" : null)
+    (machine.discoveryRoots.length === 0 ? "No project folders set" : null)
   );
 }
 

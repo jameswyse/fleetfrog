@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@effect/vitest";
 import { DateTime } from "effect";
 
-import { checkCloneDestination, suggestCloneDestination } from "./cloneDestination.ts";
+import { checkCloneDestination, isWithin, suggestCloneDestination } from "./cloneDestination.ts";
 import { MachineId } from "./machine.ts";
 import { RepositoryKey } from "./repositoryIdentity.ts";
 
@@ -159,5 +159,13 @@ describe("checkCloneDestination", () => {
     expect(check("~/Code/../.ssh/shop")).toBe("Hidden");
     expect(check("~/Code//shop")).toBe("Hidden");
     expect(check("Code/shop")).toBe("NotAbsolute");
+  });
+});
+
+describe("isWithin", () => {
+  it("covers the folder and everything below it, but not a sibling sharing its prefix", () => {
+    expect(isWithin("/Users/sam/Code", "/Users/sam/Code/")).toBe(true);
+    expect(isWithin("/Users/sam/Code/acme/shop", "/Users/sam/Code")).toBe(true);
+    expect(isWithin("/Users/sam/CodeArchive/shop", "/Users/sam/Code")).toBe(false);
   });
 });

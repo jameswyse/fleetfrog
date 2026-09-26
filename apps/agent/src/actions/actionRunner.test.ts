@@ -210,7 +210,7 @@ describe("action runner", () => {
       ).toMatchObject({
         outcome: {
           _tag: "Failed",
-          message: "The destination must be inside one of this machine's discovery folders.",
+          message: "The destination must be inside one of this machine's project folders.",
         },
       });
       expect(existsSync(path.join(outside, "shop"))).toBe(false);

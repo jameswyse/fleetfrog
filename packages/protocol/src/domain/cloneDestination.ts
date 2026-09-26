@@ -25,6 +25,13 @@ function isBelow(path: string, folder: string): boolean {
   return path.startsWith(prefix) && path.length > prefix.length;
 }
 
+/** True when `path` is `folder` itself or anywhere below it. Both must be absolute. */
+export function isWithin(path: string, folder: string): boolean {
+  const normalised = withoutTrailingSlashes(folder);
+
+  return path === normalised || isBelow(path, normalised);
+}
+
 /** The `~/…` form of a path inside the home directory, or null for a path outside it. */
 function homeRelative(path: string, home: string): string | null {
   const normalisedHome = withoutTrailingSlashes(home);

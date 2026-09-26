@@ -8,7 +8,7 @@ import { reportFailure } from "./reportFailure.ts";
 
 /** Describes each tier for help text. */
 export const tierDescriptions = {
-  git: "Git actions: fetch, pull (fast-forward only) and clone into a discovery folder",
+  git: "Git actions: fetch, pull (fast-forward only) and clone into a project folder",
 } satisfies Record<Tier, string>;
 
 const tierArgument = Argument.Literals("tier", Tier.literals).pipe(

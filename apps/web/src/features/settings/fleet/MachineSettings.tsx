@@ -11,8 +11,8 @@ import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { SettingsRow, SettingsSection, SideDetail, SidePanel } from "../SettingsSection.tsx";
 import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
-import { DiscoveryFolders } from "./DiscoveryFolders.tsx";
 import { ActionsText, ConnectionStatus, repositoryCount } from "./MachineStatus.tsx";
+import { ProjectFolders } from "./ProjectFolders.tsx";
 import { describeDisk, describeLoad, formatMemory } from "./systemFormat.ts";
 
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
@@ -91,7 +91,7 @@ function StatusPanel({ fleet, machine }: { readonly fleet: Fleet; readonly machi
       <SideDetail term="Last scan">
         {machine.lastStatusAt === null ? "Not yet" : <RelativeTime at={machine.lastStatusAt} />}
       </SideDetail>
-      <SideDetail term="Last discovery walk">
+      <SideDetail term="Last folder search">
         {machine.lastDiscoveryAt === null ? (
           "Not yet"
         ) : (
@@ -168,8 +168,21 @@ function SystemPanel({ machine }: { readonly machine: Machine }) {
 }
 
 /** The machine's saved settings. Each one saves itself as it changes. */
-function ConfigurationSection({ machine }: { readonly machine: Machine }) {
+function ConfigurationSection({
+  fleet,
+  machine,
+}: {
+  readonly fleet: Fleet;
+  readonly machine: Machine;
+}) {
   const { state, save } = useAutoSave();
+  const repositoryPaths = fleet.repositories
+    .map(({ checkouts }) =>
+      checkouts.flatMap(({ machineId, checkout }) =>
+        machineId === machine.id ? [checkout.path] : [],
+      ),
+    )
+    .filter((paths) => paths.length > 0);
   const nameId = `name-${machine.id}`;
   const computerName = machine.info.prettyName ?? machine.info.hostname;
 
@@ -210,11 +223,13 @@ function ConfigurationSection({ machine }: { readonly machine: Machine }) {
         }
       />
       <SettingsRow
-        title="Discovery folders"
-        description="The agent looks for repositories up to five folders deep. ~ means the home folder. Clones go into the default folder unless another machine keeps the repository somewhere these folders cover."
+        title="Project folders"
+        description="Where the agent looks for repositories. It searches each folder up to 5 levels deep."
       >
-        <DiscoveryFolders
+        <ProjectFolders
           machineId={machine.id}
+          homeDirectory={machine.info.homeDirectory}
+          repositoryPaths={repositoryPaths}
           roots={machine.discoveryRoots}
           onChange={(roots) =>
             save(() =>
@@ -256,7 +271,7 @@ function ActionsSection({ machine }: { readonly machine: Machine }) {
     <SettingsSection title="Actions">
       <SettingsRow
         title="Rescan"
-        description="Walk the discovery folders and read every checkout again now."
+        description="Search the project folders and read every checkout again now."
         control={
           <Button disabled={machine.connection._tag === "Offline" || rescanning} onClick={rescan}>
             {rescanning ? "Requesting rescan…" : "Rescan now"}
@@ -338,7 +353,7 @@ export function MachineSettings() {
         </>
       }
     >
-      <ConfigurationSection machine={machine} />
+      <ConfigurationSection fleet={fleet} machine={machine} />
       <ActionsSection machine={machine} />
     </SidebarPage>
   );

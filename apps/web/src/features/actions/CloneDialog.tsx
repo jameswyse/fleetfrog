@@ -17,7 +17,7 @@ import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 const destinationHints = {
   NotAbsolute: "Enter a full path, or one starting with ~.",
   Hidden: "Choose a folder that isn't hidden and has no . or .. in its path.",
-  OutsideRoots: "Choose a folder inside one of this machine's discovery folders.",
+  OutsideRoots: "Choose a folder inside one of this machine's project folders.",
 } as const;
 
 /** Why the destination won't work on this machine, or null when it looks fine. */
