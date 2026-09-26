@@ -3,7 +3,8 @@ import { useState } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import { knownFleet, useHub } from "@/rpc/hubConnection.ts";
-import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
+import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
+import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { outcomeKinds, outcomeLabels } from "../actions/actionCopy.ts";
 import { StatusDot } from "./RunCountChips.tsx";
@@ -17,6 +18,9 @@ import type { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentit
 interface Choice<Value extends string> {
   readonly value: Value;
   readonly label: string;
+  /** Shown before the label, such as a machine's icon. */
+  readonly icon?: ReactNode;
+  /** Shown after the label, such as an outcome's colour. */
   readonly marker?: ReactNode;
 }
 
@@ -39,7 +43,7 @@ function ChoiceGroup<Value extends string>({
   readonly children?: ReactNode;
 }) {
   return (
-    <fieldset>
+    <fieldset className="min-w-0">
       <legend className="mb-1 flex w-full items-baseline justify-between gap-2 px-2.5 text-xs font-medium text-ink-muted">
         {legend}
         {selected.length > 0 && <span className="font-normal">{selected.length} selected</span>}
@@ -62,6 +66,7 @@ function ChoiceGroup<Value extends string>({
                 }
                 className="size-4 shrink-0 accent-accent"
               />
+              {choice.icon}
               <span className="min-w-0 flex-1 truncate" title={choice.label}>
                 {choice.label}
               </span>
@@ -174,6 +179,7 @@ export function HistoryFilters() {
           choices={(fleet?.machines ?? []).map((machine) => ({
             value: machine.id,
             label: machineLabel(machine),
+            icon: <MachineKindIcon kind={machineKind(machine)} className="text-ink-muted" />,
           }))}
           selected={machines}
           onChange={(next) => void setMachines(next)}
