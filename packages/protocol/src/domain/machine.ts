@@ -1,5 +1,7 @@
 import { Effect, Schema } from "effect";
 
+import { Count } from "./count.ts";
+
 export const MachineId = Schema.String.pipe(
   Schema.check(Schema.isUUID()),
   Schema.brand("MachineId"),
@@ -15,7 +17,6 @@ export const GithubCli = Schema.TaggedUnion({
 });
 export type GithubCli = typeof GithubCli.Type;
 
-const Count = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
 const Bytes = Schema.Finite.check(Schema.isGreaterThanOrEqualTo(0));
 
 /** The shape of a machine, which picks its icon. */

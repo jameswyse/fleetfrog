@@ -1,6 +1,6 @@
 import { Effect, Schema } from "effect";
 
-const Count = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
+import { Count } from "./count.ts";
 
 /**
  * A group of actions that a machine's owner allows or denies on that machine, with

@@ -1,11 +1,10 @@
 import { Schema } from "effect";
 
 import { ActionKind, ActionOutcome, ActionRequest, OutcomeKind } from "./action.ts";
+import { Count } from "./count.ts";
 import { MachineId } from "./machine.ts";
 import { PollingSettings } from "./polling.ts";
 import { RepositoryKey } from "./repositoryIdentity.ts";
-
-const Count = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
 
 export const BatchId = Schema.String.pipe(Schema.check(Schema.isUUID()), Schema.brand("BatchId"));
 export type BatchId = typeof BatchId.Type;

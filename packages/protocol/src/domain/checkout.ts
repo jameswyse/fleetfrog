@@ -1,8 +1,7 @@
 import { Effect, Schema } from "effect";
 
+import { Count } from "./count.ts";
 import { RepositoryIdentity } from "./repositoryIdentity.ts";
-
-const Count = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
 
 /** Git's porcelain status letters for one side (index or worktree) of a changed path. */
 export const FileState = Schema.Literals([".", "M", "T", "A", "D", "R", "C", "U"]);
