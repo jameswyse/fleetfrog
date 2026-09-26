@@ -1,0 +1,21 @@
+services:
+  hub:
+    build:
+      context: .
+      dockerfile: apps/hub/Dockerfile
+    image: fleetfrog-hub
+    restart: unless-stopped
+    ports:
+      # The dashboard.
+      - "7420:7420"
+      # Agent pairing and connections, over TLS with the hub's self-signed certificate.
+      - "7421:7421"
+    volumes:
+      - fleetfrog-data:/data
+    # environment:
+    #   # Where agents should connect when it differs from the dashboard's address, e.g. behind a
+    #   # reverse proxy that terminates TLS. Set FLEETFROG_AGENT_TLS=none in that case.
+    #   FLEETFROG_AGENT_URL: wss://fleetfrog.example.com
+
+volumes:
+  fleetfrog-data:
