@@ -70,11 +70,8 @@ const focusRing =
 const selectedRing =
   "aria-[current=true]:ring-2 aria-[current=true]:ring-accent aria-[current=true]:ring-inset";
 
-/**
- * A chosen repository's whole row. Opaque, so the pinned repository column still covers the cells
- * that scroll beneath it.
- */
-const selectedRowBackground = "bg-[color-mix(in_oklab,var(--accent)_14%,var(--surface))]";
+/** A chosen repository's whole row. */
+const selectedRowBackground = "bg-accent-soft";
 
 function stepFor(key: string): readonly [number, number] | null {
   switch (key) {
@@ -313,7 +310,7 @@ export function ProjectGrid({
                       aria-current={rowSelected ? "true" : undefined}
                       onClick={() => onSelect(rowSelection, "Push")}
                       title={identity}
-                      className={`flex min-w-0 flex-1 items-center gap-2 self-stretch px-4 py-2 text-start hover:underline aria-[current=true]:text-accent ${rowSelected ? "outline-hidden" : focusRing}`}
+                      className={`flex min-w-0 flex-1 items-center gap-2 self-stretch px-4 py-2 text-start hover:underline aria-[current=true]:text-accent-text ${rowSelected ? "outline-hidden" : focusRing}`}
                     >
                       <HostIcon host={host} className="text-ink-muted" />
                       <span className={shrinkableName}>

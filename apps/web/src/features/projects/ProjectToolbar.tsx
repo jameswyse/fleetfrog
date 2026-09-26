@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import { useNavigate } from "@tanstack/react-router";
-import { SearchIcon } from "lucide-react";
+import { SearchIcon, XIcon } from "lucide-react";
 
 import { repositoryMatches } from "./checkoutSummary.ts";
 import { FleetActions } from "./FleetActions.tsx";
@@ -34,6 +34,13 @@ function isTyping(target: EventTarget | null): boolean {
 function SearchField({ query }: { readonly query: string }) {
   const navigate = useNavigate({ from: "/" });
   const input = useRef<HTMLInputElement>(null);
+
+  const search = (q: string) => {
+    void navigate({
+      search: ({ q: _previous, ...rest }) => (q === "" ? rest : { ...rest, q }),
+      replace: true,
+    });
+  };
 
   useEffect(() => {
     const focusOnSlash = (event: KeyboardEvent) => {
@@ -72,16 +79,25 @@ function SearchField({ query }: { readonly query: string }) {
         // Uncontrolled: the router commits search updates in a transition, so a controlled value
         // would lag behind typing and move the caret.
         defaultValue={query}
-        onChange={(event) => {
-          const q = event.currentTarget.value;
-
-          void navigate({
-            search: ({ q: _previous, ...rest }) => (q === "" ? rest : { ...rest, q }),
-            replace: true,
-          });
-        }}
-        className="peer min-h-9 w-60 rounded-md border border-line bg-surface ps-8 pe-8"
+        onChange={(event) => search(event.currentTarget.value)}
+        // The browser's own clear button shows only on hover, so the field draws its own.
+        className="peer min-h-9 w-56 rounded-md border border-line bg-surface ps-8 pe-9 [&::-webkit-search-cancel-button]:appearance-none"
       />
+      <button
+        type="button"
+        aria-label="Clear the search"
+        onClick={() => {
+          if (input.current !== null) {
+            input.current.value = "";
+            input.current.focus();
+          }
+
+          search("");
+        }}
+        className="absolute end-1.5 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded text-ink-muted peer-placeholder-shown:hidden hover:bg-surface-raised hover:text-ink"
+      >
+        <XIcon />
+      </button>
       <kbd
         aria-hidden="true"
         className="pointer-events-none absolute end-2 top-1/2 hidden min-w-5 -translate-y-1/2 rounded border border-line bg-surface-raised px-1 text-center font-mono text-xs leading-5 text-ink-muted peer-[:placeholder-shown:not(:focus)]:block"
@@ -111,7 +127,7 @@ function FilterPicker({
         <label
           key={value}
           title={label}
-          className="flex cursor-pointer items-baseline gap-1.5 rounded px-2.5 py-1.5 text-sm text-ink-muted has-checked:bg-surface-raised has-checked:text-ink has-focus-visible:outline-2 has-focus-visible:outline-accent"
+          className="flex cursor-pointer items-baseline gap-1.5 rounded px-2.5 py-1.5 text-sm text-ink-muted hover:text-ink has-checked:bg-accent-soft has-checked:text-ink has-checked:ring-1 has-checked:ring-accent/60 has-checked:ring-inset has-focus-visible:outline-2 has-focus-visible:outline-accent"
         >
           <input
             type="radio"

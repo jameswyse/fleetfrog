@@ -10,8 +10,12 @@
   --line: #e2e2dc;
   --ink: #1c1c1a;
   --ink-muted: #5f5f59;
-  --accent: #2f8048;
-  --accent-ink: #ffffff;
+  /* The logo's green. Text on it is dark, and text in it uses the deeper accent-text. */
+  --accent: var(--logo-frog);
+  --accent-ink: #0d1a10;
+  --accent-text: #2f8048;
+  /* A selection's tint, opaque so pinned cells still cover what scrolls beneath them. */
+  --accent-soft: color-mix(in oklab, var(--accent) 14%, var(--surface));
   --changes: #9a5b06;
   --changes-soft: #fdf1dc;
   --sync: #1f5fa3;
@@ -32,8 +36,7 @@
     --line: #2c312c;
     --ink: #e7e9e4;
     --ink-muted: #a1a79d;
-    --accent: #5cc27a;
-    --accent-ink: #0d1a10;
+    --accent-text: var(--logo-frog);
     --changes: #e8b04f;
     --changes-soft: #33280f;
     --sync: #78aef0;
@@ -55,6 +58,8 @@
   --color-ink-muted: var(--ink-muted);
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
+  --color-accent-text: var(--accent-text);
+  --color-accent-soft: var(--accent-soft);
   --color-changes: var(--changes);
   --color-changes-soft: var(--changes-soft);
   --color-sync: var(--sync);
@@ -75,6 +80,12 @@
     color: var(--ink);
     font-family: ui-sans-serif, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
+  }
+
+  /* Tailwind leaves buttons with the arrow cursor; anything clickable here shows the pointer. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
   }
 
   :focus-visible {

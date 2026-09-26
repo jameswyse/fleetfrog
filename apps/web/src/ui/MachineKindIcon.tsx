@@ -9,13 +9,13 @@ import type { MachineKind } from "@fleetfrog/protocol/domain/machine";
  * squat slab with a front light, and a Mac Studio as the same slab twice as tall.
  */
 const MacMiniIcon = createLucideIcon("mac-mini", [
-  ["rect", { width: "20", height: "8", x: "2", y: "8", rx: "2" }],
-  ["path", { d: "M6 12h.01" }],
+  ["rect", { width: "20", height: "8", x: "2", y: "8", rx: "2", key: "body" }],
+  ["path", { d: "M6 12h.01", key: "light" }],
 ]);
 
 const MacStudioIcon = createLucideIcon("mac-studio", [
-  ["rect", { width: "18", height: "14", x: "3", y: "5", rx: "2" }],
-  ["path", { d: "M7 15h.01M11 15h.01M15 15h.01" }],
+  ["rect", { width: "18", height: "14", x: "3", y: "5", rx: "2", key: "body" }],
+  ["path", { d: "M7 15h.01M11 15h.01M15 15h.01", key: "ports" }],
 ]);
 
 /** Tux from Simple Icons, as T3 Code shows Linux and WSL. It is filled, unlike Lucide's outlines. */

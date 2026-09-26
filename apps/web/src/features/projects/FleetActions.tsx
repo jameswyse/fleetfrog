@@ -1,7 +1,10 @@
 import { useState, useTransition } from "react";
 
+import { ArrowDownToLineIcon, CloudDownloadIcon, FolderSearchIcon } from "lucide-react";
+
 import { knownFleet, requestHub } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
+import { Spinner } from "@/ui/Spinner.tsx";
 
 import { canPull, machineBlocker } from "../actions/actionAvailability.ts";
 import { PullDialog } from "../actions/PullDialog.tsx";
@@ -19,8 +22,9 @@ export function FleetActions({ hub }: { readonly hub: HubState }) {
   const live = hub._tag === "Live";
 
   return (
-    <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
-      <p role="status" className="text-sm text-danger">
+    <div className="flex flex-wrap items-center justify-end gap-y-2">
+      {/* Takes no room until it has something to say, so the buttons sit flush with the edge. */}
+      <p role="status" className="me-3 text-sm text-danger empty:me-0">
         {fetchAll.failure !== null && `Fetch failed. ${fetchAll.failure} `}
         {rescanFailure}
       </p>
@@ -34,6 +38,7 @@ export function FleetActions({ hub }: { readonly hub: HubState }) {
           }
           onClick={() => fetchAll.start({ _tag: "Fetch", scope: { _tag: "All" } })}
         >
+          {fetchAll.pending ? <Spinner /> : <CloudDownloadIcon />}
           {fetchAll.pending ? "Starting fetch…" : "Fetch all"}
         </Button>
         <Button
@@ -41,6 +46,7 @@ export function FleetActions({ hub }: { readonly hub: HubState }) {
           disabled={!live || fleet === null || !canPull(fleet, { _tag: "All" })}
           onClick={() => setPulling(true)}
         >
+          <ArrowDownToLineIcon />
           Pull all
         </Button>
         <Button
@@ -58,6 +64,7 @@ export function FleetActions({ hub }: { readonly hub: HubState }) {
             })
           }
         >
+          {rescanning ? <Spinner /> : <FolderSearchIcon />}
           {rescanning ? "Requesting rescan…" : "Rescan all"}
         </Button>
       </div>
