@@ -13,6 +13,26 @@ import type { Rpc, RpcGroup } from "effect/unstable/rpc";
 import type { AgentConfig } from "../config/agentConfig.ts";
 
 /**
+ * An endpoint below the agent URL, keeping any path prefix a reverse proxy adds. Pairing uses the
+ * HTTP scheme that matches the WebSocket one.
+ */
+export function hubEndpoint(agentUrl: URL, endpoint: "agent" | "pair"): URL {
+  const base = new URL(agentUrl);
+
+  if (!base.pathname.endsWith("/")) {
+    base.pathname = `${base.pathname}/`;
+  }
+
+  const url = new URL(endpoint, base);
+
+  if (endpoint === "pair") {
+    url.protocol = agentUrl.protocol === "ws:" ? "http:" : "https:";
+  }
+
+  return url;
+}
+
+/**
  * Builds the protocol in the caller's scope. `Effect.provide` would close the connection as soon as
  * the client was constructed.
  */
@@ -49,7 +69,7 @@ export const makeHubClient = Effect.fn("makeHubClient")(function* (config: Agent
   const client = yield* clientInCallerScope(
     AgentRpcs,
     RpcClient.layerProtocolSocket().pipe(
-      Layer.provide(Socket.layerWebSocket(`${config.agentUrl}/agent`)),
+      Layer.provide(Socket.layerWebSocket(hubEndpoint(new URL(config.agentUrl), "agent").href)),
       Layer.provide([webSocket, hooks, RpcSerialization.layerJson]),
     ),
   );
@@ -65,9 +85,7 @@ export function makePairingClient(options: {
   readonly agentUrl: URL;
   readonly certificatePem: string | null;
 }) {
-  const url = new URL("/pair", options.agentUrl);
-
-  url.protocol = options.agentUrl.protocol === "ws:" ? "http:" : "https:";
+  const url = hubEndpoint(options.agentUrl, "pair");
 
   return clientInCallerScope(
     PairingRpcs,

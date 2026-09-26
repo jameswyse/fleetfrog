@@ -56,4 +56,13 @@ export class AgentRpcs extends RpcGroup.make(
     stream: true,
   }),
   Rpc.make("Report", { payload: { report: ScanReport } }),
+  /**
+   * Sent every 15 seconds. The hub ends a connection that goes quiet, because a sleeping or
+   * disconnected machine never closes its socket.
+   */
+  Rpc.make("Heartbeat"),
 ).middleware(AgentAuthentication) {}
+
+export const heartbeatSeconds = 15;
+/** Three missed heartbeats. */
+export const heartbeatTimeoutSeconds = 45;

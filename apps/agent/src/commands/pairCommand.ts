@@ -1,6 +1,8 @@
 import { Console, Effect } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 
+import { pairingCodeLifetimeMinutes } from "@fleetfrog/protocol/pairing/pairingString";
+
 import { configPath } from "../config/agentConfig.ts";
 import { pairWithHub } from "../connection/pairWithHub.ts";
 import { reportFailure } from "./reportFailure.ts";
@@ -27,12 +29,14 @@ export const pairCommand = Command.make(
         PairingRefused: ({ message }) => reportFailure(message),
         InvalidPairingCode: () =>
           reportFailure(
-            "The hub rejected the pairing code. Codes work once and expire after 10 minutes.",
+            `The hub rejected the pairing code. Codes work once and expire after ${pairingCodeLifetimeMinutes} minutes.`,
           ),
         CertificateMismatch: () =>
           reportFailure(
             "The hub's certificate does not match the pairing string. Nothing was sent. Check that you are pairing with the right hub.",
           ),
+        ConfigUnavailable: ({ path, message }) =>
+          reportFailure(`Could not save the pairing to ${path}: ${message}`),
         HubUnreachable: ({ message }) => reportFailure(`Could not reach the hub: ${message}`),
         RpcClientError: ({ message }) => reportFailure(`Could not reach the hub: ${message}`),
       }),

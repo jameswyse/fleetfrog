@@ -30,7 +30,8 @@ export function fetchPinnedCertificate(options: {
 }) {
   return Effect.callback<string, HubUnreachable | CertificateMismatch>((resume) => {
     const socket = connect({
-      host: options.url.hostname,
+      // URL keeps the brackets around IPv6 literals, which name lookup does not accept.
+      host: options.url.hostname.replace(/^\[(.*)\]$/, "$1"),
       port: Number(options.url.port || 443),
       rejectUnauthorized: false,
       timeout: 15_000,

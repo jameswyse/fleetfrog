@@ -45,8 +45,10 @@ export class AgentCertificate extends Context.Service<
           }
         }
 
-        const notBefore = new Date();
-        const notAfter = new Date(notBefore);
+        const now = new Date();
+        // Backdated so an agent whose clock runs a little behind still accepts it.
+        const notBefore = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const notAfter = new Date(now);
 
         notAfter.setUTCFullYear(notAfter.getUTCFullYear() + validityYears);
 

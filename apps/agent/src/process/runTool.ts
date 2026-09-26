@@ -8,8 +8,9 @@ export class CommandFailed extends Data.TaggedError("CommandFailed")<{
   readonly message: string;
 }> {}
 
-// Git status reads must not take the index lock and race the developer's own Git commands.
-const gitEnvironment = {
+// Git status reads must not take the index lock and race the developer's own Git commands. The
+// same environment suits the other tools: no prompts and untranslated output.
+const toolEnvironment = {
   ...process.env,
   GIT_OPTIONAL_LOCKS: "0",
   GIT_TERMINAL_PROMPT: "0",
@@ -17,7 +18,7 @@ const gitEnvironment = {
 };
 
 /** Runs a command-line tool in a directory and returns its standard output. */
-export function runCommand(
+export function runTool(
   tool: "git" | "gh" | "scutil" | "systemctl" | "launchctl",
   cwd: string,
   args: ReadonlyArray<string>,
@@ -28,7 +29,7 @@ export function runCommand(
       args,
       {
         cwd,
-        env: gitEnvironment,
+        env: toolEnvironment,
         encoding: "utf8",
         maxBuffer: 64 * 1024 * 1024,
         signal,
@@ -48,5 +49,5 @@ export function runCommand(
 }
 
 export function runGit(cwd: string, args: ReadonlyArray<string>) {
-  return runCommand("git", cwd, args);
+  return runTool("git", cwd, args);
 }

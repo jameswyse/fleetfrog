@@ -1,4 +1,13 @@
-import { Config, Context, Layer } from "effect";
+import { Config, Context, Layer, Schema } from "effect";
+
+/** An agent endpoint such as `wss://fleetfrog.example.com`. */
+const WebSocketUrl = Schema.String.check(
+  Schema.makeFilter(
+    (url) =>
+      (URL.canParse(url) && ["ws:", "wss:"].includes(new URL(url).protocol)) ||
+      "must be a ws:// or wss:// URL",
+  ),
+);
 
 export const AgentTransport = Config.Literals(["self-signed", "none"], "FLEETFROG_AGENT_TLS");
 
@@ -23,7 +32,7 @@ export class HubConfig extends Context.Service<
       dashboardPort: Config.Port("FLEETFROG_DASHBOARD_PORT").pipe(Config.withDefault(7420)),
       agentPort: Config.Port("FLEETFROG_AGENT_PORT").pipe(Config.withDefault(7421)),
       agentTls: AgentTransport.pipe(Config.withDefault("self-signed" as const)),
-      agentUrl: Config.NonEmptyString("FLEETFROG_AGENT_URL").pipe(Config.withDefault(null)),
+      agentUrl: Config.schema(WebSocketUrl, "FLEETFROG_AGENT_URL").pipe(Config.withDefault(null)),
       webRoot: Config.NonEmptyString("FLEETFROG_WEB_ROOT").pipe(Config.withDefault(null)),
     }),
   );

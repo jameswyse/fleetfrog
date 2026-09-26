@@ -8,7 +8,7 @@ import { GithubCli } from "@fleetfrog/protocol/domain/machine";
 
 import packageJson from "../../package.json" with { type: "json" };
 import { expandHome } from "../discovery/discoverCheckouts.ts";
-import { runCommand } from "../process/runCommand.ts";
+import { runTool } from "../process/runTool.ts";
 
 import type { MachineInfo, Platform } from "@fleetfrog/protocol/domain/machine";
 
@@ -28,7 +28,7 @@ function currentPlatform(): Platform {
 /** The name the user gave the machine: systemd's pretty hostname on Linux, the computer name on macOS. */
 const readPrettyName = Effect.fn("readPrettyName")(function* (platform: Platform) {
   if (platform === "darwin") {
-    return yield* runCommand("scutil", homedir(), ["--get", "ComputerName"]).pipe(
+    return yield* runTool("scutil", homedir(), ["--get", "ComputerName"]).pipe(
       Effect.map((name) => name.trim() || null),
       Effect.orElseSucceed(() => null),
     );
@@ -42,7 +42,7 @@ const readPrettyName = Effect.fn("readPrettyName")(function* (platform: Platform
   return value.replace(/^"(.*)"$/, "$1") || null;
 });
 
-const readGithubCli = runCommand("gh", homedir(), ["api", "user", "--jq", ".login"]).pipe(
+const readGithubCli = runTool("gh", homedir(), ["api", "user", "--jq", ".login"]).pipe(
   Effect.map((login) => GithubCli.cases.Available.make({ login: login.trim() })),
   Effect.orElseSucceed(() =>
     GithubCli.cases.Unavailable.make({ reason: "gh is not installed or not signed in" }),

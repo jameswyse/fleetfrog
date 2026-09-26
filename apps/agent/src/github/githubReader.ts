@@ -4,7 +4,7 @@ import { DateTime, Duration, Effect, Option, Schema } from "effect";
 
 import { repositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
-import { runCommand, runGit } from "../process/runCommand.ts";
+import { runGit, runTool } from "../process/runTool.ts";
 
 import type { GithubState, PullRequest } from "@fleetfrog/protocol/domain/checkout";
 import type { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
@@ -15,7 +15,7 @@ const query = `query($owner: String!, $name: String!) {
   repository(owner: $owner, name: $name) {
     defaultBranchRef { name target { oid } }
     pullRequests(states: OPEN, first: 100, orderBy: { field: UPDATED_AT, direction: DESC }) {
-      nodes { number title url headRefName isDraft }
+      nodes { number title url headRefName isDraft isCrossRepository headRepositoryOwner { login } }
     }
   }
 }`;
@@ -36,6 +36,9 @@ const RepositoryResponse = Schema.fromJsonString(
               url: Schema.String,
               headRefName: Schema.String,
               isDraft: Schema.Boolean,
+              isCrossRepository: Schema.Boolean,
+              // Null when the fork that opened the pull request has been deleted.
+              headRepositoryOwner: Schema.NullOr(Schema.Struct({ login: Schema.String })),
             }),
           ),
         }),
@@ -56,18 +59,22 @@ interface RemoteState {
  * Reads default-branch and pull request state from GitHub through `gh`, at most once per
  * repository per interval, however many checkouts share it.
  */
-export function makeGithubReader() {
+export function makeGithubReader(reader: {
+  /** The signed-in GitHub user, whose fork's pull requests also count as this repository's. */
+  readonly login: string;
+}) {
   const cache = new Map<RepositoryKey, RemoteState>();
 
   const fetchRemote = Effect.fn("fetchGithubRepository")(function* (owner: string, name: string) {
-    const output = yield* runCommand("gh", homedir(), [
+    const output = yield* runTool("gh", homedir(), [
       "api",
       "graphql",
       "-f",
       `query=${query}`,
-      "-F",
+      // `-f` sends raw strings; `-F` would turn a repository called `2048` into a number.
+      "-f",
       `owner=${owner}`,
-      "-F",
+      "-f",
       `name=${name}`,
     ]);
     const { repository } = (yield* decodeResponse(output)).data;
@@ -75,13 +82,18 @@ export function makeGithubReader() {
     return {
       defaultBranch: repository.defaultBranchRef.name,
       remoteSha: repository.defaultBranchRef.target.oid,
-      pullRequests: repository.pullRequests.nodes.map((node) => ({
-        number: node.number,
-        title: node.title,
-        url: node.url,
-        branch: node.headRefName,
-        draft: node.isDraft,
-      })),
+      pullRequests: repository.pullRequests.nodes
+        // A fork's `main` is not the local `main`, so only branches pushed here or to our fork match.
+        .filter(
+          (node) => !node.isCrossRepository || node.headRepositoryOwner?.login === reader.login,
+        )
+        .map((node) => ({
+          number: node.number,
+          title: node.title,
+          url: node.url,
+          branch: node.headRefName,
+          draft: node.isDraft,
+        })),
       checkedAt: yield* DateTime.now,
     } satisfies RemoteState;
   });

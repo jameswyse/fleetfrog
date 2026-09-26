@@ -102,6 +102,23 @@ describe("reading a checkout", () => {
     }),
   );
 
+  it.effect("gives an unborn orphan worktree the identity of its main checkout", () =>
+    Effect.gen(function* () {
+      const fixture = createFixture();
+      const orphan = path.join(fixture.root, "orphan");
+
+      git(fixture.clone, "worktree", "add", "-q", "--orphan", "-b", "scratch", orphan);
+
+      const location = Option.getOrThrow(yield* locateCheckout(orphan));
+      const status = yield* readGitStatus(location);
+
+      expect(location.identity).toEqual({ _tag: "RootCommit", sha: fixture.rootCommit });
+      expect(status.head).toEqual({ _tag: "Unborn", name: "scratch" });
+      // The clone's fetch counts for every worktree, since they share remote-tracking refs.
+      expect(status.lastFetchedAt).not.toBeNull();
+    }),
+  );
+
   it.effect("uses a normalised origin URL when the remote is hosted", () =>
     Effect.gen(function* () {
       const fixture = createFixture();

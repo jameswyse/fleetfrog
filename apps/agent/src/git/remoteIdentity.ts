@@ -24,7 +24,13 @@ export function remoteIdentity(remoteUrl: string): Option.Option<RepositoryIdent
     }
 
     host = url.hostname;
-    path = decodeURIComponent(url.pathname);
+
+    try {
+      path = decodeURIComponent(url.pathname);
+    } catch {
+      // A malformed escape cannot name a hosted repository.
+      return Option.none();
+    }
   } else {
     const groups = scpLikeRemote.exec(trimmed)?.groups;
 

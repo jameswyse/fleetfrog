@@ -1,11 +1,11 @@
-import { stat } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 
 import { DateTime, Effect, Option } from "effect";
 
 import { RepositoryIdentity } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
-import { runGit } from "../process/runCommand.ts";
+import { runGit } from "../process/runTool.ts";
 import { branchFormat, parseBranches } from "./parseBranches.ts";
 import { parseStatus } from "./parseStatus.ts";
 import { remoteIdentity } from "./remoteIdentity.ts";
@@ -68,6 +68,26 @@ const readCommit = Effect.fn("readCommit")(function* (directory: string) {
 });
 
 /**
+ * When any worktree of the repository last fetched. `FETCH_HEAD` is per worktree, but every
+ * worktree shares the remote-tracking refs a fetch updates.
+ */
+async function readLastFetch(commonDirectory: string): Promise<DateTime.Utc | null> {
+  const linked = await readdir(path.join(commonDirectory, "worktrees")).catch(() => []);
+  const times = await Promise.all(
+    [commonDirectory, ...linked.map((name) => path.join(commonDirectory, "worktrees", name))].map(
+      (directory) =>
+        stat(path.join(directory, "FETCH_HEAD")).then(
+          (fetchHead) => fetchHead.mtimeMs,
+          () => null,
+        ),
+    ),
+  );
+  const latest = Math.max(...times.filter((time) => time !== null));
+
+  return Number.isFinite(latest) ? DateTime.makeUnsafe(latest) : null;
+}
+
+/**
  * Identifies the working tree at `directory`. Returns `None` for bare repositories and for
  * repositories with neither an `origin` remote nor any commits, which have no identity to share.
  */
@@ -88,7 +108,11 @@ export const locateCheckout = Effect.fn("locateCheckout")(function* (directory: 
   const mainPath = gitDirectory === commonDirectory ? toplevel : path.dirname(commonDirectory);
   const worktree: Worktree =
     gitDirectory === commonDirectory ? { _tag: "Main" } : { _tag: "Linked", mainPath };
-  const identity = yield* identify(toplevel);
+  // Worktrees share the main worktree's remote and history, so they share its identity. An orphan
+  // or unborn branch in a linked worktree would otherwise split the repository.
+  const fromMain = yield* identify(mainPath);
+  const identity =
+    Option.isNone(fromMain) && mainPath !== toplevel ? yield* identify(toplevel) : fromMain;
 
   return Option.map(identity, (resolved) => ({
     path: toplevel,
@@ -112,12 +136,7 @@ export const readGitStatus = Effect.fn("readGitStatus")(function* (location: Che
         "-z",
       ]),
       runGit(location.path, ["for-each-ref", "refs/heads", `--format=${branchFormat}`]),
-      Effect.promise(() =>
-        stat(path.join(location.commonDirectory, "FETCH_HEAD")).then(
-          (fetchHead) => DateTime.fromDateUnsafe(fetchHead.mtime),
-          () => null,
-        ),
-      ),
+      Effect.promise(() => readLastFetch(location.commonDirectory)),
     ],
     { concurrency: "unbounded" },
   );

@@ -1,8 +1,9 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { access, chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 
-import { Effect, Option, Schema } from "effect";
+import { Data, Effect, Option, Schema } from "effect";
 
 import { MachineId } from "@fleetfrog/protocol/domain/machine";
 
@@ -31,25 +32,62 @@ export function configPath(): string {
   return path.join(configDirectory(), "agent.json");
 }
 
+export class ConfigUnavailable extends Data.TaggedError("ConfigUnavailable")<{
+  readonly path: string;
+  readonly message: string;
+}> {}
+
+function isMissingFile(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "ENOENT";
+}
+
 /** The saved pairing, or `None` before the machine is paired. */
 export const loadAgentConfig = Effect.gen(function* () {
-  const contents = yield* Effect.promise(() =>
-    readFile(configPath(), "utf8").then(
-      (text) => Option.some(text),
-      () => Option.none<string>(),
-    ),
-  );
+  const file = configPath();
+  const contents = yield* Effect.tryPromise({
+    // Only a missing file means "not paired"; any other read error is reported.
+    try: () =>
+      readFile(file, "utf8").then(Option.some, (error: unknown) => {
+        if (isMissingFile(error)) {
+          return Option.none<string>();
+        }
+
+        throw error;
+      }),
+    catch: (error) => new ConfigUnavailable({ path: file, message: String(error) }),
+  });
 
   if (Option.isNone(contents)) {
     return Option.none<AgentConfig>();
   }
 
-  return Option.some(yield* decodeConfig(contents.value).pipe(Effect.orDie));
+  return Option.some(
+    yield* decodeConfig(contents.value).pipe(
+      Effect.mapError(
+        () => new ConfigUnavailable({ path: file, message: "The saved pairing is not valid." }),
+      ),
+    ),
+  );
+});
+
+/** Creates the config directory and checks it can be written, before anything depends on it. */
+export const ensureConfigWritable = Effect.tryPromise({
+  try: async () => {
+    await mkdir(configDirectory(), { recursive: true, mode: 0o700 });
+    await access(configDirectory(), constants.W_OK);
+  },
+  catch: (error) => new ConfigUnavailable({ path: configDirectory(), message: String(error) }),
 });
 
 /** Saves the pairing readable only by the current user, since it holds the agent's token. */
 export const saveAgentConfig = (config: AgentConfig) =>
-  Effect.promise(async () => {
-    await mkdir(configDirectory(), { recursive: true, mode: 0o700 });
-    await writeFile(configPath(), `${encodeConfig(config)}\n`, { mode: 0o600 });
+  Effect.tryPromise({
+    try: async () => {
+      await mkdir(configDirectory(), { recursive: true, mode: 0o700 });
+      await writeFile(configPath(), `${encodeConfig(config)}\n`, { mode: 0o600 });
+      // Creation modes do not apply to a directory or file that already exists.
+      await chmod(configDirectory(), 0o700);
+      await chmod(configPath(), 0o600);
+    },
+    catch: (error) => new ConfigUnavailable({ path: configPath(), message: String(error) }),
   });

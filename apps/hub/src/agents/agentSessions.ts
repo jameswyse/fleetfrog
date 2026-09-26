@@ -1,6 +1,10 @@
-import { Context, DateTime, Effect, Layer, Queue, Stream, SubscriptionRef } from "effect";
+import { Context, DateTime, Duration, Effect, Layer, Queue, Stream, SubscriptionRef } from "effect";
 
-import { HubCommand } from "@fleetfrog/protocol/agent/rpcs";
+import {
+  HubCommand,
+  heartbeatSeconds,
+  heartbeatTimeoutSeconds,
+} from "@fleetfrog/protocol/agent/rpcs";
 
 import { DashboardPresence } from "../dashboard/dashboardPresence.ts";
 import { MachineStore } from "../machines/machineStore.ts";
@@ -13,6 +17,8 @@ import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 interface Session {
   readonly since: DateTime.Utc;
   readonly commands: Queue.Queue<HubCommand, Cause.Done>;
+  /** Epoch milliseconds of the last heartbeat, or of connecting. */
+  lastHeartbeatAt: number;
 }
 
 /** Connected agents and the command stream each one holds open. */
@@ -30,6 +36,7 @@ export class AgentSessions extends Context.Service<
     ) => Effect.Effect<Stream.Stream<HubCommand>, never, Scope.Scope>;
     /** Resends a machine's configuration after its discovery roots change. */
     readonly reconfigure: (machineId: MachineId) => Effect.Effect<void>;
+    readonly heartbeat: (machineId: MachineId) => Effect.Effect<void>;
     readonly refresh: (machineIds: ReadonlyArray<MachineId> | "all") => Effect.Effect<void>;
     readonly disconnect: (machineId: MachineId) => Effect.Effect<void>;
   }
@@ -66,19 +73,6 @@ export class AgentSessions extends Context.Service<
         });
       });
 
-      const reconfigure = (machineId: MachineId) => {
-        const session = sessions.get(machineId);
-
-        return session === undefined
-          ? Effect.void
-          : configuration(machineId).pipe(
-              Effect.flatMap((command) => Queue.offer(session.commands, command)),
-              // A machine removed while connected has no configuration left to send.
-              Effect.catchTag("MachineNotFound", () => Effect.void),
-              Effect.asVoid,
-            );
-      };
-
       const disconnect = (machineId: MachineId) => {
         const session = sessions.get(machineId);
 
@@ -89,6 +83,20 @@ export class AgentSessions extends Context.Service<
         sessions.delete(machineId);
 
         return Queue.end(session.commands).pipe(Effect.andThen(publishOnline));
+      };
+
+      const reconfigure = (machineId: MachineId) => {
+        const session = sessions.get(machineId);
+
+        return session === undefined
+          ? Effect.void
+          : configuration(machineId).pipe(
+              Effect.flatMap((command) => Queue.offer(session.commands, command)),
+              // A machine removed while connecting has nothing to do. Ending its stream makes the
+              // agent reconnect, and its revoked token then stops it.
+              Effect.catchTag("MachineNotFound", () => disconnect(machineId)),
+              Effect.asVoid,
+            );
       };
 
       // Polling changes and dashboards opening or closing change every agent's schedule.
@@ -106,29 +114,62 @@ export class AgentSessions extends Context.Service<
         Effect.forkScoped,
       );
 
+      // A sleeping or unplugged machine never closes its socket, so silence ends the session.
+      yield* Effect.gen(function* () {
+        const cutoff = Date.now() - heartbeatTimeoutSeconds * 1000;
+
+        for (const [machineId, session] of sessions) {
+          if (session.lastHeartbeatAt < cutoff) {
+            yield* Effect.logInfo("Agent stopped responding").pipe(
+              Effect.annotateLogs({ machineId }),
+            );
+            yield* disconnect(machineId);
+            yield* machines.recordSeen(machineId);
+          }
+        }
+      }).pipe(Effect.delay(Duration.seconds(heartbeatSeconds)), Effect.forever, Effect.forkScoped);
+
       return {
         online,
         connect: (machineId) =>
           Effect.gen(function* () {
-            yield* disconnect(machineId);
+            // Registration and its release are one step, so no interruption can leave a session
+            // registered without the finaliser that removes it.
+            const session = yield* Effect.acquireRelease(
+              Effect.gen(function* () {
+                yield* disconnect(machineId);
 
-            const session: Session = {
-              since: yield* DateTime.now,
-              commands: yield* Queue.unbounded<HubCommand, Cause.Done>(),
-            };
+                const since = yield* DateTime.now;
+                const registered: Session = {
+                  since,
+                  commands: yield* Queue.unbounded<HubCommand, Cause.Done>(),
+                  lastHeartbeatAt: DateTime.toEpochMillis(since),
+                };
 
-            sessions.set(machineId, session);
+                sessions.set(machineId, registered);
+
+                return registered;
+              }),
+              (registered) =>
+                sessions.get(machineId) === registered
+                  ? disconnect(machineId).pipe(Effect.andThen(machines.recordSeen(machineId)))
+                  : Queue.end(registered.commands).pipe(Effect.asVoid),
+            );
+
             yield* publishOnline;
             yield* reconfigure(machineId);
-            yield* Effect.addFinalizer(() =>
-              sessions.get(machineId) === session
-                ? disconnect(machineId).pipe(Effect.andThen(machines.recordSeen(machineId)))
-                : Effect.void,
-            );
 
             return Stream.fromQueue(session.commands);
           }),
         reconfigure,
+        heartbeat: (machineId) =>
+          Effect.sync(() => {
+            const session = sessions.get(machineId);
+
+            if (session !== undefined) {
+              session.lastHeartbeatAt = Date.now();
+            }
+          }),
         refresh: (machineIds) =>
           Effect.forEach(
             machineIds === "all"

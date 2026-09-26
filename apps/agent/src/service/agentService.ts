@@ -3,9 +3,22 @@ import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { homedir, userInfo } from "node:os";
 import path from "node:path";
 
-import { Effect } from "effect";
+import { Data, Effect } from "effect";
 
-import { runCommand } from "../process/runCommand.ts";
+import { runTool } from "../process/runTool.ts";
+
+export class ServiceFileFailed extends Data.TaggedError("ServiceFileFailed")<{
+  readonly path: string;
+  readonly message: string;
+}> {}
+
+/** Writes or removes a service definition, reporting file-system errors as a typed failure. */
+function serviceFile(file: string, write: () => Promise<void>) {
+  return Effect.tryPromise({
+    try: write,
+    catch: (error) => new ServiceFileFailed({ path: file, message: String(error) }),
+  });
+}
 
 const systemdUnitName = "fleetfrog.service";
 const launchdLabel = "net.fleetfrog.agent";
@@ -87,7 +100,10 @@ ${argumentsXml}
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>
-  <true/>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
   <key>StandardOutPath</key>
   <string>${escapeXml(logPath)}</string>
   <key>StandardErrorPath</key>
@@ -95,6 +111,12 @@ ${argumentsXml}
 </dict>
 </plist>
 `;
+}
+
+function ignoreMissing(error: unknown): void {
+  if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
+    throw error;
+  }
 }
 
 const launchdDomain = () => `gui/${userInfo().uid}`;
@@ -106,29 +128,27 @@ export const installService = Effect.gen(function* () {
   if (process.platform === "darwin") {
     const plistPath = launchdPlistPath();
 
-    yield* Effect.promise(async () => {
+    yield* serviceFile(plistPath, async () => {
       await mkdir(path.dirname(plistPath), { recursive: true });
       await writeFile(plistPath, launchdPlist());
     });
     // Replaces an already loaded copy; failing here only means none was loaded.
-    yield* runCommand("launchctl", home, ["bootout", launchdDomain(), plistPath]).pipe(
-      Effect.ignore,
-    );
-    yield* runCommand("launchctl", home, ["bootstrap", launchdDomain(), plistPath]);
+    yield* runTool("launchctl", home, ["bootout", launchdDomain(), plistPath]).pipe(Effect.ignore);
+    yield* runTool("launchctl", home, ["bootstrap", launchdDomain(), plistPath]);
 
     return plistPath;
   }
 
   const unitPath = systemdUnitPath();
 
-  yield* Effect.promise(async () => {
+  yield* serviceFile(unitPath, async () => {
     await mkdir(path.dirname(unitPath), { recursive: true });
     await writeFile(unitPath, systemdUnit());
   });
-  yield* runCommand("systemctl", home, ["--user", "daemon-reload"]);
-  yield* runCommand("systemctl", home, ["--user", "enable", "--now", systemdUnitName]);
+  yield* runTool("systemctl", home, ["--user", "daemon-reload"]);
+  yield* runTool("systemctl", home, ["--user", "enable", "--now", systemdUnitName]);
   // Picks up a changed unit when the service was already running.
-  yield* runCommand("systemctl", home, ["--user", "restart", systemdUnitName]);
+  yield* runTool("systemctl", home, ["--user", "restart", systemdUnitName]);
 
   return unitPath;
 });
@@ -140,21 +160,19 @@ export const uninstallService = Effect.gen(function* () {
   if (process.platform === "darwin") {
     const plistPath = launchdPlistPath();
 
-    yield* runCommand("launchctl", home, ["bootout", launchdDomain(), plistPath]).pipe(
-      Effect.ignore,
-    );
-    yield* Effect.promise(() => unlink(plistPath).catch(() => undefined));
+    yield* runTool("launchctl", home, ["bootout", launchdDomain(), plistPath]).pipe(Effect.ignore);
+    yield* serviceFile(plistPath, () => unlink(plistPath).catch(ignoreMissing));
 
     return plistPath;
   }
 
   const unitPath = systemdUnitPath();
 
-  yield* runCommand("systemctl", home, ["--user", "disable", "--now", systemdUnitName]).pipe(
+  yield* runTool("systemctl", home, ["--user", "disable", "--now", systemdUnitName]).pipe(
     Effect.ignore,
   );
-  yield* Effect.promise(() => unlink(unitPath).catch(() => undefined));
-  yield* runCommand("systemctl", home, ["--user", "daemon-reload"]);
+  yield* serviceFile(unitPath, () => unlink(unitPath).catch(ignoreMissing));
+  yield* runTool("systemctl", home, ["--user", "daemon-reload"]);
 
   return unitPath;
 });

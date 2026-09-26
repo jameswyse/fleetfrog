@@ -2,7 +2,7 @@ import { Data, Effect, Option } from "effect";
 
 import { decodePairingString } from "@fleetfrog/protocol/pairing/pairingString";
 
-import { saveAgentConfig } from "../config/agentConfig.ts";
+import { ensureConfigWritable, saveAgentConfig } from "../config/agentConfig.ts";
 import { readMachineInfo, suggestDiscoveryRoots } from "../machine/machineInfo.ts";
 import { makePairingClient } from "./hubClient.ts";
 import { fetchPinnedCertificate } from "./hubTls.ts";
@@ -28,7 +28,13 @@ export const pairWithHub = Effect.fn("pairWithHub")(function* (options: {
   }
 
   const { agentUrl, code, certificateFingerprint } = invite.value;
-  const url = new URL(agentUrl);
+  const url = URL.canParse(agentUrl) ? new URL(agentUrl) : null;
+
+  if (url === null || (url.protocol !== "ws:" && url.protocol !== "wss:")) {
+    return yield* new PairingRefused({
+      message: `The pairing string points at "${agentUrl}", which is not a WebSocket address. Check FLEETFROG_AGENT_URL on the hub.`,
+    });
+  }
 
   if (url.protocol === "ws:" && !loopbackHosts.has(url.hostname) && !options.insecure) {
     return yield* new PairingRefused({
@@ -40,6 +46,9 @@ export const pairWithHub = Effect.fn("pairWithHub")(function* (options: {
     certificateFingerprint === null || url.protocol === "ws:"
       ? null
       : yield* fetchPinnedCertificate({ url, fingerprint: certificateFingerprint });
+  // The code is spent on first use, so confirm the token can be saved before redeeming it.
+  yield* ensureConfigWritable;
+
   const client = yield* makePairingClient({ agentUrl: url, certificatePem });
   const paired = yield* client.Pair({
     code,

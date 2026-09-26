@@ -1,6 +1,6 @@
-import { Data, Duration, Effect, FiberHandle, Option, Stream } from "effect";
+import { Data, Duration, Effect, Fiber, FiberHandle, Option, Stream } from "effect";
 
-import { HubCommand } from "@fleetfrog/protocol/agent/rpcs";
+import { HubCommand, heartbeatSeconds } from "@fleetfrog/protocol/agent/rpcs";
 
 import { loadAgentConfig } from "../config/agentConfig.ts";
 import { makeHubClient } from "../connection/hubClient.ts";
@@ -30,10 +30,11 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
   const { client, disconnected } = yield* makeHubClient(config);
   const info = yield* readMachineInfo;
   const scanner = makeScanner({
-    githubEnabled: info.githubCli._tag === "Available",
+    githubLogin: info.githubCli._tag === "Available" ? info.githubCli.login : null,
     report: (report) => client.Report({ report }),
   });
   const timers = yield* FiberHandle.make();
+  const sessionScope = yield* Effect.scope;
   let configuration: Configuration | null = null;
   let lastDiscoveryAt: number | null = null;
   let lastStatusAt: number | null = null;
@@ -65,7 +66,14 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
     );
 
   /** Restarts both timers, keeping each on its cadence from its last completed pass. */
-  const schedule = (current: Configuration, discoverNow: boolean) => {
+  const schedule = ({
+    current,
+    discoverNow,
+  }: {
+    readonly current: Configuration;
+    /** Starts a discovery walk immediately instead of waiting out its interval. */
+    readonly discoverNow: boolean;
+  }) => {
     const now = Date.now();
     const remaining = (seconds: number, since: number | null) =>
       since === null ? Duration.zero : Duration.millis(Math.max(0, seconds * 1000 - (now - since)));
@@ -76,8 +84,13 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
       lastStatusAt === null
         ? Duration.seconds(current.schedule.statusSeconds)
         : remaining(current.schedule.statusSeconds, lastStatusAt);
+    // Passes run in the session's scope, so restarting the timers never cuts a scan short.
     const every = (seconds: number, pass: Effect.Effect<void>) =>
-      pass.pipe(Effect.andThen(Effect.sleep(Duration.seconds(seconds))), Effect.forever);
+      Effect.forkIn(pass, sessionScope).pipe(
+        Effect.flatMap(Fiber.join),
+        Effect.andThen(Effect.sleep(Duration.seconds(seconds))),
+        Effect.forever,
+      );
 
     return FiberHandle.run(
       timers,
@@ -95,6 +108,13 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
     );
   };
 
+  yield* client
+    .Heartbeat()
+    .pipe(
+      Effect.andThen(Effect.sleep(Duration.seconds(heartbeatSeconds))),
+      Effect.forever,
+      Effect.forkScoped,
+    );
   yield* client.Connect({ info }).pipe(
     Stream.runForEach((command) =>
       HubCommand.match(command, {
@@ -104,9 +124,12 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
 
           configuration = next;
 
-          return schedule(next, rootsChanged);
+          return schedule({ current: next, discoverNow: rootsChanged });
         },
-        Refresh: () => (configuration === null ? Effect.void : schedule(configuration, true)),
+        Refresh: () =>
+          configuration === null
+            ? Effect.void
+            : schedule({ current: configuration, discoverNow: true }),
       }),
     ),
     Effect.catchTag("Unauthorised", () => Effect.fail(new MachineRemoved())),

@@ -2,13 +2,16 @@ import { createHash, randomBytes } from "node:crypto";
 
 import { Context, DateTime, Duration, Effect, Layer } from "effect";
 
-import { PairingOffer } from "@fleetfrog/protocol/dashboard/rpcs";
+import { AgentEndpoint } from "@fleetfrog/protocol/dashboard/rpcs";
+import { pairingCodeLifetimeMinutes } from "@fleetfrog/protocol/pairing/pairingString";
 import { InvalidPairingCode } from "@fleetfrog/protocol/pairing/rpcs";
 
 import { HubConfig } from "../hubConfig.ts";
 import { AgentCertificate } from "./agentCertificate.ts";
 
-const offerLifetime = Duration.minutes(10);
+import type { PairingOffer } from "@fleetfrog/protocol/dashboard/rpcs";
+
+const offerLifetime = Duration.minutes(pairingCodeLifetimeMinutes);
 
 function hashCode(code: string): string {
   return createHash("sha256").update(code).digest("hex");
@@ -27,13 +30,13 @@ export class PairingOffers extends Context.Service<
       const config = yield* HubConfig;
       const { tls } = yield* AgentCertificate;
       const expiries = new Map<string, DateTime.Utc>();
-      const endpoint: PairingOffer["endpoint"] =
+      const endpoint: AgentEndpoint =
         config.agentUrl === null
-          ? PairingOffer.fields.endpoint.cases.DashboardHost.make({
+          ? AgentEndpoint.cases.DashboardHost.make({
               scheme: tls === null ? "ws" : "wss",
               port: config.agentPort,
             })
-          : PairingOffer.fields.endpoint.cases.Url.make({ url: config.agentUrl });
+          : AgentEndpoint.cases.Url.make({ url: config.agentUrl });
 
       return {
         create: Effect.gen(function* () {

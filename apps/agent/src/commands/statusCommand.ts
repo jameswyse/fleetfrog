@@ -3,6 +3,7 @@ import { Command } from "effect/unstable/cli";
 
 import { configPath, loadAgentConfig } from "../config/agentConfig.ts";
 import { agentVersion } from "../machine/machineInfo.ts";
+import { reportFailure } from "./reportFailure.ts";
 
 export const statusCommand = Command.make("status", {}, () =>
   loadAgentConfig.pipe(
@@ -21,6 +22,9 @@ export const statusCommand = Command.make("status", {}, () =>
             ].join("\n"),
         }),
       ),
+    ),
+    Effect.catchTag("ConfigUnavailable", ({ path, message }) =>
+      reportFailure(`Could not read the pairing from ${path}: ${message}`),
     ),
   ),
 ).pipe(Command.withDescription("Show how this agent is paired"));

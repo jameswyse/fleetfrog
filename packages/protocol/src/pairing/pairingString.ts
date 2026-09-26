@@ -13,6 +13,9 @@ export const PairingInvite = Schema.Struct({
 });
 export type PairingInvite = typeof PairingInvite.Type;
 
+/** How long a pairing code stays valid. */
+export const pairingCodeLifetimeMinutes = 10;
+
 const prefix = "ffp1_";
 const PairingPayload = Schema.StringFromBase64Url.pipe(
   Schema.decodeTo(Schema.fromJsonString(PairingInvite)),

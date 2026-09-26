@@ -13,18 +13,22 @@ const install = Command.make("install", {}, () =>
           : `Installed and started ${definition}.`,
       ),
     ),
-    Effect.catchTag("CommandFailed", ({ message }) =>
-      reportFailure(`Could not start the service: ${message}`),
-    ),
+    Effect.catchTags({
+      CommandFailed: ({ message }) => reportFailure(`Could not start the service: ${message}`),
+      ServiceFileFailed: ({ path, message }) =>
+        reportFailure(`Could not write ${path}: ${message}`),
+    }),
   ),
 ).pipe(Command.withDescription("Run the agent in the background whenever you are logged in"));
 
 const uninstall = Command.make("uninstall", {}, () =>
   uninstallService.pipe(
     Effect.flatMap((definition) => Console.log(`Stopped the agent and removed ${definition}.`)),
-    Effect.catchTag("CommandFailed", ({ message }) =>
-      reportFailure(`Could not remove the service: ${message}`),
-    ),
+    Effect.catchTags({
+      CommandFailed: ({ message }) => reportFailure(`Could not remove the service: ${message}`),
+      ServiceFileFailed: ({ path, message }) =>
+        reportFailure(`Could not remove ${path}: ${message}`),
+    }),
   ),
 ).pipe(Command.withDescription("Stop the background agent and remove its service"));
 

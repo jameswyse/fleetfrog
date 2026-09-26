@@ -5,7 +5,7 @@ import path from "node:path";
 import { Effect, Option } from "effect";
 
 import { locateCheckout } from "../git/readCheckout.ts";
-import { runGit } from "../process/runCommand.ts";
+import { runGit } from "../process/runTool.ts";
 
 import type { CheckoutLocation } from "../git/readCheckout.ts";
 

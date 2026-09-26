@@ -50,6 +50,7 @@ export const AgentHandlers = AgentRpcs.toLayer(
           });
           yield* feed.invalidate;
         }),
+      Heartbeat: () => CurrentMachine.use(({ id }) => sessions.heartbeat(id)),
     };
   }),
 );
