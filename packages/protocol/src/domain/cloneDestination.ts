@@ -39,6 +39,35 @@ function homeRelative(path: string, home: string): string | null {
   return isBelow(path, normalisedHome) ? `~${path.slice(normalisedHome.length)}` : null;
 }
 
+export type FolderPathCheck =
+  | { readonly _tag: "Valid"; readonly path: string }
+  | { readonly _tag: "NotAbsolute" }
+  /** A hidden folder such as `~/.config`, or one reached through `.` or `..`. */
+  | { readonly _tag: "Hidden" };
+
+/**
+ * Checks a folder path that needs no file system: an absolute or `~` path with no hidden, `.` or
+ * `..` segments. Returns it expanded, without trailing slashes.
+ */
+export function checkFolderPath(options: {
+  readonly path: string;
+  readonly home: string;
+}): FolderPathCheck {
+  const path = withoutTrailingSlashes(expandHome(options.path.trim(), options.home));
+
+  if (!path.startsWith("/")) {
+    return { _tag: "NotAbsolute" };
+  }
+
+  // An empty segment from `//` would make the path compare unlike the folder it is in.
+  return path
+    .split("/")
+    .slice(1)
+    .some((segment) => segment === "" || segment.startsWith("."))
+    ? { _tag: "Hidden" }
+    : { _tag: "Valid", path };
+}
+
 export type DestinationCheck =
   | { readonly _tag: "Valid"; readonly path: string; readonly root: string }
   | { readonly _tag: "NotAbsolute" }
@@ -56,19 +85,13 @@ export function checkCloneDestination(options: {
   readonly home: string;
   readonly roots: ReadonlyArray<string>;
 }): DestinationCheck {
-  const path = withoutTrailingSlashes(expandHome(options.destination.trim(), options.home));
+  const folder = checkFolderPath({ path: options.destination, home: options.home });
 
-  if (!path.startsWith("/")) {
-    return { _tag: "NotAbsolute" };
+  if (folder._tag !== "Valid") {
+    return folder;
   }
 
-  const segments = path.split("/").slice(1);
-
-  // An empty segment from `//` would make the path compare unlike the folder it is in.
-  if (segments.some((segment) => segment === "" || segment.startsWith("."))) {
-    return { _tag: "Hidden" };
-  }
-
+  const { path } = folder;
   const root = options.roots.find((candidate) =>
     isBelow(path, withoutTrailingSlashes(expandHome(candidate, options.home))),
   );

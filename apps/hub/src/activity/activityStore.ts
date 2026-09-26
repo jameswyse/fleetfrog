@@ -398,6 +398,7 @@ export class ActivityStore extends Context.Service<
               MachineRemoved: ({ machineId: id }) => id,
               MachineRenamed: ({ machineId: id }) => id,
               DiscoveryRootsChanged: ({ machineId: id }) => id,
+              ProjectFolderCreated: ({ machineId: id }) => id,
               PollingChanged: () => null,
             });
 

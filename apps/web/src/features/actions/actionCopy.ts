@@ -140,5 +140,6 @@ export function describeEvent(event: HubEvent): string {
         ? `Removed every project folder on ${machineName}`
         : `Set the project folders on ${machineName} to ${roots.join(", ")}`,
     PollingChanged: () => "Changed the polling intervals",
+    ProjectFolderCreated: ({ machineName, path }) => `Created ${path} on ${machineName}`,
   });
 }

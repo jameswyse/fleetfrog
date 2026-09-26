@@ -16,6 +16,7 @@ const everything: AgentCapabilities = {
   actions: ["Fetch", "Pull", "Clone"],
   allowedTiers: ["git"],
   policyReadable: true,
+  createsFolders: true,
 };
 
 function machine(
@@ -50,10 +51,15 @@ function machine(
 const online = machine("aaaaaaaa-0000-4000-8000-000000000000", { capabilities: everything });
 const offline = machine("bbbbbbbb-0000-4000-8000-000000000000", "offline");
 const outdated = machine("cccccccc-0000-4000-8000-000000000000", {
-  capabilities: { actions: [], allowedTiers: [], policyReadable: true },
+  capabilities: { actions: [], allowedTiers: [], policyReadable: true, createsFolders: true },
 });
 const locked = machine("dddddddd-0000-4000-8000-000000000000", {
-  capabilities: { actions: everything.actions, allowedTiers: [], policyReadable: true },
+  capabilities: {
+    actions: everything.actions,
+    allowedTiers: [],
+    policyReadable: true,
+    createsFolders: true,
+  },
 });
 
 function checkout(

@@ -85,7 +85,7 @@ export function ScanningSettings() {
     setInvalid(next);
 
     if (seconds !== polling[field.name]) {
-      save(() =>
+      void save(() =>
         requestHub((client) =>
           client.UpdatePolling({ polling: { ...polling, [field.name]: seconds } }),
         ),

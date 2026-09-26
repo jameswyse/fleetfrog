@@ -10,7 +10,7 @@ import {
   RunId,
   RunsSnapshot,
 } from "../domain/activity.ts";
-import { Fleet } from "../domain/fleet.ts";
+import { Fleet, FolderOutcome } from "../domain/fleet.ts";
 import { MachineId, MachineKind } from "../domain/machine.ts";
 import { PollingSettings } from "../domain/polling.ts";
 import { RepositoryKey } from "../domain/repositoryIdentity.ts";
@@ -84,6 +84,15 @@ export class DashboardRpcs extends RpcGroup.make(
   }),
   Rpc.make("SetDiscoveryRoots", {
     payload: { machineId: MachineId, roots: Schema.Array(Schema.NonEmptyString) },
+    error: MachineNotFound,
+  }),
+  /**
+   * Asks the machine to create one of its project folders, for one it lacks. Any problem on the way,
+   * such as the machine being offline, comes back as a failed outcome with its reason.
+   */
+  Rpc.make("CreateProjectFolder", {
+    payload: { machineId: MachineId, path: Schema.NonEmptyString },
+    success: FolderOutcome,
     error: MachineNotFound,
   }),
   Rpc.make("RemoveMachine", { payload: { machineId: MachineId }, error: MachineNotFound }),

@@ -4,7 +4,8 @@ const Count = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
 
 /**
  * A group of actions that a machine's owner allows or denies on that machine, with
- * `fleetfrog allow` and `fleetfrog deny`. The hub can see the policy but never change it.
+ * `fleetfrog allow` and `fleetfrog deny`. The hub can see the policy but never change it. `git`
+ * covers fetching, pulling and cloning, and creating the project folders that clones go into.
  */
 export const Tier = Schema.Literals(["git"]);
 export type Tier = typeof Tier.Type;
@@ -40,13 +41,15 @@ export const AgentCapabilities = Schema.Struct({
   allowedTiers: Schema.Array(Tier),
   /** False when the policy file is damaged, which allows nothing until the owner fixes it. */
   policyReadable: Schema.Boolean,
+  /** Whether the agent can create a missing project folder. Agents from before it say nothing. */
+  createsFolders: Schema.Boolean.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(false))),
 });
 export type AgentCapabilities = typeof AgentCapabilities.Type;
 
 /** Agents from before actions existed advertise nothing, so the hub sends them none. */
 export const AdvertisedCapabilities = AgentCapabilities.pipe(
   Schema.withDecodingDefaultTypeKey(
-    Effect.succeed({ actions: [], allowedTiers: [], policyReadable: true }),
+    Effect.succeed({ actions: [], allowedTiers: [], policyReadable: true, createsFolders: false }),
   ),
 );
 

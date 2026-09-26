@@ -12,6 +12,15 @@ export const Connection = Schema.TaggedUnion({
 });
 export type Connection = typeof Connection.Type;
 
+/** How a request to create a project folder went. */
+export const FolderOutcome = Schema.TaggedUnion({
+  Created: {},
+  /** A folder was there already, so nothing changed. */
+  AlreadyThere: {},
+  Failed: { message: Schema.String },
+});
+export type FolderOutcome = typeof FolderOutcome.Type;
+
 /** What the agent found at a discovery folder on its last walk. */
 export const FolderStatus = Schema.Literals(["Folder", "Missing", "NotFolder"]);
 export type FolderStatus = typeof FolderStatus.Type;

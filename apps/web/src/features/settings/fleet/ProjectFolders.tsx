@@ -6,7 +6,14 @@ import { Button } from "@/ui/Button.tsx";
 import { Chip } from "@/ui/Chip.tsx";
 import { expandHome, isWithin } from "@fleetfrog/protocol/domain/cloneDestination";
 
-import type { DiscoveryRoot, FolderStatus } from "@fleetfrog/protocol/domain/fleet";
+import type { HubResult } from "@/rpc/hubConnection.ts";
+import type { DiscoveryRoot, FolderOutcome, FolderStatus } from "@fleetfrog/protocol/domain/fleet";
+
+/** A folder this list asked the machine to create. */
+type Creation =
+  | { readonly _tag: "Creating" }
+  | { readonly _tag: "Created" }
+  | { readonly _tag: "Failed"; readonly message: string };
 
 /** What the agent found at a folder on its last search, and whether that is a problem. */
 interface FolderNote {
@@ -41,9 +48,10 @@ function additionProblem(path: string, paths: ReadonlyArray<string>): string | n
 }
 
 /**
- * A machine's project folders as a compact list, each with how many repositories it holds. The first is the default for clones, so making
- * another the default moves it to the top. Every change is handed to `onChange` straight away and
- * shown at once; the saved list replaces it when the hub reports it.
+ * A machine's project folders as a compact list, each with how many repositories it holds. The
+ * first is the default for clones, so making another the default moves it to the top. Every change
+ * is handed to `onChange` straight away and shown at once; the saved list replaces it when the hub
+ * reports it. A folder the machine lacks can be created, and one added here is, once it's saved.
  */
 export function ProjectFolders({
   machineId,
@@ -51,6 +59,7 @@ export function ProjectFolders({
   repositoryPaths,
   roots,
   onChange,
+  createFolder,
 }: {
   readonly machineId: string;
   readonly homeDirectory: string;
@@ -60,7 +69,9 @@ export function ProjectFolders({
    */
   readonly repositoryPaths: ReadonlyArray<ReadonlyArray<string>>;
   readonly roots: ReadonlyArray<DiscoveryRoot>;
-  readonly onChange: (paths: ReadonlyArray<string>) => void;
+  readonly onChange: (paths: ReadonlyArray<string>) => Promise<HubResult<unknown>>;
+  /** Asks the machine to create a folder, or null when it can't now. */
+  readonly createFolder: ((path: string) => Promise<HubResult<FolderOutcome>>) | null;
 }) {
   const savedPaths = roots.map(({ path }) => path);
   const savedKey = savedPaths.join("\n");
@@ -68,6 +79,7 @@ export function ProjectFolders({
   const [adoptedKey, setAdoptedKey] = useState(savedKey);
   const [draft, setDraft] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
+  const [creations, setCreations] = useState<ReadonlyMap<string, Creation>>(() => new Map());
   const statuses = new Map(roots.map(({ path, status }) => [path, status]));
   const inputId = `new-folder-${machineId}`;
 
@@ -79,12 +91,48 @@ export function ProjectFolders({
 
   const update = (next: ReadonlyArray<string>) => {
     setPaths([...next]);
-    onChange(next);
+
+    return onChange(next);
+  };
+
+  const setCreation = (path: string, creation: Creation) =>
+    setCreations((current) => new Map(current).set(path, creation));
+
+  const create = async (path: string) => {
+    if (createFolder === null) {
+      return;
+    }
+
+    setCreation(path, { _tag: "Creating" });
+
+    const result = await createFolder(path);
+
+    if (result._tag === "Failure") {
+      setCreation(path, { _tag: "Failed", message: result.message });
+
+      return;
+    }
+
+    setCreation(
+      path,
+      result.value._tag === "Failed"
+        ? { _tag: "Failed", message: result.value.message }
+        : { _tag: "Created" },
+    );
+  };
+
+  /** Once saved, the machine creates the folder if it lacks it, and leaves it alone otherwise. */
+  const add = async (path: string) => {
+    const saved = await update([...paths, path]);
+
+    if (saved._tag === "Success") {
+      await create(path);
+    }
   };
 
   /** Removing or reordering takes away the button that had focus, so focus goes to the add field. */
   const updateFromRow = (next: ReadonlyArray<string>) => {
-    update(next);
+    void update(next);
     document.getElementById(inputId)?.focus();
   };
 
@@ -99,24 +147,52 @@ export function ProjectFolders({
         {paths.map((path, index) => {
           const status = statuses.get(path);
           const folder = expandHome(path, homeDirectory);
-          const note = folderNote(
+          const creation = creations.get(path);
+          let note = folderNote(
             status,
             repositoryPaths.filter((checkouts) =>
               checkouts.some((checkout) => isWithin(checkout, folder)),
             ).length,
           );
 
+          // Until the agent looks again, say what the request did rather than what it last saw.
+          if (status !== "Folder" && creation?._tag === "Creating") {
+            note = { text: "Creating…", problem: false };
+          } else if (status !== "Folder" && creation?._tag === "Created") {
+            note = { text: "Created", problem: false };
+          }
+
           return (
             <li key={path} className="flex min-h-11 items-center gap-3 px-3 py-1.5 text-sm">
               <FolderIcon className="size-4 text-ink-muted" />
-              <span className="min-w-0 flex-1 truncate font-mono text-[13px]" title={path}>
-                {path}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-mono text-[13px]" title={path}>
+                  {path}
+                </span>
+                {creation?._tag === "Failed" && (
+                  <span className="block text-xs text-danger">
+                    Couldn't create it. {creation.message}
+                  </span>
+                )}
               </span>
               <span
                 className={`whitespace-nowrap ${note.problem ? "text-changes" : "text-ink-muted"}`}
               >
                 {note.text}
               </span>
+              {status === "Missing" &&
+                createFolder !== null &&
+                creation?._tag !== "Creating" &&
+                creation?._tag !== "Created" && (
+                  <button
+                    type="button"
+                    onClick={() => void create(path)}
+                    aria-label={`Create ${path}`}
+                    className="rounded-md px-2 py-1 text-xs text-accent-text hover:bg-surface-raised"
+                  >
+                    Create
+                  </button>
+                )}
               {index === 0 ? (
                 <Chip tone="neutral">Default</Chip>
               ) : (
@@ -154,7 +230,7 @@ export function ProjectFolders({
 
           if (found === null) {
             setDraft("");
-            update([...paths, path]);
+            void add(path);
           }
         }}
         className="border-t border-line px-3 py-2"

@@ -1,7 +1,12 @@
 import { describe, expect, it } from "@effect/vitest";
 import { DateTime } from "effect";
 
-import { checkCloneDestination, isWithin, suggestCloneDestination } from "./cloneDestination.ts";
+import {
+  checkCloneDestination,
+  checkFolderPath,
+  isWithin,
+  suggestCloneDestination,
+} from "./cloneDestination.ts";
 import { MachineId } from "./machine.ts";
 import { RepositoryKey } from "./repositoryIdentity.ts";
 
@@ -160,6 +165,16 @@ describe("checkCloneDestination", () => {
     expect(check("~/Code/../.ssh/shop")).toBe("Hidden");
     expect(check("~/Code//shop")).toBe("Hidden");
     expect(check("Code/shop")).toBe("NotAbsolute");
+  });
+});
+
+describe("checkFolderPath", () => {
+  it("expands a project folder against home, spaces and all, and refuses hidden ones", () => {
+    expect(checkFolderPath({ path: " ~/Other Projects/ ", home: "/Users/sam" })).toEqual({
+      _tag: "Valid",
+      path: "/Users/sam/Other Projects",
+    });
+    expect(checkFolderPath({ path: "~/.local/code", home: "/Users/sam" })._tag).toBe("Hidden");
   });
 });
 

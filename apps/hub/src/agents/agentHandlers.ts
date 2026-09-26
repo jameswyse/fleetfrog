@@ -7,6 +7,7 @@ import { CheckoutStore } from "../catalogue/checkoutStore.ts";
 import { FleetFeed } from "../catalogue/fleetFeed.ts";
 import { MachineStore } from "../machines/machineStore.ts";
 import { AgentSessions } from "./agentSessions.ts";
+import { FolderRequests } from "./folderRequests.ts";
 
 export const AgentHandlers = AgentRpcs.toLayer(
   Effect.gen(function* () {
@@ -15,6 +16,7 @@ export const AgentHandlers = AgentRpcs.toLayer(
     const checkouts = yield* CheckoutStore;
     const feed = yield* FleetFeed;
     const dispatcher = yield* ActionDispatcher;
+    const folders = yield* FolderRequests;
 
     return {
       Connect: ({ info, capabilities }) =>
@@ -62,6 +64,8 @@ export const AgentHandlers = AgentRpcs.toLayer(
         ),
       ReportAction: ({ runId, update }) =>
         CurrentMachine.use(({ id }) => dispatcher.receive({ machineId: id, runId, update })),
+      ReportFolder: ({ requestId, outcome }) =>
+        CurrentMachine.use(({ id }) => folders.answer({ machineId: id, requestId, outcome })),
     };
   }),
 );

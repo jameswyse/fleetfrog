@@ -151,7 +151,7 @@ function ConfigurationSection({
     const customName = typed === "" ? null : typed;
 
     if (customName !== machine.customName) {
-      save(() =>
+      void save(() =>
         requestHub((client) => client.RenameMachine({ machineId: machine.id, customName })),
       );
     }
@@ -211,6 +211,17 @@ function ConfigurationSection({
                 client.SetDiscoveryRoots({ machineId: machine.id, roots: [...roots] }),
               ),
             )
+          }
+          createFolder={
+            // An agent that can't create folders, or isn't allowed to, gets no button to try.
+            machine.connection._tag === "Online" &&
+            machine.connection.capabilities.createsFolders &&
+            machine.connection.capabilities.allowedTiers.includes("git")
+              ? (path) =>
+                  requestHub((client) =>
+                    client.CreateProjectFolder({ machineId: machine.id, path }),
+                  )
+              : null
           }
         />
       </SettingsRow>

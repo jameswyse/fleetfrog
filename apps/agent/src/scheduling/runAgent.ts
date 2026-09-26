@@ -8,6 +8,7 @@ import { writeAuditEntry } from "../audit/auditLog.ts";
 import { loadAgentConfig } from "../config/agentConfig.ts";
 import { loadPolicy, policyPath } from "../config/agentPolicy.ts";
 import { makeHubClient } from "../connection/hubClient.ts";
+import { createProjectFolder } from "../folders/createProjectFolder.ts";
 import { readMachineInfo } from "../machine/machineInfo.ts";
 import { readSystemUsage } from "../machine/systemInfo.ts";
 import { makeScanner } from "./scanner.ts";
@@ -34,18 +35,19 @@ function sameList(left: ReadonlyArray<string>, right: ReadonlyArray<string>): bo
   return left.length === right.length && left.every((item, index) => item === right[index]);
 }
 
-/** Every action this agent knows, with the tiers its policy allows. An unreadable policy allows none. */
 /** Every action this agent knows, with the tiers its policy allows. A damaged policy allows none. */
 const readCapabilities = loadPolicy.pipe(
   Effect.map(({ allowedTiers }): AgentCapabilities => ({
     actions: ActionKind.literals,
     allowedTiers,
     policyReadable: true,
+    createsFolders: true,
   })),
   Effect.orElseSucceed((): AgentCapabilities => ({
     actions: ActionKind.literals,
     allowedTiers: [],
     policyReadable: false,
+    createsFolders: true,
   })),
 );
 
@@ -198,6 +200,25 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
             : schedule({ current: configuration, discoverNow: true }),
         RunAction: ({ runId, request }) => actions.run(runId, request),
         CancelAction: ({ runId }) => actions.cancel(runId),
+        CreateFolder: ({ requestId, path }) =>
+          createProjectFolder({
+            path,
+            roots: configuration?.discoveryRoots ?? [],
+            home: info.homeDirectory,
+            loadPolicy,
+            audit: writeAuditEntry,
+          }).pipe(
+            Effect.tap((outcome) => client.ReportFolder({ requestId, outcome })),
+            // Rediscovers so the hub sees the folder, including one that was there all along.
+            Effect.flatMap((outcome) =>
+              outcome._tag === "Failed" || configuration === null
+                ? Effect.void
+                : schedule({ current: configuration, discoverNow: true }),
+            ),
+            Effect.catchCause((cause) =>
+              Effect.logWarning("Could not answer a folder request", cause),
+            ),
+          ),
       }),
     ),
     Effect.catchTag("Unauthorised", () => Effect.fail(new MachineRemoved())),

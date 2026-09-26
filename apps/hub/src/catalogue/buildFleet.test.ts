@@ -67,7 +67,12 @@ describe("buildFleet", () => {
           {
             since: pairedAt,
             sessionId: "session",
-            capabilities: { actions: ["Fetch"], allowedTiers: ["git"], policyReadable: true },
+            capabilities: {
+              actions: ["Fetch"],
+              allowedTiers: ["git"],
+              policyReadable: true,
+              createsFolders: true,
+            },
           },
         ],
       ]),

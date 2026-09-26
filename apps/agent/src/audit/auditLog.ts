@@ -24,6 +24,8 @@ export type AuditEntry =
       readonly request: ActionRequest;
       readonly reason: string;
     }
+  /** A project folder the hub asked for, created because it was missing. */
+  | { readonly event: "FolderCreated"; readonly path: string }
   | { readonly event: "PolicyChanged"; readonly allowedTiers: ReadonlyArray<Tier> }
   | { readonly event: "Paired"; readonly agentUrl: string; readonly machineId: MachineId };
 

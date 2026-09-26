@@ -9,7 +9,7 @@ import {
 } from "../domain/action.ts";
 import { RunId } from "../domain/activity.ts";
 import { Checkout } from "../domain/checkout.ts";
-import { FolderStatus } from "../domain/fleet.ts";
+import { FolderOutcome, FolderStatus } from "../domain/fleet.ts";
 import { MachineInfo, SystemUsage } from "../domain/machine.ts";
 
 import type { MachineId } from "../domain/machine.ts";
@@ -43,6 +43,11 @@ export const HubCommand = Schema.TaggedUnion({
   /** Sent only for actions the agent advertised. The agent checks its own policy again. */
   RunAction: { runId: RunId, request: ActionRequest },
   CancelAction: { runId: RunId },
+  /**
+   * Creates one of the agent's project folders, answered by `ReportFolder` with the same request
+   * id. Sent only to agents that advertise `createsFolders`. The agent checks the path itself.
+   */
+  CreateFolder: { requestId: Schema.String, path: Schema.String },
 });
 export type HubCommand = typeof HubCommand.Type;
 
@@ -78,6 +83,8 @@ export class AgentRpcs extends RpcGroup.make(
   /** Sent when the machine's owner changes its policy while connected. */
   Rpc.make("Advertise", { payload: { capabilities: AgentCapabilities } }),
   Rpc.make("ReportAction", { payload: { runId: RunId, update: ActionUpdate } }),
+  /** Answers a `CreateFolder` command. */
+  Rpc.make("ReportFolder", { payload: { requestId: Schema.String, outcome: FolderOutcome } }),
   /** Sent on connecting and every minute after. */
   Rpc.make("ReportUsage", { payload: { usage: SystemUsage } }),
   /**

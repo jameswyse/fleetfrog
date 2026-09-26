@@ -1,11 +1,12 @@
 import { Effect, Stream } from "effect";
 
 import { DashboardRpcs, RefreshTarget } from "@fleetfrog/protocol/dashboard/rpcs";
-import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
+import { FolderOutcome, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { ActionDispatcher } from "../actions/actionDispatcher.ts";
 import { ActivityFeed } from "../activity/activityFeed.ts";
 import { AgentSessions } from "../agents/agentSessions.ts";
+import { FolderRequests } from "../agents/folderRequests.ts";
 import { FleetFeed } from "../catalogue/fleetFeed.ts";
 import { MachineStore } from "../machines/machineStore.ts";
 import { PairingOffers } from "../pairing/pairingOffers.ts";
@@ -22,6 +23,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
     const offers = yield* PairingOffers;
     const dispatcher = yield* ActionDispatcher;
     const activity = yield* ActivityFeed;
+    const folders = yield* FolderRequests;
 
     return {
       WatchFleet: () => Stream.unwrap(presence.watch.pipe(Effect.as(feed.watch))),
@@ -58,6 +60,30 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
             machineName: machineLabel(machine),
             roots: update.roots,
           });
+        }),
+      CreateProjectFolder: ({ machineId, path }) =>
+        Effect.gen(function* () {
+          const machine = yield* machines.find(machineId);
+
+          // Only a folder the machine is set to search, which its agent also checks.
+          if (!machine.discoveryRoots.includes(path)) {
+            return FolderOutcome.cases.Failed.make({
+              message: `${path} isn't one of ${machineLabel(machine)}'s project folders.`,
+            });
+          }
+
+          const outcome = yield* folders.create(machineId, path);
+
+          if (outcome._tag === "Created") {
+            yield* activity.recordEvent({
+              _tag: "ProjectFolderCreated",
+              machineId,
+              machineName: machineLabel(machine),
+              path,
+            });
+          }
+
+          return outcome;
         }),
       RemoveMachine: ({ machineId }) =>
         Effect.gen(function* () {

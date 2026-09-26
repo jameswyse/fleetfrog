@@ -28,6 +28,7 @@ function eventMachine(event: HubEvent): string {
     MachineRemoved: ({ machineName }) => machineName,
     MachineRenamed: ({ to }) => to,
     DiscoveryRootsChanged: ({ machineName }) => machineName,
+    ProjectFolderCreated: ({ machineName }) => machineName,
     PollingChanged: () => "",
   });
 }

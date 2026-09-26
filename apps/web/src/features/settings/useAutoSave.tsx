@@ -8,19 +8,25 @@ export type SaveState =
   | { readonly _tag: "Saved" }
   | { readonly _tag: "Failed"; readonly message: string };
 
-/** Saves each change as it is made and remembers how the latest save went. */
+/**
+ * Saves each change as it is made and remembers how the latest save went. Each save also hands
+ * back its result, for anything that has to wait until the change is saved.
+ */
 export function useAutoSave() {
   const [state, setState] = useState<SaveState>({ _tag: "Idle" });
 
-  const save = (request: () => Promise<HubResult<unknown>>) => {
+  const save = <A,>(request: () => Promise<HubResult<A>>): Promise<HubResult<A>> => {
     setState({ _tag: "Saving" });
-    void request().then((result) =>
+
+    return request().then((result) => {
       setState(
         result._tag === "Failure"
           ? { _tag: "Failed", message: `Not saved. ${result.message}` }
           : { _tag: "Saved" },
-      ),
-    );
+      );
+
+      return result;
+    });
   };
 
   return { state, save };
