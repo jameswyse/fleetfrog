@@ -1,0 +1,42 @@
+{
+  "name": "@fleetfrog/web",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --list-different .",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix .",
+    "preview": "vite preview",
+    "test:unit": "vitest run --passWithNoTests",
+    "test:unit:changed": "vitest run --changed HEAD --bail=1 --passWithNoTests",
+    "typecheck": "tsc --noEmit",
+    "typegen": "tsr generate"
+  },
+  "dependencies": {
+    "@tanstack/react-router": "1.170.39",
+    "effect": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@babel/core": "8.0.6",
+    "@fleetfrog/protocol": "workspace:*",
+    "@rolldown/plugin-babel": "0.2.4",
+    "@tailwindcss/vite": "4.3.3",
+    "@tanstack/router-cli": "1.167.38",
+    "@tanstack/router-plugin": "1.168.40",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "6.1.1",
+    "babel-plugin-react-compiler": "1.0.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "catalog:",
+    "vite": "8.3.1",
+    "vitest": "catalog:"
+  }
+}

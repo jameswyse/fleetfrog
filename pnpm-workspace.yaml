@@ -9,9 +9,13 @@ catalog:
   "@effect/vitest": 4.0.0-rc.117
   "@oxlint/plugins": 1.82.0
   "@types/node": 26.6.2
+  "@types/react": 19.3.0
+  "@types/react-dom": 19.3.0
   effect: 4.0.0-rc.117
   oxfmt: 0.70.0
   oxlint: 1.82.0
+  react: 19.3.0
+  react-dom: 19.3.0
   tsdown: 0.23.0
   typescript: 7.0.2
   vitest: 5.0.1

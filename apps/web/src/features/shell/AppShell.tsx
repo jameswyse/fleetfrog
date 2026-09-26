@@ -1,0 +1,78 @@
+import { Link, Outlet } from "@tanstack/react-router";
+
+import { requestHub, useHub } from "@/rpc/hubConnection.ts";
+import { Button } from "@/ui/Button.tsx";
+
+const navigation = [
+  { to: "/", label: "Overview" },
+  { to: "/machines", label: "Machines" },
+  { to: "/settings", label: "Settings" },
+] as const;
+
+function HubStatus() {
+  const hub = useHub();
+  const [label, tone] = {
+    Connecting: ["Connecting to hub…", "bg-ink-muted"],
+    Live: ["Live", "bg-clean"],
+    Reconnecting: ["Hub unreachable, retrying", "bg-danger"],
+  }[hub._tag];
+
+  return (
+    <p role="status" className="flex items-center gap-2 text-sm text-ink-muted">
+      <span aria-hidden="true" className={`size-2 rounded-full ${tone}`} />
+      {label}
+    </p>
+  );
+}
+
+export function AppShell() {
+  const hub = useHub();
+
+  return (
+    <div className="flex min-h-dvh flex-col">
+      <a
+        href="#content"
+        className="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:z-10 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2"
+      >
+        Skip to content
+      </a>
+      <header className="sticky top-0 z-[5] border-b border-line bg-surface/90 backdrop-blur">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-6">
+          <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
+            <img src="/favicon.svg" alt="" className="size-6" />
+            FleetFrog
+          </Link>
+          <nav aria-label="Main">
+            <ul className="flex gap-1">
+              {navigation.map(({ to, label }) => (
+                <li key={to}>
+                  <Link
+                    to={to}
+                    activeOptions={{ exact: true, includeSearch: false }}
+                    className="rounded-md px-3 py-1.5 text-sm text-ink-muted hover:bg-surface-raised hover:text-ink aria-[current=page]:bg-surface-raised aria-[current=page]:text-ink"
+                  >
+                    {label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <div className="ms-auto flex items-center gap-4">
+            <HubStatus />
+            <Button
+              disabled={hub._tag !== "Live"}
+              onClick={() => {
+                void requestHub((client) => client.Refresh({ target: { _tag: "All" } }));
+              }}
+            >
+              Rescan all
+            </Button>
+          </div>
+        </div>
+      </header>
+      <main id="content" className="flex-1">
+        <Outlet />
+      </main>
+    </div>
+  );
+}
