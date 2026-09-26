@@ -9,7 +9,7 @@ import {
 import { actionBlocker } from "@fleetfrog/protocol/domain/actionAvailability";
 import { ActionScope, BatchRequest } from "@fleetfrog/protocol/domain/activity";
 import { clonePath } from "@fleetfrog/protocol/domain/checkout";
-import { expandHome } from "@fleetfrog/protocol/domain/cloneDestination";
+import { cloneSource, expandHome } from "@fleetfrog/protocol/domain/cloneDestination";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import type { ActionKind, ActionOutcome, ActionRequest } from "@fleetfrog/protocol/domain/action";
@@ -36,16 +36,6 @@ export interface BatchPlan {
 type Target = { readonly repository: Repository; readonly entry: MachineCheckout };
 
 type PlanError = MachineNotFound | RepositoryNotFound | NothingToRun | NoCloneSource;
-
-function mostCommon(values: ReadonlyArray<string>): string | undefined {
-  const counts = new Map<string, number>();
-
-  for (const value of values) {
-    counts.set(value, (counts.get(value) ?? 0) + 1);
-  }
-
-  return [...counts].toSorted(([, left], [, right]) => right - left)[0]?.[0];
-}
 
 /**
  * Expands a dashboard request into one run per target against the fleet as it is now. A fetch
@@ -183,11 +173,7 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
     Clone: ({ repositoryKey, targets }): Effect.Effect<BatchPlan, PlanError> =>
       Effect.gen(function* () {
         const repository = yield* findRepository(repositoryKey);
-        const url = mostCommon(
-          repository.checkouts.flatMap(({ checkout }) =>
-            checkout.originUrl === null ? [] : [checkout.originUrl],
-          ),
-        );
+        const url = cloneSource(repository);
 
         if (url === undefined) {
           return yield* new NoCloneSource();

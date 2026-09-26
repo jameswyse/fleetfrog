@@ -86,6 +86,15 @@ function mostCommon(values: ReadonlyArray<string>): string | undefined {
   return [...counts].toSorted(([, left], [, right]) => right - left)[0]?.[0];
 }
 
+/** The URL a clone of the repository comes from: the origin most of its checkouts share. */
+export function cloneSource(repository: Pick<Repository, "checkouts">): string | undefined {
+  return mostCommon(
+    repository.checkouts.flatMap(({ checkout }) =>
+      checkout.originUrl === null ? [] : [checkout.originUrl],
+    ),
+  );
+}
+
 /**
  * Where to clone a repository onto `target`: the path other machines keep it at, relative to home,
  * when that lies in one of the target's discovery folders and nothing is there yet. Otherwise the
