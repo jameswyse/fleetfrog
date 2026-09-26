@@ -1,4 +1,4 @@
-import { realpathSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { homedir, userInfo } from "node:os";
 import path from "node:path";
@@ -23,7 +23,28 @@ function serviceFile(file: string, write: () => Promise<void>) {
 const systemdUnitName = "fleetfrog.service";
 const launchdLabel = "net.fleetfrog.agent";
 
-/** The command that starts this agent, pinned to the current Node binary and script. */
+/**
+ * The Node binary the service starts. pnpm links the Node a checkout's `devEngines` names at
+ * `node_modules/.bin/node` and moves the link when that version changes, so a service started
+ * through the link survives a Node upgrade. Any other Node is used as it is.
+ */
+function serviceNode(script: string): string {
+  const current = realpathSync(process.execPath);
+
+  for (let directory = path.dirname(script); ; directory = path.dirname(directory)) {
+    const link = path.join(directory, "node_modules", ".bin", "node");
+
+    if (existsSync(link) && realpathSync(link) === current) {
+      return link;
+    }
+
+    if (path.dirname(directory) === directory) {
+      return process.execPath;
+    }
+  }
+}
+
+/** The command that starts this agent, pinned to its Node and script. */
 function agentCommand(): ReadonlyArray<string> {
   const script = process.argv[1];
 
@@ -31,7 +52,9 @@ function agentCommand(): ReadonlyArray<string> {
     throw new Error("Cannot tell which script started the agent.");
   }
 
-  return [process.execPath, realpathSync(script), "run"];
+  const resolved = realpathSync(script);
+
+  return [serviceNode(resolved), resolved, "run"];
 }
 
 function systemdUnitPath(): string {
