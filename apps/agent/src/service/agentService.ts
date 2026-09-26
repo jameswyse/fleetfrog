@@ -70,6 +70,8 @@ ExecStart=${agentCommand().map(quoteSystemdArgument).join(" ")}
 Environment=${quoteSystemdArgument(`PATH=${process.env.PATH ?? ""}`)}
 Restart=on-failure
 RestartSec=10
+# Stopping with SIGTERM interrupts the agent, which then exits with 130.
+SuccessExitStatus=130
 
 [Install]
 WantedBy=default.target
