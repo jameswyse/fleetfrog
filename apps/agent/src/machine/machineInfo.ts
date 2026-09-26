@@ -7,7 +7,7 @@ import { Effect } from "effect";
 import { GithubCli } from "@fleetfrog/protocol/domain/machine";
 
 import packageJson from "../../package.json" with { type: "json" };
-import { expandHome } from "../discovery/discoverCheckouts.ts";
+import { rootPath } from "../discovery/discoverCheckouts.ts";
 import { runTool } from "../process/runTool.ts";
 
 import type { MachineInfo, Platform } from "@fleetfrog/protocol/domain/machine";
@@ -64,7 +64,7 @@ export const readMachineInfo = Effect.gen(function* () {
 
 /** Common development folders that exist here, offered as the first discovery roots. */
 export function suggestDiscoveryRoots(): Array<string> {
-  const existing = commonRoots.filter((root) => existsSync(expandHome(root)));
+  const existing = commonRoots.filter((root) => existsSync(rootPath(root)));
 
   // Case-insensitive file systems report both spellings of the same folder.
   return existing.includes("~/Projects")

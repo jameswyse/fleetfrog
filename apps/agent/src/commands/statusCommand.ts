@@ -1,13 +1,15 @@
 import { Console, Effect, Option } from "effect";
 import { Command } from "effect/unstable/cli";
 
+import { auditLogPath } from "../audit/auditLog.ts";
 import { configPath, loadAgentConfig } from "../config/agentConfig.ts";
+import { loadPolicy, policyPath } from "../config/agentPolicy.ts";
 import { agentVersion } from "../machine/machineInfo.ts";
 import { reportFailure } from "./reportFailure.ts";
 
 export const statusCommand = Command.make("status", {}, () =>
-  loadAgentConfig.pipe(
-    Effect.flatMap((config) =>
+  Effect.all([loadAgentConfig, loadPolicy]).pipe(
+    Effect.flatMap(([config, policy]) =>
       Console.log(
         Option.match(config, {
           onNone: () =>
@@ -19,12 +21,14 @@ export const statusCommand = Command.make("status", {}, () =>
               `Machine: ${machineId}`,
               `Hub certificate: ${certificatePem === null ? "publicly trusted" : "pinned at pairing"}`,
               `Credentials: ${configPath()}`,
+              `Allowed actions: ${policy.allowedTiers.length === 0 ? "none" : policy.allowedTiers.join(", ")} (${policyPath()})`,
+              `Audit log: ${auditLogPath()}`,
             ].join("\n"),
         }),
       ),
     ),
     Effect.catchTag("ConfigUnavailable", ({ path, message }) =>
-      reportFailure(`Could not read the pairing from ${path}: ${message}`),
+      reportFailure(`Could not read ${path}: ${message}`),
     ),
   ),
 ).pipe(Command.withDescription("Show how this agent is paired"));

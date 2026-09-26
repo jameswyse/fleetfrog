@@ -1,6 +1,9 @@
 import { NodeRuntime } from "@effect/platform-node";
 import { Layer } from "effect";
 
+import { ActionDispatcher } from "./actions/actionDispatcher.ts";
+import { ActivityFeed } from "./activity/activityFeed.ts";
+import { ActivityStore } from "./activity/activityStore.ts";
 import { AgentServer } from "./agents/agentServer.ts";
 import { AgentSessions } from "./agents/agentSessions.ts";
 import { CheckoutStore } from "./catalogue/checkoutStore.ts";
@@ -15,12 +18,15 @@ import { Database } from "./persistence/database.ts";
 import { PollingStore } from "./settings/pollingStore.ts";
 
 const Hub = Layer.merge(AgentServer, DashboardServer).pipe(
-  Layer.provide(FleetFeed.layer),
+  Layer.provide(ActionDispatcher.layer),
+  Layer.provideMerge(FleetFeed.layer),
+  Layer.provideMerge(ActivityFeed.layer),
   Layer.provideMerge(AgentSessions.layer),
   Layer.provideMerge(
     Layer.mergeAll(
       MachineStore.layer,
       CheckoutStore.layer,
+      ActivityStore.layer,
       PollingStore.layer,
       DashboardPresence.layer,
     ),

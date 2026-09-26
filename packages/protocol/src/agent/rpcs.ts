@@ -1,7 +1,15 @@
-import { Context, Schema } from "effect";
+import { Context, Effect, Schema } from "effect";
 import { Rpc, RpcGroup, RpcMiddleware } from "effect/unstable/rpc";
 
+import {
+  ActionRequest,
+  ActionUpdate,
+  AdvertisedCapabilities,
+  AgentCapabilities,
+} from "../domain/action.ts";
+import { RunId } from "../domain/activity.ts";
 import { Checkout } from "../domain/checkout.ts";
+import { FolderStatus } from "../domain/fleet.ts";
 import { MachineInfo } from "../domain/machine.ts";
 
 import type { MachineId } from "../domain/machine.ts";
@@ -32,12 +40,23 @@ export const HubCommand = Schema.TaggedUnion({
   Configure: { discoveryRoots: Schema.Array(Schema.String), schedule: AgentSchedule },
   /** Rediscover and rescan now. */
   Refresh: {},
+  /** Sent only for actions the agent advertised. The agent checks its own policy again. */
+  RunAction: { runId: RunId, request: ActionRequest },
+  CancelAction: { runId: RunId },
 });
 export type HubCommand = typeof HubCommand.Type;
 
+export const ReportedRoot = Schema.Struct({ path: Schema.String, status: FolderStatus });
+export type ReportedRoot = typeof ReportedRoot.Type;
+
 export const ScanReport = Schema.TaggedUnion({
   /** A completed discovery walk. Replaces every checkout the hub holds for the machine. */
-  Discovery: { checkouts: Schema.Array(Checkout), completedAt: Schema.DateTimeUtc },
+  Discovery: {
+    checkouts: Schema.Array(Checkout),
+    /** What the walk found at each discovery folder. Absent from agents that predate it. */
+    roots: Schema.Array(ReportedRoot).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed([]))),
+    completedAt: Schema.DateTimeUtc,
+  },
   /** A status pass. Carries only checkouts that changed or disappeared since the last report. */
   Status: {
     changed: Schema.Array(Checkout),
@@ -51,11 +70,14 @@ export type ScanReport = typeof ScanReport.Type;
 export class AgentRpcs extends RpcGroup.make(
   /** Holds the connection open. The machine is online for as long as this stream runs. */
   Rpc.make("Connect", {
-    payload: { info: MachineInfo },
+    payload: { info: MachineInfo, capabilities: AdvertisedCapabilities },
     success: HubCommand,
     stream: true,
   }),
   Rpc.make("Report", { payload: { report: ScanReport } }),
+  /** Sent when the machine's owner changes its policy while connected. */
+  Rpc.make("Advertise", { payload: { capabilities: AgentCapabilities } }),
+  Rpc.make("ReportAction", { payload: { runId: RunId, update: ActionUpdate } }),
   /**
    * Sent every 15 seconds. The hub ends a connection that goes quiet, because a sleeping or
    * disconnected machine never closes its socket.

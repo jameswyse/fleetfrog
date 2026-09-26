@@ -16,6 +16,7 @@ function checkout(git: Partial<GitStatus>, github: Checkout["github"] = null): C
   return {
     path: "/home/dev/Projects/shop",
     identity: { _tag: "Remote", host: "github.com", path: "acme/shop" },
+    originUrl: null,
     directoryName: "shop",
     worktree: { _tag: "Main" },
     status: {

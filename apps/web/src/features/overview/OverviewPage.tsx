@@ -148,7 +148,7 @@ export function OverviewPage() {
       {repositories.length > 0 && visible.length === 0 && (
         <p className="py-16 text-center text-sm text-ink-muted">No repositories match.</p>
       )}
-      {visible.length > 0 && <FleetMatrix machines={machines} repositories={visible} />}
+      {visible.length > 0 && <FleetMatrix fleet={fleet} repositories={visible} />}
       {selected !== undefined && selectedMachine !== undefined && (
         <CheckoutDetail
           repository={selected.repository}

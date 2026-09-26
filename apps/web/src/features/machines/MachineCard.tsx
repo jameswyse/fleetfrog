@@ -1,10 +1,16 @@
 import { useActionState, useState, useTransition } from "react";
 
-import { requestHub } from "@/rpc/hubConnection.ts";
+import { knownFleet, requestHub, useHub } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
 import { Dialog } from "@/ui/Dialog.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
+import { agentOutdated } from "@fleetfrog/protocol/domain/actionAvailability";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
+
+import { canPull, machineBlocker } from "../actions/actionAvailability.ts";
+import { PullDialog } from "../actions/PullDialog.tsx";
+import { useStartBatch } from "../actions/useStartBatch.ts";
+import { DiscoveryFolders } from "./DiscoveryFolders.tsx";
 
 import type { HubResult } from "@/rpc/hubConnection.ts";
 import type { Machine } from "@fleetfrog/protocol/domain/fleet";
@@ -16,13 +22,6 @@ type Notice =
   | { readonly _tag: "Failed"; readonly message: string };
 
 type Update = { readonly part: string; readonly result: HubResult<void> };
-
-function parseRoots(text: string): ReadonlyArray<string> {
-  return text
-    .split("\n")
-    .map((root) => root.trim())
-    .filter((root) => root !== "");
-}
 
 function sameRoots(left: ReadonlyArray<string>, right: ReadonlyArray<string>): boolean {
   return left.length === right.length && left.every((root, index) => root === right[index]);
@@ -58,32 +57,6 @@ function describeSave(updates: ReadonlyArray<Update>): Notice {
         ? `Couldn't save the ${notSaved}. ${firstFailure.message}`
         : `Saved the ${saved}, but not the ${notSaved}. ${firstFailure.message}`,
   };
-}
-
-/** Keeps its own draft so the box grows with the list. Remount it to discard the draft. */
-function RootsField({
-  id,
-  hintId,
-  roots,
-}: {
-  readonly id: string;
-  readonly hintId: string;
-  readonly roots: ReadonlyArray<string>;
-}) {
-  const [draft, setDraft] = useState(roots.join("\n"));
-
-  return (
-    <textarea
-      id={id}
-      name="roots"
-      aria-describedby={hintId}
-      value={draft}
-      onChange={(event) => setDraft(event.currentTarget.value)}
-      rows={Math.max(2, draft.split("\n").length + 1)}
-      spellCheck={false}
-      className="mt-1 block w-full max-w-xl rounded-md border border-line bg-canvas px-2.5 py-2 font-mono text-[13px]"
-    />
-  );
 }
 
 function RemoveMachineDialog({
@@ -122,6 +95,36 @@ function RemoveMachineDialog({
   );
 }
 
+/** What the hub may ask this machine to do, as its owner's policy allows. */
+function ActionsText({ machine }: { readonly machine: Machine }) {
+  if (machine.connection._tag === "Offline") {
+    return <>Known when the machine is online</>;
+  }
+
+  if (agentOutdated(machine.connection.capabilities)) {
+    return <>The agent needs updating</>;
+  }
+
+  if (!machine.connection.capabilities.policyReadable) {
+    return (
+      <>
+        None. The policy file on this machine can't be read. To replace it, run{" "}
+        <code>fleetfrog allow git</code> there.
+      </>
+    );
+  }
+
+  if (machineBlocker(machine, "Fetch") === null) {
+    return <>Git actions allowed</>;
+  }
+
+  return (
+    <>
+      Git actions turned off. To allow them, run <code>fleetfrog allow git</code> on the machine.
+    </>
+  );
+}
+
 function ConnectionText({ connection }: { readonly connection: Machine["connection"] }) {
   if (connection._tag === "Online") {
     return (
@@ -143,19 +146,26 @@ function ConnectionText({ connection }: { readonly connection: Machine["connecti
 }
 
 export function MachineCard({ machine }: { readonly machine: Machine }) {
+  const hub = useHub();
+  const fleet = knownFleet(hub);
   const [removing, setRemoving] = useState(false);
+  const [pulling, setPulling] = useState(false);
+  const fetching = useStartBatch();
+  const machineScope = { _tag: "Machine", machineId: machine.id } as const;
+  const actionsBlocked = machineBlocker(machine, "Fetch") !== null;
   const online = machine.connection._tag === "Online";
   const [notice, setNotice] = useState<Notice>({ _tag: "None" });
   const [saving, startSaving] = useTransition();
   const [rescanning, startRescan] = useTransition();
-  const rootsId = `roots-${machine.id}`;
-  const hintId = `roots-hint-${machine.id}`;
 
   const save = (form: FormData) =>
     startSaving(async () => {
       const typedName = formText(form, "name").trim();
       const customName = typedName === "" ? null : typedName;
-      const roots = parseRoots(formText(form, "roots"));
+      const roots = form
+        .getAll("root")
+        .map((root) => (root instanceof File ? "" : root.trim()))
+        .filter((root) => root !== "");
       const updates: Array<Update> = [];
 
       if (customName !== machine.customName) {
@@ -167,7 +177,12 @@ export function MachineCard({ machine }: { readonly machine: Machine }) {
         });
       }
 
-      if (!sameRoots(roots, machine.discoveryRoots)) {
+      if (
+        !sameRoots(
+          roots,
+          machine.discoveryRoots.map(({ path }) => path),
+        )
+      ) {
         updates.push({
           part: "discovery folders",
           result: await requestHub((client) =>
@@ -225,7 +240,7 @@ export function MachineCard({ machine }: { readonly machine: Machine }) {
           <ConnectionText connection={machine.connection} />
         </p>
       </header>
-      <dl className="grid gap-x-6 gap-y-1 border-b border-line px-5 py-3 text-sm sm:grid-cols-3">
+      <dl className="grid gap-x-6 gap-y-2 border-b border-line px-5 py-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <dt className="text-ink-muted">Last scan</dt>
           <dd>
@@ -238,6 +253,12 @@ export function MachineCard({ machine }: { readonly machine: Machine }) {
             {machine.info.githubCli._tag === "Available"
               ? `Signed in as ${machine.info.githubCli.login}`
               : "Not available"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-ink-muted">Actions</dt>
+          <dd>
+            <ActionsText machine={machine} />
           </dd>
         </div>
         <div>
@@ -266,21 +287,11 @@ export function MachineCard({ machine }: { readonly machine: Machine }) {
             className="mt-1 block min-h-9 w-full max-w-sm rounded-md border border-line bg-canvas px-2.5"
           />
         </label>
-        <div className="text-sm">
-          <label htmlFor={rootsId} className="font-medium">
-            Discovery folders
-          </label>
-          <p id={hintId} className="text-ink-muted">
-            One per line. The agent looks for repositories up to five folders deep. <code>~</code>{" "}
-            means the home folder.
-          </p>
-          <RootsField
-            key={machine.discoveryRoots.join("\n")}
-            id={rootsId}
-            hintId={hintId}
-            roots={machine.discoveryRoots}
-          />
-        </div>
+        <DiscoveryFolders
+          key={machine.discoveryRoots.map(({ path }) => path).join("\n")}
+          machineId={machine.id}
+          roots={machine.discoveryRoots}
+        />
         <div className="flex flex-wrap items-center gap-3">
           <Button tone="primary" type="submit" disabled={saving}>
             {saving ? "Saving…" : "Save"}
@@ -288,16 +299,34 @@ export function MachineCard({ machine }: { readonly machine: Machine }) {
           <Button disabled={!online || rescanning} onClick={rescan}>
             {rescanning ? "Requesting rescan…" : "Rescan now"}
           </Button>
+          <Button
+            disabled={actionsBlocked || fetching.pending}
+            onClick={() => fetching.start({ _tag: "Fetch", scope: machineScope })}
+          >
+            {fetching.pending ? "Starting fetch…" : "Fetch all"}
+          </Button>
+          <Button
+            disabled={actionsBlocked || fleet === null || !canPull(fleet, machineScope)}
+            onClick={() => setPulling(true)}
+          >
+            Pull all…
+          </Button>
           <Button tone="quiet" className="ms-auto text-danger" onClick={() => setRemoving(true)}>
             Remove machine
           </Button>
           <p role="status" className="basis-full text-sm">
             {notice._tag === "Succeeded" && <span className="text-clean">{notice.message}</span>}
             {notice._tag === "Failed" && <span className="text-danger">{notice.message}</span>}
+            {fetching.failure !== null && (
+              <span className="text-danger">Couldn't start the fetch. {fetching.failure}</span>
+            )}
           </p>
         </div>
       </form>
       {removing && <RemoveMachineDialog machine={machine} onClose={() => setRemoving(false)} />}
+      {pulling && fleet !== null && (
+        <PullDialog fleet={fleet} scope={machineScope} onClose={() => setPulling(false)} />
+      )}
     </article>
   );
 }

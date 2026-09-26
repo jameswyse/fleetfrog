@@ -4,6 +4,8 @@ import path from "node:path";
 
 import { Effect, Option } from "effect";
 
+import { expandHome } from "@fleetfrog/protocol/domain/cloneDestination";
+
 import { locateCheckout } from "../git/readCheckout.ts";
 import { runGit } from "../process/runTool.ts";
 
@@ -13,8 +15,9 @@ const maximumDepth = 5;
 const skippedDirectories = new Set(["node_modules"]);
 const gitConcurrency = 8;
 
-export function expandHome(root: string): string {
-  return root === "~" || root.startsWith("~/") ? path.join(homedir(), root.slice(1)) : root;
+/** A discovery folder as a path on this machine. */
+export function rootPath(root: string): string {
+  return expandHome(root, homedir());
 }
 
 /** Directories under `root` that contain a `.git` entry, without descending into repositories. */
@@ -78,7 +81,7 @@ export const discoverCheckouts = Effect.fn("discoverCheckouts")(function* (
   roots: ReadonlyArray<string>,
 ) {
   const directories = yield* Effect.promise(() =>
-    Promise.all(roots.map((root) => findRepositoryDirectories(expandHome(root)))),
+    Promise.all(roots.map((root) => findRepositoryDirectories(rootPath(root)))),
   );
   const worktrees = yield* Effect.forEach(directories.flat(), listWorktrees, {
     concurrency: gitConcurrency,

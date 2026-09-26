@@ -1,15 +1,27 @@
 import { Schema } from "effect";
 
+import { AgentCapabilities } from "./action.ts";
 import { Checkout } from "./checkout.ts";
 import { MachineId, MachineInfo } from "./machine.ts";
 import { PollingSettings } from "./polling.ts";
 import { RepositoryIdentity, RepositoryKey } from "./repositoryIdentity.ts";
 
 export const Connection = Schema.TaggedUnion({
-  Online: { since: Schema.DateTimeUtc },
+  Online: { since: Schema.DateTimeUtc, capabilities: AgentCapabilities },
   Offline: { lastSeenAt: Schema.NullOr(Schema.DateTimeUtc) },
 });
 export type Connection = typeof Connection.Type;
+
+/** What the agent found at a discovery folder on its last walk. */
+export const FolderStatus = Schema.Literals(["Folder", "Missing", "NotFolder"]);
+export type FolderStatus = typeof FolderStatus.Type;
+
+export const DiscoveryRoot = Schema.Struct({
+  path: Schema.String,
+  /** Null until the agent walks the folder for the first time. */
+  status: Schema.NullOr(FolderStatus),
+});
+export type DiscoveryRoot = typeof DiscoveryRoot.Type;
 
 export const Machine = Schema.Struct({
   id: MachineId,
@@ -17,7 +29,8 @@ export const Machine = Schema.Struct({
   /** The dashboard's name for the machine, overriding the pretty name and hostname. */
   customName: Schema.NullOr(Schema.String),
   connection: Connection,
-  discoveryRoots: Schema.Array(Schema.String),
+  /** In the owner's order. The first is the default destination for clones. */
+  discoveryRoots: Schema.Array(DiscoveryRoot),
   /** Completion of the last discovery walk. Until then, absent repositories are unknown, not missing. */
   lastDiscoveryAt: Schema.NullOr(Schema.DateTimeUtc),
   lastStatusAt: Schema.NullOr(Schema.DateTimeUtc),
@@ -47,6 +60,6 @@ export const Fleet = Schema.Struct({
 });
 export type Fleet = typeof Fleet.Type;
 
-export function machineLabel(machine: Machine): string {
+export function machineLabel(machine: Pick<Machine, "customName" | "info">): string {
   return machine.customName ?? machine.info.prettyName ?? machine.info.hostname;
 }

@@ -1,15 +1,16 @@
 import { existsSync } from "node:fs";
+import { stat } from "node:fs/promises";
 
-import { DateTime, Effect, Option, Schema, Semaphore } from "effect";
+import { DateTime, Duration, Effect, Option, Schema, Semaphore } from "effect";
 
 import { ScanReport } from "@fleetfrog/protocol/agent/rpcs";
 import { Checkout, CheckoutStatus } from "@fleetfrog/protocol/domain/checkout";
 
-import { discoverCheckouts } from "../discovery/discoverCheckouts.ts";
-import { readGitStatus } from "../git/readCheckout.ts";
+import { discoverCheckouts, rootPath } from "../discovery/discoverCheckouts.ts";
+import { locateCheckout, readGitStatus } from "../git/readCheckout.ts";
 import { makeGithubReader } from "../github/githubReader.ts";
 
-import type { Duration } from "effect";
+import type { ReportedRoot } from "@fleetfrog/protocol/agent/rpcs";
 
 import type { CheckoutLocation } from "../git/readCheckout.ts";
 
@@ -17,6 +18,23 @@ const readConcurrency = 4;
 const encodeCheckout = Schema.encodeSync(Schema.toCodecJson(Checkout));
 
 const epoch = DateTime.makeUnsafe(0);
+
+/** What is at each discovery folder, so the dashboard can point out a mistyped one. */
+function inspectRoots(roots: ReadonlyArray<string>) {
+  return Effect.promise(() =>
+    Promise.all(
+      roots.map((root) =>
+        stat(rootPath(root)).then(
+          (found): ReportedRoot => ({
+            path: root,
+            status: found.isDirectory() ? "Folder" : "NotFolder",
+          }),
+          (): ReportedRoot => ({ path: root, status: "Missing" }),
+        ),
+      ),
+    ),
+  );
+}
 
 /** A checkout's content with its timestamps blanked, so unchanged checkouts are not resent. */
 function contentKey(checkout: Checkout): string {
@@ -85,6 +103,7 @@ export function makeScanner<ReportError>(options: {
     return {
       path: location.path,
       identity: location.identity,
+      originUrl: location.originUrl,
       directoryName: location.directoryName,
       worktree: location.worktree,
       status,
@@ -98,6 +117,30 @@ export function makeScanner<ReportError>(options: {
       concurrency: readConcurrency,
     });
 
+  /** Reports rereads that changed since they were last sent. */
+  const reportChanged = (checkouts: ReadonlyArray<Checkout>) =>
+    Effect.gen(function* () {
+      const changed = checkouts.filter(
+        (checkout) => sent.get(checkout.path) !== contentKey(checkout),
+      );
+
+      if (changed.length === 0) {
+        return;
+      }
+
+      yield* options.report(
+        ScanReport.cases.Status.make({
+          changed,
+          removedPaths: [],
+          completedAt: yield* DateTime.now,
+        }),
+      );
+
+      for (const checkout of changed) {
+        sent.set(checkout.path, contentKey(checkout));
+      }
+    });
+
   return {
     /** Walks the roots, reads every checkout found and replaces the hub's inventory. */
     discover: (discovery: {
@@ -109,9 +152,10 @@ export function makeScanner<ReportError>(options: {
         Effect.gen(function* () {
           const found = yield* discoverCheckouts(discovery.roots);
           const checkouts = yield* readAll(found, discovery.githubMaximumAge);
+          const roots = yield* inspectRoots(discovery.roots);
 
           yield* options.report(
-            ScanReport.cases.Discovery.make({ checkouts, completedAt: yield* DateTime.now }),
+            ScanReport.cases.Discovery.make({ checkouts, roots, completedAt: yield* DateTime.now }),
           );
           locations = found;
           sent.clear();
@@ -154,5 +198,35 @@ export function makeScanner<ReportError>(options: {
           }
         }),
       ),
+
+    /** The checkout at `path` from the last discovery walk, if any. */
+    locate: (path: string): CheckoutLocation | undefined =>
+      locations.find((location) => location.path === path),
+
+    /**
+     * Rereads every worktree of one repository after an action changed it, asking GitHub again so
+     * its default branch compares against what was just fetched.
+     */
+    rescanRepository: (commonDirectory: string) =>
+      Effect.gen(function* () {
+        const targets = locations.filter(
+          (location) => location.commonDirectory === commonDirectory,
+        );
+
+        yield* reportChanged(yield* readAll(targets, Duration.zero));
+      }).pipe(lock.withPermits(1)),
+
+    /** Adds a checkout created outside a discovery walk, such as a fresh clone. */
+    track: (path: string) =>
+      Effect.gen(function* () {
+        const location = yield* locateCheckout(path);
+
+        if (Option.isNone(location) || locations.some((known) => known.path === path)) {
+          return;
+        }
+
+        locations = [...locations, location.value];
+        yield* reportChanged(yield* readAll([location.value], Duration.zero));
+      }).pipe(lock.withPermits(1)),
   };
 }

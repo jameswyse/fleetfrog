@@ -1,6 +1,7 @@
 import { Context, DateTime, Effect, Layer, Option, Schema } from "effect";
 import { SqlClient } from "effect/unstable/sql";
 
+import { ReportedRoot } from "@fleetfrog/protocol/agent/rpcs";
 import { MachineNotFound } from "@fleetfrog/protocol/dashboard/rpcs";
 import { MachineId, MachineInfo } from "@fleetfrog/protocol/domain/machine";
 
@@ -15,6 +16,7 @@ const MachineRow = Schema.Struct({
   info_json: JsonColumn(MachineInfo),
   custom_name: Schema.NullOr(Schema.String),
   discovery_roots_json: JsonColumn(Schema.Array(Schema.String)),
+  root_statuses_json: JsonColumn(Schema.Array(ReportedRoot)),
   paired_at: Timestamp,
   last_seen_at: Schema.NullOr(Timestamp),
   last_discovery_at: Schema.NullOr(Timestamp),
@@ -27,6 +29,8 @@ export interface MachineRecord {
   readonly info: MachineInfo;
   readonly customName: string | null;
   readonly discoveryRoots: ReadonlyArray<string>;
+  /** What the agent found at each folder on its last walk, which may predate the current list. */
+  readonly rootStatuses: ReadonlyArray<ReportedRoot>;
   readonly pairedAt: DateTime.Utc;
   readonly lastSeenAt: DateTime.Utc | null;
   readonly lastDiscoveryAt: DateTime.Utc | null;
@@ -36,6 +40,7 @@ export interface MachineRecord {
 const decodeRows = Schema.decodeUnknownEffect(Schema.Array(MachineRow));
 const encodeInfo = Schema.encodeSync(JsonColumn(MachineInfo));
 const encodeRoots = Schema.encodeSync(JsonColumn(Schema.Array(Schema.String)));
+const encodeRootStatuses = Schema.encodeSync(JsonColumn(Schema.Array(ReportedRoot)));
 
 export class MachineStore extends Context.Service<
   MachineStore,
@@ -58,6 +63,10 @@ export class MachineStore extends Context.Service<
       readonly machineId: MachineId;
       readonly kind: "discovery" | "status";
       readonly completedAt: DateTime.Utc;
+    }) => Effect.Effect<void>;
+    readonly recordRootStatuses: (report: {
+      readonly machineId: MachineId;
+      readonly roots: ReadonlyArray<ReportedRoot>;
     }) => Effect.Effect<void>;
     readonly rename: (rename: {
       readonly machineId: MachineId;
@@ -83,6 +92,7 @@ export class MachineStore extends Context.Service<
               info: row.info_json,
               customName: row.custom_name,
               discoveryRoots: row.discovery_roots_json,
+              rootStatuses: row.root_statuses_json,
               pairedAt: row.paired_at,
               lastSeenAt: row.last_seen_at,
               lastDiscoveryAt: row.last_discovery_at,
@@ -155,6 +165,11 @@ export class MachineStore extends Context.Service<
               : sql`update machines set last_status_at = ${at} where id = ${machineId}`
           ).pipe(Effect.asVoid, Effect.orDie);
         },
+        recordRootStatuses: ({ machineId, roots }) =>
+          sql`update machines set root_statuses_json = ${encodeRootStatuses(roots)} where id = ${machineId}`.pipe(
+            Effect.asVoid,
+            Effect.orDie,
+          ),
         rename: ({ machineId, customName }) =>
           updateOne(
             machineId,

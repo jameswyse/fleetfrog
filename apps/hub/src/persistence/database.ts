@@ -6,6 +6,7 @@ import { Effect, Layer, Schema } from "effect";
 
 import { HubConfig } from "../hubConfig.ts";
 import initial from "./migrations/0001_initial.ts";
+import actions from "./migrations/0002_actions.ts";
 
 const client = Layer.unwrap(
   Effect.gen(function* () {
@@ -17,12 +18,13 @@ const client = Layer.unwrap(
   }),
 );
 
-const migrations = SqliteMigrator.layer({
-  loader: SqliteMigrator.fromRecord({ "0001_initial": initial }),
+/** Brings any SQLite database up to the latest schema. */
+export const Migrations = SqliteMigrator.layer({
+  loader: SqliteMigrator.fromRecord({ "0001_initial": initial, "0002_actions": actions }),
 });
 
 /** The hub's SQLite database, migrated to the latest schema. */
-export const Database = migrations.pipe(Layer.provideMerge(client));
+export const Database = Migrations.pipe(Layer.provideMerge(client));
 
 /** A text column holding a JSON document of the given schema. */
 export function JsonColumn<S extends Schema.Top>(schema: S) {

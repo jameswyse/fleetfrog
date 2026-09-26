@@ -8,13 +8,29 @@ import { DashboardRpcs } from "@fleetfrog/protocol/dashboard/rpcs";
 
 import type { RpcClientError } from "effect/unstable/rpc";
 
-import type { MachineNotFound } from "@fleetfrog/protocol/dashboard/rpcs";
+import type {
+  BatchNotFound,
+  MachineNotFound,
+  NoCloneSource,
+  NothingToRun,
+  RepositoryNotFound,
+} from "@fleetfrog/protocol/dashboard/rpcs";
+import type { RunsSnapshot } from "@fleetfrog/protocol/domain/activity";
 import type { Fleet } from "@fleetfrog/protocol/domain/fleet";
 
-type DashboardClient = RpcClient.FromGroup<typeof DashboardRpcs, RpcClientError.RpcClientError>;
+export type DashboardClient = RpcClient.FromGroup<
+  typeof DashboardRpcs,
+  RpcClientError.RpcClientError
+>;
 
 /** Every typed failure a dashboard call can report. */
-type DashboardError = MachineNotFound | RpcClientError.RpcClientError;
+export type DashboardError =
+  | MachineNotFound
+  | RepositoryNotFound
+  | NothingToRun
+  | NoCloneSource
+  | BatchNotFound
+  | RpcClientError.RpcClientError;
 
 /** The most recent fleet from the hub and when the dashboard received it. */
 export type FleetSnapshot = { readonly fleet: Fleet; readonly receivedAt: DateTime.Utc };
@@ -27,16 +43,23 @@ export type HubState =
 
 const retryDelay = Duration.seconds(2);
 
+const noRuns: RunsSnapshot = { activeBatches: [], active: [], latest: [] };
+
 let state: HubState = { _tag: "Connecting" };
 let client: DashboardClient | null = null;
+/** Active runs and each checkout's latest result, kept through a reconnect. */
+let runs: RunsSnapshot = noRuns;
 const listeners = new Set<() => void>();
 
-function setState(next: HubState): void {
-  state = next;
-
+function notify(): void {
   for (const listener of listeners) {
     listener();
   }
+}
+
+function setState(next: HubState): void {
+  state = next;
+  notify();
 }
 
 /** The fleet to show, which may be stale while reconnecting, or null before the first one arrives. */
@@ -52,6 +75,15 @@ function subscribe(listener: () => void): () => void {
 
 export function useHub(): HubState {
   return useSyncExternalStore(subscribe, () => state);
+}
+
+export function useRuns(): RunsSnapshot {
+  return useSyncExternalStore(subscribe, () => runs);
+}
+
+/** The connected client, or null while connecting. Changes on every reconnect. */
+export function useHubClient(): DashboardClient | null {
+  return useSyncExternalStore(subscribe, () => client);
 }
 
 /** One connection: follows the fleet until the socket drops, which ends it so a fresh one can start. */
@@ -77,14 +109,31 @@ const session = Effect.gen(function* () {
   const connected = yield* RpcClient.make(DashboardRpcs).pipe(Effect.provideContext(context));
 
   client = connected;
-  yield* connected.WatchFleet().pipe(
-    Stream.runForEach((fleet) =>
-      DateTime.now.pipe(
-        Effect.map((receivedAt) => setState({ _tag: "Live", snapshot: { fleet, receivedAt } })),
+  notify();
+  yield* Effect.all(
+    [
+      connected
+        .WatchFleet()
+        .pipe(
+          Stream.runForEach((fleet) =>
+            DateTime.now.pipe(
+              Effect.map((receivedAt) =>
+                setState({ _tag: "Live", snapshot: { fleet, receivedAt } }),
+              ),
+            ),
+          ),
+        ),
+      connected.WatchRuns().pipe(
+        Stream.runForEach((snapshot) =>
+          Effect.sync(() => {
+            runs = snapshot;
+            notify();
+          }),
+        ),
       ),
-    ),
-    Effect.raceFirst(Deferred.await(dropped)),
-  );
+    ],
+    { concurrency: "unbounded", discard: true },
+  ).pipe(Effect.raceFirst(Deferred.await(dropped)));
 }).pipe(
   Effect.scoped,
   Effect.ensuring(
@@ -117,10 +166,15 @@ const unreachable = "Can't reach the hub right now. Try again once it reconnects
 
 const failureMessages = {
   MachineNotFound: "That machine is no longer paired.",
+  RepositoryNotFound: "That repository is no longer on any machine.",
+  NothingToRun: "There's nothing to run. The checkouts may have moved since the last scan.",
+  NoCloneSource:
+    "No machine has an HTTPS or SSH origin for this repository, so there's nothing to clone from.",
+  BatchNotFound: "That action is no longer in the history.",
   RpcClientError: "The hub did not respond. Check that it is still running.",
 } satisfies Record<DashboardError["_tag"], string>;
 
-function describeCause(cause: Cause.Cause<DashboardError>): string {
+export function describeCause(cause: Cause.Cause<DashboardError>): string {
   const error = Cause.findError(cause);
 
   return Result.isSuccess(error)

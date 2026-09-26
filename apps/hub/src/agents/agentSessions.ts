@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { Context, DateTime, Duration, Effect, Layer, Queue, Stream, SubscriptionRef } from "effect";
 
 import {
@@ -12,10 +14,21 @@ import { PollingStore } from "../settings/pollingStore.ts";
 
 import type { Cause, Scope } from "effect";
 
+import type { AgentCapabilities } from "@fleetfrog/protocol/domain/action";
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 
-interface Session {
+/** A connected agent as the rest of the hub sees it. */
+export interface OnlineAgent {
   readonly since: DateTime.Utc;
+  /** Distinguishes a reconnection, which abandons the previous connection's actions. */
+  readonly sessionId: string;
+  readonly capabilities: AgentCapabilities;
+}
+
+interface Session {
+  readonly id: string;
+  readonly since: DateTime.Utc;
+  capabilities: AgentCapabilities;
   readonly commands: Queue.Queue<HubCommand, Cause.Done>;
   /** Epoch milliseconds of the last heartbeat, or of connecting. */
   lastHeartbeatAt: number;
@@ -25,15 +38,22 @@ interface Session {
 export class AgentSessions extends Context.Service<
   AgentSessions,
   {
-    /** When each connected machine came online. */
-    readonly online: SubscriptionRef.SubscriptionRef<ReadonlyMap<MachineId, DateTime.Utc>>;
+    readonly online: SubscriptionRef.SubscriptionRef<ReadonlyMap<MachineId, OnlineAgent>>;
     /**
      * Registers an agent connection until the scope closes and returns its commands, starting with
      * its configuration. A newer connection from the same machine ends the older one.
      */
-    readonly connect: (
-      machineId: MachineId,
-    ) => Effect.Effect<Stream.Stream<HubCommand>, never, Scope.Scope>;
+    readonly connect: (connection: {
+      readonly machineId: MachineId;
+      readonly capabilities: AgentCapabilities;
+    }) => Effect.Effect<Stream.Stream<HubCommand>, never, Scope.Scope>;
+    /** Records capabilities the agent advertised after its owner changed its policy. */
+    readonly advertise: (agent: {
+      readonly machineId: MachineId;
+      readonly capabilities: AgentCapabilities;
+    }) => Effect.Effect<void>;
+    /** Queues a command for a connected agent. Returns its session, or null when it is offline. */
+    readonly send: (machineId: MachineId, command: HubCommand) => Effect.Effect<string | null>;
     /** Resends a machine's configuration after its discovery roots change. */
     readonly reconfigure: (machineId: MachineId) => Effect.Effect<void>;
     readonly heartbeat: (machineId: MachineId) => Effect.Effect<void>;
@@ -47,12 +67,17 @@ export class AgentSessions extends Context.Service<
       const polling = yield* PollingStore;
       const presence = yield* DashboardPresence;
       const sessions = new Map<MachineId, Session>();
-      const online = yield* SubscriptionRef.make<ReadonlyMap<MachineId, DateTime.Utc>>(new Map());
+      const online = yield* SubscriptionRef.make<ReadonlyMap<MachineId, OnlineAgent>>(new Map());
 
       const publishOnline = Effect.suspend(() =>
         SubscriptionRef.set(
           online,
-          new Map([...sessions].map(([machineId, session]) => [machineId, session.since])),
+          new Map(
+            [...sessions].map(([machineId, session]) => [
+              machineId,
+              { since: session.since, sessionId: session.id, capabilities: session.capabilities },
+            ]),
+          ),
         ),
       );
 
@@ -131,7 +156,7 @@ export class AgentSessions extends Context.Service<
 
       return {
         online,
-        connect: (machineId) =>
+        connect: ({ machineId, capabilities }) =>
           Effect.gen(function* () {
             // Registration and its release are one step, so no interruption can leave a session
             // registered without the finaliser that removes it.
@@ -141,7 +166,9 @@ export class AgentSessions extends Context.Service<
 
                 const since = yield* DateTime.now;
                 const registered: Session = {
+                  id: randomUUID(),
                   since,
+                  capabilities,
                   commands: yield* Queue.unbounded<HubCommand, Cause.Done>(),
                   lastHeartbeatAt: DateTime.toEpochMillis(since),
                 };
@@ -162,6 +189,28 @@ export class AgentSessions extends Context.Service<
             return Stream.fromQueue(session.commands);
           }),
         reconfigure,
+        advertise: ({ machineId, capabilities }) =>
+          Effect.suspend(() => {
+            const session = sessions.get(machineId);
+
+            if (session === undefined) {
+              return Effect.void;
+            }
+
+            session.capabilities = capabilities;
+
+            return publishOnline;
+          }),
+        send: (machineId, command) =>
+          Effect.suspend(() => {
+            const session = sessions.get(machineId);
+
+            return session === undefined
+              ? Effect.succeed(null)
+              : Queue.offer(session.commands, command).pipe(
+                  Effect.map((offered) => (offered ? session.id : null)),
+                );
+          }),
         heartbeat: (machineId) =>
           Effect.sync(() => {
             const session = sessions.get(machineId);

@@ -37,7 +37,7 @@ export class ConfigUnavailable extends Data.TaggedError("ConfigUnavailable")<{
   readonly message: string;
 }> {}
 
-function isMissingFile(error: unknown): boolean {
+export function isMissingFile(error: unknown): boolean {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
 

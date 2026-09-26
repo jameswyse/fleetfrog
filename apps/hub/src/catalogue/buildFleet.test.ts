@@ -27,7 +27,8 @@ function machine(id: MachineId, hostname: string): MachineRecord {
       githubCli: { _tag: "Unavailable", reason: "not installed" },
     },
     customName: null,
-    discoveryRoots: ["~/Projects"],
+    discoveryRoots: ["~/Projects", "~/Code"],
+    rootStatuses: [{ path: "~/Projects", status: "Folder" }],
     pairedAt,
     lastSeenAt: null,
     lastDiscoveryAt: null,
@@ -39,6 +40,7 @@ function checkout(path: string, identity: RepositoryIdentity): Checkout {
   return {
     path,
     identity,
+    originUrl: null,
     directoryName: path.split("/").at(-1) ?? path,
     worktree: { _tag: "Main" },
     status: { _tag: "Failed", message: "not read in this test" },
@@ -56,7 +58,16 @@ describe("buildFleet", () => {
         { machineId: laptop, checkout: checkout("/home/dev/Projects/shop", shop) },
         { machineId: desktop, checkout: checkout("/home/dev/code/shop-api", shop) },
       ],
-      online: new Map([[laptop, pairedAt]]),
+      online: new Map([
+        [
+          laptop,
+          {
+            since: pairedAt,
+            sessionId: "session",
+            capabilities: { actions: ["Fetch"], allowedTiers: ["git"], policyReadable: true },
+          },
+        ],
+      ]),
       polling: defaultPollingSettings,
     });
 
@@ -67,6 +78,20 @@ describe("buildFleet", () => {
       desktop,
     ]);
     expect(fleet.machines.map(({ connection }) => connection._tag)).toEqual(["Online", "Offline"]);
+  });
+
+  it("pairs each configured discovery folder with what the agent last found there", () => {
+    const fleet = buildFleet({
+      machines: [machine(laptop, "laptop")],
+      checkouts: [],
+      online: new Map(),
+      polling: defaultPollingSettings,
+    });
+
+    expect(fleet.machines[0]?.discoveryRoots).toEqual([
+      { path: "~/Projects", status: "Folder" },
+      { path: "~/Code", status: null },
+    ]);
   });
 
   it("names local-only repositories after their most common directory and sorts by name", () => {

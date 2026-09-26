@@ -2,6 +2,7 @@ import { Data, Effect, Option } from "effect";
 
 import { decodePairingString } from "@fleetfrog/protocol/pairing/pairingString";
 
+import { writeAuditEntry } from "../audit/auditLog.ts";
 import { ensureConfigWritable, saveAgentConfig } from "../config/agentConfig.ts";
 import { readMachineInfo, suggestDiscoveryRoots } from "../machine/machineInfo.ts";
 import { makePairingClient } from "./hubClient.ts";
@@ -62,6 +63,7 @@ export const pairWithHub = Effect.fn("pairWithHub")(function* (options: {
     token: paired.token,
     certificatePem,
   });
+  yield* writeAuditEntry({ event: "Paired", agentUrl, machineId: paired.machineId });
 
   return paired.machineId;
 });

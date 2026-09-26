@@ -55,3 +55,52 @@ export function remoteIdentity(remoteUrl: string): Option.Option<RepositoryIdent
     RepositoryIdentity.cases.Remote.make({ host: host.toLowerCase(), path: normalisedPath }),
   );
 }
+
+const unsafeCharacters = /[\s\p{Cc}]/u;
+
+/**
+ * The form of a remote URL that is safe to share and clone from: HTTPS without credentials, or
+ * SSH in URL or SCP-like form. Returns `None` for local paths, other transports, URLs that could
+ * pass for a Git option, and anything without a repository path.
+ */
+export function cloneableUrl(remoteUrl: string): Option.Option<string> {
+  const trimmed = remoteUrl.trim();
+  const identity = remoteIdentity(trimmed);
+
+  // A host starting with `-` could reach SSH as an option.
+  if (
+    trimmed.startsWith("-") ||
+    unsafeCharacters.test(trimmed) ||
+    Option.isNone(identity) ||
+    identity.value._tag !== "Remote" ||
+    identity.value.host.startsWith("-")
+  ) {
+    return Option.none();
+  }
+
+  if (!trimmed.includes("://")) {
+    return Option.some(trimmed);
+  }
+
+  // An SCP-like remote whose path happens to contain `://` is not a URL.
+  if (!URL.canParse(trimmed)) {
+    return Option.none();
+  }
+
+  const url = new URL(trimmed);
+
+  if (url.protocol === "https:") {
+    url.username = "";
+    url.password = "";
+
+    return Option.some(url.href);
+  }
+
+  if (url.protocol === "ssh:") {
+    url.password = "";
+
+    return Option.some(url.href);
+  }
+
+  return Option.none();
+}

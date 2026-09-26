@@ -1,12 +1,17 @@
 import { Link } from "@tanstack/react-router";
 
+import { useRuns } from "@/rpc/hubConnection.ts";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
+import { activeCloneFor, activeRunFor } from "../actions/runLookup.ts";
+import { RunStateText } from "../actions/RunStateText.tsx";
 import { CheckoutBadges } from "./CheckoutBadges.tsx";
 import { checkoutKey, summariseCheckout } from "./checkoutSummary.ts";
+import { RepositoryActions } from "./RepositoryActions.tsx";
 
-import type { Machine, MachineCheckout, Repository } from "@fleetfrog/protocol/domain/fleet";
+import type { RunsSnapshot } from "@fleetfrog/protocol/domain/activity";
+import type { Fleet, Machine, MachineCheckout, Repository } from "@fleetfrog/protocol/domain/fleet";
 
 /** Offline columns sit on the canvas colour so their last known state reads as stale. */
 function columnBackground(machine: Machine): string {
@@ -51,11 +56,14 @@ function MachineHeader({ machine }: { readonly machine: Machine }) {
 function CheckoutLink({
   entry,
   offline,
+  runs,
 }: {
   readonly entry: MachineCheckout;
   readonly offline: boolean;
+  readonly runs: RunsSnapshot;
 }) {
   const summary = summariseCheckout(entry.checkout);
+  const active = activeRunFor(runs, { machineId: entry.machineId, checkout: entry.checkout });
   const branch = summary._tag === "Read" ? summary.branch : "Status unavailable";
   const worktree = entry.checkout.worktree._tag === "Linked";
 
@@ -77,6 +85,11 @@ function CheckoutLink({
       <span className="mt-1 flex flex-wrap gap-1">
         <CheckoutBadges summary={summary} />
       </span>
+      {active !== undefined && (
+        <span className="mt-1 flex text-xs">
+          <RunStateText run={active} length="short" />
+        </span>
+      )}
       {offline && <span className="sr-only">Last known state, machine offline</span>}
     </Link>
   );
@@ -85,12 +98,25 @@ function CheckoutLink({
 function MatrixCell({
   repository,
   machine,
+  runs,
 }: {
   readonly repository: Repository;
   readonly machine: Machine;
+  readonly runs: RunsSnapshot;
 }) {
   const entries = repository.checkouts.filter(({ machineId }) => machineId === machine.id);
   const offline = machine.connection._tag === "Offline";
+  const cloning = activeCloneFor(runs, { machineId: machine.id, repositoryKey: repository.key });
+
+  if (entries.length === 0 && cloning !== undefined) {
+    return (
+      <td
+        className={`border-b border-line px-3 py-2 align-top text-xs ${columnBackground(machine)}`}
+      >
+        <RunStateText run={cloning} length="short" />
+      </td>
+    );
+  }
 
   if (entries.length === 0) {
     return (
@@ -116,7 +142,7 @@ function MatrixCell({
       <ul className="space-y-0.5">
         {entries.map((entry) => (
           <li key={entry.checkout.path}>
-            <CheckoutLink entry={entry} offline={offline} />
+            <CheckoutLink entry={entry} offline={offline} runs={runs} />
           </li>
         ))}
       </ul>
@@ -126,12 +152,16 @@ function MatrixCell({
 
 /** Repositories down the side, machines across the top, one cell per repository on each machine. */
 export function FleetMatrix({
-  machines,
+  fleet,
   repositories,
 }: {
-  readonly machines: ReadonlyArray<Machine>;
+  readonly fleet: Fleet;
+  /** The repositories to show, which the page may have filtered. */
   readonly repositories: ReadonlyArray<Repository>;
 }) {
+  const runs = useRuns();
+  const { machines } = fleet;
+
   return (
     <div className="w-fit max-w-full overflow-auto rounded-lg border border-line bg-surface">
       <table className="border-separate border-spacing-0 text-sm">
@@ -156,15 +186,25 @@ export function FleetMatrix({
                 scope="row"
                 className="sticky start-0 z-[1] border-e border-b border-line bg-surface px-4 py-2.5 text-start align-top font-medium"
               >
-                <span className="block">{repository.name}</span>
-                <span className="block truncate text-xs font-normal text-ink-muted">
-                  {repository.identity._tag === "Remote"
-                    ? `${repository.identity.host}/${repository.identity.path}`
-                    : "Local repository"}
-                </span>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <span className="block">{repository.name}</span>
+                    <span className="block truncate text-xs font-normal text-ink-muted">
+                      {repository.identity._tag === "Remote"
+                        ? `${repository.identity.host}/${repository.identity.path}`
+                        : "Local repository"}
+                    </span>
+                  </div>
+                  <RepositoryActions fleet={fleet} repository={repository} />
+                </div>
               </th>
               {machines.map((machine) => (
-                <MatrixCell key={machine.id} repository={repository} machine={machine} />
+                <MatrixCell
+                  key={machine.id}
+                  repository={repository}
+                  machine={machine}
+                  runs={runs}
+                />
               ))}
             </tr>
           ))}

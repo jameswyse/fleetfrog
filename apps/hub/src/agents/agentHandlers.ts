@@ -2,6 +2,7 @@ import { Effect, Stream } from "effect";
 
 import { AgentRpcs, CurrentMachine, ScanReport } from "@fleetfrog/protocol/agent/rpcs";
 
+import { ActionDispatcher } from "../actions/actionDispatcher.ts";
 import { CheckoutStore } from "../catalogue/checkoutStore.ts";
 import { FleetFeed } from "../catalogue/fleetFeed.ts";
 import { MachineStore } from "../machines/machineStore.ts";
@@ -13,9 +14,10 @@ export const AgentHandlers = AgentRpcs.toLayer(
     const machines = yield* MachineStore;
     const checkouts = yield* CheckoutStore;
     const feed = yield* FleetFeed;
+    const dispatcher = yield* ActionDispatcher;
 
     return {
-      Connect: ({ info }) =>
+      Connect: ({ info, capabilities }) =>
         Stream.unwrap(
           Effect.gen(function* () {
             const { id } = yield* CurrentMachine;
@@ -23,7 +25,7 @@ export const AgentHandlers = AgentRpcs.toLayer(
             yield* machines.recordConnection({ machineId: id, info });
             yield* feed.invalidate;
 
-            return yield* sessions.connect(id);
+            return yield* sessions.connect({ machineId: id, capabilities });
           }),
         ),
       Report: ({ report }) =>
@@ -31,10 +33,11 @@ export const AgentHandlers = AgentRpcs.toLayer(
           const { id } = yield* CurrentMachine;
 
           yield* ScanReport.match(report, {
-            Discovery: ({ checkouts: inventory, completedAt }) =>
+            Discovery: ({ checkouts: inventory, roots, completedAt }) =>
               checkouts
                 .replace({ machineId: id, checkouts: inventory })
                 .pipe(
+                  Effect.andThen(machines.recordRootStatuses({ machineId: id, roots })),
                   Effect.andThen(
                     machines.recordScan({ machineId: id, kind: "discovery", completedAt }),
                   ),
@@ -51,6 +54,10 @@ export const AgentHandlers = AgentRpcs.toLayer(
           yield* feed.invalidate;
         }),
       Heartbeat: () => CurrentMachine.use(({ id }) => sessions.heartbeat(id)),
+      Advertise: ({ capabilities }) =>
+        CurrentMachine.use(({ id }) => sessions.advertise({ machineId: id, capabilities })),
+      ReportAction: ({ runId, update }) =>
+        CurrentMachine.use(({ id }) => dispatcher.receive({ machineId: id, runId, update })),
     };
   }),
 );

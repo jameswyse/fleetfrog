@@ -7,6 +7,7 @@ import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { CheckoutBadges } from "../overview/CheckoutBadges.tsx";
 import { checkoutKey, summariseCheckout } from "../overview/checkoutSummary.ts";
+import { CheckoutActions } from "./CheckoutActions.tsx";
 
 import type { ReactNode } from "react";
 
@@ -196,7 +197,7 @@ function WorktreeList({
   readonly entries: ReadonlyArray<MachineCheckout>;
 }) {
   return (
-    <Section title="Worktrees on this machine">
+    <Section title="Checkouts on this machine">
       <ul className="space-y-1 text-sm">
         {entries.map((entry) => {
           const summary = summariseCheckout(entry.checkout);
@@ -291,6 +292,7 @@ export function CheckoutDetail({
           {machine.connection._tag === "Offline" && " · Machine offline, showing the last scan"}
         </p>
       </div>
+      <CheckoutActions machine={machine} checkout={checkout} />
       {checkout.status._tag === "Failed" ? (
         <Section title="Status unavailable">
           <p className="font-mono text-[13px] break-all text-danger">{checkout.status.message}</p>

@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 
 import { RepositoryIdentity } from "./repositoryIdentity.ts";
 
@@ -107,6 +107,13 @@ export type Worktree = typeof Worktree.Type;
 export const Checkout = Schema.Struct({
   path: Schema.String,
   identity: RepositoryIdentity,
+  /**
+   * The `origin` URL that other machines clone from, with any credentials removed. Null without an
+   * HTTPS or SSH origin, and from agents that predate cloning.
+   */
+  originUrl: Schema.NullOr(Schema.String).pipe(
+    Schema.withDecodingDefaultTypeKey(Effect.succeed(null)),
+  ),
   /** The main worktree's directory name, used when the identity has no readable name. */
   directoryName: Schema.String,
   worktree: Worktree,
@@ -115,3 +122,11 @@ export const Checkout = Schema.Struct({
   scannedAt: Schema.DateTimeUtc,
 });
 export type Checkout = typeof Checkout.Type;
+
+/**
+ * The main worktree of the clone this checkout belongs to. Worktrees of one clone share its refs;
+ * separate clones of the same repository don't.
+ */
+export function clonePath(checkout: Pick<Checkout, "path" | "worktree">): string {
+  return checkout.worktree._tag === "Main" ? checkout.path : checkout.worktree.mainPath;
+}

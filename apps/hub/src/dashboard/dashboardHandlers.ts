@@ -1,7 +1,10 @@
 import { Effect, Stream } from "effect";
 
 import { DashboardRpcs, RefreshTarget } from "@fleetfrog/protocol/dashboard/rpcs";
+import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
+import { ActionDispatcher } from "../actions/actionDispatcher.ts";
+import { ActivityFeed } from "../activity/activityFeed.ts";
 import { AgentSessions } from "../agents/agentSessions.ts";
 import { FleetFeed } from "../catalogue/fleetFeed.ts";
 import { MachineStore } from "../machines/machineStore.ts";
@@ -17,6 +20,8 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
     const machines = yield* MachineStore;
     const polling = yield* PollingStore;
     const offers = yield* PairingOffers;
+    const dispatcher = yield* ActionDispatcher;
+    const activity = yield* ActivityFeed;
 
     return {
       WatchFleet: () => Stream.unwrap(presence.watch.pipe(Effect.as(feed.watch))),
@@ -26,20 +31,59 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
           Machine: ({ machineId }) =>
             machines.find(machineId).pipe(Effect.andThen(sessions.refresh([machineId]))),
         }),
-      RenameMachine: (rename) => machines.rename(rename).pipe(Effect.andThen(feed.invalidate)),
+      RenameMachine: (rename) =>
+        Effect.gen(function* () {
+          const before = yield* machines.find(rename.machineId);
+
+          yield* machines.rename(rename);
+          yield* feed.invalidate;
+          yield* activity.recordEvent({
+            _tag: "MachineRenamed",
+            machineId: rename.machineId,
+            from: machineLabel(before),
+            to: machineLabel({ ...before, customName: rename.customName }),
+          });
+        }),
       SetDiscoveryRoots: (update) =>
-        machines
-          .setDiscoveryRoots(update)
-          .pipe(
-            Effect.andThen(sessions.reconfigure(update.machineId)),
-            Effect.andThen(feed.invalidate),
-          ),
+        Effect.gen(function* () {
+          const machine = yield* machines.find(update.machineId);
+
+          yield* machines.setDiscoveryRoots(update);
+          yield* sessions.reconfigure(update.machineId);
+          yield* feed.invalidate;
+          yield* activity.recordEvent({
+            _tag: "DiscoveryRootsChanged",
+            machineId: update.machineId,
+            machineName: machineLabel(machine),
+            roots: update.roots,
+          });
+        }),
       RemoveMachine: ({ machineId }) =>
-        machines
-          .remove(machineId)
-          .pipe(Effect.andThen(sessions.disconnect(machineId)), Effect.andThen(feed.invalidate)),
-      UpdatePolling: ({ polling: settings }) => polling.update(settings),
+        Effect.gen(function* () {
+          const machine = yield* machines.find(machineId);
+
+          yield* machines.remove(machineId);
+          yield* sessions.disconnect(machineId);
+          yield* feed.invalidate;
+          yield* activity.recordEvent({
+            _tag: "MachineRemoved",
+            machineId,
+            machineName: machineLabel(machine),
+          });
+        }),
+      UpdatePolling: ({ polling: settings }) =>
+        polling
+          .update(settings)
+          .pipe(
+            Effect.andThen(activity.recordEvent({ _tag: "PollingChanged", polling: settings })),
+          ),
       CreatePairingOffer: () => offers.create,
+      StartBatch: ({ request }) =>
+        dispatcher.start(request).pipe(Effect.map((batchId) => ({ batchId }))),
+      Cancel: ({ target }) => dispatcher.cancel(target),
+      WatchRuns: () => activity.watchRuns,
+      WatchActivity: (query) => activity.watchActivity(query),
+      WatchBatch: ({ batchId }) => activity.watchBatch(batchId),
     };
   }),
 );

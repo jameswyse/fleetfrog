@@ -1,13 +1,49 @@
 import { Schema } from "effect";
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
 
+import {
+  ActivityFilter,
+  ActivityPage,
+  BatchDetail,
+  BatchId,
+  BatchRequest,
+  RunId,
+  RunsSnapshot,
+} from "../domain/activity.ts";
 import { Fleet } from "../domain/fleet.ts";
 import { MachineId } from "../domain/machine.ts";
 import { PollingSettings } from "../domain/polling.ts";
+import { RepositoryKey } from "../domain/repositoryIdentity.ts";
 
 export class MachineNotFound extends Schema.TaggedError<MachineNotFound>()("MachineNotFound", {
   machineId: MachineId,
 }) {}
+
+export class RepositoryNotFound extends Schema.TaggedError<RepositoryNotFound>()(
+  "RepositoryNotFound",
+  { repositoryKey: RepositoryKey },
+) {}
+
+/** The scope matched no checkouts, so there was nothing to run. */
+export class NothingToRun extends Schema.TaggedError<NothingToRun>()("NothingToRun", {}) {}
+
+/** No checkout of the repository has an HTTPS or SSH origin to clone from. */
+export class NoCloneSource extends Schema.TaggedError<NoCloneSource>()("NoCloneSource", {}) {}
+
+export class BatchNotFound extends Schema.TaggedError<BatchNotFound>()("BatchNotFound", {
+  batchId: BatchId,
+}) {}
+
+export const CancelTarget = Schema.TaggedUnion({
+  Batch: { batchId: BatchId },
+  Run: { runId: RunId },
+});
+export type CancelTarget = typeof CancelTarget.Type;
+
+/** How many activity entries a page starts with, and how many more each "Show older" adds. */
+export const activityPageSize = 50;
+/** The most activity entries one stream sends. */
+export const activityLimit = 1000;
 
 export const RefreshTarget = Schema.TaggedUnion({
   All: {},
@@ -48,4 +84,27 @@ export class DashboardRpcs extends RpcGroup.make(
   Rpc.make("RemoveMachine", { payload: { machineId: MachineId }, error: MachineNotFound }),
   Rpc.make("UpdatePolling", { payload: { polling: PollingSettings } }),
   Rpc.make("CreatePairingOffer", { success: PairingOffer }),
+  Rpc.make("StartBatch", {
+    payload: { request: BatchRequest },
+    success: Schema.Struct({ batchId: BatchId }),
+    error: Schema.Union([MachineNotFound, RepositoryNotFound, NothingToRun, NoCloneSource]),
+  }),
+  /** Cancelling a run that has already finished does nothing. */
+  Rpc.make("Cancel", { payload: { target: CancelTarget } }),
+  /** Streams active runs and each checkout's latest result on subscribe and after every change. */
+  Rpc.make("WatchRuns", { success: RunsSnapshot, stream: true }),
+  Rpc.make("WatchActivity", {
+    payload: {
+      filter: ActivityFilter,
+      limit: Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: activityLimit })),
+    },
+    success: ActivityPage,
+    stream: true,
+  }),
+  Rpc.make("WatchBatch", {
+    payload: { batchId: BatchId },
+    success: BatchDetail,
+    error: BatchNotFound,
+    stream: true,
+  }),
 ) {}

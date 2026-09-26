@@ -8,7 +8,7 @@ import { RepositoryIdentity } from "@fleetfrog/protocol/domain/repositoryIdentit
 import { runGit } from "../process/runTool.ts";
 import { branchFormat, parseBranches } from "./parseBranches.ts";
 import { parseStatus } from "./parseStatus.ts";
-import { remoteIdentity } from "./remoteIdentity.ts";
+import { cloneableUrl, remoteIdentity } from "./remoteIdentity.ts";
 
 import type { Commit, GitStatus, Stash, Worktree } from "@fleetfrog/protocol/domain/checkout";
 
@@ -18,15 +18,20 @@ const stashLimit = 50;
 export interface CheckoutLocation {
   readonly path: string;
   readonly identity: RepositoryIdentity;
+  /** The main worktree's `origin`, in a form other machines can clone from. */
+  readonly originUrl: string | null;
   readonly worktree: Worktree;
   readonly directoryName: string;
   readonly commonDirectory: string;
 }
 
-const identify = Effect.fn("identify")(function* (directory: string) {
-  const origin = yield* runGit(directory, ["config", "--get", "remote.origin.url"]).pipe(
-    Effect.option,
-  );
+const readOrigin = (directory: string) =>
+  runGit(directory, ["config", "--get", "remote.origin.url"]).pipe(Effect.option);
+
+const identify = Effect.fn("identify")(function* (
+  directory: string,
+  origin: Option.Option<string>,
+) {
   const fromRemote = Option.flatMap(origin, remoteIdentity);
 
   if (Option.isSome(fromRemote)) {
@@ -110,13 +115,18 @@ export const locateCheckout = Effect.fn("locateCheckout")(function* (directory: 
     gitDirectory === commonDirectory ? { _tag: "Main" } : { _tag: "Linked", mainPath };
   // Worktrees share the main worktree's remote and history, so they share its identity. An orphan
   // or unborn branch in a linked worktree would otherwise split the repository.
-  const fromMain = yield* identify(mainPath);
+  const mainOrigin = yield* readOrigin(mainPath);
+  const fromMain = yield* identify(mainPath, mainOrigin);
   const identity =
-    Option.isNone(fromMain) && mainPath !== toplevel ? yield* identify(toplevel) : fromMain;
+    Option.isNone(fromMain) && mainPath !== toplevel
+      ? yield* identify(toplevel, yield* readOrigin(toplevel))
+      : fromMain;
+  const originUrl = Option.getOrNull(Option.flatMap(mainOrigin, cloneableUrl));
 
   return Option.map(identity, (resolved) => ({
     path: toplevel,
     identity: resolved,
+    originUrl,
     worktree,
     directoryName: path.basename(mainPath),
     commonDirectory,

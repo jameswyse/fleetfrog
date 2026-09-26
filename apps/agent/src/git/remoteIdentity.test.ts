@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Option } from "effect";
 
-import { remoteIdentity } from "./remoteIdentity.ts";
+import { cloneableUrl, remoteIdentity } from "./remoteIdentity.ts";
 
 describe("remoteIdentity", () => {
   it.each([
@@ -28,4 +28,28 @@ describe("remoteIdentity", () => {
       expect(remoteIdentity(url)).toEqual(Option.none());
     },
   );
+});
+
+describe("cloneableUrl", () => {
+  it.each([
+    ["git@github.com:acme/shop.git", "git@github.com:acme/shop.git"],
+    ["https://user:token@github.com/acme/shop.git", "https://github.com/acme/shop.git"],
+    ["ssh://git:secret@github.com:22/acme/shop.git", "ssh://git@github.com:22/acme/shop.git"],
+  ])("shares %s as %s", (url, shared) => {
+    expect(cloneableUrl(url)).toEqual(Option.some(shared));
+  });
+
+  it.each([
+    "/srv/git/shop.git",
+    "file:///srv/git/shop.git",
+    "git://github.com/acme/shop.git",
+    "http://github.com/acme/shop.git",
+    "ext::sh -c touch% /tmp/pwned",
+    "-uhttps://github.com/acme/shop.git",
+    "git@-oProxyCommand=touch:acme/shop",
+    "git@github.com:acme/shop://nested",
+    "https://github.com/acme/shop.git\n--upload-pack=touch",
+  ])("refuses %s", (url) => {
+    expect(cloneableUrl(url)).toEqual(Option.none());
+  });
 });

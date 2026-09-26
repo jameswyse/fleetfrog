@@ -1,11 +1,17 @@
 import { Data, Duration, Effect, Fiber, FiberHandle, Option, Stream } from "effect";
 
 import { HubCommand, heartbeatSeconds } from "@fleetfrog/protocol/agent/rpcs";
+import { ActionKind } from "@fleetfrog/protocol/domain/action";
 
+import { makeActionRunner } from "../actions/actionRunner.ts";
+import { writeAuditEntry } from "../audit/auditLog.ts";
 import { loadAgentConfig } from "../config/agentConfig.ts";
+import { loadPolicy, policyPath } from "../config/agentPolicy.ts";
 import { makeHubClient } from "../connection/hubClient.ts";
 import { readMachineInfo } from "../machine/machineInfo.ts";
 import { makeScanner } from "./scanner.ts";
+
+import type { AgentCapabilities } from "@fleetfrog/protocol/domain/action";
 
 import type { AgentConfig } from "../config/agentConfig.ts";
 
@@ -21,9 +27,30 @@ const maximumRetryDelay = Duration.seconds(60);
 /** A connection that lasted this long was healthy, so the next retry starts from the shortest delay. */
 const healthyConnection = Duration.seconds(60);
 
-function sameRoots(left: ReadonlyArray<string>, right: ReadonlyArray<string>): boolean {
-  return left.length === right.length && left.every((root, index) => root === right[index]);
+function sameList(left: ReadonlyArray<string>, right: ReadonlyArray<string>): boolean {
+  return left.length === right.length && left.every((item, index) => item === right[index]);
 }
+
+/** Every action this agent knows, with the tiers its policy allows. An unreadable policy allows none. */
+/** Every action this agent knows, with the tiers its policy allows. A damaged policy allows none. */
+const readCapabilities = loadPolicy.pipe(
+  Effect.map(({ allowedTiers }): AgentCapabilities => ({
+    actions: ActionKind.literals,
+    allowedTiers,
+    policyReadable: true,
+  })),
+  Effect.orElseSucceed((): AgentCapabilities => ({
+    actions: ActionKind.literals,
+    allowedTiers: [],
+    policyReadable: false,
+  })),
+);
+
+/** Says once, rather than every heartbeat, that the policy can't be read. */
+const warnIfUnreadable = (capabilities: AgentCapabilities) =>
+  capabilities.policyReadable
+    ? Effect.void
+    : Effect.logWarning(`The policy at ${policyPath()} can't be read, so no actions are allowed`);
 
 /** One connection to the hub: follows its commands until the connection ends. */
 const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
@@ -36,6 +63,34 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
   const timers = yield* FiberHandle.make();
   const sessionScope = yield* Effect.scope;
   let configuration: Configuration | null = null;
+  let capabilities = yield* readCapabilities;
+
+  yield* warnIfUnreadable(capabilities);
+  const actions = yield* makeActionRunner({
+    catalogue: scanner,
+    discoveryRoots: () => configuration?.discoveryRoots ?? [],
+    loadPolicy,
+    report: (runId, update) => client.ReportAction({ runId, update }),
+    audit: writeAuditEntry,
+  });
+
+  /** The owner may change the policy at any time, so each heartbeat checks it. */
+  const readvertise = readCapabilities.pipe(
+    Effect.flatMap((current) => {
+      if (
+        current.policyReadable === capabilities.policyReadable &&
+        sameList(current.allowedTiers, capabilities.allowedTiers)
+      ) {
+        return Effect.void;
+      }
+
+      capabilities = current;
+
+      return warnIfUnreadable(current).pipe(
+        Effect.andThen(client.Advertise({ capabilities: current })),
+      );
+    }),
+  );
   let lastDiscoveryAt: number | null = null;
   let lastStatusAt: number | null = null;
 
@@ -111,16 +166,17 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
   yield* client
     .Heartbeat()
     .pipe(
+      Effect.andThen(readvertise),
       Effect.andThen(Effect.sleep(Duration.seconds(heartbeatSeconds))),
       Effect.forever,
       Effect.forkScoped,
     );
-  yield* client.Connect({ info }).pipe(
+  yield* client.Connect({ info, capabilities }).pipe(
     Stream.runForEach((command) =>
       HubCommand.match(command, {
         Configure: (next) => {
           const rootsChanged =
-            configuration === null || !sameRoots(configuration.discoveryRoots, next.discoveryRoots);
+            configuration === null || !sameList(configuration.discoveryRoots, next.discoveryRoots);
 
           configuration = next;
 
@@ -130,6 +186,8 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
           configuration === null
             ? Effect.void
             : schedule({ current: configuration, discoverNow: true }),
+        RunAction: ({ runId, request }) => actions.run(runId, request),
+        CancelAction: ({ runId }) => actions.cancel(runId),
       }),
     ),
     Effect.catchTag("Unauthorised", () => Effect.fail(new MachineRemoved())),

@@ -1,13 +1,12 @@
 import { Connection } from "@fleetfrog/protocol/domain/fleet";
 import { repositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
-import type { DateTime } from "effect";
-
 import type { Fleet, Machine, MachineCheckout, Repository } from "@fleetfrog/protocol/domain/fleet";
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 import type { PollingSettings } from "@fleetfrog/protocol/domain/polling";
 import type { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
+import type { OnlineAgent } from "../agents/agentSessions.ts";
 import type { MachineRecord } from "../machines/machineStore.ts";
 
 const collator = new Intl.Collator("en", { sensitivity: "base", numeric: true });
@@ -38,21 +37,25 @@ function repositoryName(checkouts: CheckoutGroup): string {
 export function buildFleet(sources: {
   readonly machines: ReadonlyArray<MachineRecord>;
   readonly checkouts: ReadonlyArray<MachineCheckout>;
-  readonly online: ReadonlyMap<MachineId, DateTime.Utc>;
+  readonly online: ReadonlyMap<MachineId, OnlineAgent>;
   readonly polling: PollingSettings;
 }): Fleet {
   const machines = sources.machines.map((record): Machine => {
-    const since = sources.online.get(record.id);
+    const agent = sources.online.get(record.id);
+    const statuses = new Map(record.rootStatuses.map(({ path, status }) => [path, status]));
 
     return {
       id: record.id,
       info: record.info,
       customName: record.customName,
       connection:
-        since === undefined
+        agent === undefined
           ? Connection.cases.Offline.make({ lastSeenAt: record.lastSeenAt })
-          : Connection.cases.Online.make({ since }),
-      discoveryRoots: record.discoveryRoots,
+          : Connection.cases.Online.make({ since: agent.since, capabilities: agent.capabilities }),
+      discoveryRoots: record.discoveryRoots.map((path) => ({
+        path,
+        status: statuses.get(path) ?? null,
+      })),
       lastDiscoveryAt: record.lastDiscoveryAt,
       lastStatusAt: record.lastStatusAt,
       pairedAt: record.pairedAt,
