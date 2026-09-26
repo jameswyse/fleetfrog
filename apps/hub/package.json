@@ -1,0 +1,32 @@
+{
+  "name": "@fleetfrog/hub",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "tsdown",
+    "dev": "FLEETFROG_DATA_DIR=../../data node --watch src/main.ts",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --list-different .",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix .",
+    "start": "node dist/main.mjs",
+    "test:unit": "vitest run",
+    "test:unit:changed": "vitest run --changed HEAD --bail=1 --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@effect/platform-node": "catalog:",
+    "@effect/sql-sqlite-node": "catalog:",
+    "@fleetfrog/protocol": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "@types/node": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
