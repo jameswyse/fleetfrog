@@ -11,6 +11,7 @@ Ideas for after phase 2. They're captured, not planned: an entry doesn't mean it
 - **Filesystem watchers.** React to changes instead of polling, if polling proves too slow.
 - **Cloning new projects.** Clone a repository that no machine has yet from GitHub, onto every machine.
 - **More pull requests.** The GitHub reader checks only the 100 most recent open pull requests per repository.
+- **GitHub read by the hub.** An optional read-only token on the hub, entered in Settings and never sent to the dashboard, so the hub queries GitHub once per repository in batched GraphQL requests instead of every agent querying each repository it has. It would list every open pull request, not only those from branches checked out somewhere, and stay current while machines sleep. Agents keep reporting the commit each checkout has fetched, and keep reading any repository the hub's token can't.
 
 ## Projects page
 
