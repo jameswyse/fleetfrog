@@ -58,27 +58,25 @@ export class CheckoutStore extends Context.Service<
           ),
           Effect.orDie,
         ),
-        replace: ({ machineId, checkouts }) =>
-          sql
-            .withTransaction(
-              Effect.gen(function* () {
-                yield* sql`delete from checkouts where machine_id = ${machineId}`;
-                yield* upsert(machineId, checkouts);
-              }),
-            )
-            .pipe(Effect.orDie),
-        apply: ({ machineId, changed, removedPaths }) =>
-          sql
-            .withTransaction(
-              Effect.gen(function* () {
-                if (removedPaths.length > 0) {
-                  yield* sql`delete from checkouts where machine_id = ${machineId} and ${sql.in("path", removedPaths)}`;
-                }
+        replace: Effect.fn("CheckoutStore.replace")(
+          function* ({ machineId, checkouts }) {
+            yield* sql`delete from checkouts where machine_id = ${machineId}`;
+            yield* upsert(machineId, checkouts);
+          },
+          sql.withTransaction,
+          Effect.orDie,
+        ),
+        apply: Effect.fn("CheckoutStore.apply")(
+          function* ({ machineId, changed, removedPaths }) {
+            if (removedPaths.length > 0) {
+              yield* sql`delete from checkouts where machine_id = ${machineId} and ${sql.in("path", removedPaths)}`;
+            }
 
-                yield* upsert(machineId, changed);
-              }),
-            )
-            .pipe(Effect.orDie),
+            yield* upsert(machineId, changed);
+          },
+          sql.withTransaction,
+          Effect.orDie,
+        ),
       };
     }),
   );

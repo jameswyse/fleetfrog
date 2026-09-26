@@ -2,7 +2,7 @@ import { X509Certificate } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { Context, Effect, Layer } from "effect";
+import { Context, DateTime, Effect, Layer } from "effect";
 
 import { HubConfig } from "../hubConfig.ts";
 import { createSelfSignedCertificate } from "./selfSignedCertificate.ts";
@@ -32,6 +32,10 @@ export class AgentCertificate extends Context.Service<
       const directory = path.join(config.dataDirectory, "agent-tls");
       const certificatePath = path.join(directory, "certificate.pem");
       const privateKeyPath = path.join(directory, "private-key.pem");
+      const now = yield* DateTime.now;
+      // Backdated so an agent whose clock runs a little behind still accepts it.
+      const notBefore = DateTime.toDate(DateTime.subtract(now, { days: 1 }));
+      const notAfter = DateTime.toDate(DateTime.add(now, { years: validityYears }));
 
       const { certificatePem, privateKeyPem } = yield* Effect.tryPromise(async () => {
         try {
@@ -44,13 +48,6 @@ export class AgentCertificate extends Context.Service<
             throw error;
           }
         }
-
-        const now = new Date();
-        // Backdated so an agent whose clock runs a little behind still accepts it.
-        const notBefore = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        const notAfter = new Date(now);
-
-        notAfter.setUTCFullYear(notAfter.getUTCFullYear() + validityYears);
 
         const generated = createSelfSignedCertificate({
           commonName: "FleetFrog hub",

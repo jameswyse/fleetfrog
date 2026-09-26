@@ -179,42 +179,41 @@ export class ActivityStore extends Context.Service<
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
 
-      const summarise = (rows: ReadonlyArray<BatchRow>) =>
-        Effect.gen(function* () {
-          const ids = rows.map(({ id }) => id);
-          const counts =
-            ids.length === 0
-              ? []
-              : yield* sql`select batch_id, status, count(*) as count from action_runs where ${sql.in("batch_id", ids)} group by batch_id, status`.pipe(
-                  Effect.flatMap(decodeCounts),
-                );
-          const machines =
-            ids.length === 0
-              ? []
-              : yield* sql`select distinct batch_id, machine_name from action_runs where ${sql.in("batch_id", ids)} order by machine_name collate nocase`.pipe(
-                  Effect.flatMap(decodeMachineNames),
-                );
-          const byBatch = new Map<BatchId, RunCounts>();
-          const machineNames = new Map<BatchId, Array<string>>();
+      const summarise = Effect.fnUntraced(function* (rows: ReadonlyArray<BatchRow>) {
+        const ids = rows.map(({ id }) => id);
+        const counts =
+          ids.length === 0
+            ? []
+            : yield* sql`select batch_id, status, count(*) as count from action_runs where ${sql.in("batch_id", ids)} group by batch_id, status`.pipe(
+                Effect.flatMap(decodeCounts),
+              );
+        const machines =
+          ids.length === 0
+            ? []
+            : yield* sql`select distinct batch_id, machine_name from action_runs where ${sql.in("batch_id", ids)} order by machine_name collate nocase`.pipe(
+                Effect.flatMap(decodeMachineNames),
+              );
+        const byBatch = new Map<BatchId, RunCounts>();
+        const machineNames = new Map<BatchId, Array<string>>();
 
-          for (const { batch_id, status, count } of counts) {
-            byBatch.set(batch_id, { ...(byBatch.get(batch_id) ?? noRuns), [status]: count });
-          }
+        for (const { batch_id, status, count } of counts) {
+          byBatch.set(batch_id, { ...(byBatch.get(batch_id) ?? noRuns), [status]: count });
+        }
 
-          for (const { batch_id, machine_name } of machines) {
-            machineNames.set(batch_id, [...(machineNames.get(batch_id) ?? []), machine_name]);
-          }
+        for (const { batch_id, machine_name } of machines) {
+          machineNames.set(batch_id, [...(machineNames.get(batch_id) ?? []), machine_name]);
+        }
 
-          return rows.map((row): ActionBatch => ({
-            id: row.id,
-            kind: row.kind,
-            scope: row.scope_json,
-            requestedAt: row.requested_at,
-            finishedAt: row.finished_at,
-            counts: byBatch.get(row.id) ?? noRuns,
-            machineNames: machineNames.get(row.id) ?? [],
-          }));
-        });
+        return rows.map((row): ActionBatch => ({
+          id: row.id,
+          kind: row.kind,
+          scope: row.scope_json,
+          requestedAt: row.requested_at,
+          finishedAt: row.finished_at,
+          counts: byBatch.get(row.id) ?? noRuns,
+          machineNames: machineNames.get(row.id) ?? [],
+        }));
+      });
 
       /** Records the batch as finished once none of its runs is still going. */
       const settleBatch = (runId: RunId, at: DateTime.Utc) =>
@@ -234,38 +233,37 @@ export class ActivityStore extends Context.Service<
         ]);
 
       return {
-        createBatch: (batch) =>
-          sql
-            .withTransaction(
-              Effect.gen(function* () {
-                const requestedAt = DateTime.formatIso(batch.requestedAt);
-                const settled = batch.runs.every(({ outcome }) => outcome !== null);
+        createBatch: Effect.fn("ActivityStore.createBatch")(
+          function* (batch) {
+            const requestedAt = DateTime.formatIso(batch.requestedAt);
+            const settled = batch.runs.every(({ outcome }) => outcome !== null);
 
-                yield* sql`insert into action_batches ${sql.insert({
-                  id: batch.id,
-                  kind: batch.kind,
-                  scope_json: encodeScope(batch.scope),
-                  requested_at: requestedAt,
-                  finished_at: settled ? requestedAt : null,
-                })}`;
-                yield* sql`insert into action_runs ${sql.insert(
-                  batch.runs.map((run) => ({
-                    id: run.id,
-                    batch_id: batch.id,
-                    machine_id: run.machineId,
-                    machine_name: run.machineName,
-                    repository_key: run.repositoryKey,
-                    repository_name: run.repositoryName,
-                    path: run.path,
-                    request_json: encodeRequest(run.request),
-                    status: run.outcome?._tag ?? "Queued",
-                    outcome_json: run.outcome === null ? null : encodeOutcome(run.outcome),
-                    finished_at: run.outcome === null ? null : requestedAt,
-                  })),
-                )}`;
-              }),
-            )
-            .pipe(Effect.orDie),
+            yield* sql`insert into action_batches ${sql.insert({
+              id: batch.id,
+              kind: batch.kind,
+              scope_json: encodeScope(batch.scope),
+              requested_at: requestedAt,
+              finished_at: settled ? requestedAt : null,
+            })}`;
+            yield* sql`insert into action_runs ${sql.insert(
+              batch.runs.map((run) => ({
+                id: run.id,
+                batch_id: batch.id,
+                machine_id: run.machineId,
+                machine_name: run.machineName,
+                repository_key: run.repositoryKey,
+                repository_name: run.repositoryName,
+                path: run.path,
+                request_json: encodeRequest(run.request),
+                status: run.outcome?._tag ?? "Queued",
+                outcome_json: run.outcome === null ? null : encodeOutcome(run.outcome),
+                finished_at: run.outcome === null ? null : requestedAt,
+              })),
+            )}`;
+          },
+          sql.withTransaction,
+          Effect.orDie,
+        ),
         markStarted: ({ at, ...run }) =>
           sql`update action_runs set status = 'Running', started_at = ${DateTime.formatIso(at)}
               where ${unfinishedRun(run)} returning id`.pipe(
@@ -277,24 +275,23 @@ export class ActivityStore extends Context.Service<
             Effect.map((rows) => rows.length > 0),
             Effect.orDie,
           ),
-        markFinished: ({ outcome, output, at, ...run }) =>
-          sql
-            .withTransaction(
-              Effect.gen(function* () {
-                const updated = yield* sql`update action_runs
+        markFinished: Effect.fn("ActivityStore.markFinished")(
+          function* ({ outcome, output, at, ...run }) {
+            const updated = yield* sql`update action_runs
                   set status = ${outcome._tag}, outcome_json = ${encodeOutcome(outcome)},
                       output_json = ${encodeOutput(output)}, progress = null,
                       finished_at = ${DateTime.formatIso(at)}
                   where ${unfinishedRun(run)} returning id`;
 
-                if (updated.length > 0) {
-                  yield* settleBatch(run.runId, at);
-                }
+            if (updated.length > 0) {
+              yield* settleBatch(run.runId, at);
+            }
 
-                return updated.length > 0;
-              }),
-            )
-            .pipe(Effect.orDie),
+            return updated.length > 0;
+          },
+          sql.withTransaction,
+          Effect.orDie,
+        ),
         unfinished: (within) =>
           sql`select id, machine_id from action_runs where ${sql.and([
             sql.in("status", activeStatuses),
@@ -331,47 +328,46 @@ export class ActivityStore extends Context.Service<
           Effect.map((rows) => rows.map(toRun)),
           Effect.orDie,
         ),
-        activity: ({ filter, limit }) =>
-          Effect.gen(function* () {
-            const runConditions = [
-              ["machine_id", filter.machineIds],
-              ["repository_key", filter.repositoryKeys],
-              ["status", filter.outcomes],
-            ] as const;
-            const matching = runConditions
-              .filter(([, values]) => values.length > 0)
-              .map(([column, values]) => sql.in(column, values));
-            // One run must match every list, so failures on Studio skip a batch that failed elsewhere.
-            const batchRows = yield* sql`select * from action_batches as batch where ${
-              matching.length === 0
-                ? "1=1"
-                : sql`exists (select 1 from action_runs where batch_id = batch.id and ${sql.and(matching)})`
-            } order by requested_at desc limit ${limit + 1}`.pipe(Effect.flatMap(decodeBatches));
-            // Events have no repository or outcome, so those filters leave only batches.
-            const eventRows =
-              filter.repositoryKeys.length === 0 && filter.outcomes.length === 0
-                ? yield* sql`select at, event_json from hub_events where ${
-                    filter.machineIds.length === 0 ? "1=1" : sql.in("machine_id", filter.machineIds)
-                  } order by at desc, id desc limit ${limit + 1}`.pipe(Effect.flatMap(decodeEvents))
-                : [];
-            const batches = yield* summarise(batchRows);
-            const entries: Array<ActivityEntry> = [
-              ...batches.map((batch) => ({ _tag: "Batch" as const, batch })),
-              ...eventRows.map(({ at, event_json }) => ({
-                _tag: "Event" as const,
-                at,
-                event: event_json,
-              })),
-            ];
-            const at = (entry: ActivityEntry) =>
-              DateTime.toEpochMillis(entry._tag === "Batch" ? entry.batch.requestedAt : entry.at);
+        activity: Effect.fn("ActivityStore.activity")(function* ({ filter, limit }) {
+          const runConditions = [
+            ["machine_id", filter.machineIds],
+            ["repository_key", filter.repositoryKeys],
+            ["status", filter.outcomes],
+          ] as const;
+          const matching = runConditions
+            .filter(([, values]) => values.length > 0)
+            .map(([column, values]) => sql.in(column, values));
+          // One run must match every list, so failures on Studio skip a batch that failed elsewhere.
+          const batchRows = yield* sql`select * from action_batches as batch where ${
+            matching.length === 0
+              ? "1=1"
+              : sql`exists (select 1 from action_runs where batch_id = batch.id and ${sql.and(matching)})`
+          } order by requested_at desc limit ${limit + 1}`.pipe(Effect.flatMap(decodeBatches));
+          // Events have no repository or outcome, so those filters leave only batches.
+          const eventRows =
+            filter.repositoryKeys.length === 0 && filter.outcomes.length === 0
+              ? yield* sql`select at, event_json from hub_events where ${
+                  filter.machineIds.length === 0 ? "1=1" : sql.in("machine_id", filter.machineIds)
+                } order by at desc, id desc limit ${limit + 1}`.pipe(Effect.flatMap(decodeEvents))
+              : [];
+          const batches = yield* summarise(batchRows);
+          const entries: Array<ActivityEntry> = [
+            ...batches.map((batch) => ({ _tag: "Batch" as const, batch })),
+            ...eventRows.map(({ at, event_json }) => ({
+              _tag: "Event" as const,
+              at,
+              event: event_json,
+            })),
+          ];
+          const at = (entry: ActivityEntry) =>
+            DateTime.toEpochMillis(entry._tag === "Batch" ? entry.batch.requestedAt : entry.at);
 
-            entries.sort((left, right) => at(right) - at(left));
+          entries.sort((left, right) => at(right) - at(left));
 
-            return { entries: entries.slice(0, limit), hasMore: entries.length > limit };
-          }).pipe(Effect.orDie),
-        batch: (batchId) =>
-          Effect.gen(function* () {
+          return { entries: entries.slice(0, limit), hasMore: entries.length > limit };
+        }, Effect.orDie),
+        batch: Effect.fn("ActivityStore.batch")(
+          function* (batchId) {
             const rows = yield* sql`select * from action_batches where id = ${batchId}`.pipe(
               Effect.flatMap(decodeBatches),
             );
@@ -390,31 +386,31 @@ export class ActivityStore extends Context.Service<
               batch,
               runs: runs.map((row) => ({ run: toRun(row), output: row.output_json })),
             };
-          }).pipe(Effect.catchTag(["SqlError", "SchemaError"], Effect.die)),
-        recordEvent: (event) =>
-          Effect.gen(function* () {
-            const machineId = HubEvent.match(event, {
-              MachinePaired: ({ machineId: id }) => id,
-              MachineRemoved: ({ machineId: id }) => id,
-              MachineRenamed: ({ machineId: id }) => id,
-              DiscoveryRootsChanged: ({ machineId: id }) => id,
-              ProjectFolderCreated: ({ machineId: id }) => id,
-              PollingChanged: () => null,
-            });
+          },
+          Effect.catchTag(["SqlError", "SchemaError"], Effect.die),
+        ),
+        recordEvent: Effect.fn("ActivityStore.recordEvent")(function* (event) {
+          const machineId = HubEvent.match(event, {
+            MachinePaired: ({ machineId: id }) => id,
+            MachineRemoved: ({ machineId: id }) => id,
+            MachineRenamed: ({ machineId: id }) => id,
+            DiscoveryRootsChanged: ({ machineId: id }) => id,
+            ProjectFolderCreated: ({ machineId: id }) => id,
+            PollingChanged: () => null,
+          });
 
-            yield* sql`insert into hub_events ${sql.insert({
-              at: DateTime.formatIso(yield* DateTime.now),
-              machine_id: machineId,
-              event_json: encodeEvent(event),
-            })}`;
-          }).pipe(Effect.orDie),
-        prune: (cutoff) =>
-          Effect.gen(function* () {
-            const before = DateTime.formatIso(cutoff);
+          yield* sql`insert into hub_events ${sql.insert({
+            at: DateTime.formatIso(yield* DateTime.now),
+            machine_id: machineId,
+            event_json: encodeEvent(event),
+          })}`;
+        }, Effect.orDie),
+        prune: Effect.fn("ActivityStore.prune")(function* (cutoff) {
+          const before = DateTime.formatIso(cutoff);
 
-            yield* sql`delete from action_batches where requested_at < ${before}`;
-            yield* sql`delete from hub_events where at < ${before}`;
-          }).pipe(Effect.orDie),
+          yield* sql`delete from action_batches where requested_at < ${before}`;
+          yield* sql`delete from hub_events where at < ${before}`;
+        }, Effect.orDie),
       };
     }),
   );

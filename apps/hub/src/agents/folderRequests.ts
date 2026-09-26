@@ -44,41 +44,39 @@ export class FolderRequests extends Context.Service<
       const pending = new Map<string, Pending>();
 
       return {
-        create: (machineId, path) =>
-          Effect.gen(function* () {
-            const agent = (yield* SubscriptionRef.get(sessions.online)).get(machineId);
+        create: Effect.fn("FolderRequests.create")(function* (machineId, path) {
+          const agent = (yield* SubscriptionRef.get(sessions.online)).get(machineId);
 
-            if (agent === undefined) {
-              return failed("The machine is offline.");
-            }
+          if (agent === undefined) {
+            return failed("The machine is offline.");
+          }
 
-            if (!agent.capabilities.createsFolders) {
-              return failed("The machine's agent needs updating before it can create folders.");
-            }
+          if (!agent.capabilities.createsFolders) {
+            return failed("The machine's agent needs updating before it can create folders.");
+          }
 
-            const requestId = randomUUID();
-            const answer = yield* Deferred.make<FolderOutcome>();
+          const requestId = randomUUID();
+          const answer = yield* Deferred.make<FolderOutcome>();
 
-            pending.set(requestId, { machineId, answer });
+          pending.set(requestId, { machineId, answer });
 
-            return yield* sessions
-              .send(machineId, HubCommand.cases.CreateFolder.make({ requestId, path }))
-              .pipe(
-                Effect.flatMap((sent) =>
-                  sent === null
-                    ? Effect.succeed(failed("The machine is offline."))
-                    : Deferred.await(answer).pipe(
-                        Effect.timeoutOrElse({
-                          duration: answerTimeout,
-                          orElse: () =>
-                            Effect.succeed(failed("The machine didn't answer in time.")),
-                        }),
-                      ),
-                ),
-                // An answer that never comes, or comes too late, leaves nothing behind.
-                Effect.ensuring(Effect.sync(() => pending.delete(requestId))),
-              );
-          }),
+          return yield* sessions
+            .send(machineId, HubCommand.cases.CreateFolder.make({ requestId, path }))
+            .pipe(
+              Effect.flatMap((sent) =>
+                sent === null
+                  ? Effect.succeed(failed("The machine is offline."))
+                  : Deferred.await(answer).pipe(
+                      Effect.timeoutOrElse({
+                        duration: answerTimeout,
+                        orElse: () => Effect.succeed(failed("The machine didn't answer in time.")),
+                      }),
+                    ),
+              ),
+              // An answer that never comes, or comes too late, leaves nothing behind.
+              Effect.ensuring(Effect.sync(() => pending.delete(requestId))),
+            );
+        }),
         answer: ({ machineId, requestId, outcome }) =>
           Effect.suspend(() => {
             const request = pending.get(requestId);

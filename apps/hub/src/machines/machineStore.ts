@@ -156,26 +156,26 @@ export class MachineStore extends Context.Service<
             Effect.map((rows) => Option.fromNullishOr(rows[0]?.id)),
             Effect.orDie,
           ),
-        create: (machine) =>
-          Effect.gen(function* () {
-            const pairedAt = yield* now;
+        create: Effect.fn("MachineStore.create")(function* (machine) {
+          const pairedAt = yield* now;
 
-            yield* sql`insert into machines ${sql.insert({
-              id: machine.id,
-              token_hash: machine.tokenHash,
-              info_json: encodeInfo(machine.info),
-              discovery_roots_json: encodeRoots(machine.discoveryRoots),
-              paired_at: pairedAt,
-            })}`;
-          }).pipe(Effect.orDie),
-        recordConnection: ({ machineId, info }) =>
-          Effect.gen(function* () {
-            yield* sql`update machines set info_json = ${encodeInfo(info)}, last_seen_at = ${yield* now} where id = ${machineId}`;
-          }).pipe(Effect.orDie),
-        recordSeen: (id) =>
-          Effect.gen(function* () {
-            yield* sql`update machines set last_seen_at = ${yield* now} where id = ${id}`;
-          }).pipe(Effect.orDie),
+          yield* sql`insert into machines ${sql.insert({
+            id: machine.id,
+            token_hash: machine.tokenHash,
+            info_json: encodeInfo(machine.info),
+            discovery_roots_json: encodeRoots(machine.discoveryRoots),
+            paired_at: pairedAt,
+          })}`;
+        }, Effect.orDie),
+        recordConnection: Effect.fn("MachineStore.recordConnection")(function* ({
+          machineId,
+          info,
+        }) {
+          yield* sql`update machines set info_json = ${encodeInfo(info)}, last_seen_at = ${yield* now} where id = ${machineId}`;
+        }, Effect.orDie),
+        recordSeen: Effect.fn("MachineStore.recordSeen")(function* (id) {
+          yield* sql`update machines set last_seen_at = ${yield* now} where id = ${id}`;
+        }, Effect.orDie),
         recordScan: ({ machineId, kind, completedAt }) => {
           const at = DateTime.formatIso(completedAt);
 

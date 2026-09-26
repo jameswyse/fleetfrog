@@ -1,6 +1,16 @@
 import { randomUUID } from "node:crypto";
 
-import { Context, DateTime, Duration, Effect, Layer, Queue, Stream, SubscriptionRef } from "effect";
+import {
+  Clock,
+  Context,
+  DateTime,
+  Duration,
+  Effect,
+  Layer,
+  Queue,
+  Stream,
+  SubscriptionRef,
+} from "effect";
 
 import {
   HubCommand,
@@ -141,7 +151,7 @@ export class AgentSessions extends Context.Service<
 
       // A sleeping or unplugged machine never closes its socket, so silence ends the session.
       yield* Effect.gen(function* () {
-        const cutoff = Date.now() - heartbeatTimeoutSeconds * 1000;
+        const cutoff = (yield* Clock.currentTimeMillis) - heartbeatTimeoutSeconds * 1000;
 
         for (const [machineId, session] of sessions) {
           if (session.lastHeartbeatAt < cutoff) {
@@ -156,38 +166,37 @@ export class AgentSessions extends Context.Service<
 
       return {
         online,
-        connect: ({ machineId, capabilities }) =>
-          Effect.gen(function* () {
-            // Registration and its release are one step, so no interruption can leave a session
-            // registered without the finaliser that removes it.
-            const session = yield* Effect.acquireRelease(
-              Effect.gen(function* () {
-                yield* disconnect(machineId);
+        connect: Effect.fn("AgentSessions.connect")(function* ({ machineId, capabilities }) {
+          // Registration and its release are one step, so no interruption can leave a session
+          // registered without the finaliser that removes it.
+          const session = yield* Effect.acquireRelease(
+            Effect.gen(function* () {
+              yield* disconnect(machineId);
 
-                const since = yield* DateTime.now;
-                const registered: Session = {
-                  id: randomUUID(),
-                  since,
-                  capabilities,
-                  commands: yield* Queue.unbounded<HubCommand, Cause.Done>(),
-                  lastHeartbeatAt: DateTime.toEpochMillis(since),
-                };
+              const since = yield* DateTime.now;
+              const registered: Session = {
+                id: randomUUID(),
+                since,
+                capabilities,
+                commands: yield* Queue.unbounded<HubCommand, Cause.Done>(),
+                lastHeartbeatAt: DateTime.toEpochMillis(since),
+              };
 
-                sessions.set(machineId, registered);
+              sessions.set(machineId, registered);
 
-                return registered;
-              }),
-              (registered) =>
-                sessions.get(machineId) === registered
-                  ? disconnect(machineId).pipe(Effect.andThen(machines.recordSeen(machineId)))
-                  : Queue.end(registered.commands).pipe(Effect.asVoid),
-            );
+              return registered;
+            }),
+            (registered) =>
+              sessions.get(machineId) === registered
+                ? disconnect(machineId).pipe(Effect.andThen(machines.recordSeen(machineId)))
+                : Queue.end(registered.commands).pipe(Effect.asVoid),
+          );
 
-            yield* publishOnline;
-            yield* reconfigure(machineId);
+          yield* publishOnline;
+          yield* reconfigure(machineId);
 
-            return Stream.fromQueue(session.commands);
-          }),
+          return Stream.fromQueue(session.commands);
+        }),
         reconfigure,
         advertise: ({ machineId, capabilities }) =>
           Effect.suspend(() => {
@@ -211,14 +220,13 @@ export class AgentSessions extends Context.Service<
                   Effect.map((offered) => (offered ? session.id : null)),
                 );
           }),
-        heartbeat: (machineId) =>
-          Effect.sync(() => {
-            const session = sessions.get(machineId);
+        heartbeat: Effect.fnUntraced(function* (machineId) {
+          const session = sessions.get(machineId);
 
-            if (session !== undefined) {
-              session.lastHeartbeatAt = Date.now();
-            }
-          }),
+          if (session !== undefined) {
+            session.lastHeartbeatAt = yield* Clock.currentTimeMillis;
+          }
+        }),
         refresh: (machineIds) =>
           Effect.forEach(
             machineIds === "all"
