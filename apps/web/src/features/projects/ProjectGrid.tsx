@@ -40,6 +40,14 @@ function columnBackground(machine: Machine): string {
 const columnWidth = "w-52";
 
 /**
+ * The repository column grows with its longest name, up to a limit, and gives that width back
+ * before the grid scrolls sideways. The name's grid track lets it shrink to nothing, so only the
+ * minimum width holds the column open when space is short.
+ */
+const nameColumnWidth = "min-w-60 max-w-sm";
+const shrinkableName = "grid min-w-0 grid-cols-[minmax(0,max-content)]";
+
+/**
  * Every cell is at least two lines tall, so rows line up whether or not a cell has a second line.
  * Cells are 1px tall to start with, which a table grows to the row's height, so their contents can
  * fill the row with a full height.
@@ -83,7 +91,7 @@ function MachineHeader({ fleet, machine }: { readonly fleet: Fleet; readonly mac
   return (
     <th
       scope="col"
-      className={`border-b border-line p-0 text-start align-bottom font-normal ${columnBackground(machine)}`}
+      className={`border-b border-line p-0 text-start align-middle font-normal ${columnBackground(machine)}`}
     >
       <div className={`flex ${columnWidth} items-center gap-2 px-3 py-2`}>
         <span
@@ -130,8 +138,10 @@ function MatrixCell({
     const cloning = activeCloneFor(runs, { machineId: machine.id, repositoryKey: repository.key });
 
     return (
-      <td className={`border-b border-line p-0 align-top ${background}`}>
-        <div className={`${cellHeight} ${columnWidth} px-3 py-2 text-sm text-ink-muted`}>
+      <td className={`border-b border-line p-0 align-middle ${background}`}>
+        <div
+          className={`flex ${cellHeight} ${columnWidth} items-center px-3 py-2 text-sm text-ink-muted`}
+        >
           {cloning !== undefined && (
             <span className="flex text-xs">
               <RunStateText run={cloning} length="short" />
@@ -160,7 +170,7 @@ function MatrixCell({
 
   return (
     <td
-      className={`h-px border-b border-line p-0 align-top ${cell.problem === null ? background : "bg-danger-soft"}`}
+      className={`h-px border-b border-line p-0 align-middle ${cell.problem === null ? background : "bg-danger-soft"}`}
     >
       <button
         type="button"
@@ -259,7 +269,7 @@ export function ProjectGrid({
           <tr>
             <th
               scope="col"
-              className="sticky start-0 z-[3] border-e border-b border-line bg-surface px-4 py-2 text-start align-bottom font-semibold"
+              className="sticky start-0 z-[3] border-e border-b border-line bg-surface px-4 py-2 text-start align-middle font-semibold"
             >
               Repository
             </th>
@@ -284,9 +294,9 @@ export function ProjectGrid({
               <tr key={repository.key}>
                 <th
                   scope="row"
-                  className={`sticky start-0 z-[1] border-e border-b border-line p-0 text-start align-top font-medium ${rowSelected ? selectedRowBackground : "bg-surface"}`}
+                  className={`sticky start-0 z-[1] h-px border-e border-b border-line p-0 text-start align-middle font-medium ${rowSelected ? selectedRowBackground : "bg-surface"}`}
                 >
-                  <div className="flex w-60 items-center gap-1 pe-2">
+                  <div className={`flex h-full ${nameColumnWidth} items-center gap-1 pe-2`}>
                     <button
                       type="button"
                       data-cell={`${row}:0`}
@@ -294,10 +304,12 @@ export function ProjectGrid({
                       aria-current={rowSelected ? "true" : undefined}
                       onClick={() => onSelect(rowSelection, "Push")}
                       title={identity}
-                      className={`flex min-w-0 flex-1 items-center gap-2 px-4 py-2 text-start hover:underline aria-[current=true]:text-accent ${rowSelected ? "outline-hidden" : focusRing}`}
+                      className={`flex min-w-0 flex-1 items-center gap-2 self-stretch px-4 py-2 text-start hover:underline aria-[current=true]:text-accent ${rowSelected ? "outline-hidden" : focusRing}`}
                     >
                       <HostIcon host={host} className="text-ink-muted" />
-                      <span className="min-w-0 truncate">{repository.name}</span>
+                      <span className={shrinkableName}>
+                        <span className="truncate">{repository.name}</span>
+                      </span>
                     </button>
                     <RepositoryActions fleet={fleet} repository={repository} />
                   </div>
