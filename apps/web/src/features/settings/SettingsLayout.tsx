@@ -3,7 +3,12 @@ import { LayersIcon, PlusIcon, RefreshCwIcon } from "lucide-react";
 
 import { knownFleet, useHub } from "@/rpc/hubConnection.ts";
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
-import { SidebarLayout, sidebarLinkClass } from "@/ui/SidebarLayout.tsx";
+import {
+  SidebarLayout,
+  sidebarLinkClass,
+  sidebarSubmenuClass,
+  sidebarSubmenuItemClass,
+} from "@/ui/SidebarLayout.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 /** The machines in the fleet, nested under it, then a way to add one. */
@@ -12,12 +17,12 @@ function MachineLinks() {
   const machines = knownFleet(hub)?.machines ?? [];
 
   return (
-    <ul className="mt-0.5 space-y-0.5 ps-4">
+    <ul className={sidebarSubmenuClass}>
       {machines.map((machine) => {
         const online = machine.connection._tag === "Online";
 
         return (
-          <li key={machine.id}>
+          <li key={machine.id} className={sidebarSubmenuItemClass}>
             <Link
               to="/settings/fleet/$machineId"
               params={{ machineId: machine.id }}
@@ -34,7 +39,7 @@ function MachineLinks() {
           </li>
         );
       })}
-      <li>
+      <li className={sidebarSubmenuItemClass}>
         <Link to="/settings/fleet/pair" className={sidebarLinkClass}>
           <PlusIcon />
           Pair a machine

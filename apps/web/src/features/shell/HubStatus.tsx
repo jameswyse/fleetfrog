@@ -5,7 +5,7 @@ export function HubStatus() {
   const hub = useHub();
   const [label, tone] = {
     Connecting: ["Connecting to hub…", "bg-ink-muted"],
-    Live: ["Live", "bg-clean"],
+    Live: ["Connected", "bg-clean"],
     Reconnecting: ["Hub unreachable, retrying", "bg-danger"],
   }[hub._tag];
 
