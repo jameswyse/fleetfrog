@@ -1,5 +1,6 @@
-import { FileState } from "@fleetfrog/protocol/domain/checkout";
 import { Schema } from "effect";
+
+import { FileState } from "@fleetfrog/protocol/domain/checkout";
 
 import type { ChangedFile, Head } from "@fleetfrog/protocol/domain/checkout";
 

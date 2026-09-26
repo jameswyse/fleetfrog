@@ -1,6 +1,7 @@
-import { defaultPollingSettings, PollingSettings } from "@fleetfrog/protocol/domain/polling";
 import { Context, Effect, Layer, Schema, SubscriptionRef } from "effect";
 import { SqlClient } from "effect/unstable/sql";
+
+import { defaultPollingSettings, PollingSettings } from "@fleetfrog/protocol/domain/polling";
 
 import { JsonColumn } from "../persistence/database.ts";
 

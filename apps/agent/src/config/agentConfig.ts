@@ -2,8 +2,9 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 
-import { MachineId } from "@fleetfrog/protocol/domain/machine";
 import { Effect, Option, Schema } from "effect";
+
+import { MachineId } from "@fleetfrog/protocol/domain/machine";
 
 /** What pairing leaves behind: where the hub is, how to recognise it and how to prove who we are. */
 export const AgentConfig = Schema.Struct({

@@ -1,11 +1,12 @@
 import { Connection } from "@fleetfrog/protocol/domain/fleet";
 import { repositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
+import type { DateTime } from "effect";
+
 import type { Fleet, Machine, MachineCheckout, Repository } from "@fleetfrog/protocol/domain/fleet";
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 import type { PollingSettings } from "@fleetfrog/protocol/domain/polling";
 import type { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
-import type { DateTime } from "effect";
 
 import type { MachineRecord } from "../machines/machineStore.ts";
 

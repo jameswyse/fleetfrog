@@ -1,8 +1,9 @@
 import { stat } from "node:fs/promises";
 import path from "node:path";
 
-import { RepositoryIdentity } from "@fleetfrog/protocol/domain/repositoryIdentity";
 import { DateTime, Effect, Option } from "effect";
+
+import { RepositoryIdentity } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
 import { runGit } from "../process/runCommand.ts";
 import { branchFormat, parseBranches } from "./parseBranches.ts";

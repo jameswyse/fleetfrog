@@ -1,7 +1,8 @@
-import { Checkout } from "@fleetfrog/protocol/domain/checkout";
-import { MachineCheckout } from "@fleetfrog/protocol/domain/fleet";
 import { Context, Effect, Layer, Schema } from "effect";
 import { SqlClient } from "effect/unstable/sql";
+
+import { Checkout } from "@fleetfrog/protocol/domain/checkout";
+import { MachineCheckout } from "@fleetfrog/protocol/domain/fleet";
 
 import { JsonColumn } from "../persistence/database.ts";
 

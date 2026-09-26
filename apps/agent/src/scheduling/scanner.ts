@@ -1,8 +1,9 @@
 import { existsSync } from "node:fs";
 
+import { DateTime, Effect, Option, Schema, Semaphore } from "effect";
+
 import { ScanReport } from "@fleetfrog/protocol/agent/rpcs";
 import { Checkout, CheckoutStatus } from "@fleetfrog/protocol/domain/checkout";
-import { DateTime, Effect, Option, Schema, Semaphore } from "effect";
 
 import { discoverCheckouts } from "../discovery/discoverCheckouts.ts";
 import { readGitStatus } from "../git/readCheckout.ts";

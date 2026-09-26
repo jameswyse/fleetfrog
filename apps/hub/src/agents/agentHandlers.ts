@@ -1,5 +1,6 @@
-import { AgentRpcs, CurrentMachine, ScanReport } from "@fleetfrog/protocol/agent/rpcs";
 import { Effect, Stream } from "effect";
+
+import { AgentRpcs, CurrentMachine, ScanReport } from "@fleetfrog/protocol/agent/rpcs";
 
 import { CheckoutStore } from "../catalogue/checkoutStore.ts";
 import { FleetFeed } from "../catalogue/fleetFeed.ts";

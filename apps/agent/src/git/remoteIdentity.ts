@@ -1,5 +1,6 @@
-import { RepositoryIdentity } from "@fleetfrog/protocol/domain/repositoryIdentity";
 import { Option } from "effect";
+
+import { RepositoryIdentity } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
 const scpLikeRemote = /^(?:[^@/]+@)?(?<host>[^:/]+):(?!\/)(?<path>.+)$/;
 const trailingGitSuffix = /\.git\/?$/;

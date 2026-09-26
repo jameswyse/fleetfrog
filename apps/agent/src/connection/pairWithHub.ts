@@ -1,5 +1,6 @@
-import { decodePairingString } from "@fleetfrog/protocol/pairing/pairingString";
 import { Data, Effect, Option } from "effect";
+
+import { decodePairingString } from "@fleetfrog/protocol/pairing/pairingString";
 
 import { saveAgentConfig } from "../config/agentConfig.ts";
 import { readMachineInfo, suggestDiscoveryRoots } from "../machine/machineInfo.ts";

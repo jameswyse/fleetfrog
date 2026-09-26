@@ -2,11 +2,12 @@ import { createServer as createHttpServer } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
 
 import { NodeHttpServer } from "@effect/platform-node";
-import { AgentRpcs } from "@fleetfrog/protocol/agent/rpcs";
-import { PairingRpcs } from "@fleetfrog/protocol/pairing/rpcs";
 import { Effect, Layer } from "effect";
 import { HttpRouter } from "effect/unstable/http";
 import { RpcSerialization, RpcServer } from "effect/unstable/rpc";
+
+import { AgentRpcs } from "@fleetfrog/protocol/agent/rpcs";
+import { PairingRpcs } from "@fleetfrog/protocol/pairing/rpcs";
 
 import { HubConfig } from "../hubConfig.ts";
 import { AgentCertificate } from "../pairing/agentCertificate.ts";

@@ -1,8 +1,9 @@
 import { createHash, randomBytes } from "node:crypto";
 
+import { Context, DateTime, Duration, Effect, Layer } from "effect";
+
 import { PairingOffer } from "@fleetfrog/protocol/dashboard/rpcs";
 import { InvalidPairingCode } from "@fleetfrog/protocol/pairing/rpcs";
-import { Context, DateTime, Duration, Effect, Layer } from "effect";
 
 import { HubConfig } from "../hubConfig.ts";
 import { AgentCertificate } from "./agentCertificate.ts";

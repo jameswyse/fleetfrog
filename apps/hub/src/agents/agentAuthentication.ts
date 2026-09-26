@@ -1,6 +1,7 @@
-import { AgentAuthentication, CurrentMachine, Unauthorised } from "@fleetfrog/protocol/agent/rpcs";
 import { Effect, Layer, Option } from "effect";
 import { Headers } from "effect/unstable/http";
+
+import { AgentAuthentication, CurrentMachine, Unauthorised } from "@fleetfrog/protocol/agent/rpcs";
 
 import { MachineStore } from "../machines/machineStore.ts";
 import { hashAgentToken } from "../pairing/agentTokens.ts";

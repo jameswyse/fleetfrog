@@ -1,7 +1,8 @@
-import { MachineNotFound } from "@fleetfrog/protocol/dashboard/rpcs";
-import { MachineId, MachineInfo } from "@fleetfrog/protocol/domain/machine";
 import { Context, DateTime, Effect, Layer, Option, Schema } from "effect";
 import { SqlClient } from "effect/unstable/sql";
+
+import { MachineNotFound } from "@fleetfrog/protocol/dashboard/rpcs";
+import { MachineId, MachineInfo } from "@fleetfrog/protocol/domain/machine";
 
 import { JsonColumn } from "../persistence/database.ts";
 

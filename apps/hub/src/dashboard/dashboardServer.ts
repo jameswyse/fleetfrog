@@ -1,10 +1,11 @@
 import { createServer } from "node:http";
 
 import { NodeHttpServer } from "@effect/platform-node";
-import { DashboardRpcs } from "@fleetfrog/protocol/dashboard/rpcs";
 import { Effect, Layer } from "effect";
 import { HttpRouter, HttpStaticServer } from "effect/unstable/http";
 import { RpcSerialization, RpcServer } from "effect/unstable/rpc";
+
+import { DashboardRpcs } from "@fleetfrog/protocol/dashboard/rpcs";
 
 import { HubConfig } from "../hubConfig.ts";
 import { DashboardHandlers } from "./dashboardHandlers.ts";

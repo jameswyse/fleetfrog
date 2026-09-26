@@ -1,7 +1,8 @@
 import { describe, expect, it } from "@effect/vitest";
+import { DateTime } from "effect";
+
 import { MachineId } from "@fleetfrog/protocol/domain/machine";
 import { defaultPollingSettings } from "@fleetfrog/protocol/domain/polling";
-import { DateTime } from "effect";
 
 import { buildFleet } from "./buildFleet.ts";
 

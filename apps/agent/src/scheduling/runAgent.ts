@@ -1,5 +1,6 @@
-import { HubCommand } from "@fleetfrog/protocol/agent/rpcs";
 import { Data, Duration, Effect, FiberHandle, Option, Stream } from "effect";
+
+import { HubCommand } from "@fleetfrog/protocol/agent/rpcs";
 
 import { loadAgentConfig } from "../config/agentConfig.ts";
 import { makeHubClient } from "../connection/hubClient.ts";

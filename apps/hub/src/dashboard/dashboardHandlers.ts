@@ -1,5 +1,6 @@
-import { DashboardRpcs, RefreshTarget } from "@fleetfrog/protocol/dashboard/rpcs";
 import { Effect, Stream } from "effect";
+
+import { DashboardRpcs, RefreshTarget } from "@fleetfrog/protocol/dashboard/rpcs";
 
 import { AgentSessions } from "../agents/agentSessions.ts";
 import { FleetFeed } from "../catalogue/fleetFeed.ts";

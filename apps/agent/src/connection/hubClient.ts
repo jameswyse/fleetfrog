@@ -1,9 +1,10 @@
 import { NodeHttpClient, NodeSocket } from "@effect/platform-node";
-import { AgentRpcs } from "@fleetfrog/protocol/agent/rpcs";
-import { PairingRpcs } from "@fleetfrog/protocol/pairing/rpcs";
 import { Data, Deferred, Effect, Layer } from "effect";
 import { RpcClient, RpcSerialization } from "effect/unstable/rpc";
 import { Socket } from "effect/unstable/socket";
+
+import { AgentRpcs } from "@fleetfrog/protocol/agent/rpcs";
+import { PairingRpcs } from "@fleetfrog/protocol/pairing/rpcs";
 
 import { pinnedTlsOptions } from "./hubTls.ts";
 

@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 
+import { Effect } from "effect";
+
 import { MachineId } from "@fleetfrog/protocol/domain/machine";
 import { PairingRpcs } from "@fleetfrog/protocol/pairing/rpcs";
-import { Effect } from "effect";
 
 import { FleetFeed } from "../catalogue/fleetFeed.ts";
 import { MachineStore } from "../machines/machineStore.ts";

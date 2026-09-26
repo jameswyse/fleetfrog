@@ -1,7 +1,8 @@
 import { homedir } from "node:os";
 
-import { repositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 import { DateTime, Duration, Effect, Option, Schema } from "effect";
+
+import { repositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
 import { runCommand, runGit } from "../process/runCommand.ts";
 

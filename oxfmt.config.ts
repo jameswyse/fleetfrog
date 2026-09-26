@@ -3,7 +3,7 @@ import { defineConfig } from "oxfmt";
 export default defineConfig({
   ignorePatterns: ["coverage", "dist", "apps/web/src/routeTree.gen.ts"],
   sortImports: {
-    internalPattern: ["@/", "#"],
+    internalPattern: ["@/", "@fleetfrog/", "#"],
     groups: [
       "value-builtin",
       "react-libs",

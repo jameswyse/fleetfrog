@@ -2,8 +2,9 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { homedir, hostname } from "node:os";
 
-import { GithubCli } from "@fleetfrog/protocol/domain/machine";
 import { Effect } from "effect";
+
+import { GithubCli } from "@fleetfrog/protocol/domain/machine";
 
 import packageJson from "../../package.json" with { type: "json" };
 import { expandHome } from "../discovery/discoverCheckouts.ts";

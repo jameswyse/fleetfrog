@@ -1,12 +1,14 @@
-import { HubCommand } from "@fleetfrog/protocol/agent/rpcs";
 import { Context, DateTime, Effect, Layer, Queue, Stream, SubscriptionRef } from "effect";
+
+import { HubCommand } from "@fleetfrog/protocol/agent/rpcs";
 
 import { DashboardPresence } from "../dashboard/dashboardPresence.ts";
 import { MachineStore } from "../machines/machineStore.ts";
 import { PollingStore } from "../settings/pollingStore.ts";
 
-import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 import type { Cause, Scope } from "effect";
+
+import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 
 interface Session {
   readonly since: DateTime.Utc;
