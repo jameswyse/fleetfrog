@@ -21,6 +21,10 @@ export function activeRunFor(
   );
 }
 
+function finishedAt(run: ActionRun): number {
+  return run.state._tag === "Finished" ? run.state.finishedAt.epochMilliseconds : 0;
+}
+
 /** The clone of a repository that is queued or running on a machine. */
 export function activeCloneFor(
   runs: RunsSnapshot,
@@ -34,14 +38,26 @@ export function activeCloneFor(
   );
 }
 
+/** The most recent finished clone of a repository onto a machine. */
+export function latestCloneFor(
+  runs: RunsSnapshot,
+  target: { readonly machineId: Machine["id"]; readonly repositoryKey: RepositoryKey },
+): ActionRun | undefined {
+  return runs.latest
+    .filter(
+      (run) =>
+        run.request._tag === "Clone" &&
+        run.machineId === target.machineId &&
+        run.repositoryKey === target.repositoryKey,
+    )
+    .toSorted((left, right) => finishedAt(right) - finishedAt(left))[0];
+}
+
 /** The most recent finished run on this checkout, including a fetch run from its clone. */
 export function latestRunFor(
   runs: RunsSnapshot,
   target: { readonly machineId: Machine["id"]; readonly checkout: Checkout },
 ): ActionRun | undefined {
-  const finishedAt = (run: ActionRun) =>
-    run.state._tag === "Finished" ? run.state.finishedAt.epochMilliseconds : 0;
-
   return runs.latest
     .filter(
       (run) =>

@@ -4,10 +4,11 @@ import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { RunActivity } from "../actions/RunActivity.tsx";
-import { activeCloneFor, activeRunFor } from "../actions/runLookup.ts";
+import { activeRunFor } from "../actions/runLookup.ts";
 import { CellContent } from "./CellContent.tsx";
 import { summariseCell } from "./cellSummary.ts";
 import { MachineActions } from "./MachineActions.tsx";
+import { MissingCell } from "./MissingCell.tsx";
 import { RepositoryActions } from "./RepositoryActions.tsx";
 
 import type { KeyboardEvent } from "react";
@@ -114,6 +115,7 @@ function MachineHeader({ fleet, machine }: { readonly fleet: Fleet; readonly mac
 }
 
 function MatrixCell({
+  fleet,
   repository,
   machine,
   runs,
@@ -122,6 +124,7 @@ function MatrixCell({
   rowSelected,
   onSelect,
 }: {
+  readonly fleet: Fleet;
   readonly repository: Repository;
   readonly machine: Machine;
   readonly runs: RunsSnapshot;
@@ -139,30 +142,15 @@ function MatrixCell({
   const offline = machine.connection._tag === "Offline";
 
   if (cell === null) {
-    const cloning = activeCloneFor(runs, { machineId: machine.id, repositoryKey: repository.key });
-
     return (
-      <td className={`border-b border-line p-0 align-middle ${background}`}>
-        <div
-          className={`flex ${cellHeight} ${columnWidth} items-center px-3 py-2 text-sm text-ink-muted`}
-        >
-          {cloning !== undefined && (
-            <span className="w-full min-w-0 text-xs">
-              <RunActivity run={cloning} layout="Stacked" />
-            </span>
-          )}
-          {cloning === undefined && machine.lastDiscoveryAt === null && (
-            <span className="italic">Not scanned</span>
-          )}
-          {cloning === undefined && machine.lastDiscoveryAt !== null && (
-            <>
-              <span aria-hidden="true">·</span>
-              <span className="sr-only">
-                {offline ? "Not on this machine at the last scan" : "Not on this machine"}
-              </span>
-            </>
-          )}
-        </div>
+      <td className={`h-px border-b border-line p-0 align-middle ${background}`}>
+        <MissingCell
+          fleet={fleet}
+          repository={repository}
+          machine={machine}
+          runs={runs}
+          className={`${cellHeight} ${columnWidth} ${focusRing}`}
+        />
       </td>
     );
   }
@@ -323,6 +311,7 @@ export function ProjectGrid({
                 {machines.map((machine, index) => (
                   <MatrixCell
                     key={machine.id}
+                    fleet={fleet}
                     repository={repository}
                     machine={machine}
                     runs={runs}

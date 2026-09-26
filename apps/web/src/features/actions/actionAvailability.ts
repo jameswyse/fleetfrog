@@ -1,4 +1,5 @@
 import { actionBlocker } from "@fleetfrog/protocol/domain/actionAvailability";
+import { suggestCloneDestination } from "@fleetfrog/protocol/domain/cloneDestination";
 import { pullBlocker } from "@fleetfrog/protocol/domain/pullEligibility";
 
 import { describeOutcome, describeSkip } from "./actionCopy.ts";
@@ -41,6 +42,50 @@ export function checkoutPaths(
         .map(({ checkout }) => checkout.path),
     ),
   );
+}
+
+/** Where a clone of a repository onto a machine goes with one click, or why it can't. */
+export type QuickClone =
+  | { readonly _tag: "Ready"; readonly destination: string }
+  | { readonly _tag: "Blocked"; readonly reason: string };
+
+/**
+ * A one-click clone uses the folder the clone dialog would suggest, and holds back wherever the
+ * dialog would ask for a choice or a fix first.
+ */
+export function quickClone(options: {
+  readonly fleet: Fleet;
+  readonly repository: Repository;
+  readonly machine: Machine;
+}): QuickClone {
+  const { fleet, repository, machine } = options;
+  const blocker = cloneBlocker(machine);
+
+  if (blocker !== null) {
+    return { _tag: "Blocked", reason: blocker };
+  }
+
+  // The hub clones from an origin one of the other checkouts has.
+  if (repository.checkouts.every(({ checkout }) => checkout.originUrl === null)) {
+    return { _tag: "Blocked", reason: "No remote to clone it from" };
+  }
+
+  const suggestion = suggestCloneDestination({
+    repository,
+    target: machine,
+    machines: fleet.machines,
+    occupied: checkoutPaths(fleet.repositories, machine.id),
+  });
+
+  if (suggestion === null) {
+    return { _tag: "Blocked", reason: "No free folder for it. Choose one in the clone dialog" };
+  }
+
+  if (suggestion.root.status === "Missing" || suggestion.root.status === "NotFolder") {
+    return { _tag: "Blocked", reason: `Its project folder ${suggestion.root.path} doesn't exist` };
+  }
+
+  return { _tag: "Ready", destination: suggestion.destination };
 }
 
 /** Why a pull would skip this checkout as last scanned, or null when it would go ahead. */
