@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 
-import { parseGitVersion, parseOsRelease } from "./systemInfo.ts";
+import { parseGitVersion, parseOsRelease, parseVmStat } from "./systemInfo.ts";
 
 describe("system info parsing", () => {
   it("reads the distribution's pretty name, quoted or not", () => {
@@ -15,5 +15,24 @@ describe("system info parsing", () => {
     expect(parseGitVersion("git version 2.53.0\n")).toBe("2.53.0");
     expect(parseGitVersion("git version 2.50.1 (Apple Git-155)\n")).toBe("2.50.1");
     expect(parseGitVersion("command not found")).toBeNull();
+  });
+
+  it("counts app, wired and compressed memory from vm_stat, leaving out caches", () => {
+    const output = [
+      "Mach Virtual Memory Statistics: (page size of 16384 bytes)",
+      "Pages free:                                     7022.",
+      "Pages active:                                 379324.",
+      "Pages inactive:                               381784.",
+      "Pages wired down:                             153098.",
+      "Pages purgeable:                               13391.",
+      '"Translation faults":                     2229674483.',
+      "File-backed pages:                            363324.",
+      "Anonymous pages:                              398384.",
+      "Pages occupied by compressor:                  93297.",
+    ].join("\n");
+
+    // (398384 - 13391 + 153098 + 93297) pages of 16 KiB.
+    expect(parseVmStat(output)).toBe(631_388 * 16_384);
+    expect(parseVmStat("Pages free: 12.")).toBeNull();
   });
 });

@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { knownFleet, requestHub, useHub } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
 import { Dialog } from "@/ui/Dialog.tsx";
+import { ExternalIcon } from "@/ui/icons.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { SidebarPage } from "@/ui/SidebarLayout.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
@@ -13,7 +14,7 @@ import { SettingsRow, SettingsSection, SideDetail, SidePanel } from "../Settings
 import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
 import { ActionsText, ConnectionStatus, repositoryCount } from "./MachineStatus.tsx";
 import { ProjectFolders } from "./ProjectFolders.tsx";
-import { describeDisk, describeLoad, formatMemory } from "./systemFormat.ts";
+import { SystemPanel } from "./SystemPanel.tsx";
 
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 
@@ -79,6 +80,7 @@ function RemoveMachineDialog({
 /** Where the machine stands now, for the side column. */
 function StatusPanel({ fleet, machine }: { readonly fleet: Fleet; readonly machine: Machine }) {
   const repositories = repositoryCount(fleet, machine);
+  const { githubCli } = machine.info;
 
   return (
     <SidePanel title="Status">
@@ -102,67 +104,24 @@ function StatusPanel({ fleet, machine }: { readonly fleet: Fleet; readonly machi
         <ActionsText machine={machine} />
       </SideDetail>
       <SideDetail term="GitHub CLI">
-        {machine.info.githubCli._tag === "Available"
-          ? `Signed in as ${machine.info.githubCli.login}`
-          : "Not available"}
+        {githubCli._tag === "Available" ? (
+          <>
+            Signed in as{" "}
+            <a
+              href={`https://github.com/${encodeURIComponent(githubCli.login)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-0.5 text-sync underline-offset-2 hover:underline"
+            >
+              {githubCli.login}
+              <ExternalIcon className="size-3.5" />
+              <span className="sr-only"> (opens in a new tab)</span>
+            </a>
+          </>
+        ) : (
+          "Not available"
+        )}
       </SideDetail>
-      <SideDetail term="Paired">
-        <RelativeTime at={machine.pairedAt} />
-      </SideDetail>
-    </SidePanel>
-  );
-}
-
-/** Hardware, software and resources as the agent last reported them, for the side column. */
-function SystemPanel({ machine }: { readonly machine: Machine }) {
-  const { system } = machine.info;
-  const { usage } = machine;
-
-  if (system === null) {
-    return (
-      <SidePanel title="System">
-        <SideDetail term="Not available">
-          This machine's agent is too old to report its system. Update the agent to see its
-          processor, memory, disk and versions.
-        </SideDetail>
-      </SidePanel>
-    );
-  }
-
-  return (
-    <SidePanel title="System">
-      <SideDetail term="Operating system">
-        {system.os} <span className="text-ink-muted">· {system.architecture}</span>
-      </SideDetail>
-      <SideDetail term="Kernel">{system.kernel}</SideDetail>
-      <SideDetail term="Processor">
-        {system.cpu.model}{" "}
-        <span className="text-ink-muted">
-          · {system.cpu.cores} {system.cpu.cores === 1 ? "core" : "cores"}
-        </span>
-      </SideDetail>
-      <SideDetail term="Memory">{formatMemory(system.memoryBytes)}</SideDetail>
-      <SideDetail term="Disk">
-        {usage === null || usage.disk === null ? "Not reported yet" : describeDisk(usage.disk)}
-      </SideDetail>
-      <SideDetail term="Load average (1, 5 and 15 minutes)">
-        {usage === null ? "Not reported yet" : describeLoad(usage.loadAverage)}
-      </SideDetail>
-      <SideDetail term="Last restarted">
-        <RelativeTime at={system.bootedAt} />
-      </SideDetail>
-      <SideDetail term="Versions">
-        Agent {machine.info.agentVersion} · Node {system.versions.node}
-        {system.versions.git !== null && ` · Git ${system.versions.git}`}
-      </SideDetail>
-      {usage !== null && (
-        <p className="text-xs text-ink-muted">
-          {machine.connection._tag === "Offline"
-            ? "Disk and load last measured"
-            : "Disk and load measured"}{" "}
-          <RelativeTime at={usage.sampledAt} />
-        </p>
-      )}
     </SidePanel>
   );
 }

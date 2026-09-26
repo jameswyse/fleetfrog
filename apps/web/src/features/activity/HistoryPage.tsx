@@ -5,6 +5,7 @@ import { DateTime } from "effect";
 
 import { useHubStream } from "@/rpc/useHubStream.ts";
 import { Button } from "@/ui/Button.tsx";
+import { formatDuration } from "@/ui/formatDuration.ts";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { SidebarPage } from "@/ui/SidebarLayout.tsx";
 import { Spinner } from "@/ui/Spinner.tsx";
@@ -12,7 +13,6 @@ import { activityLimit, activityPageSize } from "@fleetfrog/protocol/dashboard/r
 import { activityRetentionDays, HubEvent } from "@fleetfrog/protocol/domain/activity";
 
 import { describeBatch, describeEvent } from "../actions/actionCopy.ts";
-import { formatDuration } from "./formatDuration.ts";
 import { RunCountChips } from "./RunCountChips.tsx";
 
 import type {

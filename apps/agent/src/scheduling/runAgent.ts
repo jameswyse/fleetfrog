@@ -166,7 +166,7 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
     );
   };
 
-  yield* readSystemUsage.pipe(
+  yield* readSystemUsage(info.platform).pipe(
     Effect.flatMap((usage) => client.ReportUsage({ usage })),
     Effect.catchCause((cause) => Effect.logWarning("Could not report system usage", cause)),
     Effect.andThen(Effect.sleep(usageInterval)),

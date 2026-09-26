@@ -9,6 +9,8 @@ import type { Platform, SystemInfo, SystemUsage } from "@fleetfrog/protocol/doma
 
 const osReleaseName = /^PRETTY_NAME=(?<value>.*)$/m;
 const gitVersionNumber = /git version (?<version>\S+)/;
+const vmStatPageSize = /page size of (?<bytes>\d+) bytes/;
+const vmStatCount = /^"?(?<name>[^":\n]+)"?:\s+(?<count>\d+)\.$/gm;
 
 /** The distribution's own name for itself from `/etc/os-release`, such as "Ubuntu 26.04 LTS". */
 export function parseOsRelease(text: string): string | null {
@@ -20,6 +22,40 @@ export function parseOsRelease(text: string): string | null {
 /** The version number from `git --version`, such as "2.53.0" from "git version 2.53.0". */
 export function parseGitVersion(output: string): string | null {
   return gitVersionNumber.exec(output)?.groups?.version ?? null;
+}
+
+/**
+ * Memory in use from `vm_stat`, counted as Activity Monitor does: app memory (anonymous pages that
+ * can't be purged), wired memory and the compressor's pages. File caches don't count.
+ */
+export function parseVmStat(output: string): number | null {
+  const pageBytes = Number(vmStatPageSize.exec(output)?.groups?.bytes ?? Number.NaN);
+  const pages = new Map<string, number>();
+
+  for (const match of output.matchAll(vmStatCount)) {
+    const { name, count } = match.groups ?? {};
+
+    if (name !== undefined && count !== undefined) {
+      pages.set(name, Number(count));
+    }
+  }
+
+  const anonymous = pages.get("Anonymous pages");
+  const purgeable = pages.get("Pages purgeable");
+  const wired = pages.get("Pages wired down");
+  const compressed = pages.get("Pages occupied by compressor");
+
+  if (
+    !Number.isFinite(pageBytes) ||
+    anonymous === undefined ||
+    purgeable === undefined ||
+    wired === undefined ||
+    compressed === undefined
+  ) {
+    return null;
+  }
+
+  return (Math.max(0, anonymous - purgeable) + wired + compressed) * pageBytes;
 }
 
 const readOsName = Effect.fn("readOsName")(function* (platform: Platform) {
@@ -47,7 +83,6 @@ export const readSystemInfo = Effect.fn("readSystemInfo")(function* (platform: P
 
   return {
     os: yield* readOsName(platform),
-    kernel: `${os.type()} ${os.release()}`,
     architecture: os.arch(),
     cpu: { model: os.cpus()[0]?.model.trim() ?? "Unknown", cores: os.availableParallelism() },
     memoryBytes: os.totalmem(),
@@ -56,8 +91,21 @@ export const readSystemInfo = Effect.fn("readSystemInfo")(function* (platform: P
   } satisfies SystemInfo;
 });
 
-/** Disk space for the home directory's file system and the load average, as of now. */
-export const readSystemUsage = Effect.gen(function* () {
+const readMemoryUsed = Effect.fn("readMemoryUsed")(function* (platform: Platform) {
+  if (platform === "darwin") {
+    // Free pages alone are a sliver on macOS, which keeps its caches full.
+    return yield* runTool("vm_stat", os.homedir(), []).pipe(
+      Effect.map(parseVmStat),
+      Effect.orElseSucceed(() => null),
+    );
+  }
+
+  // Node reads MemAvailable on Linux, which leaves out caches the kernel can reclaim.
+  return os.totalmem() - os.freemem();
+});
+
+/** Disk space for the home directory's file system, memory in use and the load average, now. */
+export const readSystemUsage = Effect.fn("readSystemUsage")(function* (platform: Platform) {
   const disk = yield* Effect.promise(() =>
     statfs(os.homedir()).then(
       (stats) => ({
@@ -72,6 +120,7 @@ export const readSystemUsage = Effect.gen(function* () {
 
   return {
     disk,
+    memoryUsedBytes: yield* readMemoryUsed(platform),
     loadAverage: [one, five, fifteen],
     sampledAt: yield* DateTime.now,
   } satisfies SystemUsage;

@@ -22,8 +22,6 @@ const Bytes = Schema.Finite.check(Schema.isGreaterThanOrEqualTo(0));
 export const SystemInfo = Schema.Struct({
   /** Such as "macOS 27.0" or "Ubuntu 26.04 LTS". */
   os: Schema.String,
-  /** Such as "Darwin 25.0.0". */
-  kernel: Schema.String,
   architecture: Schema.String,
   cpu: Schema.Struct({ model: Schema.String, cores: Count }),
   memoryBytes: Bytes,
@@ -36,6 +34,13 @@ export type SystemInfo = typeof SystemInfo.Type;
 export const SystemUsage = Schema.Struct({
   /** The file system holding the home directory. */
   disk: Schema.NullOr(Schema.Struct({ totalBytes: Bytes, freeBytes: Bytes })),
+  /**
+   * Memory in use, leaving out caches the system can reclaim, as Activity Monitor and `free` count
+   * it. Null when it can't be read, and from agents that predate it.
+   */
+  memoryUsedBytes: Schema.NullOr(Bytes).pipe(
+    Schema.withDecodingDefaultTypeKey(Effect.succeed(null)),
+  ),
   /** Over the last 1, 5 and 15 minutes. */
   loadAverage: Schema.Tuple([Schema.Finite, Schema.Finite, Schema.Finite]),
   sampledAt: Schema.DateTimeUtc,
