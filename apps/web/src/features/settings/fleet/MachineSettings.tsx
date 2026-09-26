@@ -301,7 +301,6 @@ function ActionsSection({ machine }: { readonly machine: Machine }) {
   );
 }
 
-/** One machine's configuration and actions, with its status and system beside them. */
 export function MachineSettings() {
   const { machineId } = useParams({ from: "/_app/settings/fleet/$machineId" });
   const hub = useHub();

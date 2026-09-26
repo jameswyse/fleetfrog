@@ -65,7 +65,7 @@ export const SystemInfo = Schema.Struct({
 });
 export type SystemInfo = typeof SystemInfo.Type;
 
-/** Measurements that drift while the machine runs, reported every minute. */
+/** Measurements that drift while the machine runs. */
 export const SystemUsage = Schema.Struct({
   /** The file system holding the home directory. */
   disk: Schema.NullOr(Schema.Struct({ totalBytes: Bytes, freeBytes: Bytes })),

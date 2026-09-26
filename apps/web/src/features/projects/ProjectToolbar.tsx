@@ -22,7 +22,6 @@ const filters: ReadonlyArray<{
   { value: "out-of-sync", label: "Out of sync", symbol: { text: "↑↓", className: "text-sync" } },
 ];
 
-/** Whether a key press belongs to something the person is typing in. */
 function isTyping(target: EventTarget | null): boolean {
   return (
     target instanceof HTMLElement &&
@@ -166,7 +165,6 @@ function FilterPicker({
   );
 }
 
-/** Search and filters on the left, the fleet-wide actions on the right. */
 export function ProjectToolbar({
   hub,
   repositories,

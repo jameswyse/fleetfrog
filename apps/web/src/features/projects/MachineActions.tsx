@@ -19,10 +19,7 @@ import type { ReactNode } from "react";
 
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 
-/**
- * A machine's menu: fetch, pull or rescan everything on it, or open its settings. The machine's
- * column header is the button that opens it.
- */
+/** A machine's menu, opened by its column header in the grid. */
 export function MachineActions({
   fleet,
   machine,

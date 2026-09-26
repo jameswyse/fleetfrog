@@ -8,7 +8,6 @@ import { hashAgentToken } from "../pairing/agentTokens.ts";
 
 const bearerPrefix = "Bearer ";
 
-/** Resolves the bearer token from the agent's WebSocket upgrade to a paired machine. */
 export const AgentAuthenticationLive = Layer.effect(AgentAuthentication)(
   Effect.gen(function* () {
     const machines = yield* MachineStore;

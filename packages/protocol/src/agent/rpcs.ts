@@ -85,15 +85,13 @@ export class AgentRpcs extends RpcGroup.make(
   Rpc.make("ReportAction", { payload: { runId: RunId, update: ActionUpdate } }),
   /** Answers a `CreateFolder` command. */
   Rpc.make("ReportFolder", { payload: { requestId: Schema.String, outcome: FolderOutcome } }),
-  /** Sent on connecting and every minute after. */
   Rpc.make("ReportUsage", { payload: { usage: SystemUsage } }),
   /**
-   * Sent every 15 seconds. The hub ends a connection that goes quiet, because a sleeping or
+   * Sent every `heartbeatSeconds`. The hub ends a connection that goes quiet, because a sleeping or
    * disconnected machine never closes its socket.
    */
   Rpc.make("Heartbeat"),
 ).middleware(AgentAuthentication) {}
 
 export const heartbeatSeconds = 15;
-/** Three missed heartbeats. */
-export const heartbeatTimeoutSeconds = 45;
+export const heartbeatTimeoutSeconds = 3 * heartbeatSeconds;

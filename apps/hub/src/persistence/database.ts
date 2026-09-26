@@ -20,7 +20,6 @@ const client = Layer.unwrap(
   }),
 );
 
-/** Brings any SQLite database up to the latest schema. */
 export const Migrations = SqliteMigrator.layer({
   loader: SqliteMigrator.fromRecord({
     "0001_initial": initial,
@@ -30,7 +29,6 @@ export const Migrations = SqliteMigrator.layer({
   }),
 });
 
-/** The hub's SQLite database, migrated to the latest schema. */
 export const Database = Migrations.pipe(Layer.provideMerge(client));
 
 /** A text column holding a JSON document of the given schema. */

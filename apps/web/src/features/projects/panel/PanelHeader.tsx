@@ -2,10 +2,7 @@ import { XIcon } from "lucide-react";
 
 import type { ReactNode } from "react";
 
-/**
- * The top of the side panel, pinned while the rest scrolls: the heading, which may be a breadcrumb,
- * a line under it, then the panel's menu and a close button if it closes.
- */
+/** The top of the side panel, pinned while the rest scrolls. */
 export function PanelHeader({
   headingId,
   title,

@@ -32,7 +32,6 @@ const actionEnvironment = {
   GCM_INTERACTIVE: "never",
 };
 
-/** Runs a command-line tool in a directory and returns its standard output. */
 export function runTool(
   tool:
     | "git"

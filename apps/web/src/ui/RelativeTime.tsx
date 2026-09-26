@@ -43,7 +43,7 @@ function subscribe(listener: () => void) {
   };
 }
 
-/** The current time in epoch milliseconds, updated every 15 seconds from the shared clock. */
+/** The current time in epoch milliseconds, updated on each tick of the shared clock. */
 export function useNow(): number {
   return useSyncExternalStore(subscribe, () => now);
 }

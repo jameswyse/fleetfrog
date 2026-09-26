@@ -171,7 +171,6 @@ export class ActivityStore extends Context.Service<
     }) => Effect.Effect<ActivityPage>;
     readonly batch: (batchId: BatchId) => Effect.Effect<BatchDetail, BatchNotFound>;
     readonly recordEvent: (event: HubEvent) => Effect.Effect<void>;
-    /** Deletes batches and events from before `cutoff`. */
     readonly prune: (cutoff: DateTime.Utc) => Effect.Effect<void>;
   }
 >()("fleetfrog/ActivityStore") {

@@ -8,10 +8,7 @@ import { Spinner } from "@/ui/Spinner.tsx";
 import { BatchDetailPanel } from "./BatchDetailPanel.tsx";
 import { HistoryFilters } from "./HistoryFilters.tsx";
 
-/**
- * Activity sits under the main header with its own sidebar: what is running now, then the history
- * with its filters. Moving between the two keeps the filters.
- */
+/** Moving between the running and history pages keeps the history filters. */
 export function ActivityLayout() {
   const { activeBatches } = useRuns();
   const search = useSearch({ from: "/_app/activity" });

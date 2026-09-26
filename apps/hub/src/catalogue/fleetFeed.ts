@@ -17,7 +17,6 @@ export class FleetFeed extends Context.Service<
   {
     /** Signals that stored machines or checkouts changed. */
     readonly invalidate: Effect.Effect<void>;
-    /** The fleet as it is now. */
     readonly current: Effect.Effect<Fleet>;
     /** Emits the fleet on subscribe and again after every change. */
     readonly watch: Stream.Stream<Fleet>;

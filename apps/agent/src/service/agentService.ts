@@ -13,7 +13,6 @@ export class ServiceFileFailed extends Schema.TaggedError<ServiceFileFailed>()(
   { path: Schema.String, message: Schema.String },
 ) {}
 
-/** Writes or removes a service definition, reporting file-system errors as a typed failure. */
 function serviceFile(file: string, write: () => Promise<void>) {
   return Effect.tryPromise({
     try: write,
@@ -154,7 +153,6 @@ export const installService = Effect.gen(function* () {
   return unitPath;
 });
 
-/** Stops the background service and removes its definition. */
 export const uninstallService = Effect.gen(function* () {
   const home = homedir();
 

@@ -11,7 +11,6 @@ import { useStartBatch } from "../actions/useStartBatch.ts";
 
 import type { Fleet, Repository } from "@fleetfrog/protocol/domain/fleet";
 
-/** A repository row's menu: fetch or pull it everywhere, or clone it onto another machine. */
 export function RepositoryActions({
   fleet,
   repository,

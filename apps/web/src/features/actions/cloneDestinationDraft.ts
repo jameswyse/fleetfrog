@@ -46,7 +46,6 @@ export function draftFromSuggestion(options: {
   };
 }
 
-/** The full destination the draft names. */
 export function draftPath(draft: DestinationDraft): string {
   return `${draft.root.replace(trailingSlashes, "")}/${draft.name.trim().replace(leadingSlashes, "")}`;
 }

@@ -59,7 +59,6 @@ function describeUpstream(upstream: Upstream | null): string {
   return `Tracks ${upstream.name}${parts.length > 0 ? `, ${parts.join(", ")}` : ", up to date"}`;
 }
 
-/** Conflicts and deletions in red, additions in green, and other edits in amber. */
 const letterTones = new Map([
   ["??", "bg-canvas text-ink-muted"],
   ["U", "bg-danger-soft text-danger"],
@@ -76,7 +75,6 @@ function changeLetter(file: ChangedFile | null): string {
   return file.unstaged === "." ? file.staged : file.unstaged;
 }
 
-/** A file's change as one short, coloured code. */
 function ChangeCode({ file }: { readonly file: ChangedFile | null }) {
   const letter = changeLetter(file);
 
@@ -134,7 +132,6 @@ function problemOf(checkout: Checkout): string | null {
     : null;
 }
 
-/** The branch, how it stands against its upstream, and the actions for it. */
 function Overview({
   git,
   machine,
@@ -318,10 +315,6 @@ function GitSections({ git, checkout }: { readonly git: GitStatus; readonly chec
   );
 }
 
-/**
- * Everything known about one checkout: any problem first, then an overview with its actions,
- * then a card for each part, and finally where it lives.
- */
 export function CheckoutSections({
   repository,
   machine,

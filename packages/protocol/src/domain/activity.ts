@@ -136,7 +136,6 @@ export const ActivityEntry = Schema.TaggedUnion({
 });
 export type ActivityEntry = typeof ActivityEntry.Type;
 
-/** The most values one activity filter list accepts. */
 const activityFilterLimit = 500;
 
 /**
@@ -168,5 +167,4 @@ export const RunsSnapshot = Schema.Struct({
 });
 export type RunsSnapshot = typeof RunsSnapshot.Type;
 
-/** How long the hub keeps actions and events. */
 export const activityRetentionDays = 30;

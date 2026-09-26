@@ -11,7 +11,6 @@ import {
 } from "@/ui/SidebarLayout.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
-/** The machines in the fleet, nested under it, then a way to add one. */
 function MachineLinks() {
   const hub = useHub();
   const machines = knownFleet(hub)?.machines ?? [];
@@ -49,7 +48,6 @@ function MachineLinks() {
   );
 }
 
-/** Settings sits under the main header with its own sidebar. */
 export function SettingsLayout() {
   return (
     <SidebarLayout

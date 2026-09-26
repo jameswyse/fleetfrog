@@ -28,7 +28,6 @@ export type ActionRequest = typeof ActionRequest.Type;
 export const ActionKind = Schema.Literals(["Fetch", "Pull", "Clone"]);
 export type ActionKind = typeof ActionKind.Type;
 
-/** The tier each action belongs to. */
 export const actionTiers = {
   Fetch: "git",
   Pull: "git",
@@ -103,7 +102,7 @@ export const OutcomeKind = Schema.Literals([
 export const ActionUpdate = Schema.TaggedUnion({
   /** The action has its locks and is running. */
   Started: {},
-  /** Git's latest progress line, sent at most once a second. */
+  /** Git's latest progress line. */
   Progress: { line: Schema.String },
   /** The last lines of Git's output travel with the outcome. */
   Finished: { outcome: ActionOutcome, output: Schema.Array(Schema.String) },

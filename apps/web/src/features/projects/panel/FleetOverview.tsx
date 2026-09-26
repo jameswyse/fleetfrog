@@ -126,10 +126,7 @@ function MachineRow({ fleet, machine }: { readonly fleet: Fleet; readonly machin
   );
 }
 
-/**
- * What the panel shows when nothing is chosen: the machines, then every cell that needs something
- * done, grouped the way the grid's symbols are.
- */
+/** What the panel shows when nothing is chosen. */
 export function FleetOverview({
   fleet,
   headingId,

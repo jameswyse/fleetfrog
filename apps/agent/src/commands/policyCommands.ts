@@ -6,7 +6,6 @@ import { Tier } from "@fleetfrog/protocol/domain/action";
 import { changePolicy, policyPath } from "../config/agentPolicy.ts";
 import { reportFailure } from "./reportFailure.ts";
 
-/** Describes each tier for help text. */
 export const tierDescriptions = {
   git: "Git actions: fetch, pull (fast-forward only) and clone into a project folder",
 } satisfies Record<Tier, string>;
@@ -17,7 +16,7 @@ const tierArgument = Argument.Literals("tier", Tier.literals).pipe(
   ),
 );
 
-/** Allows or denies one tier. A running agent picks the change up within 15 seconds. */
+/** Allows or denies one tier. A running agent picks the change up at its next heartbeat. */
 function setTier(options: { readonly tier: Tier; readonly change: "allow" | "deny" }) {
   const verb = options.change === "allow" ? "allowed" : "denied";
 

@@ -282,7 +282,6 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
   };
 
   return {
-    /** Starts an action in the background. */
     run: (runId: RunId, request: ActionRequest) =>
       FiberMap.run(fibers, runId, execute(runId, request), { onlyIfMissing: true }).pipe(
         Effect.asVoid,

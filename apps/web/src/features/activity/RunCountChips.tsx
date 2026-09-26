@@ -5,7 +5,6 @@ import { countParts } from "../actions/actionCopy.ts";
 import type { ChipTone } from "@/ui/Chip.tsx";
 import type { RunCounts, RunStatus } from "@fleetfrog/protocol/domain/activity";
 
-/** Problems in the danger colour, work in progress in the sync colour and quiet endings in grey. */
 const statusTones = {
   Running: "sync",
   Queued: "sync",

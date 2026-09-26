@@ -133,7 +133,6 @@ export const locateCheckout = Effect.fn("locateCheckout")(function* (directory: 
   }));
 });
 
-/** Reads the working tree state Git reports for a located checkout. */
 export const readGitStatus = Effect.fn("readGitStatus")(function* (location: CheckoutLocation) {
   const [statusOutput, branchOutput, lastFetchedAt] = yield* Effect.all(
     [

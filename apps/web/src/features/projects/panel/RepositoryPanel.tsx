@@ -37,7 +37,6 @@ function MachineLine({ machine }: { readonly machine: Machine }) {
   );
 }
 
-/** One repository across the fleet: where it lives, then a card for each machine. */
 export function RepositoryPanel({
   fleet,
   repository,

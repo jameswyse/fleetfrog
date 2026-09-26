@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 
 import type { CellProblem, CellSummary } from "./cellSummary.ts";
 
-/** What each problem means, in words. */
 export const problemWords = {
   Unreadable: "A checkout couldn't be read",
   Conflicts: "Merge conflicts",

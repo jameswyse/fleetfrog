@@ -2,10 +2,6 @@ import { useState } from "react";
 
 import type { ComponentType, ReactNode } from "react";
 
-/**
- * What a section is about, which colours its header: amber for uncommitted work, blue for branches
- * and syncing, red for problems, and grey for everything else.
- */
 const tones = {
   changes: { header: "bg-changes-soft", icon: "bg-changes text-surface" },
   sync: { header: "bg-sync-soft", icon: "bg-sync text-surface" },

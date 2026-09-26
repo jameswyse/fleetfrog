@@ -74,7 +74,6 @@ export function ActionsText({ machine }: { readonly machine: Machine }) {
   );
 }
 
-/** How many repositories have at least one checkout on the machine. */
 export function repositoryCount(fleet: Fleet, machine: Machine): number {
   return fleet.repositories.filter(({ checkouts }) =>
     checkouts.some(({ machineId }) => machineId === machine.id),

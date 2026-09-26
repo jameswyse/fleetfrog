@@ -12,7 +12,6 @@ import { useStartBatch } from "../actions/useStartBatch.ts";
 
 import type { HubState } from "@/rpc/hubConnection.ts";
 
-/** What every machine can do at once: fetch, pull after confirming, and rescan. */
 export function FleetActions({ hub }: { readonly hub: HubState }) {
   const fetchAll = useStartBatch();
   const [pulling, setPulling] = useState(false);

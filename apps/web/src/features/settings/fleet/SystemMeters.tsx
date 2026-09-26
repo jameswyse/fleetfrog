@@ -21,7 +21,7 @@ function Bar({ share, className }: { readonly share: number; readonly className:
 
 const clamp = (share: number) => Math.min(1, Math.max(0, share));
 
-/** How full something is: the amounts above a bar that turns amber from 80% and red from 90%. */
+/** How full something is: the amounts above a bar coloured by `usageFills`. */
 export function UsageBar({
   used,
   total,

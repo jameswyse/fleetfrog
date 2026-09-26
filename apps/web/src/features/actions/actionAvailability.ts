@@ -31,7 +31,6 @@ export function cloneBlocker(machine: Machine): string | null {
   );
 }
 
-/** The paths of every checkout on one machine. */
 export function checkoutPaths(
   repositories: ReadonlyArray<Repository>,
   machineId: Machine["id"],
