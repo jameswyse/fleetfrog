@@ -1,4 +1,4 @@
-import { Data, Duration, Effect, Fiber, FiberHandle, Option, Stream } from "effect";
+import { Clock, Duration, Effect, Fiber, FiberHandle, Option, Schema, Stream } from "effect";
 
 import { HubCommand, heartbeatSeconds } from "@fleetfrog/protocol/agent/rpcs";
 import { ActionKind } from "@fleetfrog/protocol/domain/action";
@@ -17,10 +17,10 @@ import type { AgentCapabilities } from "@fleetfrog/protocol/domain/action";
 
 import type { AgentConfig } from "../config/agentConfig.ts";
 
-export class NotPaired extends Data.TaggedError("NotPaired")<{}> {}
+export class NotPaired extends Schema.TaggedError<NotPaired>()("NotPaired", {}) {}
 
 /** The hub no longer accepts this machine's token, usually because it was removed from the dashboard. */
-export class MachineRemoved extends Data.TaggedError("MachineRemoved")<{}> {}
+export class MachineRemoved extends Schema.TaggedError<MachineRemoved>()("MachineRemoved", {}) {}
 
 type Configuration = (typeof HubCommand.cases.Configure)["Type"];
 
@@ -106,10 +106,11 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
         githubMaximumAge: Duration.seconds(current.schedule.githubSeconds),
       })
       .pipe(
-        Effect.tap(() =>
+        Effect.andThen(Clock.currentTimeMillis),
+        Effect.flatMap((finishedAt) =>
           Effect.sync(() => {
-            lastDiscoveryAt = Date.now();
-            lastStatusAt = lastDiscoveryAt;
+            lastDiscoveryAt = finishedAt;
+            lastStatusAt = finishedAt;
           }),
         ),
         Effect.catchCause((cause) => Effect.logWarning("Discovery failed", cause)),
@@ -117,24 +118,25 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
 
   const status = (current: Configuration) =>
     scanner.status(Duration.seconds(current.schedule.githubSeconds)).pipe(
-      Effect.tap(() =>
+      Effect.andThen(Clock.currentTimeMillis),
+      Effect.flatMap((finishedAt) =>
         Effect.sync(() => {
-          lastStatusAt = Date.now();
+          lastStatusAt = finishedAt;
         }),
       ),
       Effect.catchCause((cause) => Effect.logWarning("Status scan failed", cause)),
     );
 
   /** Restarts both timers, keeping each on its cadence from its last completed pass. */
-  const schedule = ({
+  const schedule = Effect.fnUntraced(function* ({
     current,
     discoverNow,
   }: {
     readonly current: Configuration;
     /** Starts a discovery walk immediately instead of waiting out its interval. */
     readonly discoverNow: boolean;
-  }) => {
-    const now = Date.now();
+  }) {
+    const now = yield* Clock.currentTimeMillis;
     const remaining = (seconds: number, since: number | null) =>
       since === null ? Duration.zero : Duration.millis(Math.max(0, seconds * 1000 - (now - since)));
     const untilDiscovery = discoverNow
@@ -152,7 +154,7 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
         Effect.forever,
       );
 
-    return FiberHandle.run(
+    return yield* FiberHandle.run(
       timers,
       Effect.all(
         [
@@ -166,7 +168,7 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
         { concurrency: 2, discard: true },
       ),
     );
-  };
+  });
 
   yield* readSystemUsage(info.platform).pipe(
     Effect.flatMap((usage) => client.ReportUsage({ usage })),
@@ -237,7 +239,7 @@ export const runAgent = Effect.gen(function* () {
   let delay = firstRetryDelay;
 
   const connectOnce = Effect.gen(function* () {
-    const startedAt = Date.now();
+    const startedAt = yield* Clock.currentTimeMillis;
 
     // Only a removed machine stops the agent. Everything else, including defects, is retried.
     yield* Effect.scoped(runSession(config.value)).pipe(
@@ -249,7 +251,9 @@ export const runAgent = Effect.gen(function* () {
       Effect.catchDefect((defect) => Effect.logError("Agent session crashed", defect)),
     );
 
-    if (Duration.isGreaterThan(Duration.millis(Date.now() - startedAt), healthyConnection)) {
+    const lasted = Duration.millis((yield* Clock.currentTimeMillis) - startedAt);
+
+    if (Duration.isGreaterThan(lasted, healthyConnection)) {
       delay = firstRetryDelay;
     }
 

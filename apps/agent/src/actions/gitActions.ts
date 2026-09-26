@@ -41,8 +41,8 @@ export const fetchRepository = (location: CheckoutLocation, output: ActionOutput
  * Fetches and fast-forwards the checked-out branch. The checkout's state is checked before the
  * fetch and again after it, so changes made meanwhile still stop the pull.
  */
-export const pullCheckout = (location: CheckoutLocation, output: ActionOutput) =>
-  Effect.gen(function* () {
+export const pullCheckout = Effect.fn("pullCheckout")(
+  function* (location: CheckoutLocation, output: ActionOutput) {
     const before = pullBlocker(yield* readGitStatus(location));
 
     if (before !== null) {
@@ -72,7 +72,9 @@ export const pullCheckout = (location: CheckoutLocation, output: ActionOutput) =
     });
 
     return succeeded(ActionResult.cases.FastForwarded.make({ commits: behind }));
-  }).pipe(Effect.catchTag("CommandFailed", failedWith));
+  },
+  Effect.catchTag("CommandFailed", failedWith),
+);
 
 /** Why a clone destination was refused, for each way it can fail the path checks. */
 export const destinationProblems = {
@@ -138,15 +140,15 @@ async function destinationProblem(options: {
  * Clones a remote into a new folder inside a discovery folder, checking out its default branch.
  * The destination has already passed the path checks.
  */
-export const cloneRepository = (
-  options: {
-    readonly url: string;
-    readonly destination: Extract<DestinationCheck, { _tag: "Valid" }>;
-    readonly home: string;
-  },
-  output: ActionOutput,
-) =>
-  Effect.gen(function* () {
+export const cloneRepository = Effect.fn("cloneRepository")(
+  function* (
+    options: {
+      readonly url: string;
+      readonly destination: Extract<DestinationCheck, { _tag: "Valid" }>;
+      readonly home: string;
+    },
+    output: ActionOutput,
+  ) {
     const url = cloneableUrl(options.url);
 
     // The URL must already be in the shared form, so nothing else is quietly rewritten.
@@ -176,4 +178,6 @@ export const cloneRepository = (
     });
 
     return succeeded(ActionResult.cases.Cloned.make({}));
-  }).pipe(Effect.catchTag("CommandFailed", failedWith));
+  },
+  Effect.catchTag("CommandFailed", failedWith),
+);

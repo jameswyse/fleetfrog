@@ -1,18 +1,18 @@
 import { X509Certificate } from "node:crypto";
 import { connect } from "node:tls";
 
-import { Data, Effect } from "effect";
+import { Effect, Schema } from "effect";
 
 import type { PeerCertificate } from "node:tls";
 
-export class HubUnreachable extends Data.TaggedError("HubUnreachable")<{
-  readonly message: string;
-}> {}
+export class HubUnreachable extends Schema.TaggedError<HubUnreachable>()("HubUnreachable", {
+  message: Schema.String,
+}) {}
 
-export class CertificateMismatch extends Data.TaggedError("CertificateMismatch")<{
-  readonly expected: string;
-  readonly received: string;
-}> {}
+export class CertificateMismatch extends Schema.TaggedError<CertificateMismatch>()(
+  "CertificateMismatch",
+  { expected: Schema.String, received: Schema.String },
+) {}
 
 function toPem(certificate: PeerCertificate): string {
   const lines = certificate.raw.toString("base64").match(/.{1,64}/g) ?? [];

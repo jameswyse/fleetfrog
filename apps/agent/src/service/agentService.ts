@@ -3,14 +3,15 @@ import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { homedir, userInfo } from "node:os";
 import path from "node:path";
 
-import { Data, Effect } from "effect";
+import { Effect, Schema } from "effect";
 
+import { isMissingFile } from "../config/agentConfig.ts";
 import { runTool } from "../process/runTool.ts";
 
-export class ServiceFileFailed extends Data.TaggedError("ServiceFileFailed")<{
-  readonly path: string;
-  readonly message: string;
-}> {}
+export class ServiceFileFailed extends Schema.TaggedError<ServiceFileFailed>()(
+  "ServiceFileFailed",
+  { path: Schema.String, message: Schema.String },
+) {}
 
 /** Writes or removes a service definition, reporting file-system errors as a typed failure. */
 function serviceFile(file: string, write: () => Promise<void>) {
@@ -114,7 +115,7 @@ ${argumentsXml}
 }
 
 function ignoreMissing(error: unknown): void {
-  if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
+  if (!isMissingFile(error)) {
     throw error;
   }
 }

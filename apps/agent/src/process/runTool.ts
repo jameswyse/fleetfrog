@@ -1,12 +1,12 @@
 import { execFile, spawn } from "node:child_process";
 
-import { Data, Duration, Effect } from "effect";
+import { Duration, Effect, Schema } from "effect";
 
-export class CommandFailed extends Data.TaggedError("CommandFailed")<{
-  readonly args: ReadonlyArray<string>;
-  readonly cwd: string;
-  readonly message: string;
-}> {}
+export class CommandFailed extends Schema.TaggedError<CommandFailed>()("CommandFailed", {
+  args: Schema.Array(Schema.String),
+  cwd: Schema.String,
+  message: Schema.String,
+}) {}
 
 // Git status reads must not take the index lock and race the developer's own Git commands. The
 // same environment suits the other tools: no prompts and untranslated output.

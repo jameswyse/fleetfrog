@@ -59,22 +59,28 @@ export function makeScanner<ReportError>(options: {
   const readGithub =
     options.githubLogin === null ? null : makeGithubReader({ login: options.githubLogin });
   const lock = Semaphore.makeUnsafe(1);
-  const startedAt = { discovery: Number.NEGATIVE_INFINITY, status: Number.NEGATIVE_INFINITY };
+  /** Numbers requests and pass starts in the order they happen, so no two compare as equal. */
+  let sequence = 0;
+  /** The number each kind of pass last started at. */
+  const started = { discovery: 0, status: 0 };
 
   /**
    * Runs passes one at a time. A pass that started after this one was requested has already
    * covered it, so a burst of requests collapses into one pass.
    */
-  const serialise = <E>(kind: keyof typeof startedAt, pass: Effect.Effect<void, E>) =>
+  const serialise = <E>(kind: keyof typeof started, pass: Effect.Effect<void, E>) =>
     Effect.suspend(() => {
-      const requestedAt = Date.now();
+      sequence += 1;
+
+      const requested = sequence;
 
       return Effect.suspend(() => {
-        if (startedAt[kind] >= requestedAt) {
+        if (started[kind] > requested) {
           return Effect.void;
         }
 
-        startedAt[kind] = Date.now();
+        sequence += 1;
+        started[kind] = sequence;
 
         return pass;
       }).pipe(lock.withPermits(1));

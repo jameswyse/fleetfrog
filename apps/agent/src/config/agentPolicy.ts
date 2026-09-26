@@ -75,34 +75,33 @@ export const savePolicy = (policy: AgentPolicy) =>
  * policy allows nothing, so the change starts from nothing and replaces it. Returns the tiers
  * allowed afterwards, whether anything changed and whether a damaged policy was replaced.
  */
-export const changePolicy = (change: {
+export const changePolicy = Effect.fn("changePolicy")(function* (change: {
   readonly allow: ReadonlyArray<Tier>;
   readonly deny: ReadonlyArray<Tier>;
-}) =>
-  Effect.gen(function* () {
-    const current = yield* loadPolicy.pipe(Effect.option);
-    const policy = Option.getOrElse(current, (): AgentPolicy => ({ allowedTiers: [] }));
-    const replacedDamaged = Option.isNone(current);
-    const allowed = new Set(policy.allowedTiers);
+}) {
+  const current = yield* loadPolicy.pipe(Effect.option);
+  const policy = Option.getOrElse(current, (): AgentPolicy => ({ allowedTiers: [] }));
+  const replacedDamaged = Option.isNone(current);
+  const allowed = new Set(policy.allowedTiers);
 
-    for (const tier of change.allow) {
-      allowed.add(tier);
-    }
+  for (const tier of change.allow) {
+    allowed.add(tier);
+  }
 
-    for (const tier of change.deny) {
-      allowed.delete(tier);
-    }
+  for (const tier of change.deny) {
+    allowed.delete(tier);
+  }
 
-    const allowedTiers = [...allowed];
-    const changed =
-      replacedDamaged ||
-      allowedTiers.length !== policy.allowedTiers.length ||
-      allowedTiers.some((tier) => !policy.allowedTiers.includes(tier));
+  const allowedTiers = [...allowed];
+  const changed =
+    replacedDamaged ||
+    allowedTiers.length !== policy.allowedTiers.length ||
+    allowedTiers.some((tier) => !policy.allowedTiers.includes(tier));
 
-    if (changed) {
-      yield* savePolicy({ allowedTiers });
-      yield* writeAuditEntry({ event: "PolicyChanged", allowedTiers });
-    }
+  if (changed) {
+    yield* savePolicy({ allowedTiers });
+    yield* writeAuditEntry({ event: "PolicyChanged", allowedTiers });
+  }
 
-    return { allowedTiers, changed, replacedDamaged };
-  });
+  return { allowedTiers, changed, replacedDamaged };
+});

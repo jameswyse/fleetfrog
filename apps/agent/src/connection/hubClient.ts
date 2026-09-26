@@ -1,5 +1,5 @@
 import { NodeHttpClient, NodeSocket } from "@effect/platform-node";
-import { Data, Deferred, Effect, Layer } from "effect";
+import { Deferred, Effect, Layer, Schema } from "effect";
 import { RpcClient, RpcSerialization } from "effect/unstable/rpc";
 import { Socket } from "effect/unstable/socket";
 
@@ -45,7 +45,7 @@ function clientInCallerScope<Rpcs extends Rpc.Any>(
   );
 }
 
-export class HubDisconnected extends Data.TaggedError("HubDisconnected")<{}> {}
+export class HubDisconnected extends Schema.TaggedError<HubDisconnected>()("HubDisconnected", {}) {}
 
 /**
  * The agent's authenticated WebSocket client, plus an effect that fails when the socket drops.

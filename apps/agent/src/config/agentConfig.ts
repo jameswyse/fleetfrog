@@ -3,7 +3,7 @@ import { access, chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 
-import { Data, Effect, Option, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 
 import { MachineId } from "@fleetfrog/protocol/domain/machine";
 
@@ -32,10 +32,10 @@ export function configPath(): string {
   return path.join(configDirectory(), "agent.json");
 }
 
-export class ConfigUnavailable extends Data.TaggedError("ConfigUnavailable")<{
-  readonly path: string;
-  readonly message: string;
-}> {}
+export class ConfigUnavailable extends Schema.TaggedError<ConfigUnavailable>()(
+  "ConfigUnavailable",
+  { path: Schema.String, message: Schema.String },
+) {}
 
 export function isMissingFile(error: unknown): boolean {
   return error instanceof Error && "code" in error && error.code === "ENOENT";

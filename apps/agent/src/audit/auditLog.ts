@@ -2,7 +2,7 @@ import { appendFile, mkdir, rename, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 
-import { Effect } from "effect";
+import { DateTime, Effect } from "effect";
 
 import type { ActionOutcome, ActionRequest, Tier } from "@fleetfrog/protocol/domain/action";
 import type { RunId } from "@fleetfrog/protocol/domain/activity";
@@ -94,9 +94,12 @@ function loggable(entry: AuditEntry): AuditEntry {
 export function writeAuditEntry(entry: AuditEntry): Effect.Effect<void> {
   const file = auditLogPath();
 
-  return Effect.tryPromise(() =>
-    append(file, `${JSON.stringify({ at: new Date().toISOString(), ...loggable(entry) })}\n`),
-  ).pipe(
+  return DateTime.now.pipe(
+    Effect.flatMap((at) =>
+      Effect.tryPromise(() =>
+        append(file, `${JSON.stringify({ at: DateTime.formatIso(at), ...loggable(entry) })}\n`),
+      ),
+    ),
     Effect.catchCause((cause) =>
       Effect.logWarning("Could not write the audit log", cause).pipe(Effect.annotateLogs({ file })),
     ),

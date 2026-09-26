@@ -1,4 +1,4 @@
-import { Data, Effect, Option } from "effect";
+import { Effect, Option, Schema } from "effect";
 
 import { decodePairingString } from "@fleetfrog/protocol/pairing/pairingString";
 
@@ -8,9 +8,9 @@ import { readMachineInfo, suggestDiscoveryRoots } from "../machine/machineInfo.t
 import { makePairingClient } from "./hubClient.ts";
 import { fetchPinnedCertificate } from "./hubTls.ts";
 
-export class PairingRefused extends Data.TaggedError("PairingRefused")<{
-  readonly message: string;
-}> {}
+export class PairingRefused extends Schema.TaggedError<PairingRefused>()("PairingRefused", {
+  message: Schema.String,
+}) {}
 
 const loopbackHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
