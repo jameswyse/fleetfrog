@@ -39,7 +39,9 @@ export function AppShell() {
   const hub = useHub();
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    // A page marked `data-fills-viewport` gets exactly the window's height and scrolls inside
+    // itself, so its toolbars and header rows can stay in view.
+    <div className="flex min-h-dvh flex-col has-[[data-fills-viewport]]:h-dvh">
       <a
         href="#content"
         className="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:z-10 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2"
@@ -73,7 +75,7 @@ export function AppShell() {
           </div>
         </div>
       </header>
-      <main id="content" className="flex-1">
+      <main id="content" className="flex min-h-0 flex-1 flex-col">
         <StaleNotice hub={hub} />
         <Outlet />
       </main>

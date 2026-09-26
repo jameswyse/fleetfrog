@@ -3,18 +3,11 @@ import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { knownFleet, useHub } from "@/rpc/hubConnection.ts";
 
 import { repositoryMatches } from "./checkoutSummary.ts";
-import { FleetActions } from "./FleetActions.tsx";
 import { projectPanelId, ProjectPanel } from "./panel/ProjectPanel.tsx";
-import { ProjectGrid, selectionKey } from "./ProjectGrid.tsx";
+import { findGridCell, ProjectGrid } from "./ProjectGrid.tsx";
+import { ProjectToolbar } from "./ProjectToolbar.tsx";
 
-import type { RepositoryFilter } from "./checkoutSummary.ts";
 import type { ProjectSelection, SelectionHistory } from "./ProjectGrid.tsx";
-
-const filters: ReadonlyArray<{ readonly value: RepositoryFilter; readonly label: string }> = [
-  { value: "all", label: "All" },
-  { value: "changes", label: "Has changes" },
-  { value: "out-of-sync", label: "Out of sync" },
-];
 
 /** Use heading level 2 inside a page that already has its own h1. */
 function EmptyState({
@@ -37,8 +30,8 @@ function EmptyState({
 }
 
 /**
- * Every repository on every machine as a grid, with a panel for whatever is chosen. The page
- * scrolls; on wide screens the panel stays fixed to the window's edge beside it.
+ * Every repository on every machine as a grid, with a panel beside it for whatever is chosen. The
+ * page fills the window: the toolbar stays put while the grid and the panel scroll on their own.
  */
 export function ProjectsPage() {
   const hub = useHub();
@@ -92,8 +85,10 @@ export function ProjectsPage() {
           ? { ...rest, repo: next.repository }
           : { ...rest, repo: next.repository, machine: next.machine },
       replace: history === "Replace",
-      resetScroll: false,
     });
+
+    // A choice made in the side panel may be out of sight in the grid.
+    findGridCell(next)?.scrollIntoView({ block: "nearest", inline: "nearest" });
   };
 
   const close = () => {
@@ -101,19 +96,18 @@ export function ProjectsPage() {
 
     void navigate({
       search: ({ repo: _repo, machine: _machine, path: _path, ...rest }) => rest,
-      resetScroll: false,
     });
 
     // Focus returns to what opened the panel, rather than falling back to the page.
     if (panelHadFocus && selection !== null) {
-      document
-        .querySelector<HTMLElement>(`[data-selection="${CSS.escape(selectionKey(selection))}"]`)
-        ?.focus();
+      findGridCell(selection)?.focus();
     }
   };
 
   return (
     <div
+      data-fills-viewport
+      className="flex min-h-0 flex-1 flex-col lg:flex-row"
       onKeyDown={(event) => {
         const inDialog =
           event.target instanceof Element && event.target.closest("dialog, [popover]") !== null;
@@ -123,69 +117,9 @@ export function ProjectsPage() {
         }
       }}
     >
-      <div
-        // The fixed panel takes the right of the window, so the page keeps clear of it.
-        className={`px-4 pt-5 pb-8 sm:px-6 ${selection === null ? "" : "lg:me-[30rem]"}`}
-      >
-        <div className="mb-4 flex flex-wrap items-end gap-x-6 gap-y-3">
-          <div>
-            <h1 className="text-lg font-semibold">Projects</h1>
-            <p className="text-sm text-ink-muted">
-              {visible.length === repositories.length ? "" : `${visible.length} of `}
-              {repositories.length} {repositories.length === 1 ? "repository" : "repositories"}{" "}
-              across {machines.length} {machines.length === 1 ? "machine" : "machines"}
-            </p>
-          </div>
-          <div className="ms-auto flex flex-wrap items-center gap-x-6 gap-y-3">
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="flex items-center gap-2 text-sm">
-                <span className="text-ink-muted">Find</span>
-                <input
-                  type="search"
-                  // Uncontrolled: the router commits search updates in a transition, so a controlled
-                  // value would lag behind typing and move the caret.
-                  defaultValue={query}
-                  placeholder="Repository name"
-                  onChange={(event) => {
-                    const q = event.currentTarget.value;
-
-                    void navigate({
-                      search: ({ q: _previous, ...rest }) => (q === "" ? rest : { ...rest, q }),
-                      replace: true,
-                    });
-                  }}
-                  className="min-h-9 w-52 rounded-md border border-line bg-surface px-2.5"
-                />
-              </label>
-              <fieldset className="flex rounded-md border border-line bg-surface p-0.5">
-                <legend className="sr-only">Show</legend>
-                {filters.map(({ value, label }) => (
-                  <label
-                    key={value}
-                    className="cursor-pointer rounded px-3 py-1.5 text-sm text-ink-muted has-checked:bg-surface-raised has-checked:text-ink has-focus-visible:outline-2 has-focus-visible:outline-accent"
-                  >
-                    <input
-                      type="radio"
-                      name="filter"
-                      value={value}
-                      checked={filter === value}
-                      onChange={() => {
-                        void navigate({
-                          search: ({ filter: _previous, ...rest }) =>
-                            value === "all" ? rest : { ...rest, filter: value },
-                          replace: true,
-                        });
-                      }}
-                      className="sr-only"
-                    />
-                    {label}
-                  </label>
-                ))}
-              </fieldset>
-            </div>
-            <FleetActions hub={hub} />
-          </div>
-        </div>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 px-4 pt-3 pb-4 sm:px-6">
+        <h1 className="sr-only">Projects</h1>
+        <ProjectToolbar hub={hub} repositories={repositories} filter={filter} query={query} />
         {repositories.length === 0 && (
           <EmptyState title="Waiting for the first scan" level={2}>
             Repositories appear once an agent finishes searching its project folders.
@@ -203,22 +137,19 @@ export function ProjectsPage() {
           />
         )}
       </div>
-      {selection !== null && (
-        <ProjectPanel
-          fleet={fleet}
-          selection={selection}
-          path={search.path ?? null}
-          onSelect={select}
-          onChoosePath={(path) => {
-            void navigate({
-              search: (previous) => ({ ...previous, path }),
-              replace: true,
-              resetScroll: false,
-            });
-          }}
-          onClose={close}
-        />
-      )}
+      <ProjectPanel
+        fleet={fleet}
+        selection={selection}
+        path={search.path ?? null}
+        onSelect={select}
+        onChoosePath={(path) => {
+          void navigate({
+            search: (previous) => ({ ...previous, path }),
+            replace: true,
+          });
+        }}
+        onClose={close}
+      />
     </div>
   );
 }

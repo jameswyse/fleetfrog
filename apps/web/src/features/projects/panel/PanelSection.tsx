@@ -78,12 +78,14 @@ export function ShortList<Item>({
   total,
   render,
   noun,
+  listClassName = "space-y-1",
 }: {
   readonly items: ReadonlyArray<Item>;
   readonly total: number;
   readonly render: (item: Item) => ReactNode;
   /** Names the items in the button, such as "files". */
   readonly noun: string;
+  readonly listClassName?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const limit = 8;
@@ -91,7 +93,7 @@ export function ShortList<Item>({
 
   return (
     <>
-      <ul className="space-y-1">{shown.map(render)}</ul>
+      <ul className={listClassName}>{shown.map(render)}</ul>
       {!expanded && items.length > limit && (
         <button
           type="button"

@@ -9,7 +9,7 @@ import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 import { activeCloneFor, activeRunFor } from "../../actions/runLookup.ts";
 import { RunStateText } from "../../actions/RunStateText.tsx";
 import { CellContent } from "../CellContent.tsx";
-import { summariseCell } from "../cellSummary.ts";
+import { latestGithub, summariseCell } from "../cellSummary.ts";
 import { RepositoryActions } from "../RepositoryActions.tsx";
 import { PanelHeader } from "./PanelHeader.tsx";
 import { Fact, Facts, PanelSection } from "./PanelSection.tsx";
@@ -34,14 +34,6 @@ function MachineLine({ machine }: { readonly machine: Machine }) {
       </span>
     </span>
   );
-}
-
-/** The newest GitHub reading any machine has for the repository. */
-function latestGithub(repository: Repository) {
-  return repository.checkouts
-    .flatMap(({ checkout }) => (checkout.github === null ? [] : [checkout.github]))
-    .toSorted((left, right) => right.checkedAt.epochMilliseconds - left.checkedAt.epochMilliseconds)
-    .at(0);
 }
 
 /** One repository across the fleet: where it lives, then a card for each machine. */

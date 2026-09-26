@@ -1,6 +1,6 @@
 import { summariseCheckout } from "./checkoutSummary.ts";
 
-import type { MachineCheckout } from "@fleetfrog/protocol/domain/fleet";
+import type { MachineCheckout, Repository } from "@fleetfrog/protocol/domain/fleet";
 
 import type { CheckoutSummary } from "./checkoutSummary.ts";
 
@@ -97,4 +97,12 @@ export function summariseCell(entries: ReadonlyArray<MachineCheckout>): CellSumm
     ).size,
     problem: problemOf(summaries),
   };
+}
+
+/** The newest GitHub reading any machine has for the repository. */
+export function latestGithub(repository: Repository) {
+  return repository.checkouts
+    .flatMap(({ checkout }) => (checkout.github === null ? [] : [checkout.github]))
+    .toSorted((left, right) => right.checkedAt.epochMilliseconds - left.checkedAt.epochMilliseconds)
+    .at(0);
 }

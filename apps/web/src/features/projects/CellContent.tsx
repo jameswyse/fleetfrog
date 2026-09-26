@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import type { CellProblem, CellSummary } from "./cellSummary.ts";
 
-function plural(value: number, singular: string, pluralForm = `${singular}s`): string {
+export function plural(value: number, singular: string, pluralForm = `${singular}s`): string {
   return `${value} ${value === 1 ? singular : pluralForm}`;
 }
 
@@ -14,7 +14,7 @@ export const problemWords = {
 } satisfies Record<CellProblem, string>;
 
 /** A state symbol, with its meaning in a tooltip and for screen readers. */
-function Glyph({
+export function Glyph({
   className,
   symbol,
   meaning,

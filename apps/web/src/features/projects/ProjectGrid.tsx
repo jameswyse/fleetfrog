@@ -31,6 +31,13 @@ export function selectionKey(selection: ProjectSelection): string {
   return `${selection.repository}|${selection.machine ?? ""}`;
 }
 
+/** The grid button for a selection, if the grid shows it. */
+export function findGridCell(selection: ProjectSelection): HTMLElement | null {
+  return document.querySelector<HTMLElement>(
+    `[data-selection="${CSS.escape(selectionKey(selection))}"]`,
+  );
+}
+
 /** Offline columns sit on the canvas colour so their last known state reads as stale. */
 function columnBackground(machine: Machine): string {
   return machine.connection._tag === "Offline" ? "bg-canvas" : "bg-surface";
@@ -91,7 +98,7 @@ function MachineHeader({ fleet, machine }: { readonly fleet: Fleet; readonly mac
   return (
     <th
       scope="col"
-      className={`border-b border-line p-0 text-start align-middle font-normal ${columnBackground(machine)}`}
+      className={`sticky top-0 z-[2] border-b border-line p-0 text-start align-middle font-normal ${columnBackground(machine)}`}
     >
       <div className={`flex ${columnWidth} items-center gap-2 px-3 py-2`}>
         <span
@@ -259,8 +266,10 @@ export function ProjectGrid({
   };
 
   return (
-    // Positioned so screen-reader text in the cells is clipped here instead of widening the page.
-    <div className="relative w-fit max-w-full overflow-x-auto rounded-lg border border-line bg-surface">
+    // Scrolls both ways under its pinned header row and repository column, which the scroll padding
+    // keeps a focused cell clear of. Positioned so screen-reader text in the cells is clipped here
+    // instead of widening the page.
+    <div className="relative min-h-0 w-fit max-w-full scroll-pt-[3.0625rem] scroll-ps-[min(24rem,40%)] overflow-auto rounded-lg border border-line bg-surface">
       <table className="border-separate border-spacing-0 text-sm">
         <caption className="sr-only">
           Repositories by machine. Choose a repository or a cell to see its details.
@@ -269,7 +278,7 @@ export function ProjectGrid({
           <tr>
             <th
               scope="col"
-              className="sticky start-0 z-[3] border-e border-b border-line bg-surface px-4 py-2 text-start align-middle font-semibold"
+              className="sticky start-0 top-0 z-[3] border-e border-b border-line bg-surface px-4 py-2 text-start align-middle font-semibold"
             >
               Repository
             </th>
