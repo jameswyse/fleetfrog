@@ -1,15 +1,11 @@
-import { useTransition } from "react";
-
-import { requestHub } from "@/rpc/hubConnection.ts";
 import { useHubStream } from "@/rpc/useHubStream.ts";
-import { Button } from "@/ui/Button.tsx";
 import { Dialog } from "@/ui/Dialog.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 
 import { describeBatch, describeCounts } from "../actions/actionCopy.ts";
 import { RunStateText } from "../actions/RunStateText.tsx";
+import { CancelButton } from "./CancelButton.tsx";
 
-import type { CancelTarget } from "@fleetfrog/protocol/dashboard/rpcs";
 import type { ActionRun, BatchId, RunDetail } from "@fleetfrog/protocol/domain/activity";
 
 /** Problems first, then work in progress, then everything that went to plan. */
@@ -28,30 +24,6 @@ function rank(run: ActionRun): number {
   return statusOrder[run.state._tag === "Finished" ? run.state.outcome._tag : run.state._tag];
 }
 
-function CancelButton({
-  target,
-  label,
-}: {
-  readonly target: CancelTarget;
-  readonly label: string;
-}) {
-  const [cancelling, startCancel] = useTransition();
-
-  return (
-    <Button
-      tone="quiet"
-      disabled={cancelling}
-      onClick={() =>
-        startCancel(async () => {
-          await requestHub((client) => client.Cancel({ target }));
-        })
-      }
-    >
-      {cancelling ? "Cancelling…" : label}
-    </Button>
-  );
-}
-
 function RunItem({ detail }: { readonly detail: RunDetail }) {
   const { run, output } = detail;
 
@@ -66,7 +38,11 @@ function RunItem({ detail }: { readonly detail: RunDetail }) {
           <p className="font-mono text-[13px] break-all text-ink-muted">{run.path}</p>
         </div>
         {run.state._tag !== "Finished" && (
-          <CancelButton target={{ _tag: "Run", runId: run.id }} label="Cancel" />
+          <CancelButton
+            target={{ _tag: "Run", runId: run.id }}
+            label="Cancel"
+            subject={`${run.repositoryName} on ${run.machineName}`}
+          />
         )}
       </div>
       <p className="mt-1 text-sm">

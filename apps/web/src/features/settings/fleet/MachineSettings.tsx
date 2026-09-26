@@ -6,15 +6,10 @@ import { knownFleet, requestHub, useHub } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
 import { Dialog } from "@/ui/Dialog.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
+import { SidebarPage } from "@/ui/SidebarLayout.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
-import {
-  SettingsPage,
-  SettingsRow,
-  SettingsSection,
-  SideDetail,
-  SidePanel,
-} from "../SettingsPage.tsx";
+import { SettingsRow, SettingsSection, SideDetail, SidePanel } from "../SettingsSection.tsx";
 import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
 import { DiscoveryFolders } from "./DiscoveryFolders.tsx";
 import { ActionsText, ConnectionStatus, repositoryCount } from "./MachineStatus.tsx";
@@ -276,7 +271,7 @@ function ActionsSection({ machine }: { readonly machine: Machine }) {
         control={
           <Link
             to="/activity"
-            search={{ machine: machine.id }}
+            search={{ machines: [machine.id] }}
             className="inline-flex min-h-9 items-center rounded-md border border-line px-3 text-sm font-medium hover:bg-surface-raised"
           >
             View activity
@@ -314,7 +309,7 @@ export function MachineSettings() {
 
   if (fleet === null || machine === undefined) {
     return (
-      <SettingsPage trail={[{ label: "Fleet", to: "/settings/fleet" }, { label: "Machine" }]}>
+      <SidebarPage title="Machine">
         {fleet === null ? (
           <p className="py-16 text-center text-sm text-ink-muted">Waiting for the hub…</p>
         ) : (
@@ -326,15 +321,15 @@ export function MachineSettings() {
             </Link>
           </div>
         )}
-      </SettingsPage>
+      </SidebarPage>
     );
   }
 
   // Keyed on the machine so drafts and notices never carry over to another machine.
   return (
-    <SettingsPage
+    <SidebarPage
       key={machine.id}
-      trail={[{ label: "Fleet", to: "/settings/fleet" }, { label: machineLabel(machine) }]}
+      title={machineLabel(machine)}
       action={<span className="font-mono text-[13px] text-ink-muted">{machine.info.hostname}</span>}
       aside={
         <>
@@ -345,6 +340,6 @@ export function MachineSettings() {
     >
       <ConfigurationSection machine={machine} />
       <ActionsSection machine={machine} />
-    </SettingsPage>
+    </SidebarPage>
   );
 }

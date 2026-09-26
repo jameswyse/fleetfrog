@@ -2,9 +2,10 @@ import { Link } from "@tanstack/react-router";
 
 import { knownFleet, useHub } from "@/rpc/hubConnection.ts";
 import { ChevronIcon, MachineIcon } from "@/ui/icons.tsx";
+import { SidebarPage } from "@/ui/SidebarLayout.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
-import { SettingsPage, SettingsSection } from "../SettingsPage.tsx";
+import { SettingsSection } from "../SettingsSection.tsx";
 import { ConnectionStatus, describePlatform, repositoryCount } from "./MachineStatus.tsx";
 
 const pairLinkClass =
@@ -16,8 +17,8 @@ export function FleetSettings() {
   const fleet = knownFleet(hub);
 
   return (
-    <SettingsPage
-      trail={[{ label: "Fleet" }]}
+    <SidebarPage
+      title="Fleet"
       action={
         <Link to="/settings/fleet/pair" className={pairLinkClass}>
           Pair a machine
@@ -65,6 +66,6 @@ export function FleetSettings() {
           })}
         </SettingsSection>
       )}
-    </SettingsPage>
+    </SidebarPage>
   );
 }

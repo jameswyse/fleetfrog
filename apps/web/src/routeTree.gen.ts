@@ -13,6 +13,8 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppActivityRouteImport } from './routes/_app/activity'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppActivityIndexRouteImport } from './routes/_app/activity/index'
+import { Route as AppActivityRunningRouteImport } from './routes/_app/activity/running'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
 import { Route as AppSettingsScanningRouteImport } from './routes/_app/settings/scanning'
 import { Route as AppSettingsFleetIndexRouteImport } from './routes/_app/settings/fleet/index'
@@ -37,6 +39,16 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => AppRoute,
+} as any)
+const AppActivityIndexRoute = AppActivityIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppActivityRoute,
+} as any)
+const AppActivityRunningRoute = AppActivityRunningRouteImport.update({
+  id: '/running',
+  path: '/running',
+  getParentRoute: () => AppActivityRoute,
 } as any)
 const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   id: '/',
@@ -67,18 +79,21 @@ const AppSettingsFleetPairRoute = AppSettingsFleetPairRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
-  '/activity': typeof AppActivityRoute
+  '/activity': typeof AppActivityRouteWithChildren
   '/settings': typeof AppSettingsRouteWithChildren
+  '/activity/running': typeof AppActivityRunningRoute
   '/settings/scanning': typeof AppSettingsScanningRoute
+  '/activity/': typeof AppActivityIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
   '/settings/fleet/$machineId': typeof AppSettingsFleetMachineIdRoute
   '/settings/fleet/pair': typeof AppSettingsFleetPairRoute
   '/settings/fleet/': typeof AppSettingsFleetIndexRoute
 }
 export interface FileRoutesByTo {
-  '/activity': typeof AppActivityRoute
   '/': typeof AppIndexRoute
+  '/activity/running': typeof AppActivityRunningRoute
   '/settings/scanning': typeof AppSettingsScanningRoute
+  '/activity': typeof AppActivityIndexRoute
   '/settings': typeof AppSettingsIndexRoute
   '/settings/fleet/$machineId': typeof AppSettingsFleetMachineIdRoute
   '/settings/fleet/pair': typeof AppSettingsFleetPairRoute
@@ -87,10 +102,12 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
-  '/_app/activity': typeof AppActivityRoute
+  '/_app/activity': typeof AppActivityRouteWithChildren
   '/_app/settings': typeof AppSettingsRouteWithChildren
   '/_app/': typeof AppIndexRoute
+  '/_app/activity/running': typeof AppActivityRunningRoute
   '/_app/settings/scanning': typeof AppSettingsScanningRoute
+  '/_app/activity/': typeof AppActivityIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
   '/_app/settings/fleet/$machineId': typeof AppSettingsFleetMachineIdRoute
   '/_app/settings/fleet/pair': typeof AppSettingsFleetPairRoute
@@ -102,16 +119,19 @@ export interface FileRouteTypes {
     | '/'
     | '/activity'
     | '/settings'
+    | '/activity/running'
     | '/settings/scanning'
+    | '/activity/'
     | '/settings/'
     | '/settings/fleet/$machineId'
     | '/settings/fleet/pair'
     | '/settings/fleet/'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/activity'
     | '/'
+    | '/activity/running'
     | '/settings/scanning'
+    | '/activity'
     | '/settings'
     | '/settings/fleet/$machineId'
     | '/settings/fleet/pair'
@@ -122,7 +142,9 @@ export interface FileRouteTypes {
     | '/_app/activity'
     | '/_app/settings'
     | '/_app/'
+    | '/_app/activity/running'
     | '/_app/settings/scanning'
+    | '/_app/activity/'
     | '/_app/settings/'
     | '/_app/settings/fleet/$machineId'
     | '/_app/settings/fleet/pair'
@@ -163,6 +185,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/activity/': {
+      id: '/_app/activity/'
+      path: '/'
+      fullPath: '/activity/'
+      preLoaderRoute: typeof AppActivityIndexRouteImport
+      parentRoute: typeof AppActivityRoute
+    }
+    '/_app/activity/running': {
+      id: '/_app/activity/running'
+      path: '/running'
+      fullPath: '/activity/running'
+      preLoaderRoute: typeof AppActivityRunningRouteImport
+      parentRoute: typeof AppActivityRoute
+    }
     '/_app/settings/': {
       id: '/_app/settings/'
       path: '/'
@@ -201,6 +237,20 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AppActivityRouteChildren {
+  AppActivityRunningRoute: typeof AppActivityRunningRoute
+  AppActivityIndexRoute: typeof AppActivityIndexRoute
+}
+
+const AppActivityRouteChildren: AppActivityRouteChildren = {
+  AppActivityRunningRoute: AppActivityRunningRoute,
+  AppActivityIndexRoute: AppActivityIndexRoute,
+}
+
+const AppActivityRouteWithChildren = AppActivityRoute._addFileChildren(
+  AppActivityRouteChildren,
+)
+
 interface AppSettingsRouteChildren {
   AppSettingsScanningRoute: typeof AppSettingsScanningRoute
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
@@ -222,13 +272,13 @@ const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
-  AppActivityRoute: typeof AppActivityRoute
+  AppActivityRoute: typeof AppActivityRouteWithChildren
   AppSettingsRoute: typeof AppSettingsRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppActivityRoute: AppActivityRoute,
+  AppActivityRoute: AppActivityRouteWithChildren,
   AppSettingsRoute: AppSettingsRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
 }

@@ -6,7 +6,12 @@ import {
 } from "@fleetfrog/protocol/domain/action";
 import { BatchScope, HubEvent } from "@fleetfrog/protocol/domain/activity";
 
-import type { ActionBatch, ActionRun, RunStatus } from "@fleetfrog/protocol/domain/activity";
+import type {
+  ActionBatch,
+  ActionRun,
+  RunCounts,
+  RunStatus,
+} from "@fleetfrog/protocol/domain/activity";
 
 function count(value: number, singular: string, plural = `${singular}s`): string {
   return `${value} ${value === 1 ? singular : plural}`;
@@ -91,11 +96,19 @@ const countPhrases = {
   MachineOffline: (value) => `${value} offline`,
 } satisfies Record<RunStatus, (value: number) => string>;
 
-/** The batch's runs by state, such as "3 succeeded, 1 skipped". */
-export function describeCounts(counts: ActionBatch["counts"]): string {
+/** Each state some of a batch's runs are in, with its phrase, such as "3 succeeded". */
+export function countParts(
+  counts: RunCounts,
+): ReadonlyArray<{ readonly status: RunStatus; readonly text: string }> {
   return summaryOrder
     .filter((status) => counts[status] > 0)
-    .map((status) => countPhrases[status](counts[status]))
+    .map((status) => ({ status, text: countPhrases[status](counts[status]) }));
+}
+
+/** The batch's runs by state, such as "3 succeeded, 1 skipped". */
+export function describeCounts(counts: RunCounts): string {
+  return countParts(counts)
+    .map(({ text }) => text)
     .join(", ");
 }
 

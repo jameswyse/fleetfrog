@@ -98,6 +98,8 @@ export const ActionBatch = Schema.Struct({
   /** Null while any run is queued or running. */
   finishedAt: Schema.NullOr(Schema.DateTimeUtc),
   counts: RunCounts,
+  /** The machines its runs went to, by the names they had then, in alphabetical order. */
+  machineNames: Schema.Array(Schema.String),
 });
 export type ActionBatch = typeof ActionBatch.Type;
 
@@ -134,11 +136,18 @@ export const ActivityEntry = Schema.TaggedUnion({
 });
 export type ActivityEntry = typeof ActivityEntry.Type;
 
-/** Narrows the activity history. Events match only a machine filter, never a repository or outcome. */
+/** The most values one activity filter list accepts. */
+const activityFilterLimit = 500;
+
+/**
+ * Narrows the activity history. A batch matches when one of its runs matches every non-empty list,
+ * and a list matches any of its values. Events match only a machine filter, never a repository or
+ * outcome.
+ */
 export const ActivityFilter = Schema.Struct({
-  machineId: Schema.NullOr(MachineId),
-  repositoryKey: Schema.NullOr(RepositoryKey),
-  outcome: Schema.NullOr(OutcomeKind),
+  machineIds: Schema.Array(MachineId).check(Schema.isMaxLength(activityFilterLimit)),
+  repositoryKeys: Schema.Array(RepositoryKey).check(Schema.isMaxLength(activityFilterLimit)),
+  outcomes: Schema.Array(OutcomeKind).check(Schema.isMaxLength(activityFilterLimit)),
 });
 export type ActivityFilter = typeof ActivityFilter.Type;
 

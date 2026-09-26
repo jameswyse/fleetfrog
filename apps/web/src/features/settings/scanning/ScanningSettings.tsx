@@ -3,9 +3,10 @@ import { useState } from "react";
 import { Schema } from "effect";
 
 import { knownFleet, requestHub, useHub } from "@/rpc/hubConnection.ts";
+import { SidebarPage } from "@/ui/SidebarLayout.tsx";
 import { PollingSettings } from "@fleetfrog/protocol/domain/polling";
 
-import { SettingsPage, SettingsRow, SettingsSection } from "../SettingsPage.tsx";
+import { SettingsRow, SettingsSection } from "../SettingsSection.tsx";
 import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
 
 type Field = {
@@ -62,9 +63,9 @@ export function ScanningSettings() {
 
   if (fleet === null) {
     return (
-      <SettingsPage trail={[{ label: "Scanning" }]}>
+      <SidebarPage title="Scanning">
         <p className="py-16 text-center text-sm text-ink-muted">Waiting for the hub…</p>
-      </SettingsPage>
+      </SidebarPage>
     );
   }
 
@@ -93,7 +94,7 @@ export function ScanningSettings() {
   };
 
   return (
-    <SettingsPage trail={[{ label: "Scanning" }]}>
+    <SidebarPage title="Scanning">
       <SettingsSection title="Intervals for every machine" status={<SaveStatus state={state} />}>
         {fields.map((field) => {
           const { name, label, hint, unit } = field;
@@ -143,6 +144,6 @@ export function ScanningSettings() {
           );
         })}
       </SettingsSection>
-    </SettingsPage>
+    </SidebarPage>
   );
 }

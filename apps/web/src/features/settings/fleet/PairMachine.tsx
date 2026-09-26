@@ -6,10 +6,11 @@ import { DateTime } from "effect";
 import { knownFleet, requestHub, useHub } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
 import { RelativeTime, useNow } from "@/ui/RelativeTime.tsx";
+import { SidebarPage } from "@/ui/SidebarLayout.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 import { encodePairingString } from "@fleetfrog/protocol/pairing/pairingString";
 
-import { SettingsPage, SettingsSection } from "../SettingsPage.tsx";
+import { SettingsSection } from "../SettingsSection.tsx";
 
 import type { PairingOffer } from "@fleetfrog/protocol/dashboard/rpcs";
 
@@ -67,7 +68,7 @@ export function PairMachine() {
   const copy = copyOutcome !== null && copyOutcome.command === offer?.command ? copyOutcome : null;
 
   return (
-    <SettingsPage trail={[{ label: "Fleet", to: "/settings/fleet" }, { label: "Pair a machine" }]}>
+    <SidebarPage title="Pair a machine">
       <SettingsSection title="New machine">
         <div className="space-y-4 px-5 py-5 text-sm">
           {paired === undefined && (
@@ -182,6 +183,6 @@ export function PairMachine() {
           )}
         </div>
       </SettingsSection>
-    </SettingsPage>
+    </SidebarPage>
   );
 }

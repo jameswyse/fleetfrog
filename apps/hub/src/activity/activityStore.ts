@@ -57,12 +57,14 @@ const BatchRow = Schema.Struct({
 type BatchRow = typeof BatchRow.Type;
 
 const CountRow = Schema.Struct({ batch_id: BatchId, status: StatusColumn, count: Schema.Int });
+const MachineNameRow = Schema.Struct({ batch_id: BatchId, machine_name: Schema.String });
 const EventRow = Schema.Struct({ at: Timestamp, event_json: JsonColumn(HubEvent) });
 const RunTargetRow = Schema.Struct({ id: RunId, machine_id: MachineId });
 
 const decodeRuns = Schema.decodeUnknownEffect(Schema.Array(RunRow));
 const decodeBatches = Schema.decodeUnknownEffect(Schema.Array(BatchRow));
 const decodeCounts = Schema.decodeUnknownEffect(Schema.Array(CountRow));
+const decodeMachineNames = Schema.decodeUnknownEffect(Schema.Array(MachineNameRow));
 const decodeEvents = Schema.decodeUnknownEffect(Schema.Array(EventRow));
 const decodeTargets = Schema.decodeUnknownEffect(Schema.Array(RunTargetRow));
 const encodeRequest = Schema.encodeSync(JsonColumn(ActionRequest));
@@ -186,10 +188,21 @@ export class ActivityStore extends Context.Service<
               : yield* sql`select batch_id, status, count(*) as count from action_runs where ${sql.in("batch_id", ids)} group by batch_id, status`.pipe(
                   Effect.flatMap(decodeCounts),
                 );
+          const machines =
+            ids.length === 0
+              ? []
+              : yield* sql`select distinct batch_id, machine_name from action_runs where ${sql.in("batch_id", ids)} order by machine_name collate nocase`.pipe(
+                  Effect.flatMap(decodeMachineNames),
+                );
           const byBatch = new Map<BatchId, RunCounts>();
+          const machineNames = new Map<BatchId, Array<string>>();
 
           for (const { batch_id, status, count } of counts) {
             byBatch.set(batch_id, { ...(byBatch.get(batch_id) ?? noRuns), [status]: count });
+          }
+
+          for (const { batch_id, machine_name } of machines) {
+            machineNames.set(batch_id, [...(machineNames.get(batch_id) ?? []), machine_name]);
           }
 
           return rows.map((row): ActionBatch => ({
@@ -199,6 +212,7 @@ export class ActivityStore extends Context.Service<
             requestedAt: row.requested_at,
             finishedAt: row.finished_at,
             counts: byBatch.get(row.id) ?? noRuns,
+            machineNames: machineNames.get(row.id) ?? [],
           }));
         });
 
@@ -319,22 +333,25 @@ export class ActivityStore extends Context.Service<
         ),
         activity: ({ filter, limit }) =>
           Effect.gen(function* () {
-            const batchRows = yield* sql`select * from action_batches as batch where ${sql.and([
-              filter.machineId === null
+            const runConditions = [
+              ["machine_id", filter.machineIds],
+              ["repository_key", filter.repositoryKeys],
+              ["status", filter.outcomes],
+            ] as const;
+            const matching = runConditions
+              .filter(([, values]) => values.length > 0)
+              .map(([column, values]) => sql.in(column, values));
+            // One run must match every list, so failures on Studio skip a batch that failed elsewhere.
+            const batchRows = yield* sql`select * from action_batches as batch where ${
+              matching.length === 0
                 ? "1=1"
-                : sql`exists (select 1 from action_runs where batch_id = batch.id and machine_id = ${filter.machineId})`,
-              filter.repositoryKey === null
-                ? "1=1"
-                : sql`exists (select 1 from action_runs where batch_id = batch.id and repository_key = ${filter.repositoryKey})`,
-              filter.outcome === null
-                ? "1=1"
-                : sql`exists (select 1 from action_runs where batch_id = batch.id and status = ${filter.outcome})`,
-            ])} order by requested_at desc limit ${limit + 1}`.pipe(Effect.flatMap(decodeBatches));
+                : sql`exists (select 1 from action_runs where batch_id = batch.id and ${sql.and(matching)})`
+            } order by requested_at desc limit ${limit + 1}`.pipe(Effect.flatMap(decodeBatches));
             // Events have no repository or outcome, so those filters leave only batches.
             const eventRows =
-              filter.repositoryKey === null && filter.outcome === null
+              filter.repositoryKeys.length === 0 && filter.outcomes.length === 0
                 ? yield* sql`select at, event_json from hub_events where ${
-                    filter.machineId === null ? "1=1" : sql`machine_id = ${filter.machineId}`
+                    filter.machineIds.length === 0 ? "1=1" : sql.in("machine_id", filter.machineIds)
                   } order by at desc, id desc limit ${limit + 1}`.pipe(Effect.flatMap(decodeEvents))
                 : [];
             const batches = yield* summarise(batchRows);

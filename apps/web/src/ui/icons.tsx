@@ -94,3 +94,22 @@ export function CloseIcon({ className }: IconProps) {
     </Icon>
   );
 }
+
+export function RunningIcon({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m10 8.5 5 3.5-5 3.5Z" />
+    </Icon>
+  );
+}
+
+export function HistoryIcon({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <path d="M3 12a9 9 0 1 0 2.64-6.36L3 8.3" />
+      <path d="M3 3.5v4.8h4.8" />
+      <path d="M12 7.5V12l3 2" />
+    </Icon>
+  );
+}

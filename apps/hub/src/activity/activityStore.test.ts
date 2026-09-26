@@ -10,7 +10,7 @@ import { Migrations } from "../persistence/database.ts";
 import { ActivityStore } from "./activityStore.ts";
 
 import type { ActionOutcome } from "@fleetfrog/protocol/domain/action";
-import type { ActivityPage } from "@fleetfrog/protocol/domain/activity";
+import type { ActivityFilter, ActivityPage } from "@fleetfrog/protocol/domain/activity";
 
 import type { NewRun } from "./activityStore.ts";
 
@@ -141,30 +141,49 @@ describe("ActivityStore", () => {
     }).pipe(Effect.provide(TestStore)),
   );
 
-  it.effect("pages history newest first and filters it by outcome", () =>
+  it.effect("pages history newest first and filters it by machine and outcome", () =>
     Effect.gen(function* () {
       const store = yield* ActivityStore;
-      yield* recordBatch(1, [newRun({ machineId: studio, path: "/a", outcome: fetched })]);
+      const denied: ActionOutcome = { _tag: "Failed", message: "denied" };
+      const first = yield* recordBatch(1, [
+        newRun({ machineId: studio, path: "/a", outcome: fetched }),
+      ]);
       const second = yield* recordBatch(2, [
-        newRun({ machineId: studio, path: "/a", outcome: { _tag: "Failed", message: "denied" } }),
+        newRun({ machineId: studio, path: "/a", outcome: denied }),
       ]);
       const third = yield* recordBatch(3, [
         newRun({ machineId: laptop, path: "/a", outcome: fetched }),
       ]);
-      const all = { machineId: null, repositoryKey: null, outcome: null };
+      const fourth = yield* recordBatch(4, [
+        newRun({ machineId: studio, path: "/a", outcome: fetched }),
+        newRun({ machineId: laptop, path: "/a", outcome: denied }),
+      ]);
+      const all = { machineIds: [], repositoryKeys: [], outcomes: [] };
       const batchIds = (page: ActivityPage) =>
         page.entries.map((entry) => (entry._tag === "Batch" ? entry.batch.id : null));
+      const matching = (filter: Partial<ActivityFilter>) =>
+        store.activity({ filter: { ...all, ...filter }, limit: 10 }).pipe(Effect.map(batchIds));
 
       const page = yield* store.activity({ filter: all, limit: 2 });
 
-      expect(batchIds(page)).toEqual([third.batchId, second.batchId]);
+      expect(batchIds(page)).toEqual([fourth.batchId, third.batchId]);
       expect(page.hasMore).toBe(true);
-      expect(
-        batchIds(yield* store.activity({ filter: { ...all, outcome: "Failed" }, limit: 10 })),
-      ).toEqual([second.batchId]);
-      expect(
-        batchIds(yield* store.activity({ filter: { ...all, machineId: laptop }, limit: 10 })),
-      ).toEqual([third.batchId]);
+      expect(page.entries[0]?._tag === "Batch" && page.entries[0].batch.machineNames).toEqual([
+        "Laptop",
+        "Studio",
+      ]);
+      expect(yield* matching({ outcomes: ["Failed"] })).toEqual([fourth.batchId, second.batchId]);
+      expect(yield* matching({ outcomes: ["Failed", "Succeeded"] })).toEqual([
+        fourth.batchId,
+        third.batchId,
+        second.batchId,
+        first.batchId,
+      ]);
+      expect(yield* matching({ machineIds: [laptop] })).toEqual([fourth.batchId, third.batchId]);
+      // The fourth batch failed only on the laptop, so it is not a failure on the studio.
+      expect(yield* matching({ machineIds: [studio], outcomes: ["Failed"] })).toEqual([
+        second.batchId,
+      ]);
     }).pipe(Effect.provide(TestStore)),
   );
 });

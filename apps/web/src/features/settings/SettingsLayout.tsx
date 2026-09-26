@@ -2,10 +2,8 @@ import { Link, Outlet } from "@tanstack/react-router";
 
 import { knownFleet, useHub } from "@/rpc/hubConnection.ts";
 import { FleetIcon, MachineIcon, PlusIcon, ScanIcon } from "@/ui/icons.tsx";
+import { SidebarLayout, sidebarLinkClass } from "@/ui/SidebarLayout.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
-
-const linkClass =
-  "flex min-h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm text-ink-muted hover:bg-surface-raised hover:text-ink aria-[current=page]:bg-surface-raised aria-[current=page]:text-ink";
 
 /** The machines in the fleet, nested under it, then a way to add one. */
 function MachineLinks() {
@@ -22,7 +20,7 @@ function MachineLinks() {
             <Link
               to="/settings/fleet/$machineId"
               params={{ machineId: machine.id }}
-              className={linkClass}
+              className={sidebarLinkClass}
             >
               <MachineIcon />
               <span className="min-w-0 flex-1 truncate">{machineLabel(machine)}</span>
@@ -36,7 +34,7 @@ function MachineLinks() {
         );
       })}
       <li>
-        <Link to="/settings/fleet/pair" className={linkClass}>
+        <Link to="/settings/fleet/pair" className={sidebarLinkClass}>
           <PlusIcon />
           Pair a machine
         </Link>
@@ -45,24 +43,25 @@ function MachineLinks() {
   );
 }
 
-/**
- * Settings sits under the main header with its own sidebar. On wide screens the sidebar stays in
- * place below the header while the page scrolls.
- */
+/** Settings sits under the main header with its own sidebar. */
 export function SettingsLayout() {
   return (
-    <div className="flex flex-col md:flex-row">
-      <aside className="border-b border-line bg-surface md:w-64 md:shrink-0 md:border-e md:border-b-0 lg:sticky lg:top-(--app-header-height) lg:h-[calc(100dvh-var(--app-header-height))] lg:overflow-y-auto">
+    <SidebarLayout
+      sidebar={
         <nav aria-label="Settings" className="px-3 py-4">
           <ul className="space-y-0.5">
             <li>
-              <Link to="/settings/scanning" className={linkClass}>
+              <Link to="/settings/scanning" className={sidebarLinkClass}>
                 <ScanIcon />
                 Scanning
               </Link>
             </li>
             <li>
-              <Link to="/settings/fleet" activeOptions={{ exact: true }} className={linkClass}>
+              <Link
+                to="/settings/fleet"
+                activeOptions={{ exact: true }}
+                className={sidebarLinkClass}
+              >
                 <FleetIcon />
                 Fleet
               </Link>
@@ -70,10 +69,9 @@ export function SettingsLayout() {
             </li>
           </ul>
         </nav>
-      </aside>
-      <div className="min-w-0 flex-1">
-        <Outlet />
-      </div>
-    </div>
+      }
+    >
+      <Outlet />
+    </SidebarLayout>
   );
 }
