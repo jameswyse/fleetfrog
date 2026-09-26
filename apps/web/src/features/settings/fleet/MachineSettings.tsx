@@ -6,6 +6,7 @@ import { ArrowUpRightIcon } from "lucide-react";
 import { knownFleet, requestHub, useHub } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
 import { Dialog } from "@/ui/Dialog.tsx";
+import { plural } from "@/ui/plural.ts";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { SidebarPage } from "@/ui/SidebarLayout.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
@@ -89,7 +90,7 @@ function StatusPanel({ fleet, machine }: { readonly fleet: Fleet; readonly machi
         <ConnectionStatus machine={machine} />
       </SideDetail>
       <SideDetail term="Repositories">
-        {repositories} {repositories === 1 ? "repository" : "repositories"}
+        {plural(repositories, "repository", "repositories")}
       </SideDetail>
       <SideDetail term="Last scan">
         {machine.lastStatusAt === null ? "Not yet" : <RelativeTime at={machine.lastStatusAt} />}

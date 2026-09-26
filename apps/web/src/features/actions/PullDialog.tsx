@@ -1,5 +1,6 @@
 import { Button } from "@/ui/Button.tsx";
 import { Dialog } from "@/ui/Dialog.tsx";
+import { plural } from "@/ui/plural.ts";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { pullTargets } from "./actionAvailability.ts";
@@ -8,10 +9,6 @@ import { useStartBatch } from "./useStartBatch.ts";
 import type { Fleet } from "@fleetfrog/protocol/domain/fleet";
 
 import type { PullScope } from "./actionAvailability.ts";
-
-function checkouts(count: number): string {
-  return `${count} ${count === 1 ? "checkout" : "checkouts"}`;
-}
 
 /** Confirms a pull across several checkouts, saying which will be skipped and why. */
 export function PullDialog({
@@ -34,7 +31,7 @@ export function PullDialog({
       title={
         runnable.length === 0
           ? "Nothing to pull"
-          : `Pull ${checkouts(runnable.length)} on ${machineCount} ${machineCount === 1 ? "machine" : "machines"}?`
+          : `Pull ${plural(runnable.length, "checkout")} on ${plural(machineCount, "machine")}?`
       }
       onClose={onClose}
     >
@@ -47,8 +44,8 @@ export function PullDialog({
           <div>
             <p className="font-medium">
               {runnable.length === 0
-                ? `All ${checkouts(skipped.length)} would be skipped, as of the last scan:`
-                : `${checkouts(skipped.length)} will be skipped, as of the last scan:`}
+                ? `All ${plural(skipped.length, "checkout")} would be skipped, as of the last scan:`
+                : `${plural(skipped.length, "checkout")} will be skipped, as of the last scan:`}
             </p>
             <ul className="mt-2 max-h-64 space-y-1 overflow-auto rounded-md border border-line bg-canvas px-3 py-2">
               {skipped.map(({ repository, machine, checkout, skip }) => (
@@ -71,7 +68,7 @@ export function PullDialog({
               disabled={pending}
               onClick={() => start({ _tag: "Pull", scope }, onClose)}
             >
-              {pending ? "Starting…" : `Pull ${checkouts(runnable.length)}`}
+              {pending ? "Starting…" : `Pull ${plural(runnable.length, "checkout")}`}
             </Button>
           )}
         </div>

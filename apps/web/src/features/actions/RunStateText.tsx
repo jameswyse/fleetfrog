@@ -3,6 +3,7 @@ import { Spinner } from "@/ui/Spinner.tsx";
 
 import { describeActiveRun, describeOutcome } from "./actionCopy.ts";
 
+import type { OutcomeKind } from "@fleetfrog/protocol/domain/action";
 import type { ActionRun } from "@fleetfrog/protocol/domain/activity";
 
 const outcomeTones = {
@@ -12,7 +13,7 @@ const outcomeTones = {
   Cancelled: "text-ink-muted",
   Interrupted: "text-changes",
   MachineOffline: "text-ink-muted",
-} as const;
+} satisfies Record<OutcomeKind, string>;
 
 /**
  * A run's state in one line: what it is doing now, or how it ended, why and when. `RunActivity`

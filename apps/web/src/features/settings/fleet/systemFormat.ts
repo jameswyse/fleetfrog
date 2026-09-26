@@ -1,3 +1,5 @@
+import { plural } from "@/ui/plural.ts";
+
 import type { SystemInfo } from "@fleetfrog/protocol/domain/machine";
 
 const wholeNumber = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
@@ -54,7 +56,7 @@ export function describeProcessorCount(system: SystemInfo): string {
   const { cores } = system.cpu;
   const unit = system.hypervisor === null ? "core" : "vCPU";
 
-  return `${cores} ${unit}${cores === 1 ? "" : "s"}`;
+  return plural(cores, unit);
 }
 
 export function formatLoad(load: number): string {

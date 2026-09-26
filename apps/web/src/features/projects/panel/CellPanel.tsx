@@ -4,7 +4,7 @@ import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { CellState, problemWords } from "../CellContent.tsx";
-import { summariseCell } from "../cellSummary.ts";
+import { cellFor, summariseCell } from "../cellSummary.ts";
 import { RepositoryActions } from "../RepositoryActions.tsx";
 import { CheckoutSections } from "./CheckoutSections.tsx";
 import { CloneSections } from "./CloneSections.tsx";
@@ -105,9 +105,7 @@ export function CellPanel({
   readonly onChoosePath: (path: string) => void;
   readonly onClose: () => void;
 }) {
-  const cell = summariseCell(
-    repository.checkouts.filter(({ machineId }) => machineId === machine.id),
-  );
+  const cell = cellFor(repository, machine.id);
   const entry = cell?.entries.find(({ checkout }) => checkout.path === path) ?? cell?.primary;
   const offline = machine.connection._tag === "Offline";
 

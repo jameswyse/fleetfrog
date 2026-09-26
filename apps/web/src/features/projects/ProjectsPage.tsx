@@ -7,6 +7,8 @@ import { projectPanelId, ProjectPanel } from "./panel/ProjectPanel.tsx";
 import { findGridCell, ProjectGrid } from "./ProjectGrid.tsx";
 import { ProjectToolbar } from "./ProjectToolbar.tsx";
 
+import type { ReactNode } from "react";
+
 import type { ProjectSelection, SelectionHistory } from "./ProjectGrid.tsx";
 
 /** Use heading level 2 inside a page that already has its own h1. */
@@ -17,7 +19,7 @@ function EmptyState({
 }: {
   readonly title: string;
   readonly level?: 1 | 2;
-  readonly children: React.ReactNode;
+  readonly children: ReactNode;
 }) {
   const Heading = level === 1 ? "h1" : "h2";
 

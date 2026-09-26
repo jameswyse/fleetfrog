@@ -1,6 +1,7 @@
 import { summariseCheckout } from "./checkoutSummary.ts";
 
 import type { MachineCheckout, Repository } from "@fleetfrog/protocol/domain/fleet";
+import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 
 import type { CheckoutSummary } from "./checkoutSummary.ts";
 
@@ -97,6 +98,11 @@ export function summariseCell(entries: ReadonlyArray<MachineCheckout>): CellSumm
     ).size,
     problem: problemOf(summaries),
   };
+}
+
+/** A repository's cell on one machine, or null when the machine has none of its checkouts. */
+export function cellFor(repository: Repository, machineId: MachineId): CellSummary | null {
+  return summariseCell(repository.checkouts.filter((entry) => entry.machineId === machineId));
 }
 
 /**

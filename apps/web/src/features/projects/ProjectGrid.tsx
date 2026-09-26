@@ -6,9 +6,9 @@ import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { RunActivity } from "../actions/RunActivity.tsx";
-import { activeRunFor } from "../actions/runLookup.ts";
+import { activeRunOn } from "../actions/runLookup.ts";
 import { CellContent } from "./CellContent.tsx";
-import { summariseCell } from "./cellSummary.ts";
+import { cellFor } from "./cellSummary.ts";
 import { MachineActions } from "./MachineActions.tsx";
 import { MissingCellContent } from "./MissingCell.tsx";
 import { RepositoryActions } from "./RepositoryActions.tsx";
@@ -150,13 +150,9 @@ function MatrixCell({
   readonly onSelect: (selection: ProjectSelection, history: SelectionHistory) => void;
 }) {
   const background = rowSelected ? selectedRowBackground : columnBackground(machine);
-  const cell = summariseCell(
-    repository.checkouts.filter(({ machineId }) => machineId === machine.id),
-  );
+  const cell = cellFor(repository, machine.id);
   const offline = machine.connection._tag === "Offline";
-  const active = cell?.entries
-    .map(({ checkout }) => activeRunFor(runs, { machineId: machine.id, checkout }))
-    .find((run) => run !== undefined);
+  const active = cell === null ? undefined : activeRunOn(runs, cell.entries);
   const selection = { repository: repository.key, machine: machine.id };
 
   return (

@@ -1,10 +1,8 @@
+import { plural } from "@/ui/plural.ts";
+
 import type { ReactNode } from "react";
 
 import type { CellProblem, CellSummary } from "./cellSummary.ts";
-
-export function plural(value: number, singular: string, pluralForm = `${singular}s`): string {
-  return `${value} ${value === 1 ? singular : pluralForm}`;
-}
 
 /** What each problem means, in words. */
 export const problemWords = {

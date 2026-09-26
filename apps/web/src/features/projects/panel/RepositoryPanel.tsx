@@ -7,9 +7,9 @@ import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { RunActivity } from "../../actions/RunActivity.tsx";
-import { activeCloneFor, activeRunFor } from "../../actions/runLookup.ts";
+import { activeCloneFor, activeRunOn } from "../../actions/runLookup.ts";
 import { CellContent } from "../CellContent.tsx";
-import { latestGithub, openPullRequests, summariseCell } from "../cellSummary.ts";
+import { cellFor, latestGithub, openPullRequests } from "../cellSummary.ts";
 import { RepositoryActions } from "../RepositoryActions.tsx";
 import { PanelHeader } from "./PanelHeader.tsx";
 import { Fact, Facts, PanelSection } from "./PanelSection.tsx";
@@ -116,9 +116,7 @@ export function RepositoryPanel({
         >
           <ul className="-mx-3 -my-3 divide-y divide-line">
             {fleet.machines.map((machine) => {
-              const cell = summariseCell(
-                repository.checkouts.filter(({ machineId }) => machineId === machine.id),
-              );
+              const cell = cellFor(repository, machine.id);
 
               if (cell === null) {
                 const cloning = activeCloneFor(runs, {
@@ -144,9 +142,7 @@ export function RepositoryPanel({
                 cell.primary.checkout.status._tag === "Read"
                   ? cell.primary.checkout.status.git
                   : null;
-              const active = cell.entries
-                .map(({ checkout }) => activeRunFor(runs, { machineId: machine.id, checkout }))
-                .find((run) => run !== undefined);
+              const active = activeRunOn(runs, cell.entries);
 
               return (
                 <li key={machine.id}>

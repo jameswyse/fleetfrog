@@ -1,3 +1,4 @@
+import { plural } from "@/ui/plural.ts";
 import {
   ActionOutcome,
   ActionResult,
@@ -12,10 +13,6 @@ import type {
   RunCounts,
   RunStatus,
 } from "@fleetfrog/protocol/domain/activity";
-
-function count(value: number, singular: string, plural = `${singular}s`): string {
-  return `${value} ${value === 1 ? singular : plural}`;
-}
 
 export function describeBatch({ kind, scope }: Pick<ActionBatch, "kind" | "scope">): string {
   const things = kind === "Pull" ? "checkout" : "repository";
@@ -35,8 +32,8 @@ export function describeSkip(reason: SkipReason): string {
     NoCommits: () => "The branch has no commits yet",
     NoUpstream: () => "The branch has no upstream",
     UpstreamGone: () => "The upstream branch was deleted",
-    UncommittedChanges: ({ files }) => count(files, "changed file"),
-    UnpushedCommits: ({ commits }) => `${count(commits, "commit")} to push`,
+    UncommittedChanges: ({ files }) => plural(files, "changed file"),
+    UnpushedCommits: ({ commits }) => `${plural(commits, "commit")} to push`,
     NotAllowed: () => "Git actions are turned off on this machine",
     AgentOutdated: () => "The agent needs updating",
   });
@@ -45,7 +42,7 @@ export function describeSkip(reason: SkipReason): string {
 function describeResult(result: ActionResult): string {
   return ActionResult.match(result, {
     Fetched: () => "Fetched",
-    FastForwarded: ({ commits }) => `Pulled ${count(commits, "commit")}`,
+    FastForwarded: ({ commits }) => `Pulled ${plural(commits, "commit")}`,
     UpToDate: () => "Already up to date",
     Cloned: () => "Cloned",
   });

@@ -4,10 +4,12 @@ import { FolderIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/ui/Button.tsx";
 import { Chip } from "@/ui/Chip.tsx";
+import { plural } from "@/ui/plural.ts";
 import { expandHome, isWithin } from "@fleetfrog/protocol/domain/cloneDestination";
 
 import type { HubResult } from "@/rpc/hubConnection.ts";
 import type { DiscoveryRoot, FolderOutcome, FolderStatus } from "@fleetfrog/protocol/domain/fleet";
+import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 
 /** A folder this list asked the machine to create. */
 type Creation =
@@ -28,9 +30,7 @@ function folderNote(status: FolderStatus | null | undefined, repositories: numbe
 
   if (status === "Folder") {
     const text =
-      repositories === 0
-        ? "No repositories"
-        : `${repositories} ${repositories === 1 ? "repository" : "repositories"}`;
+      repositories === 0 ? "No repositories" : plural(repositories, "repository", "repositories");
 
     return { text, problem: false };
   }
@@ -61,7 +61,7 @@ export function ProjectFolders({
   onChange,
   createFolder,
 }: {
-  readonly machineId: string;
+  readonly machineId: MachineId;
   readonly homeDirectory: string;
   /**
    * The checkout folders of each repository on the machine, so several clones of one repository

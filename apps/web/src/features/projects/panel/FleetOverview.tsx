@@ -10,11 +10,12 @@ import {
 } from "lucide-react";
 
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
+import { plural } from "@/ui/plural.ts";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
-import { Glyph, plural, problemWords } from "../CellContent.tsx";
-import { openPullRequests, summariseCell } from "../cellSummary.ts";
+import { Glyph, problemWords } from "../CellContent.tsx";
+import { cellFor, openPullRequests } from "../cellSummary.ts";
 import { PanelHeader } from "./PanelHeader.tsx";
 import { PanelSection, ShortList } from "./PanelSection.tsx";
 
@@ -35,9 +36,7 @@ interface FleetCell {
 function fleetCells(fleet: Fleet): ReadonlyArray<FleetCell> {
   return fleet.repositories.flatMap((repository) =>
     fleet.machines.flatMap((machine) => {
-      const cell = summariseCell(
-        repository.checkouts.filter(({ machineId }) => machineId === machine.id),
-      );
+      const cell = cellFor(repository, machine.id);
 
       return cell === null ? [] : [{ repository, machine, cell }];
     }),
