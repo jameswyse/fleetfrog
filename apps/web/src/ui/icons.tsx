@@ -77,3 +77,20 @@ export function ChevronIcon({ className }: IconProps) {
     </Icon>
   );
 }
+
+export function FolderIcon({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <path d="M3.5 6.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z" />
+    </Icon>
+  );
+}
+
+export function CloseIcon({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <path d="M6 6l12 12" />
+      <path d="M18 6 6 18" />
+    </Icon>
+  );
+}

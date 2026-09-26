@@ -56,26 +56,29 @@ export function SettingsPage({
       </div>
       {current !== undefined && <h1 className="sr-only">{current.label}</h1>}
       <div className="flex flex-col gap-8 px-4 py-8 sm:px-8 xl:flex-row xl:items-start">
-        <div className="w-full max-w-3xl min-w-0 space-y-8">{children}</div>
-        {aside !== undefined && (
-          <aside className="w-full max-w-3xl space-y-6 xl:w-80 xl:shrink-0">{aside}</aside>
-        )}
+        <div className="min-w-0 space-y-8 xl:flex-1">{children}</div>
+        {aside !== undefined && <aside className="space-y-6 xl:w-96 xl:shrink-0">{aside}</aside>}
       </div>
     </>
   );
 }
 
-/** A labelled group of rows in one card. */
+/** A labelled group of rows in one card, with room beside the label for how saving went. */
 export function SettingsSection({
   title,
+  status,
   children,
 }: {
   readonly title: string;
+  readonly status?: ReactNode;
   readonly children: ReactNode;
 }) {
   return (
     <section>
-      <h2 className="mb-2 px-1 text-sm text-ink-muted">{title}</h2>
+      <div className="mb-2 flex items-baseline justify-between gap-4 px-1">
+        <h2 className="text-sm text-ink-muted">{title}</h2>
+        {status}
+      </div>
       <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
         {children}
       </div>
@@ -120,15 +123,6 @@ export function SettingsRow({
       </div>
       {control !== undefined && <div className="shrink-0">{control}</div>}
       {children !== undefined && <div className="basis-full">{children}</div>}
-    </div>
-  );
-}
-
-/** The last row of a card, holding its submit button and outcome. */
-export function SettingsFooter({ children }: { readonly children: ReactNode }) {
-  return (
-    <div className="flex flex-wrap items-center justify-end gap-3 bg-surface-raised px-5 py-3">
-      {children}
     </div>
   );
 }

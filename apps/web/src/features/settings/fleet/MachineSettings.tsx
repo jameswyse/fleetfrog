@@ -9,63 +9,24 @@ import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import {
-  SettingsFooter,
   SettingsPage,
   SettingsRow,
   SettingsSection,
   SideDetail,
   SidePanel,
 } from "../SettingsPage.tsx";
+import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
 import { DiscoveryFolders } from "./DiscoveryFolders.tsx";
 import { ActionsText, ConnectionStatus, repositoryCount } from "./MachineStatus.tsx";
 import { describeDisk, describeLoad, formatMemory } from "./systemFormat.ts";
 
-import type { HubResult } from "@/rpc/hubConnection.ts";
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 
-/** The last save or rescan, reported beside its controls. Its wording carries the outcome. */
+/** The last rescan request, reported beside its button. Its wording carries the outcome. */
 type Notice =
   | { readonly _tag: "None" }
   | { readonly _tag: "Succeeded"; readonly message: string }
   | { readonly _tag: "Failed"; readonly message: string };
-
-type Update = { readonly part: string; readonly result: HubResult<void> };
-
-function sameRoots(left: ReadonlyArray<string>, right: ReadonlyArray<string>): boolean {
-  return left.length === right.length && left.every((root, index) => root === right[index]);
-}
-
-function formText(form: FormData, name: string): string {
-  const value = form.get(name);
-
-  return value === null || value instanceof File ? "" : value;
-}
-
-/** Describes a save in which only some of the updates may have succeeded. */
-function describeSave(updates: ReadonlyArray<Update>): Notice {
-  const failures = updates.flatMap(({ part, result }) =>
-    result._tag === "Failure" ? [{ part, message: result.message }] : [],
-  );
-  const [firstFailure] = failures;
-
-  if (firstFailure === undefined) {
-    return { _tag: "Succeeded", message: "Saved." };
-  }
-
-  const notSaved = failures.map(({ part }) => part).join(" or the ");
-  const saved = updates
-    .filter(({ result }) => result._tag === "Success")
-    .map(({ part }) => part)
-    .join(" and the ");
-
-  return {
-    _tag: "Failed",
-    message:
-      saved === ""
-        ? `Couldn't save the ${notSaved}. ${firstFailure.message}`
-        : `Saved the ${saved}, but not the ${notSaved}. ${firstFailure.message}`,
-  };
-}
 
 function NoticeText({ notice }: { readonly notice: Notice }) {
   return (
@@ -211,94 +172,65 @@ function SystemPanel({ machine }: { readonly machine: Machine }) {
   );
 }
 
+/** The machine's saved settings. Each one saves itself as it changes. */
 function ConfigurationSection({ machine }: { readonly machine: Machine }) {
-  const [saving, startSaving] = useTransition();
-  const [notice, setNotice] = useState<Notice>({ _tag: "None" });
+  const { state, save } = useAutoSave();
   const nameId = `name-${machine.id}`;
+  const computerName = machine.info.prettyName ?? machine.info.hostname;
 
-  const save = (form: FormData) =>
-    startSaving(async () => {
-      const typedName = formText(form, "name").trim();
-      const customName = typedName === "" ? null : typedName;
-      const roots = form
-        .getAll("root")
-        .map((root) => (root instanceof File ? "" : root.trim()))
-        .filter((root) => root !== "");
-      const updates: Array<Update> = [];
+  const saveName = (input: HTMLInputElement) => {
+    const typed = input.value.trim();
+    const customName = typed === "" ? null : typed;
 
-      if (customName !== machine.customName) {
-        updates.push({
-          part: "display name",
-          result: await requestHub((client) =>
-            client.RenameMachine({ machineId: machine.id, customName }),
-          ),
-        });
-      }
-
-      if (
-        !sameRoots(
-          roots,
-          machine.discoveryRoots.map(({ path }) => path),
-        )
-      ) {
-        updates.push({
-          part: "discovery folders",
-          result: await requestHub((client) =>
-            client.SetDiscoveryRoots({ machineId: machine.id, roots }),
-          ),
-        });
-      }
-
-      setNotice(
-        updates.length === 0
-          ? { _tag: "Succeeded", message: "No changes to save." }
-          : describeSave(updates),
+    if (customName !== machine.customName) {
+      save(() =>
+        requestHub((client) => client.RenameMachine({ machineId: machine.id, customName })),
       );
-    });
+    }
+  };
 
   return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        save(new FormData(event.currentTarget));
-      }}
-    >
-      <SettingsSection title="Configuration">
-        {/* Drafts are keyed on the saved values, so a change from the hub replaces the draft. */}
-        <SettingsRow
-          title="Display name"
-          description={`Shown instead of the computer's own name, ${machine.info.prettyName ?? machine.info.hostname}.`}
-          htmlFor={nameId}
-          control={
-            <input
-              key={machine.customName ?? ""}
-              id={nameId}
-              name="name"
-              aria-describedby={`${nameId}-description`}
-              defaultValue={machine.customName ?? ""}
-              placeholder={machine.info.prettyName ?? machine.info.hostname}
-              autoComplete="off"
-              className="min-h-9 w-64 rounded-md border border-line bg-canvas px-2.5 text-sm"
-            />
+    <SettingsSection title="Configuration" status={<SaveStatus state={state} />}>
+      {/* Keyed on the saved values, so a change from the hub replaces what is shown. */}
+      <SettingsRow
+        title="Display name"
+        description={`Shown instead of the computer's own name, ${computerName}. Leave it empty to use that.`}
+        htmlFor={nameId}
+        control={
+          <input
+            key={machine.customName ?? ""}
+            id={nameId}
+            aria-describedby={`${nameId}-description`}
+            defaultValue={machine.customName ?? ""}
+            placeholder={computerName}
+            autoComplete="off"
+            onBlur={(event) => saveName(event.currentTarget)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.currentTarget.blur();
+              }
+            }}
+            className="min-h-9 w-64 rounded-md border border-line bg-canvas px-2.5 text-sm"
+          />
+        }
+      />
+      <SettingsRow
+        title="Discovery folders"
+        description="The agent looks for repositories up to five folders deep. ~ means the home folder. Clones go into the default folder unless another machine keeps the repository somewhere these folders cover."
+      >
+        <DiscoveryFolders
+          machineId={machine.id}
+          roots={machine.discoveryRoots}
+          onChange={(roots) =>
+            save(() =>
+              requestHub((client) =>
+                client.SetDiscoveryRoots({ machineId: machine.id, roots: [...roots] }),
+              ),
+            )
           }
         />
-        <div className="px-5 py-4">
-          <DiscoveryFolders
-            key={machine.discoveryRoots.map(({ path }) => path).join("\n")}
-            machineId={machine.id}
-            roots={machine.discoveryRoots}
-          />
-        </div>
-        <SettingsFooter>
-          <div className="me-auto">
-            <NoticeText notice={notice} />
-          </div>
-          <Button tone="primary" type="submit" disabled={saving}>
-            {saving ? "Saving…" : "Save"}
-          </Button>
-        </SettingsFooter>
-      </SettingsSection>
-    </form>
+      </SettingsRow>
+    </SettingsSection>
   );
 }
 
