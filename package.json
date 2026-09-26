@@ -1,0 +1,61 @@
+{
+  "name": "@fleetfrog/monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/turbo.mjs run build",
+    "check": "node scripts/turbo.mjs run format:check lint typecheck '//#format:check:root' '//#lint:root' '//#typecheck:tooling' --continue=always",
+    "dev": "FLEETFROG_HUMAN_OUTPUT=1 node scripts/turbo.mjs run dev --ui=stream",
+    "fix": "node scripts/turbo.mjs run lint:fix '//#lint:fix:root'",
+    "format": "node scripts/turbo.mjs run format '//#format:root'",
+    "format:check": "node scripts/turbo.mjs run format:check '//#format:check:root'",
+    "format:check:root": "oxfmt --list-different '*.md' 'docs/**/*.md' 'tools/**/*.ts' 'scripts/**/*.mjs' compose*.yaml package.json pnpm-workspace.yaml turbo.json tsconfig.json tsconfig.base.json tsconfig.node.json tsconfig.tooling.json oxfmt.config.ts oxlint.config.ts '.vscode/*.json'",
+    "format:root": "oxfmt '*.md' 'docs/**/*.md' 'tools/**/*.ts' 'scripts/**/*.mjs' compose*.yaml package.json pnpm-workspace.yaml turbo.json tsconfig.json tsconfig.base.json tsconfig.node.json tsconfig.tooling.json oxfmt.config.ts oxlint.config.ts '.vscode/*.json'",
+    "format:staged": "lint-staged.sh \"oxfmt --list-different --no-error-on-unmatched-pattern\" \"*.js\" \"*.[cm]js\" \"*.jsx\" \"*.ts\" \"*.[cm]ts\" \"*.tsx\" \"*.css\" \"*.html\" \"*.json\" \"*.jsonc\" \"*.md\" \"*.mdx\" \"*.yaml\" \"*.yml\"",
+    "lint": "node scripts/turbo.mjs run lint '//#lint:root'",
+    "lint:fix": "node scripts/turbo.mjs run lint:fix '//#lint:fix:root'",
+    "lint:fix:root": "oxlint --fix tools/vitest scripts oxfmt.config.ts oxlint.config.ts",
+    "lint:root": "oxlint tools/vitest scripts oxfmt.config.ts oxlint.config.ts",
+    "lint:staged": "lint-staged.sh \"oxlint --no-error-on-unmatched-pattern\" \"*.js\" \"*.[cm]js\" \"*.jsx\" \"*.ts\" \"*.[cm]ts\" \"*.tsx\"",
+    "precommit": "pnpm format:staged; staged_format_exit=$?; pnpm lint:staged; staged_lint_exit=$?; pnpm typecheck; typecheck_exit=$?; test $staged_format_exit -eq 0 && test $staged_lint_exit -eq 0 && test $typecheck_exit -eq 0",
+    "prepare": "node scripts/installHooks.mjs && effect-tsgo patch --typescript --oxlint",
+    "test:unit": "node scripts/turbo.mjs run test:unit",
+    "test:unit:changed": "node scripts/turbo.mjs run test:unit:changed",
+    "typecheck": "node scripts/turbo.mjs run typecheck '//#typecheck:tooling'",
+    "typecheck:tooling": "tsc --noEmit --project tsconfig.tooling.json",
+    "verify": "node scripts/turbo.mjs run format:check lint typecheck build test:unit '//#format:check:root' '//#lint:root' '//#typecheck:tooling' --continue=always",
+    "verify:uncached": "pnpm verify --force"
+  },
+  "devDependencies": {
+    "@e18e/eslint-plugin": "0.8.1",
+    "@effect/tsgo": "catalog:",
+    "@oxlint/plugins": "catalog:",
+    "@stylistic/eslint-plugin": "5.10.0",
+    "@types/node": "catalog:",
+    "eslint-plugin-react-you-might-not-need-an-effect": "1.0.2",
+    "husky": "9.1.7",
+    "lint-staged.sh": "0.6.9",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "7.0.2001",
+    "turbo": "2.11.4",
+    "typescript": "catalog:"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.6.0"
+    },
+    "runtime": {
+      "name": "node",
+      "version": "26.10.0",
+      "onFail": "download"
+    }
+  },
+  "engines": {
+    "node": "26.10.0"
+  },
+  "packageManager": "pnpm@12.6.0"
+}

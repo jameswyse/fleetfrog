@@ -1,0 +1,146 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "cacheMaxAge": "14d",
+  "cacheMaxSize": "2147483648B",
+  "futureFlags": {
+    "errorsOnlyShowHash": true
+  },
+  "globalPassThroughEnv": ["FORCE_COLOR", "NO_COLOR", "PNPM_CONFIG_REPORTER"],
+  "noUpdateNotifier": true,
+  "tasks": {
+    "build": {
+      "dependsOn": ["^transit", "typegen"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/tsconfig.base.json",
+        "$TURBO_ROOT$/tsconfig.node.json"
+      ],
+      "outputLogs": "errors-only",
+      "outputs": ["dist/**"],
+      "passThroughEnv": ["FLEETFROG_HUMAN_OUTPUT"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "format": {
+      "cache": false,
+      "outputLogs": "errors-only"
+    },
+    "format:check": {
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.editorconfig", "$TURBO_ROOT$/oxfmt.config.ts"],
+      "outputLogs": "errors-only",
+      "outputs": []
+    },
+    "typegen": {
+      "inputs": ["$TURBO_DEFAULT$", "!**/*.test.{ts,tsx}"],
+      "outputLogs": "errors-only",
+      "outputs": ["src/routeTree.gen.ts"]
+    },
+    "lint": {
+      "dependsOn": ["^transit", "typegen"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/oxlint.config.ts",
+        "$TURBO_ROOT$/tools/oxlint/**",
+        "$TURBO_ROOT$/tsconfig.base.json",
+        "$TURBO_ROOT$/tsconfig.node.json"
+      ],
+      "outputLogs": "errors-only",
+      "outputs": []
+    },
+    "lint:fix": {
+      "cache": false,
+      "dependsOn": ["format", "typegen"],
+      "outputLogs": "errors-only"
+    },
+    "test:unit": {
+      "dependsOn": ["^transit"],
+      "env": ["FLEETFROG_HUMAN_OUTPUT"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/tools/vitest/**",
+        "$TURBO_ROOT$/tsconfig.base.json",
+        "$TURBO_ROOT$/tsconfig.node.json"
+      ],
+      "outputLogs": "new-only",
+      "outputs": [],
+      "passThroughEnv": ["CI", "GITHUB_ACTIONS"]
+    },
+    "test:unit:changed": {
+      "cache": false,
+      "outputLogs": "new-only",
+      "passThroughEnv": ["CI", "FLEETFROG_HUMAN_OUTPUT", "GITHUB_ACTIONS"]
+    },
+    "typecheck": {
+      "dependsOn": ["^transit", "typegen"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/tsconfig.base.json",
+        "$TURBO_ROOT$/tsconfig.node.json"
+      ],
+      "outputLogs": "errors-only",
+      "outputs": []
+    },
+    "transit": {
+      "dependsOn": ["^transit"],
+      "outputLogs": "errors-only"
+    },
+    "//#format:root": {
+      "cache": false,
+      "outputLogs": "errors-only"
+    },
+    "//#format:check:root": {
+      "inputs": [
+        "$TURBO_ROOT$/.editorconfig",
+        "$TURBO_ROOT$/*.md",
+        "$TURBO_ROOT$/docs/**",
+        "$TURBO_ROOT$/tools/**",
+        "$TURBO_ROOT$/scripts/**",
+        "$TURBO_ROOT$/compose.yaml",
+        "$TURBO_ROOT$/package.json",
+        "$TURBO_ROOT$/pnpm-workspace.yaml",
+        "$TURBO_ROOT$/turbo.json",
+        "$TURBO_ROOT$/tsconfig.json",
+        "$TURBO_ROOT$/tsconfig.base.json",
+        "$TURBO_ROOT$/tsconfig.node.json",
+        "$TURBO_ROOT$/tsconfig.tooling.json",
+        "$TURBO_ROOT$/oxfmt.config.ts",
+        "$TURBO_ROOT$/oxlint.config.ts",
+        "$TURBO_ROOT$/.vscode/**"
+      ],
+      "outputLogs": "errors-only",
+      "outputs": []
+    },
+    "//#lint:fix:root": {
+      "cache": false,
+      "dependsOn": ["//#format:root"],
+      "outputLogs": "errors-only"
+    },
+    "//#lint:root": {
+      "inputs": [
+        "$TURBO_ROOT$/tools/**",
+        "$TURBO_ROOT$/scripts/**",
+        "$TURBO_ROOT$/tsconfig.json",
+        "$TURBO_ROOT$/tsconfig.base.json",
+        "$TURBO_ROOT$/tsconfig.node.json",
+        "$TURBO_ROOT$/oxfmt.config.ts",
+        "$TURBO_ROOT$/oxlint.config.ts"
+      ],
+      "outputLogs": "errors-only",
+      "outputs": []
+    },
+    "//#typecheck:tooling": {
+      "inputs": [
+        "$TURBO_ROOT$/apps/*/vitest.config.ts",
+        "$TURBO_ROOT$/packages/*/vitest.config.ts",
+        "$TURBO_ROOT$/tools/**",
+        "$TURBO_ROOT$/tsconfig.base.json",
+        "$TURBO_ROOT$/tsconfig.node.json",
+        "$TURBO_ROOT$/tsconfig.tooling.json"
+      ],
+      "outputLogs": "errors-only",
+      "outputs": []
+    }
+  }
+}

@@ -1,0 +1,31 @@
+# Git passes a null previous HEAD only for the initial checkout.
+case "$1" in
+  ''|*[!0]*) exit 0 ;;
+esac
+[ "$3" = 1 ] || exit 0
+
+worktree=$(git rev-parse --show-toplevel)
+common_directory=$(git rev-parse --path-format=absolute --git-common-dir)
+main_worktree=$(git worktree list --porcelain | sed -n '1s/^worktree //p')
+[ "$worktree" != "$main_worktree" ] || exit 0
+
+# Collapsing ignored directories avoids copying dependency and build output files.
+git --git-dir="$common_directory" --work-tree="$main_worktree" \
+  ls-files --others --ignored --exclude-standard --directory -z |
+  xargs -0 sh -e -c '
+    source=$1
+    destination=$2
+    shift 2
+    for file do
+      case "${file##*/}" in
+        .env|.env.*)
+          [ -f "$source/$file" ] || continue
+          [ ! -e "$destination/$file" ] && [ ! -L "$destination/$file" ] || continue
+          mkdir -p "$(dirname "$destination/$file")"
+          cp -p "$source/$file" "$destination/$file"
+          ;;
+      esac
+    done
+  ' sh "$main_worktree" "$worktree"
+
+pnpm install --prefer-offline

@@ -1,0 +1,52 @@
+import { Schema } from "effect";
+
+import { Checkout } from "./checkout.ts";
+import { MachineId, MachineInfo } from "./machine.ts";
+import { PollingSettings } from "./polling.ts";
+import { RepositoryIdentity, RepositoryKey } from "./repositoryIdentity.ts";
+
+export const Connection = Schema.TaggedUnion({
+  Online: { since: Schema.DateTimeUtc },
+  Offline: { lastSeenAt: Schema.NullOr(Schema.DateTimeUtc) },
+});
+export type Connection = typeof Connection.Type;
+
+export const Machine = Schema.Struct({
+  id: MachineId,
+  info: MachineInfo,
+  /** The dashboard's name for the machine, overriding the pretty name and hostname. */
+  customName: Schema.NullOr(Schema.String),
+  connection: Connection,
+  discoveryRoots: Schema.Array(Schema.String),
+  /** Completion of the last discovery walk. Until then, absent repositories are unknown, not missing. */
+  lastDiscoveryAt: Schema.NullOr(Schema.DateTimeUtc),
+  lastStatusAt: Schema.NullOr(Schema.DateTimeUtc),
+  pairedAt: Schema.DateTimeUtc,
+});
+export type Machine = typeof Machine.Type;
+
+export const MachineCheckout = Schema.Struct({
+  machineId: MachineId,
+  checkout: Checkout,
+});
+export type MachineCheckout = typeof MachineCheckout.Type;
+
+export const Repository = Schema.Struct({
+  key: RepositoryKey,
+  identity: RepositoryIdentity,
+  name: Schema.String,
+  checkouts: Schema.Array(MachineCheckout),
+});
+export type Repository = typeof Repository.Type;
+
+/** Everything the dashboard shows, sent whole whenever something changes. */
+export const Fleet = Schema.Struct({
+  machines: Schema.Array(Machine),
+  repositories: Schema.Array(Repository),
+  polling: PollingSettings,
+});
+export type Fleet = typeof Fleet.Type;
+
+export function machineLabel(machine: Machine): string {
+  return machine.customName ?? machine.info.prettyName ?? machine.info.hostname;
+}
