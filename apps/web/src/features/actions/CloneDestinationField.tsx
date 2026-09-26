@@ -45,7 +45,7 @@ export function CloneDestinationField({
               aria-describedby={describedBy}
               value={value.root}
               onChange={(event) => onChange({ ...value, root: event.currentTarget.value })}
-              className={`max-w-full appearance-none truncate rounded bg-surface-raised py-0.5 ps-1.5 pe-5 ${pathText} outline-hidden field-sizing-content hover:bg-line focus-visible:ring-2 focus-visible:ring-accent`}
+              className={`max-w-full appearance-none truncate rounded bg-chip py-0.5 ps-1.5 pe-5 text-ink ${pathText} outline-hidden field-sizing-content hover:bg-chip-hover focus-visible:ring-2 focus-visible:ring-accent`}
             >
               {roots.map((root) => (
                 <option key={root.path} value={root.path}>
@@ -58,13 +58,13 @@ export function CloneDestinationField({
             </select>
             <ChevronDownIcon
               aria-hidden="true"
-              className="pointer-events-none absolute end-1 top-1/2 size-3.5 -translate-y-1/2 text-ink-muted"
+              className="pointer-events-none absolute end-1 top-1/2 size-3.5 -translate-y-1/2 text-ink"
             />
           </span>
         ) : (
           <span
             title={value.root}
-            className={`max-w-[60%] shrink-0 truncate rounded bg-surface-raised px-1.5 py-0.5 ${pathText}`}
+            className={`max-w-[60%] shrink-0 truncate rounded bg-chip px-1.5 py-0.5 text-ink ${pathText}`}
           >
             {value.root}
           </span>

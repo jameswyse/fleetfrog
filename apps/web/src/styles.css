@@ -15,8 +15,12 @@
   --neutral-97: #f4f6f4;
   --neutral-93: #e5e9e5;
   --neutral-91: #dee3de;
+  --neutral-87: #d1d6d1;
+  --neutral-84: #c7ccc7;
   --neutral-72: #9fa89f;
   --neutral-48: #5c605c;
+  --neutral-40: #444944;
+  --neutral-36: #393f39;
   --neutral-31: #2c312c;
   --neutral-25: #1e221e;
   --neutral-23: #1b1c1b;
@@ -59,6 +63,9 @@
   --ink: var(--neutral-23);
   --ink-muted: var(--neutral-48);
   --scrim: color-mix(in oklab, var(--neutral-18) 55%, transparent);
+  /* A chip set into a field, such as a clone's project folder. */
+  --chip: var(--neutral-87);
+  --chip-hover: var(--neutral-84);
   /* Filled primary actions, focus rings and the selection ring. */
   --accent: var(--blue-52);
   --accent-hover: var(--blue-47);
@@ -87,6 +94,8 @@
     --line: var(--neutral-31);
     --ink: var(--neutral-93);
     --ink-muted: var(--neutral-72);
+    --chip: var(--neutral-36);
+    --chip-hover: var(--neutral-40);
     --accent: var(--blue-70);
     --accent-hover: var(--blue-75);
     --accent-ink: var(--blue-20);
@@ -115,6 +124,8 @@
   --color-line: var(--line);
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
+  --color-chip: var(--chip);
+  --color-chip-hover: var(--chip-hover);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-ink: var(--accent-ink);

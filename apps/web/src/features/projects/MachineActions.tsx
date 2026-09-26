@@ -1,24 +1,36 @@
 import { useState, useTransition } from "react";
 
 import { Link } from "@tanstack/react-router";
+import {
+  ArrowDownToLineIcon,
+  CloudDownloadIcon,
+  FolderSearchIcon,
+  SettingsIcon,
+} from "lucide-react";
 
 import { requestHub } from "@/rpc/hubConnection.ts";
-import { Menu, MenuItem, menuItemClass } from "@/ui/Menu.tsx";
-import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
+import { Menu, MenuIcon, MenuItem, menuItemClass } from "@/ui/Menu.tsx";
 
 import { canPull, machineBlocker } from "../actions/actionAvailability.ts";
 import { PullDialog } from "../actions/PullDialog.tsx";
 import { useStartBatch } from "../actions/useStartBatch.ts";
 
+import type { ReactNode } from "react";
+
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 
-/** A machine column's menu: fetch, pull or rescan everything on it, or open its settings. */
+/**
+ * A machine's menu: fetch, pull or rescan everything on it, or open its settings. The machine's
+ * column header is the button that opens it.
+ */
 export function MachineActions({
   fleet,
   machine,
+  trigger,
 }: {
   readonly fleet: Fleet;
   readonly machine: Machine;
+  readonly trigger: { readonly content: ReactNode; readonly className: string };
 }) {
   const [pulling, setPulling] = useState(false);
   const fetching = useStartBatch();
@@ -31,25 +43,28 @@ export function MachineActions({
 
   return (
     <>
-      <Menu label={`Actions for ${machineLabel(machine)}`}>
+      <Menu trigger={trigger}>
         {(close) => (
           <>
             <MenuItem
+              icon={<CloudDownloadIcon />}
               disabled={blocked || fetching.pending}
               onClick={() => fetching.start({ _tag: "Fetch", scope }, close)}
             >
               {fetching.pending ? "Starting…" : "Fetch every repository"}
             </MenuItem>
             <MenuItem
+              icon={<ArrowDownToLineIcon />}
               disabled={blocked || !canPull(fleet, scope)}
               onClick={() => {
                 close();
                 setPulling(true);
               }}
             >
-              Pull every checkout…
+              Pull every checkout
             </MenuItem>
             <MenuItem
+              icon={<FolderSearchIcon />}
               disabled={machine.connection._tag === "Offline" || rescanning}
               onClick={() =>
                 startRescan(async () => {
@@ -73,6 +88,9 @@ export function MachineActions({
               params={{ machineId: machine.id }}
               className={menuItemClass}
             >
+              <MenuIcon>
+                <SettingsIcon />
+              </MenuIcon>
               Machine settings
             </Link>
             <p role="status" className="px-3 text-sm text-danger">

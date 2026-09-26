@@ -2,12 +2,34 @@ import { useId } from "react";
 
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-/** The look of each entry, for buttons and links alike. */
+/** The look of each entry, for buttons and links alike: an icon, then its words. */
 export const menuItemClass =
-  "block w-full rounded px-3 py-2 text-start text-sm text-ink hover:bg-surface-raised disabled:cursor-not-allowed disabled:opacity-60";
+  "flex w-full items-center gap-2.5 rounded px-3 py-2 text-start text-sm text-ink hover:bg-surface-raised disabled:cursor-not-allowed disabled:opacity-60";
 
-export function MenuItem({ className = "", ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {
-  return <button type="button" className={`${menuItemClass} ${className}`} {...props} />;
+/** The icon at the start of an entry, for links built from `menuItemClass`. */
+export function MenuIcon({ children }: { readonly children: ReactNode }) {
+  return (
+    <span aria-hidden="true" className="flex shrink-0 text-ink-muted">
+      {children}
+    </span>
+  );
+}
+
+export function MenuItem({
+  icon,
+  className = "",
+  children,
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  /** An icon element, such as a Lucide icon. */
+  readonly icon: ReactNode;
+}) {
+  return (
+    <button type="button" className={`${menuItemClass} ${className}`} {...props}>
+      <MenuIcon>{icon}</MenuIcon>
+      {children}
+    </button>
+  );
 }
 
 const moreButtonClass =
@@ -23,8 +45,8 @@ export function Menu({
   trigger,
   children,
 }: {
-  /** Names the button, such as "Actions for shop". */
-  readonly label: string;
+  /** Names the button, such as "Actions for shop". A trigger with words of its own can go without. */
+  readonly label?: string;
   /** The button's visible content and look, in place of the "more" icon. */
   readonly trigger?: { readonly content: ReactNode; readonly className: string };
   readonly children: (close: () => void) => ReactNode;

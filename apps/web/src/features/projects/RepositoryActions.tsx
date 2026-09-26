@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { ArrowDownToLineIcon, CloudDownloadIcon, FolderDownIcon } from "lucide-react";
+
 import { Menu, MenuItem } from "@/ui/Menu.tsx";
 
 import { canPull, cloneBlocker, machineBlocker } from "../actions/actionAvailability.ts";
@@ -37,28 +39,31 @@ export function RepositoryActions({
         {(close) => (
           <>
             <MenuItem
+              icon={<CloudDownloadIcon />}
               disabled={!canFetch || pending}
               onClick={() => start({ _tag: "Fetch", scope }, close)}
             >
               {pending ? "Starting…" : "Fetch on every machine"}
             </MenuItem>
             <MenuItem
+              icon={<ArrowDownToLineIcon />}
               disabled={!canPull(fleet, scope)}
               onClick={() => {
                 close();
                 setDialog("pull");
               }}
             >
-              Pull on every machine…
+              Pull on every machine
             </MenuItem>
             <MenuItem
+              icon={<FolderDownIcon />}
               disabled={!canClone}
               onClick={() => {
                 close();
                 setDialog("clone");
               }}
             >
-              Clone to another machine…
+              Clone to another machine
             </MenuItem>
             <p role="status" className="px-3 text-sm text-danger">
               {failure}

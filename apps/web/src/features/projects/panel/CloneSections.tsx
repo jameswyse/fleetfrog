@@ -1,7 +1,7 @@
 import { useId, useState } from "react";
 
 import { Link } from "@tanstack/react-router";
-import { CircleDashedIcon, DownloadIcon, TriangleAlertIcon } from "lucide-react";
+import { CircleDashedIcon, FolderDownIcon, TriangleAlertIcon } from "lucide-react";
 
 import { useRuns } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
@@ -186,7 +186,7 @@ function CloneForm({
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <Button tone="primary" type="submit" disabled={pending}>
-          <DownloadIcon />
+          <FolderDownIcon />
           {submitLabel}
         </Button>
         <p role="status" className="text-danger">
@@ -260,7 +260,7 @@ export function CloneSections({
   return (
     <>
       <Whereabouts fleet={fleet} repository={repository} machine={machine} />
-      <PanelSection title="Clone" icon={DownloadIcon} tone="neutral">
+      <PanelSection title="Clone" icon={FolderDownIcon} tone="neutral">
         {clone}
       </PanelSection>
     </>

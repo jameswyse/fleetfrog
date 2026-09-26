@@ -41,19 +41,17 @@ export function MachineKindPicker({
         MachineKind.literals.map((kind) => (
           <MenuItem
             key={kind}
+            icon={<MachineKindIcon kind={kind} className="size-4" />}
             aria-pressed={kind === current}
             onClick={() => {
               close();
               onChange(kind === detected ? null : kind);
             }}
           >
-            <span className="flex items-center gap-3">
-              <MachineKindIcon kind={kind} className="size-4 text-ink-muted" />
-              <span className="flex-1">{machineKindLabels[kind]}</span>
-              {kind === detected && <span className="text-xs text-ink-muted">detected</span>}
-              <span className="grid size-4 place-items-center">
-                {kind === current && <CheckIcon className="size-4" />}
-              </span>
+            <span className="flex-1">{machineKindLabels[kind]}</span>
+            {kind === detected && <span className="text-xs text-ink-muted">detected</span>}
+            <span className="grid size-4 place-items-center">
+              {kind === current && <CheckIcon className="size-4" />}
             </span>
           </MenuItem>
         ))

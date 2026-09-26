@@ -1,3 +1,5 @@
+import { ChevronDownIcon } from "lucide-react";
+
 import { useRuns } from "@/rpc/hubConnection.ts";
 import { gitHost, HostIcon } from "@/ui/HostIcon.tsx";
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
@@ -96,20 +98,34 @@ function MachineHeader({ fleet, machine }: { readonly fleet: Fleet; readonly mac
   return (
     <th
       scope="col"
-      className={`sticky top-0 z-[2] border-b border-line p-0 text-start align-middle font-normal ${columnBackground(machine)}`}
+      className={`sticky top-0 z-[2] border-b border-line p-0 text-center align-middle font-normal ${columnBackground(machine)}`}
     >
-      <div className={`flex ${columnWidth} items-center gap-2 px-3 py-2`}>
-        <span
-          aria-hidden="true"
-          className={`size-2 shrink-0 rounded-full ${online ? "bg-clean" : "bg-ink-muted"}`}
-        />
-        <MachineKindIcon kind={machineKind(machine)} className="text-ink-muted" />
-        <span className="min-w-0 flex-1 truncate font-semibold" title={label}>
-          {label}
-        </span>
-        <span className="sr-only">{online ? ", online" : ", offline"}</span>
-        <MachineActions fleet={fleet} machine={machine} />
-      </div>
+      {/* The whole header opens the machine's menu. */}
+      <MachineActions
+        fleet={fleet}
+        machine={machine}
+        trigger={{
+          // As tall as the header row, whose height the grid's scroll padding allows for.
+          className: `group relative flex min-h-12 ${columnWidth} items-center justify-center gap-2 px-7 hover:bg-surface-raised ${focusRing}`,
+          content: (
+            <>
+              <span
+                aria-hidden="true"
+                className={`size-2 shrink-0 rounded-full ${online ? "bg-clean" : "bg-ink-muted"}`}
+              />
+              <MachineKindIcon kind={machineKind(machine)} className="text-ink-muted" />
+              <span className="min-w-0 truncate font-semibold" title={label}>
+                {label}
+              </span>
+              <span className="sr-only">{online ? ", online" : ", offline"}</span>
+              <ChevronDownIcon
+                aria-hidden="true"
+                className="absolute end-2 text-ink-muted opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"
+              />
+            </>
+          ),
+        }}
+      />
     </th>
   );
 }
