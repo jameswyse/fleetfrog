@@ -36,7 +36,7 @@ function EmptyState({
 
 export function OverviewPage() {
   const hub = useHub();
-  const search = useSearch({ from: "/" });
+  const search = useSearch({ from: "/_app/" });
   const navigate = useNavigate({ from: "/" });
   const filter = search.filter ?? "all";
   const query = search.q ?? "";
@@ -63,8 +63,7 @@ export function OverviewPage() {
         Pair a development machine and its repositories will appear here.
         <div className="mt-5">
           <Link
-            to="/machines"
-            search={{ pair: true }}
+            to="/settings/fleet/pair"
             className="inline-flex min-h-9 items-center rounded-md bg-accent px-3 text-sm font-medium text-accent-ink"
           >
             Pair a machine

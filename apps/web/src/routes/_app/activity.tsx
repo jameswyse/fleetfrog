@@ -15,7 +15,7 @@ const ActivitySearch = Schema.Struct({
   batch: Schema.optionalKey(BatchId),
 });
 
-export const Route = createFileRoute("/activity")({
+export const Route = createFileRoute("/_app/activity")({
   validateSearch: Schema.toStandardSchemaV1(ActivitySearch),
   component: ActivityPage,
 });

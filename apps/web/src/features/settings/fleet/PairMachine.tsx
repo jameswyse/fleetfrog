@@ -1,13 +1,15 @@
 import { useActionState, useState } from "react";
 
+import { useNavigate } from "@tanstack/react-router";
 import { DateTime } from "effect";
 
 import { knownFleet, requestHub, useHub } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
-import { Dialog } from "@/ui/Dialog.tsx";
 import { RelativeTime, useNow } from "@/ui/RelativeTime.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 import { encodePairingString } from "@fleetfrog/protocol/pairing/pairingString";
+
+import { SettingsHeading } from "../SettingsHeading.tsx";
 
 import type { PairingOffer } from "@fleetfrog/protocol/dashboard/rpcs";
 
@@ -33,7 +35,9 @@ type CopyOutcome =
   | { readonly _tag: "Copied"; readonly command: string }
   | { readonly _tag: "Failed"; readonly command: string };
 
-export function PairMachineDialog({ onClose }: { readonly onClose: () => void }) {
+/** Creates a one-time pairing code and watches for the new machine to connect. */
+export function PairMachine() {
+  const navigate = useNavigate();
   const hub = useHub();
   const now = useNow();
   const fleet = knownFleet(hub);
@@ -63,8 +67,11 @@ export function PairMachineDialog({ onClose }: { readonly onClose: () => void })
   const copy = copyOutcome !== null && copyOutcome.command === offer?.command ? copyOutcome : null;
 
   return (
-    <Dialog title="Pair a machine" onClose={onClose}>
-      <div className="space-y-4 text-sm">
+    <div>
+      <SettingsHeading title="Pair a machine">
+        Add a development machine to the fleet.
+      </SettingsHeading>
+      <div className="space-y-4 rounded-lg border border-line bg-surface px-5 py-5 text-sm">
         {paired === undefined && (
           <>
             <p>
@@ -159,11 +166,20 @@ export function PairMachineDialog({ onClose }: { readonly onClose: () => void })
         </p>
         {paired !== undefined && (
           // Pairing replaces the controls that had focus, so focus moves to the only next step.
-          <Button tone="primary" autoFocus onClick={onClose}>
-            Done
+          <Button
+            tone="primary"
+            autoFocus
+            onClick={() => {
+              void navigate({
+                to: "/settings/fleet/$machineId",
+                params: { machineId: paired.id },
+              });
+            }}
+          >
+            Open {machineLabel(paired)}
           </Button>
         )}
       </div>
-    </Dialog>
+    </div>
   );
 }

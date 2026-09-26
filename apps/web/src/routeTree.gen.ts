@@ -9,24 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as ActivityRouteImport } from './routes/activity'
-import { Route as MachinesRouteImport } from './routes/machines'
+import { Route as AppRouteImport } from './routes/_app'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppActivityRouteImport } from './routes/_app/activity'
+import { Route as SettingsIndexRouteImport } from './routes/settings/index'
+import { Route as SettingsScanningRouteImport } from './routes/settings/scanning'
+import { Route as SettingsFleetIndexRouteImport } from './routes/settings/fleet/index'
+import { Route as SettingsFleetMachineIdRouteImport } from './routes/settings/fleet/$machineId'
+import { Route as SettingsFleetPairRouteImport } from './routes/settings/fleet/pair'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ActivityRoute = ActivityRouteImport.update({
-  id: '/activity',
-  path: '/activity',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MachinesRoute = MachinesRouteImport.update({
-  id: '/machines',
-  path: '/machines',
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -34,62 +28,118 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppIndexRoute = AppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppActivityRoute = AppActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
+  getParentRoute: () => AppRoute,
+} as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsScanningRoute = SettingsScanningRouteImport.update({
+  id: '/scanning',
+  path: '/scanning',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsFleetIndexRoute = SettingsFleetIndexRouteImport.update({
+  id: '/fleet/',
+  path: '/fleet/',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsFleetMachineIdRoute = SettingsFleetMachineIdRouteImport.update({
+  id: '/fleet/$machineId',
+  path: '/fleet/$machineId',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsFleetPairRoute = SettingsFleetPairRouteImport.update({
+  id: '/fleet/pair',
+  path: '/fleet/pair',
+  getParentRoute: () => SettingsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/activity': typeof ActivityRoute
-  '/machines': typeof MachinesRoute
-  '/settings': typeof SettingsRoute
+  '/': typeof AppIndexRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/activity': typeof AppActivityRoute
+  '/settings/scanning': typeof SettingsScanningRoute
+  '/settings/': typeof SettingsIndexRoute
+  '/settings/fleet/$machineId': typeof SettingsFleetMachineIdRoute
+  '/settings/fleet/pair': typeof SettingsFleetPairRoute
+  '/settings/fleet/': typeof SettingsFleetIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/activity': typeof ActivityRoute
-  '/machines': typeof MachinesRoute
-  '/settings': typeof SettingsRoute
+  '/activity': typeof AppActivityRoute
+  '/settings/scanning': typeof SettingsScanningRoute
+  '/': typeof AppIndexRoute
+  '/settings': typeof SettingsIndexRoute
+  '/settings/fleet/$machineId': typeof SettingsFleetMachineIdRoute
+  '/settings/fleet/pair': typeof SettingsFleetPairRoute
+  '/settings/fleet': typeof SettingsFleetIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/activity': typeof ActivityRoute
-  '/machines': typeof MachinesRoute
-  '/settings': typeof SettingsRoute
+  '/_app': typeof AppRouteWithChildren
+  '/settings': typeof SettingsRouteWithChildren
+  '/_app/activity': typeof AppActivityRoute
+  '/settings/scanning': typeof SettingsScanningRoute
+  '/_app/': typeof AppIndexRoute
+  '/settings/': typeof SettingsIndexRoute
+  '/settings/fleet/$machineId': typeof SettingsFleetMachineIdRoute
+  '/settings/fleet/pair': typeof SettingsFleetPairRoute
+  '/settings/fleet/': typeof SettingsFleetIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/activity' | '/machines' | '/settings'
+  fullPaths:
+    | '/'
+    | '/settings'
+    | '/activity'
+    | '/settings/scanning'
+    | '/settings/'
+    | '/settings/fleet/$machineId'
+    | '/settings/fleet/pair'
+    | '/settings/fleet/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/activity' | '/machines' | '/settings'
-  id: '__root__' | '/' | '/activity' | '/machines' | '/settings'
+  to:
+    | '/activity'
+    | '/settings/scanning'
+    | '/'
+    | '/settings'
+    | '/settings/fleet/$machineId'
+    | '/settings/fleet/pair'
+    | '/settings/fleet'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/settings'
+    | '/_app/activity'
+    | '/settings/scanning'
+    | '/_app/'
+    | '/settings/'
+    | '/settings/fleet/$machineId'
+    | '/settings/fleet/pair'
+    | '/settings/fleet/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  ActivityRoute: typeof ActivityRoute
-  MachinesRoute: typeof MachinesRoute
-  SettingsRoute: typeof SettingsRoute
+  AppRoute: typeof AppRouteWithChildren
+  SettingsRoute: typeof SettingsRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
+    '/_app': {
+      id: '/_app'
+      path: ''
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/activity': {
-      id: '/activity'
-      path: '/activity'
-      fullPath: '/activity'
-      preLoaderRoute: typeof ActivityRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/machines': {
-      id: '/machines'
-      path: '/machines'
-      fullPath: '/machines'
-      preLoaderRoute: typeof MachinesRouteImport
+      preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -99,14 +149,93 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/': {
+      id: '/_app/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/activity': {
+      id: '/_app/activity'
+      path: '/activity'
+      fullPath: '/activity'
+      preLoaderRoute: typeof AppActivityRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/settings/': {
+      id: '/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/scanning': {
+      id: '/settings/scanning'
+      path: '/scanning'
+      fullPath: '/settings/scanning'
+      preLoaderRoute: typeof SettingsScanningRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/fleet/': {
+      id: '/settings/fleet/'
+      path: '/fleet'
+      fullPath: '/settings/fleet/'
+      preLoaderRoute: typeof SettingsFleetIndexRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/fleet/$machineId': {
+      id: '/settings/fleet/$machineId'
+      path: '/fleet/$machineId'
+      fullPath: '/settings/fleet/$machineId'
+      preLoaderRoute: typeof SettingsFleetMachineIdRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/fleet/pair': {
+      id: '/settings/fleet/pair'
+      path: '/fleet/pair'
+      fullPath: '/settings/fleet/pair'
+      preLoaderRoute: typeof SettingsFleetPairRouteImport
+      parentRoute: typeof SettingsRoute
+    }
   }
 }
 
+interface AppRouteChildren {
+  AppActivityRoute: typeof AppActivityRoute
+  AppIndexRoute: typeof AppIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppActivityRoute: AppActivityRoute,
+  AppIndexRoute: AppIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
+interface SettingsRouteChildren {
+  SettingsScanningRoute: typeof SettingsScanningRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
+  SettingsFleetMachineIdRoute: typeof SettingsFleetMachineIdRoute
+  SettingsFleetPairRoute: typeof SettingsFleetPairRoute
+  SettingsFleetIndexRoute: typeof SettingsFleetIndexRoute
+}
+
+const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsScanningRoute: SettingsScanningRoute,
+  SettingsIndexRoute: SettingsIndexRoute,
+  SettingsFleetMachineIdRoute: SettingsFleetMachineIdRoute,
+  SettingsFleetPairRoute: SettingsFleetPairRoute,
+  SettingsFleetIndexRoute: SettingsFleetIndexRoute,
+}
+
+const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
+  SettingsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  ActivityRoute: ActivityRoute,
-  MachinesRoute: MachinesRoute,
-  SettingsRoute: SettingsRoute,
+  AppRoute: AppRouteWithChildren,
+  SettingsRoute: SettingsRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -126,7 +126,7 @@ const selectClass = "mt-1 block min-h-9 w-52 rounded-md border border-line bg-su
 export function ActivityPage() {
   const hub = useHub();
   const fleet = knownFleet(hub);
-  const search = useSearch({ from: "/activity" });
+  const search = useSearch({ from: "/_app/activity" });
   const navigate = useNavigate({ from: "/activity" });
   const [limit, setLimit] = useState(activityPageSize);
   const filter: ActivityFilter = {

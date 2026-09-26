@@ -6,6 +6,8 @@ import { knownFleet, requestHub, useHub } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
 import { PollingSettings } from "@fleetfrog/protocol/domain/polling";
 
+import { SettingsHeading } from "../SettingsHeading.tsx";
+
 type Field = {
   readonly name: keyof PollingSettings;
   readonly label: string;
@@ -50,23 +52,24 @@ type SaveState =
 
 const minimumSeconds = 5;
 
-export function SettingsPage() {
+export function ScanningSettings() {
   const hub = useHub();
   const [state, setState] = useState<SaveState>({ _tag: "Idle" });
   const [saving, startSaving] = useTransition();
   const fleet = knownFleet(hub);
 
   if (fleet === null) {
-    return <p className="px-6 py-24 text-center text-sm text-ink-muted">Waiting for the hub…</p>;
+    return <p className="py-24 text-center text-sm text-ink-muted">Waiting for the hub…</p>;
   }
 
   const { polling } = fleet;
   const live = hub._tag === "Live";
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-5 sm:px-6">
-      <h1 className="text-lg font-semibold">Settings</h1>
-      <p className="text-sm text-ink-muted">These intervals apply to every agent.</p>
+    <div>
+      <SettingsHeading title="Scanning">
+        How often agents check their repositories. These intervals apply to every machine.
+      </SettingsHeading>
       <form
         noValidate
         onSubmit={(event) => {
@@ -110,7 +113,7 @@ export function SettingsPage() {
             );
           });
         }}
-        className="mt-5 space-y-5 rounded-lg border border-line bg-surface px-5 py-5"
+        className="space-y-5 rounded-lg border border-line bg-surface px-5 py-5"
       >
         {fields.map(({ name, label, hint, unit }) => {
           const invalid = state._tag === "Invalid" && state.fields.has(name);

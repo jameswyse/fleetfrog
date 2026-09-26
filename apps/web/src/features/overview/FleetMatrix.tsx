@@ -8,6 +8,7 @@ import { activeCloneFor, activeRunFor } from "../actions/runLookup.ts";
 import { RunStateText } from "../actions/RunStateText.tsx";
 import { CheckoutBadges } from "./CheckoutBadges.tsx";
 import { checkoutKey, summariseCheckout } from "./checkoutSummary.ts";
+import { MachineActions } from "./MachineActions.tsx";
 import { RepositoryActions } from "./RepositoryActions.tsx";
 
 import type { RunsSnapshot } from "@fleetfrog/protocol/domain/activity";
@@ -18,7 +19,7 @@ function columnBackground(machine: Machine): string {
   return machine.connection._tag === "Offline" ? "bg-canvas" : "bg-surface";
 }
 
-function MachineHeader({ machine }: { readonly machine: Machine }) {
+function MachineHeader({ fleet, machine }: { readonly fleet: Fleet; readonly machine: Machine }) {
   const label = machineLabel(machine);
 
   return (
@@ -26,29 +27,34 @@ function MachineHeader({ machine }: { readonly machine: Machine }) {
       scope="col"
       className={`w-64 min-w-56 border-b border-line px-3 py-2.5 text-start align-bottom font-normal ${columnBackground(machine)}`}
     >
-      <span className="block truncate font-semibold" title={label}>
-        {label}
-      </span>
-      <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-ink-muted">
-        {machine.connection._tag === "Online" ? (
-          <span className="flex items-center gap-1.5 text-clean">
-            <span aria-hidden="true" className="size-1.5 rounded-full bg-clean" />
-            Online
+      <div className="flex items-end justify-between gap-2">
+        <div className="min-w-0">
+          <span className="block truncate font-semibold" title={label}>
+            {label}
           </span>
-        ) : (
-          <span className="flex items-center gap-1.5">
-            <span aria-hidden="true" className="size-1.5 rounded-full bg-ink-muted" />
-            Offline
+          <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-ink-muted">
+            {machine.connection._tag === "Online" ? (
+              <span className="flex items-center gap-1.5 text-clean">
+                <span aria-hidden="true" className="size-1.5 rounded-full bg-clean" />
+                Online
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5">
+                <span aria-hidden="true" className="size-1.5 rounded-full bg-ink-muted" />
+                Offline
+              </span>
+            )}
+            {machine.lastStatusAt === null ? (
+              <span>Not scanned yet</span>
+            ) : (
+              <span>
+                Scanned <RelativeTime at={machine.lastStatusAt} />
+              </span>
+            )}
           </span>
-        )}
-        {machine.lastStatusAt === null ? (
-          <span>Not scanned yet</span>
-        ) : (
-          <span>
-            Scanned <RelativeTime at={machine.lastStatusAt} />
-          </span>
-        )}
-      </span>
+        </div>
+        <MachineActions fleet={fleet} machine={machine} />
+      </div>
     </th>
   );
 }
@@ -175,7 +181,7 @@ export function FleetMatrix({
               Repository
             </th>
             {machines.map((machine) => (
-              <MachineHeader key={machine.id} machine={machine} />
+              <MachineHeader key={machine.id} fleet={fleet} machine={machine} />
             ))}
           </tr>
         </thead>

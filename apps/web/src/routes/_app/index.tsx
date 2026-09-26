@@ -10,7 +10,7 @@ const OverviewSearch = Schema.Struct({
   checkout: Schema.optionalKey(Schema.String),
 });
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_app/")({
   validateSearch: Schema.toStandardSchemaV1(OverviewSearch),
   component: OverviewPage,
 });

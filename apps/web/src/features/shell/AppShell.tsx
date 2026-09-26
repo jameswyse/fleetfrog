@@ -5,18 +5,18 @@ import { Link, Outlet } from "@tanstack/react-router";
 import { knownFleet, requestHub, useHub, useRuns } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
 import { Logo } from "@/ui/Logo.tsx";
-import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { Spinner } from "@/ui/Spinner.tsx";
 
 import { canPull, machineBlocker } from "../actions/actionAvailability.ts";
 import { PullDialog } from "../actions/PullDialog.tsx";
 import { useStartBatch } from "../actions/useStartBatch.ts";
+import { HubStatus } from "./HubStatus.tsx";
+import { StaleNotice } from "./StaleNotice.tsx";
 
 import type { HubState } from "@/rpc/hubConnection.ts";
 
 const navigation = [
   { to: "/", label: "Overview" },
-  { to: "/machines", label: "Machines" },
   { to: "/activity", label: "Activity" },
   { to: "/settings", label: "Settings" },
 ] as const;
@@ -78,22 +78,6 @@ function FleetActions({ hub }: { readonly hub: HubState }) {
   );
 }
 
-function HubStatus() {
-  const hub = useHub();
-  const [label, tone] = {
-    Connecting: ["Connecting to hub…", "bg-ink-muted"],
-    Live: ["Live", "bg-clean"],
-    Reconnecting: ["Hub unreachable, retrying", "bg-danger"],
-  }[hub._tag];
-
-  return (
-    <p role="status" className="flex items-center gap-2 text-sm text-ink-muted">
-      <span aria-hidden="true" className={`size-2 rounded-full ${tone}`} />
-      {label}
-    </p>
-  );
-}
-
 function RescanAll({ live }: { readonly live: boolean }) {
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, startRescan] = useTransition();
@@ -117,33 +101,6 @@ function RescanAll({ live }: { readonly live: boolean }) {
       >
         {pending ? "Requesting rescan…" : "Rescan all"}
       </Button>
-    </div>
-  );
-}
-
-/**
- * Says when the page shows a fleet the hub may since have changed. The live region stays mounted
- * so screen readers announce the text when it appears.
- */
-function StaleNotice({ hub }: { readonly hub: HubState }) {
-  const stale = hub._tag === "Reconnecting" ? hub.snapshot : null;
-
-  return (
-    <div
-      className={
-        stale === null
-          ? undefined
-          : "flex flex-wrap gap-x-2 border-b border-changes/30 bg-changes-soft px-4 py-2.5 text-sm text-changes sm:px-6"
-      }
-    >
-      <p role="status" className="font-medium">
-        {stale !== null && "Can't reach the hub. Showing the last known state."}
-      </p>
-      {stale !== null && (
-        <p>
-          Last updated <RelativeTime at={stale.receivedAt} />.
-        </p>
-      )}
     </div>
   );
 }
