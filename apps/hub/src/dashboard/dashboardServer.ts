@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import path from "node:path";
 
 import { NodeHttpServer } from "@effect/platform-node";
 import { Effect, Layer, Option } from "effect";
@@ -54,6 +55,22 @@ const sameOriginProtocol = Layer.effect(RpcServer.Protocol)(
   }),
 );
 
+/**
+ * The built dashboard. Its page is revalidated on every load, so a new deploy reaches browsers at
+ * once; files under `/assets` have a content hash in their names, so browsers keep them for a year.
+ */
+function dashboardFiles(root: string) {
+  return Layer.mergeAll(
+    HttpStaticServer.layer({ root, spa: true, cacheControl: "no-cache" }),
+    // The prefix is taken off the request's path, so this one serves from the assets folder.
+    HttpStaticServer.layer({
+      root: path.join(root, "assets"),
+      prefix: "/assets",
+      cacheControl: "public, max-age=31536000, immutable",
+    }),
+  );
+}
+
 /** The dashboard port: the built dashboard plus its RPC WebSocket. */
 export const DashboardServer = Layer.unwrap(
   Effect.gen(function* () {
@@ -62,10 +79,7 @@ export const DashboardServer = Layer.unwrap(
       Layer.provide(sameOriginProtocol),
       Layer.provide([DashboardHandlers, RpcSerialization.layerJson]),
     );
-    const routes =
-      config.webRoot === null
-        ? rpc
-        : Layer.merge(rpc, HttpStaticServer.layer({ root: config.webRoot, spa: true }));
+    const routes = config.webRoot === null ? rpc : Layer.merge(rpc, dashboardFiles(config.webRoot));
 
     return HttpRouter.serve(routes, { disableLogger: true }).pipe(
       Layer.provide(NodeHttpServer.layer(createServer, { port: config.dashboardPort })),
