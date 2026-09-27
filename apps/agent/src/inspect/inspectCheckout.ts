@@ -49,12 +49,18 @@ const cacheNames = new Set([
   ".DS_Store",
 ]);
 
+/** Build output with a name of its own, such as `.next-e2e` for a second Next.js build. */
+const cachePrefixes = [".next-"];
 const cacheSuffixes = [".tsbuildinfo", ".pyc"];
 
 function isCache(entry: string): boolean {
   const name = path.posix.basename(entry.replace(/\/$/, ""));
 
-  return cacheNames.has(name) || cacheSuffixes.some((suffix) => name.endsWith(suffix));
+  return (
+    cacheNames.has(name) ||
+    cachePrefixes.some((prefix) => name.startsWith(prefix)) ||
+    cacheSuffixes.some((suffix) => name.endsWith(suffix))
+  );
 }
 
 /** How many ignored entries the dashboard lists by name. */

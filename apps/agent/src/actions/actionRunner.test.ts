@@ -743,12 +743,14 @@ describe("action runner", () => {
     Effect.gen(function* () {
       const { inspect, clone } = yield* setUp(withCleanup);
 
-      writeFileSync(path.join(clone, ".gitignore"), ".env\nnode_modules/\n");
+      writeFileSync(path.join(clone, ".gitignore"), ".env\nnode_modules/\n.next-e2e/\n");
       git(clone, "add", ".gitignore");
       git(clone, "commit", "-q", "-m", "Ignore things");
       writeFileSync(path.join(clone, ".env"), "SECRET=1\n");
       mkdirSync(path.join(clone, "node_modules", "left-pad"), { recursive: true });
       writeFileSync(path.join(clone, "node_modules", "left-pad", "index.js"), "\n");
+      mkdirSync(path.join(clone, ".next-e2e"));
+      writeFileSync(path.join(clone, ".next-e2e", "build-manifest.json"), "{}\n");
 
       const inspection = yield* inspect(clone);
 
@@ -756,7 +758,10 @@ describe("action runner", () => {
       expect(inspection.unpushedCommits).toBe(1);
       expect(inspection.unpushedBranches).toEqual([{ name: "main", commits: 1 }]);
       expect(inspection.ignored.items.map(({ path: entry }) => entry)).toEqual([".env"]);
-      expect(inspection.caches.map(({ path: entry }) => entry)).toEqual(["node_modules/"]);
+      expect(inspection.caches.map(({ path: entry }) => entry).toSorted()).toEqual([
+        ".next-e2e/",
+        "node_modules/",
+      ]);
       expect(nothingUnique(inspection)).toBe(false);
     }),
   );

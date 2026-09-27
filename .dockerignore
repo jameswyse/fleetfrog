@@ -16,3 +16,8 @@ data
 **/node_modules
 
 !**/.env.example
+
+# Documentation and changesets don't affect the image, so they shouldn't invalidate its cache.
+**/*.md
+.changeset
+docs
