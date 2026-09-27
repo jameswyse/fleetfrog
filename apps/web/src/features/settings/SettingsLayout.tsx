@@ -1,5 +1,5 @@
 import { Link, Outlet } from "@tanstack/react-router";
-import { LayersIcon, PlusIcon, RefreshCwIcon } from "lucide-react";
+import { BlocksIcon, LayersIcon, PlusIcon, RefreshCwIcon, TriangleAlertIcon } from "lucide-react";
 
 import { knownFleet, useHub } from "@/rpc/hubConnection.ts";
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
@@ -10,6 +10,8 @@ import {
   sidebarSubmenuItemClass,
 } from "@/ui/SidebarLayout.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
+
+import { t3CodeIssues } from "./integrations/t3CodeHealth.ts";
 
 function MachineLinks() {
   const hub = useHub();
@@ -48,6 +50,28 @@ function MachineLinks() {
   );
 }
 
+function IntegrationLinks() {
+  const hub = useHub();
+  const fleet = knownFleet(hub);
+  const attention = fleet !== null && t3CodeIssues(fleet).length > 0;
+
+  return (
+    <ul className={sidebarSubmenuClass}>
+      <li className={sidebarSubmenuItemClass}>
+        <Link to="/settings/integrations/t3-code" className={sidebarLinkClass}>
+          <span className="min-w-0 flex-1 truncate">T3 Code</span>
+          {attention && (
+            <>
+              <TriangleAlertIcon aria-hidden="true" className="text-danger" />
+              <span className="sr-only">, needs attention</span>
+            </>
+          )}
+        </Link>
+      </li>
+    </ul>
+  );
+}
+
 export function SettingsLayout() {
   return (
     <SidebarLayout
@@ -70,6 +94,17 @@ export function SettingsLayout() {
                 Fleet
               </Link>
               <MachineLinks />
+            </li>
+            <li>
+              <Link
+                to="/settings/integrations"
+                activeOptions={{ exact: true }}
+                className={sidebarLinkClass}
+              >
+                <BlocksIcon />
+                Integrations
+              </Link>
+              <IntegrationLinks />
             </li>
           </ul>
         </nav>

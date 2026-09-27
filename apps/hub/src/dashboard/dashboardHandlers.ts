@@ -14,8 +14,10 @@ import { AgentSessions } from "../agents/agentSessions.ts";
 import { FolderRequests } from "../agents/folderRequests.ts";
 import { InspectionRequests } from "../agents/inspectionRequests.ts";
 import { FleetFeed } from "../catalogue/fleetFeed.ts";
+import { ProjectIconStore } from "../catalogue/projectIconStore.ts";
 import { MachineStore } from "../machines/machineStore.ts";
 import { PairingOffers } from "../pairing/pairingOffers.ts";
+import { IntegrationsStore } from "../settings/integrationsStore.ts";
 import { PollingStore } from "../settings/pollingStore.ts";
 import { DashboardPresence } from "./dashboardPresence.ts";
 
@@ -26,6 +28,8 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
     const sessions = yield* AgentSessions;
     const machines = yield* MachineStore;
     const polling = yield* PollingStore;
+    const integrations = yield* IntegrationsStore;
+    const icons = yield* ProjectIconStore;
     const offers = yield* PairingOffers;
     const dispatcher = yield* ActionDispatcher;
     const activity = yield* ActivityFeed;
@@ -102,6 +106,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
           const machine = yield* machines.find(machineId);
 
           yield* machines.remove(machineId);
+          yield* icons.replace({ machineId, icons: [] });
           yield* sessions.disconnect(machineId);
           yield* feed.invalidate;
           yield* activity.recordEvent({
@@ -115,6 +120,14 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
           .update(settings)
           .pipe(
             Effect.andThen(activity.recordEvent({ _tag: "PollingChanged", polling: settings })),
+          ),
+      UpdateIntegrations: ({ integrations: settings }) =>
+        integrations
+          .update(settings)
+          .pipe(
+            Effect.andThen(
+              activity.recordEvent({ _tag: "IntegrationsChanged", integrations: settings }),
+            ),
           ),
       SetArchiveFolder: ({ machineId, folder }) =>
         Effect.gen(function* () {

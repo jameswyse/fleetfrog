@@ -6,6 +6,7 @@ import { ActionOutcome, ActionUpdate } from "@fleetfrog/protocol/domain/action";
 import { ActionDispatcher } from "../actions/actionDispatcher.ts";
 import { CheckoutStore } from "../catalogue/checkoutStore.ts";
 import { FleetFeed } from "../catalogue/fleetFeed.ts";
+import { ProjectIconStore } from "../catalogue/projectIconStore.ts";
 import { MachineStore } from "../machines/machineStore.ts";
 import { AgentSessions } from "./agentSessions.ts";
 import { FolderRequests } from "./folderRequests.ts";
@@ -19,6 +20,7 @@ export const AgentHandlers = AgentRpcs.toLayer(
     const sessions = yield* AgentSessions;
     const machines = yield* MachineStore;
     const checkouts = yield* CheckoutStore;
+    const icons = yield* ProjectIconStore;
     const feed = yield* FleetFeed;
     const dispatcher = yield* ActionDispatcher;
     const folders = yield* FolderRequests;
@@ -56,6 +58,8 @@ export const AgentHandlers = AgentRpcs.toLayer(
                   ),
                 ),
             Trash: ({ items }) => machines.recordTrash({ machineId: id, items }),
+            T3Code: ({ status }) => machines.recordT3Code({ machineId: id, status }),
+            ProjectIcons: ({ icons: files }) => icons.replace({ machineId: id, icons: files }),
             Status: ({ changed, removedPaths, completedAt }) =>
               checkouts
                 .apply({ machineId: id, changed, removedPaths })

@@ -205,6 +205,7 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
         identity: item.identity,
         name: item.directoryName,
         label: item.directoryName,
+        icon: null,
         checkouts: [],
       }
     );

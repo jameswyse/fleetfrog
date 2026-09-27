@@ -42,6 +42,7 @@ function machine(options: {
     archiveFolder: null,
     archiveFolderStatus: null,
     trash: [],
+    t3Code: null,
   };
 }
 
@@ -76,6 +77,7 @@ function repositoryAt(...checkouts: ReadonlyArray<Checkout>): Repository {
     identity: { _tag: "Remote", host: "github.com", path: "acme/shop" },
     name: "shop",
     label: "shop",
+    icon: null,
     checkouts: checkouts.map((entry) => ({ machineId: studio.id, checkout: entry })),
   };
 }

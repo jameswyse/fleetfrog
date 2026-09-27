@@ -10,6 +10,7 @@ import { FolderRequests } from "./agents/folderRequests.ts";
 import { InspectionRequests } from "./agents/inspectionRequests.ts";
 import { CheckoutStore } from "./catalogue/checkoutStore.ts";
 import { FleetFeed } from "./catalogue/fleetFeed.ts";
+import { ProjectIconStore } from "./catalogue/projectIconStore.ts";
 import { DashboardPresence } from "./dashboard/dashboardPresence.ts";
 import { DashboardServer } from "./dashboard/dashboardServer.ts";
 import { HubConfig } from "./hubConfig.ts";
@@ -17,6 +18,7 @@ import { MachineStore } from "./machines/machineStore.ts";
 import { AgentCertificate } from "./pairing/agentCertificate.ts";
 import { PairingOffers } from "./pairing/pairingOffers.ts";
 import { Database } from "./persistence/database.ts";
+import { IntegrationsStore } from "./settings/integrationsStore.ts";
 import { PollingStore } from "./settings/pollingStore.ts";
 
 const Hub = Layer.merge(AgentServer, DashboardServer).pipe(
@@ -32,6 +34,8 @@ const Hub = Layer.merge(AgentServer, DashboardServer).pipe(
       CheckoutStore.layer,
       ActivityStore.layer,
       PollingStore.layer,
+      IntegrationsStore.layer,
+      ProjectIconStore.layer,
       DashboardPresence.layer,
     ),
   ),

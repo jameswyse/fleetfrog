@@ -14,6 +14,7 @@ import { RpcSerialization, RpcServer } from "effect/unstable/rpc";
 
 import { DashboardRpcs } from "@fleetfrog/protocol/dashboard/rpcs";
 
+import { ProjectIconStore } from "../catalogue/projectIconStore.ts";
 import { HubConfig } from "../hubConfig.ts";
 import { DashboardHandlers } from "./dashboardHandlers.ts";
 
@@ -71,6 +72,33 @@ function dashboardFiles(root: string) {
   );
 }
 
+/**
+ * Project icons by the hash of their bytes, so browsers keep each one for good. The images come
+ * from repositories, so an SVG is sandboxed and never runs a script, even opened on its own.
+ */
+const projectIcons = HttpRouter.add(
+  "GET",
+  "/project-icons/:id",
+  Effect.gen(function* () {
+    const { id } = yield* HttpRouter.params;
+    const icon =
+      id === undefined ? Option.none() : yield* ProjectIconStore.use((store) => store.find(id));
+
+    return Option.match(icon, {
+      onNone: () => HttpServerResponse.text("No such icon.", { status: 404 }),
+      onSome: ({ mediaType, data }) =>
+        HttpServerResponse.uint8Array(data, {
+          contentType: mediaType,
+          headers: {
+            "cache-control": "public, max-age=31536000, immutable",
+            "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+            "x-content-type-options": "nosniff",
+          },
+        }),
+    });
+  }),
+);
+
 /** The dashboard port: the built dashboard plus its RPC WebSocket. */
 export const DashboardServer = Layer.unwrap(
   Effect.gen(function* () {
@@ -81,7 +109,8 @@ export const DashboardServer = Layer.unwrap(
       Layer.provide(sameOriginProtocol),
       Layer.provide([DashboardHandlers, RpcSerialization.layerJson]),
     );
-    const routes = config.webRoot === null ? rpc : Layer.merge(rpc, dashboardFiles(config.webRoot));
+    const api = Layer.merge(rpc, projectIcons);
+    const routes = config.webRoot === null ? api : Layer.merge(api, dashboardFiles(config.webRoot));
 
     return HttpRouter.serve(routes, { disableLogger: true }).pipe(
       Layer.provide(NodeHttpServer.layer(createServer, { port: config.dashboardPort })),

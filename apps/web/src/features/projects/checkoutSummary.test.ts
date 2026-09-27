@@ -53,6 +53,7 @@ function repository(name: string, checkouts: ReadonlyArray<Checkout>): Repositor
     identity: { _tag: "Remote", host: "github.com", path: `acme/${name}` },
     name,
     label: name,
+    icon: null,
     checkouts: checkouts.map((entry) => ({
       machineId: MachineId.make("5b0c7a1e-7a0e-4f3e-9d63-2f8f7a8d0a01"),
       checkout: entry,
@@ -118,6 +119,13 @@ describe("repositoryMatches", () => {
   it("matches names case-insensitively", () => {
     expect(repositoryMatches({ repository: clean, filter: "all", query: "SHO" })).toBe(true);
     expect(repositoryMatches({ repository: clean, filter: "all", query: "api" })).toBe(false);
+  });
+
+  it("matches a repository shown under T3 Code's name by its own name too", () => {
+    const renamed = { ...clean, label: "Storefront" };
+
+    expect(repositoryMatches({ repository: renamed, filter: "all", query: "store" })).toBe(true);
+    expect(repositoryMatches({ repository: renamed, filter: "all", query: "shop" })).toBe(true);
   });
 
   it("shows only repositories with a checkout that is out of sync", () => {

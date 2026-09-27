@@ -13,6 +13,7 @@ import archiveFolder from "./migrations/0005_archive_folder.ts";
 import machineArchiveFolder from "./migrations/0006_machine_archive_folder.ts";
 import machineTrash from "./migrations/0007_machine_trash.ts";
 import machineArchiveEvents from "./migrations/0008_machine_archive_events.ts";
+import t3Code from "./migrations/0009_t3code.ts";
 
 const client = Layer.unwrap(
   Effect.gen(function* () {
@@ -34,6 +35,7 @@ export const migrations = {
   "0006_machine_archive_folder": machineArchiveFolder,
   "0007_machine_trash": machineTrash,
   "0008_machine_archive_events": machineArchiveEvents,
+  "0009_t3code": t3Code,
 };
 
 export const Migrations = SqliteMigrator.layer({ loader: SqliteMigrator.fromRecord(migrations) });

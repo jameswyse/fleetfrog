@@ -1,9 +1,10 @@
 import { Link, Outlet } from "@tanstack/react-router";
 
-import { useHub, useRuns } from "@/rpc/hubConnection.ts";
+import { knownFleet, useHub, useRuns } from "@/rpc/hubConnection.ts";
 import { Logo } from "@/ui/Logo.tsx";
 import { Spinner } from "@/ui/Spinner.tsx";
 
+import { t3CodeIssues } from "../settings/integrations/t3CodeHealth.ts";
 import { HubStatus } from "./HubStatus.tsx";
 import { StaleNotice } from "./StaleNotice.tsx";
 
@@ -38,6 +39,9 @@ function RunningIndicator() {
 
 export function AppShell() {
   const hub = useHub();
+  const fleet = knownFleet(hub);
+  // Settings is where an integration that needs attention says so, which people rarely visit.
+  const settingsAttention = fleet !== null && t3CodeIssues(fleet).length > 0;
 
   return (
     // A page marked `data-fills-viewport` gets exactly the window's height and scrolls inside
@@ -62,9 +66,15 @@ export function AppShell() {
                     to={to}
                     // Settings stays current on every settings page; Projects only on its own.
                     activeOptions={{ exact: to === "/", includeSearch: false }}
-                    className="rounded-md px-3 py-1.5 text-sm text-ink-muted hover:bg-surface-raised hover:text-ink aria-[current=page]:bg-surface-raised aria-[current=page]:text-ink"
+                    className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-ink-muted hover:bg-surface-raised hover:text-ink aria-[current=page]:bg-surface-raised aria-[current=page]:text-ink"
                   >
                     {label}
+                    {to === "/settings" && settingsAttention && (
+                      <>
+                        <span aria-hidden="true" className="size-1.5 rounded-full bg-danger" />
+                        <span className="sr-only">, needs attention</span>
+                      </>
+                    )}
                   </Link>
                 </li>
               ))}

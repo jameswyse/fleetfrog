@@ -6,7 +6,7 @@ import { SqlClient } from "effect/unstable/sql";
 import { ActivityStore } from "../../activity/activityStore.ts";
 import { migrations } from "../database.ts";
 
-const { "0008_machine_archive_events": _, ...before } = migrations;
+const before = Object.fromEntries(Object.entries(migrations).filter(([name]) => name < "0008"));
 
 /** A database from before 0008 holding a hub-wide Archive folder change, then fully migrated. */
 const OldDatabase = Layer.effectDiscard(

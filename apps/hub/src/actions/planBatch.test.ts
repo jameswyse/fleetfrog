@@ -4,6 +4,7 @@ import { DateTime, Effect } from "effect";
 import { MachineId } from "@fleetfrog/protocol/domain/machine";
 import { defaultPollingSettings } from "@fleetfrog/protocol/domain/polling";
 import { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
+import { defaultIntegrationSettings } from "@fleetfrog/protocol/domain/t3Code";
 import { TrashId } from "@fleetfrog/protocol/domain/trash";
 
 import { planBatch } from "./planBatch.ts";
@@ -50,6 +51,7 @@ function machine(
     archiveFolder: null,
     archiveFolderStatus: null,
     trash: [],
+    t3Code: null,
   };
 }
 
@@ -98,11 +100,13 @@ function fleetWith(checkouts: Repository["checkouts"]): Fleet {
         identity: { _tag: "Remote", host: "github.com", path: "acme/shop" },
         name: "shop",
         label: "shop",
+        icon: null,
         checkouts,
       },
     ],
     archive: [],
     polling: defaultPollingSettings,
+    integrations: defaultIntegrationSettings,
   };
 }
 
@@ -268,6 +272,7 @@ describe("planBatch", () => {
             identity: { _tag: "Remote", host: "github.com", path: "acme/shop" },
             name: "shop",
             label: "shop",
+            icon: null,
             checkouts: [{ machineId: online.id, checkout: archivedShop }],
           },
         ],

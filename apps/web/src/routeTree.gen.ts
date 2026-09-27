@@ -24,6 +24,8 @@ import { Route as AppSettingsScanningRouteImport } from './routes/_app/settings/
 import { Route as AppSettingsFleetIndexRouteImport } from './routes/_app/settings/fleet/index'
 import { Route as AppSettingsFleetMachineIdRouteImport } from './routes/_app/settings/fleet/$machineId'
 import { Route as AppSettingsFleetPairRouteImport } from './routes/_app/settings/fleet/pair'
+import { Route as AppSettingsIntegrationsIndexRouteImport } from './routes/_app/settings/integrations/index'
+import { Route as AppSettingsIntegrationsT3CodeRouteImport } from './routes/_app/settings/integrations/t3-code'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -100,6 +102,18 @@ const AppSettingsFleetPairRoute = AppSettingsFleetPairRouteImport.update({
   path: '/fleet/pair',
   getParentRoute: () => AppSettingsRoute,
 } as any)
+const AppSettingsIntegrationsIndexRoute =
+  AppSettingsIntegrationsIndexRouteImport.update({
+    id: '/integrations/',
+    path: '/integrations/',
+    getParentRoute: () => AppSettingsRoute,
+  } as any)
+const AppSettingsIntegrationsT3CodeRoute =
+  AppSettingsIntegrationsT3CodeRouteImport.update({
+    id: '/integrations/t3-code',
+    path: '/integrations/t3-code',
+    getParentRoute: () => AppSettingsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -115,7 +129,9 @@ export interface FileRoutesByFullPath {
   '/settings/': typeof AppSettingsIndexRoute
   '/settings/fleet/$machineId': typeof AppSettingsFleetMachineIdRoute
   '/settings/fleet/pair': typeof AppSettingsFleetPairRoute
+  '/settings/integrations/t3-code': typeof AppSettingsIntegrationsT3CodeRoute
   '/settings/fleet/': typeof AppSettingsFleetIndexRoute
+  '/settings/integrations/': typeof AppSettingsIntegrationsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
@@ -128,7 +144,9 @@ export interface FileRoutesByTo {
   '/settings': typeof AppSettingsIndexRoute
   '/settings/fleet/$machineId': typeof AppSettingsFleetMachineIdRoute
   '/settings/fleet/pair': typeof AppSettingsFleetPairRoute
+  '/settings/integrations/t3-code': typeof AppSettingsIntegrationsT3CodeRoute
   '/settings/fleet': typeof AppSettingsFleetIndexRoute
+  '/settings/integrations': typeof AppSettingsIntegrationsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -146,7 +164,9 @@ export interface FileRoutesById {
   '/_app/settings/': typeof AppSettingsIndexRoute
   '/_app/settings/fleet/$machineId': typeof AppSettingsFleetMachineIdRoute
   '/_app/settings/fleet/pair': typeof AppSettingsFleetPairRoute
+  '/_app/settings/integrations/t3-code': typeof AppSettingsIntegrationsT3CodeRoute
   '/_app/settings/fleet/': typeof AppSettingsFleetIndexRoute
+  '/_app/settings/integrations/': typeof AppSettingsIntegrationsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -164,7 +184,9 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/settings/fleet/$machineId'
     | '/settings/fleet/pair'
+    | '/settings/integrations/t3-code'
     | '/settings/fleet/'
+    | '/settings/integrations/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -177,7 +199,9 @@ export interface FileRouteTypes {
     | '/settings'
     | '/settings/fleet/$machineId'
     | '/settings/fleet/pair'
+    | '/settings/integrations/t3-code'
     | '/settings/fleet'
+    | '/settings/integrations'
   id:
     | '__root__'
     | '/_app'
@@ -194,7 +218,9 @@ export interface FileRouteTypes {
     | '/_app/settings/'
     | '/_app/settings/fleet/$machineId'
     | '/_app/settings/fleet/pair'
+    | '/_app/settings/integrations/t3-code'
     | '/_app/settings/fleet/'
+    | '/_app/settings/integrations/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -308,6 +334,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsFleetPairRouteImport
       parentRoute: typeof AppSettingsRoute
     }
+    '/_app/settings/integrations/': {
+      id: '/_app/settings/integrations/'
+      path: '/integrations'
+      fullPath: '/settings/integrations/'
+      preLoaderRoute: typeof AppSettingsIntegrationsIndexRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/integrations/t3-code': {
+      id: '/_app/settings/integrations/t3-code'
+      path: '/integrations/t3-code'
+      fullPath: '/settings/integrations/t3-code'
+      preLoaderRoute: typeof AppSettingsIntegrationsT3CodeRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
   }
 }
 
@@ -346,7 +386,9 @@ interface AppSettingsRouteChildren {
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
   AppSettingsFleetMachineIdRoute: typeof AppSettingsFleetMachineIdRoute
   AppSettingsFleetPairRoute: typeof AppSettingsFleetPairRoute
+  AppSettingsIntegrationsT3CodeRoute: typeof AppSettingsIntegrationsT3CodeRoute
   AppSettingsFleetIndexRoute: typeof AppSettingsFleetIndexRoute
+  AppSettingsIntegrationsIndexRoute: typeof AppSettingsIntegrationsIndexRoute
 }
 
 const AppSettingsRouteChildren: AppSettingsRouteChildren = {
@@ -354,7 +396,9 @@ const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsIndexRoute: AppSettingsIndexRoute,
   AppSettingsFleetMachineIdRoute: AppSettingsFleetMachineIdRoute,
   AppSettingsFleetPairRoute: AppSettingsFleetPairRoute,
+  AppSettingsIntegrationsT3CodeRoute: AppSettingsIntegrationsT3CodeRoute,
   AppSettingsFleetIndexRoute: AppSettingsFleetIndexRoute,
+  AppSettingsIntegrationsIndexRoute: AppSettingsIntegrationsIndexRoute,
 }
 
 const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(

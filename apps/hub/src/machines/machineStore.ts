@@ -9,6 +9,7 @@ import {
   MachineKind,
   SystemUsage,
 } from "@fleetfrog/protocol/domain/machine";
+import { T3CodeStatus } from "@fleetfrog/protocol/domain/t3Code";
 import { TrashedCheckout } from "@fleetfrog/protocol/domain/trash";
 
 import { JsonColumn } from "../persistence/database.ts";
@@ -27,6 +28,7 @@ const MachineRow = Schema.Struct({
   root_statuses_json: JsonColumn(Schema.Array(ReportedRoot)),
   usage_json: Schema.NullOr(JsonColumn(SystemUsage)),
   trash_json: JsonColumn(Schema.Array(TrashedCheckout)),
+  t3code_json: Schema.NullOr(Schema.String),
   paired_at: Timestamp,
   last_seen_at: Schema.NullOr(Timestamp),
   last_discovery_at: Schema.NullOr(Timestamp),
@@ -46,6 +48,8 @@ export interface MachineRecord {
   readonly usage: SystemUsage | null;
   /** The checkouts in the machine's trash, as it last reported them. */
   readonly trash: ReadonlyArray<TrashedCheckout>;
+  /** What the agent last read from T3 Code, kept while the integration is off. */
+  readonly t3Code: T3CodeStatus | null;
   readonly pairedAt: DateTime.Utc;
   readonly lastSeenAt: DateTime.Utc | null;
   readonly lastDiscoveryAt: DateTime.Utc | null;
@@ -58,6 +62,12 @@ const encodeRoots = Schema.encodeSync(JsonColumn(Schema.Array(Schema.String)));
 const encodeRootStatuses = Schema.encodeSync(JsonColumn(Schema.Array(ReportedRoot)));
 const encodeUsage = Schema.encodeSync(JsonColumn(SystemUsage));
 const encodeTrash = Schema.encodeSync(JsonColumn(Schema.Array(TrashedCheckout)));
+const encodeT3Code = Schema.encodeSync(JsonColumn(T3CodeStatus));
+/**
+ * T3 Code's shapes change often, and agents resend what they read on every change, so a stored
+ * reading this hub can't decode counts as none rather than failing every machine query.
+ */
+const decodeT3Code = Schema.decodeUnknownOption(JsonColumn(T3CodeStatus));
 
 export class MachineStore extends Context.Service<
   MachineStore,
@@ -105,6 +115,10 @@ export class MachineStore extends Context.Service<
       readonly machineId: MachineId;
       readonly items: ReadonlyArray<TrashedCheckout>;
     }) => Effect.Effect<void>;
+    readonly recordT3Code: (report: {
+      readonly machineId: MachineId;
+      readonly status: T3CodeStatus;
+    }) => Effect.Effect<void>;
     readonly setArchiveFolder: (update: {
       readonly machineId: MachineId;
       readonly folder: string | null;
@@ -130,6 +144,8 @@ export class MachineStore extends Context.Service<
               rootStatuses: row.root_statuses_json,
               usage: row.usage_json,
               trash: row.trash_json,
+              t3Code:
+                row.t3code_json === null ? null : Option.getOrNull(decodeT3Code(row.t3code_json)),
               pairedAt: row.paired_at,
               lastSeenAt: row.last_seen_at,
               lastDiscoveryAt: row.last_discovery_at,
@@ -229,6 +245,11 @@ export class MachineStore extends Context.Service<
           ),
         recordTrash: ({ machineId, items }) =>
           sql`update machines set trash_json = ${encodeTrash(items)} where id = ${machineId}`.pipe(
+            Effect.orDie,
+            Effect.asVoid,
+          ),
+        recordT3Code: ({ machineId, status }) =>
+          sql`update machines set t3code_json = ${encodeT3Code(status)} where id = ${machineId}`.pipe(
             Effect.orDie,
             Effect.asVoid,
           ),

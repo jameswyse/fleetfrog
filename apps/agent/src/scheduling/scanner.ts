@@ -5,6 +5,7 @@ import { DateTime, Deferred, Duration, Effect, Option, Schema, Semaphore } from 
 
 import { ScanReport } from "@fleetfrog/protocol/agent/rpcs";
 import { Checkout, CheckoutStatus } from "@fleetfrog/protocol/domain/checkout";
+import { T3CodeStatus } from "@fleetfrog/protocol/domain/t3Code";
 
 import {
   archivePath,
@@ -14,14 +15,20 @@ import {
 } from "../discovery/discoverCheckouts.ts";
 import { locateCheckout, readGitStatus } from "../git/readCheckout.ts";
 import { makeGithubReader } from "../github/githubReader.ts";
+import { readT3Code, t3CodeDatabasePath } from "../t3Code/readT3Code.ts";
 import { listTrash } from "../trash/trashFolder.ts";
 
-import type { ReportedRoot } from "@fleetfrog/protocol/agent/rpcs";
+import type {
+  ProjectIconFile,
+  ReportedRoot,
+  T3CodeAgentSettings,
+} from "@fleetfrog/protocol/agent/rpcs";
 
 import type { CheckoutLocation } from "../git/readCheckout.ts";
 
 const readConcurrency = 4;
 const encodeCheckout = Schema.encodeSync(Schema.toCodecJson(Checkout));
+const encodeT3CodeStatus = Schema.encodeSync(Schema.toCodecJson(T3CodeStatus));
 
 const epoch = DateTime.makeUnsafe(0);
 
@@ -105,6 +112,44 @@ export function makeScanner<ReportError>(options: {
     });
   let locations: ReadonlyArray<CheckoutLocation> = [];
   const sent = new Map<string, string>();
+  const t3CodeDatabase = t3CodeDatabasePath();
+  /** Each T3 Code project's favicon, looked for again on every discovery walk. */
+  const favicons = new Map<string, ProjectIconFile | null>();
+  /** What was last sent about T3 Code, so an unchanged reading isn't resent every pass. */
+  let sentT3Code: string | null = null;
+  /** The icon hashes last sent, so their images are only resent when the set changes. */
+  let sentIcons: string | null = null;
+
+  /** Reads T3 Code while the integration is on. */
+  const readIntegration = (settings: T3CodeAgentSettings | null) =>
+    settings === null
+      ? Effect.succeed(null)
+      : readT3Code({ database: t3CodeDatabase, projectIcons: settings.projectIcons, favicons });
+
+  const reportIntegration = Effect.fnUntraced(function* (
+    read: Effect.Success<ReturnType<typeof readIntegration>>,
+  ) {
+    if (read === null) {
+      return;
+    }
+
+    const status = JSON.stringify(encodeT3CodeStatus(read.status));
+
+    if (status !== sentT3Code) {
+      yield* options.report(ScanReport.cases.T3Code.make({ status: read.status }));
+      sentT3Code = status;
+    }
+
+    const icons = read.icons
+      .map(({ id }) => id)
+      .toSorted()
+      .join(",");
+
+    if (icons !== sentIcons) {
+      yield* options.report(ScanReport.cases.ProjectIcons.make({ icons: read.icons }));
+      sentIcons = icons;
+    }
+  });
 
   const readCheckout = Effect.fn("readCheckout")(function* (
     location: CheckoutLocation,
@@ -182,11 +227,23 @@ export function makeScanner<ReportError>(options: {
       readonly roots: ReadonlyArray<string>;
       readonly archiveFolder: string | null;
       readonly githubMaximumAge: Duration.Duration;
+      readonly t3Code: T3CodeAgentSettings | null;
     }) =>
       serialise(
         "discovery",
         Effect.gen(function* () {
-          const found = yield* discoverCheckouts(discovery);
+          favicons.clear();
+
+          const integration = yield* readIntegration(discovery.t3Code);
+          const found = yield* discoverCheckouts({
+            roots: discovery.roots,
+            archiveFolder: discovery.archiveFolder,
+            projectFolders:
+              discovery.t3Code?.discoverProjects === true &&
+              integration?.status.reading._tag === "Read"
+                ? integration.status.reading.projects.map(({ path }) => path)
+                : [],
+          });
 
           // Actions can find the checkouts at once, while their status is still being read.
           locations = found;
@@ -203,6 +260,7 @@ export function makeScanner<ReportError>(options: {
             ScanReport.cases.Discovery.make({ checkouts, roots, completedAt: yield* DateTime.now }),
           );
           yield* reportTrash;
+          yield* reportIntegration(integration);
           sent.clear();
 
           for (const checkout of checkouts) {
@@ -215,10 +273,14 @@ export function makeScanner<ReportError>(options: {
      * Rereads known checkouts and reports only those that changed or disappeared. Archived
      * checkouts are only checked for, since nothing works on them.
      */
-    status: (githubMaximumAge: Duration.Duration) =>
+    status: (pass: {
+      readonly githubMaximumAge: Duration.Duration;
+      readonly t3Code: T3CodeAgentSettings | null;
+    }) =>
       serialise(
         "status",
         Effect.gen(function* () {
+          const { githubMaximumAge } = pass;
           const present = locations.filter((location) => existsSync(location.path));
           const removedPaths = locations
             .filter((location) => !present.includes(location))
@@ -245,6 +307,8 @@ export function makeScanner<ReportError>(options: {
           for (const checkout of changed) {
             sent.set(checkout.path, contentKey(checkout));
           }
+
+          yield* reportIntegration(yield* readIntegration(pass.t3Code));
         }),
       ),
 

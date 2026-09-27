@@ -297,6 +297,8 @@ export function describeEvent(event: HubEvent): string {
         ? `Removed every project folder on ${machineName}`
         : `Set the project folders on ${machineName} to ${roots.join(", ")}`,
     PollingChanged: () => "Changed the polling intervals",
+    IntegrationsChanged: ({ integrations }) =>
+      integrations.t3Code.enabled ? "Changed the T3 Code settings" : "Turned off T3 Code",
     ArchiveFolderChanged: ({ machineName, folder }) =>
       folder === null
         ? `Turned off archiving on ${machineName}`

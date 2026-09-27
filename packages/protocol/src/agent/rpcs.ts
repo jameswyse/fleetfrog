@@ -11,6 +11,7 @@ import { RunId } from "../domain/activity.ts";
 import { Checkout } from "../domain/checkout.ts";
 import { FolderOutcome, FolderStatus } from "../domain/fleet.ts";
 import { MachineInfo, SystemUsage } from "../domain/machine.ts";
+import { T3CodeStatus } from "../domain/t3Code.ts";
 import { InspectionResult, TrashedCheckout } from "../domain/trash.ts";
 
 import type { MachineId } from "../domain/machine.ts";
@@ -35,6 +36,23 @@ export const AgentSchedule = Schema.Struct({
 });
 export type AgentSchedule = typeof AgentSchedule.Type;
 
+/** What an agent reads from T3 Code while the integration is on. */
+export const T3CodeAgentSettings = Schema.Struct({
+  /** Discovery also looks in T3 Code's project folders. */
+  discoverProjects: Schema.Boolean,
+  /** Reports the image files that T3 Code shows as project icons. */
+  projectIcons: Schema.Boolean,
+});
+export type T3CodeAgentSettings = typeof T3CodeAgentSettings.Type;
+
+/** An image a project uses as its icon, named by a hash of its bytes. */
+export const ProjectIconFile = Schema.Struct({
+  id: Schema.String,
+  mediaType: Schema.String,
+  base64: Schema.String,
+});
+export type ProjectIconFile = typeof ProjectIconFile.Type;
+
 /** Instructions the hub streams down to a connected agent. */
 export const HubCommand = Schema.TaggedUnion({
   /** Sent on connect and whenever the roots, schedule or Archive folder change. */
@@ -43,6 +61,13 @@ export const HubCommand = Schema.TaggedUnion({
     schedule: AgentSchedule,
     /** Null when none is set, and from hubs that predate archiving. */
     archiveFolder: Schema.NullOr(Schema.String).pipe(
+      Schema.withDecodingDefaultTypeKey(Effect.succeed(null)),
+    ),
+    /**
+     * What to read from T3 Code, or null when the integration is off, and from hubs that predate
+     * it.
+     */
+    t3Code: Schema.NullOr(T3CodeAgentSettings).pipe(
       Schema.withDecodingDefaultTypeKey(Effect.succeed(null)),
     ),
   },
@@ -98,6 +123,10 @@ export const ScanReport = Schema.TaggedUnion({
   },
   /** Everything in the machine's trash. Replaces what the hub holds. */
   Trash: { items: Schema.Array(TrashedCheckout) },
+  /** What T3 Code has on the machine, sent after each scan while the integration is on. */
+  T3Code: { status: T3CodeStatus },
+  /** Every image the projects in the last `T3Code` report use as icons. Replaces what the hub holds. */
+  ProjectIcons: { icons: Schema.Array(ProjectIconFile) },
   /** A status pass. Carries only checkouts that changed or disappeared since the last report. */
   Status: {
     changed: Schema.Array(Checkout),

@@ -5,6 +5,7 @@ import { Checkout } from "./checkout.ts";
 import { MachineId, MachineInfo, MachineKind, SystemUsage } from "./machine.ts";
 import { PollingSettings } from "./polling.ts";
 import { RepositoryIdentity, RepositoryKey } from "./repositoryIdentity.ts";
+import { IntegrationSettings, ProjectIcon, T3CodeStatus } from "./t3Code.ts";
 import { TrashedCheckout } from "./trash.ts";
 
 export const Connection = Schema.TaggedUnion({
@@ -55,6 +56,8 @@ export const Machine = Schema.Struct({
   usage: Schema.NullOr(SystemUsage),
   /** Checkouts in the machine's trash, as it last reported them. */
   trash: Schema.Array(TrashedCheckout),
+  /** What the agent last read from T3 Code, or null while the integration is off or before a read. */
+  t3Code: Schema.NullOr(T3CodeStatus),
 });
 export type Machine = typeof Machine.Type;
 
@@ -69,8 +72,13 @@ export const Repository = Schema.Struct({
   identity: RepositoryIdentity,
   /** The repository's own name, which a clone's folder takes. */
   name: Schema.String,
-  /** What the dashboard shows: the name, prefixed by its owner when another repository shares it. */
+  /**
+   * What the dashboard shows: T3 Code's name for the project, or the name, prefixed by its owner
+   * when another repository shares it.
+   */
   label: Schema.String,
+  /** T3 Code's icon for the project, or null to show the repository's host. */
+  icon: Schema.NullOr(ProjectIcon),
   checkouts: Schema.Array(MachineCheckout),
 });
 export type Repository = typeof Repository.Type;
@@ -83,6 +91,7 @@ export const Fleet = Schema.Struct({
   /** Repositories with checkouts in the Archive folder, grouped the same way. */
   archive: Schema.Array(Repository),
   polling: PollingSettings,
+  integrations: IntegrationSettings,
 });
 export type Fleet = typeof Fleet.Type;
 

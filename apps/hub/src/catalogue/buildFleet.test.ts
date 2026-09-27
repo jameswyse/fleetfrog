@@ -3,11 +3,13 @@ import { DateTime } from "effect";
 
 import { MachineId } from "@fleetfrog/protocol/domain/machine";
 import { defaultPollingSettings } from "@fleetfrog/protocol/domain/polling";
+import { defaultIntegrationSettings } from "@fleetfrog/protocol/domain/t3Code";
 
 import { buildFleet } from "./buildFleet.ts";
 
 import type { Checkout } from "@fleetfrog/protocol/domain/checkout";
 import type { RepositoryIdentity } from "@fleetfrog/protocol/domain/repositoryIdentity";
+import type { IntegrationSettings, T3CodeProject } from "@fleetfrog/protocol/domain/t3Code";
 
 import type { MachineRecord } from "../machines/machineStore.ts";
 
@@ -34,6 +36,7 @@ function machine(id: MachineId, hostname: string): MachineRecord {
     usage: null,
     archiveFolder: null,
     trash: [],
+    t3Code: null,
     pairedAt,
     lastSeenAt: null,
     lastDiscoveryAt: null,
@@ -80,6 +83,7 @@ describe("buildFleet", () => {
         ],
       ]),
       polling: defaultPollingSettings,
+      integrations: defaultIntegrationSettings,
     });
 
     expect(fleet.repositories).toHaveLength(1);
@@ -97,6 +101,7 @@ describe("buildFleet", () => {
       checkouts: [],
       online: new Map(),
       polling: defaultPollingSettings,
+      integrations: defaultIntegrationSettings,
     });
 
     expect(fleet.machines[0]?.discoveryRoots).toEqual([
@@ -118,6 +123,7 @@ describe("buildFleet", () => {
       ],
       online: new Map(),
       polling: defaultPollingSettings,
+      integrations: defaultIntegrationSettings,
     });
 
     expect(fleet.repositories.map(({ name }) => name)).toEqual(["API", "notes"]);
@@ -155,6 +161,7 @@ describe("buildFleet", () => {
       ],
       online: new Map(),
       polling: defaultPollingSettings,
+      integrations: defaultIntegrationSettings,
     });
 
     expect(fleet.repositories.map(({ name, label }) => [name, label])).toEqual([
@@ -164,5 +171,103 @@ describe("buildFleet", () => {
       ["dhf", "jameswyse/dhf"],
       ["shop", "shop"],
     ]);
+  });
+
+  describe("with T3 Code", () => {
+    const shop: RepositoryIdentity = { _tag: "Remote", host: "github.com", path: "acme/shop" };
+    const site: RepositoryIdentity = { _tag: "Remote", host: "github.com", path: "acme/site" };
+    const blog: RepositoryIdentity = { _tag: "Remote", host: "github.com", path: "acme/blog" };
+
+    const project = (options: {
+      readonly title: string;
+      readonly path: string;
+      readonly updatedAt: string;
+      readonly icon?: T3CodeProject["icon"];
+    }): T3CodeProject => ({
+      id: options.title,
+      title: options.title,
+      path: options.path,
+      icon: options.icon ?? null,
+      autoPull: false,
+      updatedAt: DateTime.makeUnsafe(options.updatedAt),
+    });
+
+    const withProjects = (
+      id: MachineId,
+      hostname: string,
+      projects: ReadonlyArray<T3CodeProject>,
+    ): MachineRecord => ({
+      ...machine(id, hostname),
+      t3Code: {
+        database: "/home/dev/.t3/userdata/state.sqlite",
+        reading: {
+          _tag: "Read",
+          schema: { migration: 54, name: "ProjectionThreadsAutoSettleDisabledAt" },
+          projects,
+          threads: [],
+          threadCount: 0,
+          unreadRecords: 0,
+        },
+      },
+    });
+
+    const build = (integrations: IntegrationSettings) =>
+      buildFleet({
+        machines: [
+          withProjects(laptop, "laptop", [
+            project({
+              title: "Storefront",
+              path: "/home/dev/shop",
+              updatedAt: "2026-09-03T00:00:00Z",
+              icon: { _tag: "Lucide", name: "store", color: "amber" },
+            }),
+            project({ title: "Blog", path: "/home/dev/site", updatedAt: "2026-09-01T00:00:00Z" }),
+          ]),
+          withProjects(desktop, "desktop", [
+            project({
+              title: "Shop",
+              path: "/home/dev/code/shop",
+              updatedAt: "2026-09-02T00:00:00Z",
+            }),
+          ]),
+        ],
+        checkouts: [
+          { machineId: laptop, checkout: checkout("/home/dev/shop", shop) },
+          { machineId: desktop, checkout: checkout("/home/dev/code/shop", shop) },
+          { machineId: laptop, checkout: checkout("/home/dev/site", site) },
+          { machineId: laptop, checkout: checkout("/home/dev/blog", blog) },
+        ],
+        online: new Map(),
+        polling: defaultPollingSettings,
+        integrations,
+      });
+
+    it("names each repository after its most recently changed project, keeping names apart", () => {
+      const fleet = build(defaultIntegrationSettings);
+
+      expect(fleet.repositories.map(({ label, icon }) => [label, icon])).toEqual([
+        ["blog", null],
+        ["Blog (site)", null],
+        ["Storefront", { _tag: "Lucide", name: "store", color: "amber" }],
+      ]);
+    });
+
+    it("leaves names, icons and machines' readings alone while it's off", () => {
+      const fleet = build({
+        t3Code: { enabled: false, projectAppearance: true, discoverProjects: true },
+      });
+
+      expect(fleet.repositories.map(({ label }) => label)).toEqual(["blog", "shop", "site"]);
+      expect(fleet.machines.map(({ t3Code }) => t3Code)).toEqual([null, null]);
+    });
+
+    it("keeps repository names while project names and icons are turned off", () => {
+      const fleet = build({
+        t3Code: { enabled: true, projectAppearance: false, discoverProjects: true },
+      });
+
+      expect(fleet.repositories.map(({ label }) => label)).toEqual(["blog", "shop", "site"]);
+      expect(fleet.machines.every(({ t3Code }) => t3Code !== null)).toBe(true);
+    });
   });
 });

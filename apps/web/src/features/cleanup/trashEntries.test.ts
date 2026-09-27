@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { MachineId } from "@fleetfrog/protocol/domain/machine";
 import { defaultPollingSettings } from "@fleetfrog/protocol/domain/polling";
 import { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
+import { defaultIntegrationSettings } from "@fleetfrog/protocol/domain/t3Code";
 
 import { trashEntries } from "./trashEntries.ts";
 
@@ -35,6 +36,7 @@ const machine: Machine = {
   pairedAt: at("2026-09-01T00:00:00Z"),
   usage: null,
   trash: [],
+  t3Code: null,
 };
 
 const git: GitStatus = {
@@ -81,6 +83,7 @@ const fleet: Fleet = {
       identity: { _tag: "Remote", host: "github.com", path: "acme/shop" },
       name: "shop",
       label: "shop",
+      icon: null,
       checkouts: [
         {
           machineId: machine.id,
@@ -101,6 +104,7 @@ const fleet: Fleet = {
   ],
   archive: [],
   polling: defaultPollingSettings,
+  integrations: defaultIntegrationSettings,
 };
 
 describe("trashEntries", () => {

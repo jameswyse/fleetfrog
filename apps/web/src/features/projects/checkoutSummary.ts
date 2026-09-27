@@ -80,7 +80,13 @@ export function repositoryMatches(options: {
 }): boolean {
   const query = options.query.trim().toLowerCase();
 
-  if (query !== "" && !options.repository.label.toLowerCase().includes(query)) {
+  // The label may be T3 Code's name for the project, so the repository's own name matches too.
+  if (
+    query !== "" &&
+    ![options.repository.label, options.repository.name].some((name) =>
+      name.toLowerCase().includes(query),
+    )
+  ) {
     return false;
   }
 

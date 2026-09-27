@@ -20,6 +20,7 @@ import {
 
 import { DashboardPresence } from "../dashboard/dashboardPresence.ts";
 import { MachineStore } from "../machines/machineStore.ts";
+import { IntegrationsStore } from "../settings/integrationsStore.ts";
 import { PollingStore } from "../settings/pollingStore.ts";
 
 import type { Cause, Scope } from "effect";
@@ -75,6 +76,7 @@ export class AgentSessions extends Context.Service<
     Effect.gen(function* () {
       const machines = yield* MachineStore;
       const polling = yield* PollingStore;
+      const integrations = yield* IntegrationsStore;
       const presence = yield* DashboardPresence;
       const sessions = new Map<MachineId, Session>();
       const online = yield* SubscriptionRef.make<ReadonlyMap<MachineId, OnlineAgent>>(new Map());
@@ -97,6 +99,7 @@ export class AgentSessions extends Context.Service<
         const machine = yield* machines.find(machineId);
         const settings = yield* SubscriptionRef.get(polling.settings);
         const watching = (yield* SubscriptionRef.get(presence.watchers)) > 0;
+        const { t3Code } = yield* SubscriptionRef.get(integrations.settings);
 
         return HubCommand.cases.Configure.make({
           discoveryRoots: machine.discoveryRoots,
@@ -106,6 +109,12 @@ export class AgentSessions extends Context.Service<
             githubSeconds: settings.githubSeconds,
           },
           archiveFolder: machine.archiveFolder,
+          t3Code: t3Code.enabled
+            ? {
+                discoverProjects: t3Code.discoverProjects,
+                projectIcons: t3Code.projectAppearance,
+              }
+            : null,
         });
       });
 
@@ -135,15 +144,20 @@ export class AgentSessions extends Context.Service<
             );
       };
 
-      // Polling changes and dashboards opening or closing change every agent's schedule.
-      // The initial values arrive before any agent connects, so they reconfigure nobody.
-      yield* Stream.merge(
-        SubscriptionRef.changes(polling.settings).pipe(Stream.as(undefined)),
-        SubscriptionRef.changes(presence.watchers).pipe(
-          Stream.map((count) => count > 0),
-          Stream.changes,
-          Stream.as(undefined),
-        ),
+      // Polling and integration changes, and dashboards opening or closing, change every agent's
+      // configuration. The initial values arrive before any agent connects, so they reconfigure
+      // nobody.
+      yield* Stream.mergeAll(
+        [
+          SubscriptionRef.changes(polling.settings).pipe(Stream.as(undefined)),
+          SubscriptionRef.changes(integrations.settings).pipe(Stream.as(undefined)),
+          SubscriptionRef.changes(presence.watchers).pipe(
+            Stream.map((count) => count > 0),
+            Stream.changes,
+            Stream.as(undefined),
+          ),
+        ],
+        { concurrency: "unbounded" },
       ).pipe(
         Stream.runForEach(() =>
           Effect.forEach([...sessions.keys()], reconfigure, { discard: true }),

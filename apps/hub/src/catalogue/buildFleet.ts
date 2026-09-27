@@ -1,3 +1,5 @@
+import { DateTime } from "effect";
+
 import { Connection } from "@fleetfrog/protocol/domain/fleet";
 import { repositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
@@ -5,6 +7,7 @@ import type { Fleet, Machine, MachineCheckout, Repository } from "@fleetfrog/pro
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 import type { PollingSettings } from "@fleetfrog/protocol/domain/polling";
 import type { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
+import type { IntegrationSettings, T3CodeProject } from "@fleetfrog/protocol/domain/t3Code";
 
 import type { OnlineAgent } from "../agents/agentSessions.ts";
 import type { MachineRecord } from "../machines/machineStore.ts";
@@ -75,12 +78,80 @@ function labelsFor(
 }
 
 /**
+ * T3 Code's project for each repository: of the projects whose folder is one of its checkouts, the
+ * one changed most recently.
+ */
+function t3CodeProjects(
+  machines: ReadonlyArray<MachineRecord>,
+  checkouts: ReadonlyArray<MachineCheckout>,
+): Map<RepositoryKey, T3CodeProject> {
+  const byMachine = new Map(
+    machines.map((machine) => [
+      machine.id,
+      new Map(
+        machine.t3Code?.reading._tag === "Read"
+          ? machine.t3Code.reading.projects.map((project) => [project.path, project])
+          : [],
+      ),
+    ]),
+  );
+  const chosen = new Map<RepositoryKey, T3CodeProject>();
+
+  for (const { machineId, checkout } of checkouts) {
+    const project = byMachine.get(machineId)?.get(checkout.path);
+    const key = repositoryKey(checkout.identity);
+    const current = chosen.get(key);
+
+    if (
+      project !== undefined &&
+      (current === undefined || DateTime.isGreaterThan(project.updatedAt, current.updatedAt))
+    ) {
+      chosen.set(key, project);
+    }
+  }
+
+  return chosen;
+}
+
+/**
+ * Each repository's label: T3 Code's name for its project, or the label that tells it apart by
+ * name. A T3 Code name that another repository also goes by keeps that label beside it.
+ */
+function withProjectTitles(
+  labels: ReadonlyMap<RepositoryKey, string>,
+  projects: ReadonlyMap<RepositoryKey, T3CodeProject>,
+): Map<RepositoryKey, string> {
+  const shown = new Map(
+    [...labels].map(([key, label]) => [key, projects.get(key)?.title ?? label] as const),
+  );
+  const counts = new Map<string, number>();
+
+  for (const label of shown.values()) {
+    counts.set(label.toLowerCase(), (counts.get(label.toLowerCase()) ?? 0) + 1);
+  }
+
+  return new Map(
+    [...shown].map(([key, label]) => {
+      const title = projects.get(key)?.title;
+
+      return [
+        key,
+        title !== undefined && (counts.get(label.toLowerCase()) ?? 0) > 1
+          ? `${title} (${labels.get(key) ?? label})`
+          : label,
+      ];
+    }),
+  );
+}
+
+/**
  * Groups checkouts by repository, labelled from `labels`, which tells apart every repository the
  * fleet has. A repository without a label goes by its name.
  */
 function groupRepositories(
   checkouts: ReadonlyArray<MachineCheckout>,
   labels: ReadonlyMap<RepositoryKey, string>,
+  projects: ReadonlyMap<RepositoryKey, T3CodeProject>,
 ): ReadonlyArray<Repository> {
   const groups = new Map<RepositoryKey, CheckoutGroup>();
 
@@ -106,10 +177,14 @@ function groupRepositories(
     .map((repository): Repository => ({
       ...repository,
       label: labels.get(repository.key) ?? repository.name,
+      icon: projects.get(repository.key)?.icon ?? null,
     }))
     .toSorted(
       (left, right) =>
-        collator.compare(left.name, right.name) || collator.compare(left.label, right.label),
+        collator.compare(
+          projects.get(left.key)?.title ?? left.name,
+          projects.get(right.key)?.title ?? right.name,
+        ) || collator.compare(left.label, right.label),
     );
 }
 
@@ -119,7 +194,9 @@ export function buildFleet(sources: {
   readonly checkouts: ReadonlyArray<MachineCheckout>;
   readonly online: ReadonlyMap<MachineId, OnlineAgent>;
   readonly polling: PollingSettings;
+  readonly integrations: IntegrationSettings;
 }): Fleet {
+  const { t3Code } = sources.integrations;
   const machines = sources.machines.map((record): Machine => {
     const agent = sources.online.get(record.id);
     const statuses = new Map(record.rootStatuses.map(({ path, status }) => [path, status]));
@@ -145,17 +222,27 @@ export function buildFleet(sources: {
       pairedAt: record.pairedAt,
       usage: record.usage,
       trash: record.trash,
+      t3Code: t3Code.enabled ? record.t3Code : null,
     };
   });
+  const projects =
+    t3Code.enabled && t3Code.projectAppearance
+      ? t3CodeProjects(sources.machines, sources.checkouts)
+      : new Map<RepositoryKey, T3CodeProject>();
   // Labels tell apart every repository the fleet has, archived or not, so both lists agree.
-  const labels = labelsFor(groupRepositories(sources.checkouts, new Map()));
+  const labels = withProjectTitles(
+    labelsFor(groupRepositories(sources.checkouts, new Map(), new Map())),
+    projects,
+  );
   const repositories = groupRepositories(
     sources.checkouts.filter(({ checkout }) => checkout.placement._tag === "Projects"),
     labels,
+    projects,
   );
   const archive = groupRepositories(
     sources.checkouts.filter(({ checkout }) => checkout.placement._tag === "Archive"),
     labels,
+    projects,
   );
 
   return {
@@ -163,5 +250,6 @@ export function buildFleet(sources: {
     repositories,
     archive,
     polling: sources.polling,
+    integrations: sources.integrations,
   };
 }

@@ -25,6 +25,8 @@ export class MachineRemoved extends Schema.TaggedError<MachineRemoved>()("Machin
 
 type Configuration = (typeof HubCommand.cases.Configure)["Type"];
 
+const sameT3CodeSettings = Schema.toEquivalence(HubCommand.cases.Configure.fields.t3Code);
+
 const isHubCommand = Schema.is(HubCommand);
 
 const firstRetryDelay = Duration.seconds(1);
@@ -116,6 +118,7 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
         roots: current.discoveryRoots,
         archiveFolder: current.archiveFolder,
         githubMaximumAge: Duration.seconds(current.schedule.githubSeconds),
+        t3Code: current.t3Code,
       })
       .pipe(
         Effect.andThen(Clock.currentTimeMillis),
@@ -129,15 +132,20 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
       );
 
   const status = (current: Configuration) =>
-    scanner.status(Duration.seconds(current.schedule.githubSeconds)).pipe(
-      Effect.andThen(Clock.currentTimeMillis),
-      Effect.flatMap((finishedAt) =>
-        Effect.sync(() => {
-          lastStatusAt = finishedAt;
-        }),
-      ),
-      Effect.catchCause((cause) => Effect.logWarning("Status scan failed", cause)),
-    );
+    scanner
+      .status({
+        githubMaximumAge: Duration.seconds(current.schedule.githubSeconds),
+        t3Code: current.t3Code,
+      })
+      .pipe(
+        Effect.andThen(Clock.currentTimeMillis),
+        Effect.flatMap((finishedAt) =>
+          Effect.sync(() => {
+            lastStatusAt = finishedAt;
+          }),
+        ),
+        Effect.catchCause((cause) => Effect.logWarning("Status scan failed", cause)),
+      );
 
   /** Restarts both timers, keeping each on its cadence from its last completed pass. */
   const schedule = Effect.fnUntraced(function* ({
@@ -227,15 +235,17 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
 
       return HubCommand.match(received, {
         Configure: (next) => {
-          // Either change moves where checkouts are found, so discovery runs again at once.
-          const rootsChanged =
+          // Each of these changes where checkouts are found or what's reported about them, so
+          // discovery runs again at once.
+          const discoveryChanged =
             configuration === null ||
             !sameList(configuration.discoveryRoots, next.discoveryRoots) ||
-            configuration.archiveFolder !== next.archiveFolder;
+            configuration.archiveFolder !== next.archiveFolder ||
+            !sameT3CodeSettings(configuration.t3Code, next.t3Code);
 
           configuration = next;
 
-          return schedule({ current: next, discoverNow: rootsChanged });
+          return schedule({ current: next, discoverNow: discoveryChanged });
         },
         Refresh: () =>
           configuration === null

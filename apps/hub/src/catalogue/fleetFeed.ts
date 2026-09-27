@@ -2,6 +2,7 @@ import { Context, Duration, Effect, Layer, PubSub, Stream, SubscriptionRef } fro
 
 import { AgentSessions } from "../agents/agentSessions.ts";
 import { MachineStore } from "../machines/machineStore.ts";
+import { IntegrationsStore } from "../settings/integrationsStore.ts";
 import { PollingStore } from "../settings/pollingStore.ts";
 import { buildFleet } from "./buildFleet.ts";
 import { CheckoutStore } from "./checkoutStore.ts";
@@ -28,6 +29,7 @@ export class FleetFeed extends Context.Service<
       const checkouts = yield* CheckoutStore;
       const sessions = yield* AgentSessions;
       const polling = yield* PollingStore;
+      const integrations = yield* IntegrationsStore;
       const invalidations = yield* PubSub.sliding<void>(1);
 
       const current = Effect.all({
@@ -35,6 +37,7 @@ export class FleetFeed extends Context.Service<
         checkouts: checkouts.all,
         online: SubscriptionRef.get(sessions.online),
         polling: SubscriptionRef.get(polling.settings),
+        integrations: SubscriptionRef.get(integrations.settings),
       }).pipe(Effect.map(buildFleet));
 
       return {
@@ -45,6 +48,7 @@ export class FleetFeed extends Context.Service<
             Stream.fromPubSub(invalidations),
             SubscriptionRef.changes(sessions.online).pipe(Stream.as(undefined)),
             SubscriptionRef.changes(polling.settings).pipe(Stream.as(undefined)),
+            SubscriptionRef.changes(integrations.settings).pipe(Stream.as(undefined)),
           ],
           { concurrency: "unbounded" },
         ).pipe(

@@ -11,6 +11,7 @@ import { Count } from "./count.ts";
 import { MachineId } from "./machine.ts";
 import { PollingSettings } from "./polling.ts";
 import { RepositoryKey } from "./repositoryIdentity.ts";
+import { IntegrationSettings } from "./t3Code.ts";
 
 export const BatchId = Schema.String.pipe(Schema.check(Schema.isUUID()), Schema.brand("BatchId"));
 export type BatchId = typeof BatchId.Type;
@@ -146,6 +147,7 @@ export const HubEvent = Schema.TaggedUnion({
     roots: Schema.Array(Schema.String),
   },
   PollingChanged: { polling: PollingSettings },
+  IntegrationsChanged: { integrations: IntegrationSettings },
   ArchiveFolderChanged: {
     machineId: MachineId,
     machineName: Schema.String,

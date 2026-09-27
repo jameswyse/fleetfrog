@@ -7,6 +7,7 @@ import { knownFleet, useHub, useRuns } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
 import { plural } from "@/ui/plural.ts";
+import { ProjectIcon } from "@/ui/ProjectIcon.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { SidebarPage } from "@/ui/SidebarLayout.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
@@ -63,6 +64,7 @@ function ArchivedRow({
       <ArchiveIcon className="mt-0.5 shrink-0 text-ink-muted" />
       <div className="min-w-0 flex-1 space-y-0.5">
         <p className="flex flex-wrap items-center gap-x-1.5 text-sm">
+          {repository.icon !== null && <ProjectIcon icon={repository.icon} />}
           <span className="font-medium">{repository.label}</span>
           <span className="text-ink-muted">on</span>
           <MachineKindIcon kind={machineKind(machine)} />

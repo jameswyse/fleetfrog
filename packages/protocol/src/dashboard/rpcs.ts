@@ -14,6 +14,7 @@ import { Fleet, FolderOutcome } from "../domain/fleet.ts";
 import { MachineId, MachineKind } from "../domain/machine.ts";
 import { PollingSettings } from "../domain/polling.ts";
 import { RepositoryKey } from "../domain/repositoryIdentity.ts";
+import { IntegrationSettings } from "../domain/t3Code.ts";
 import { InspectionResult } from "../domain/trash.ts";
 
 export class MachineNotFound extends Schema.TaggedError<MachineNotFound>()("MachineNotFound", {
@@ -114,6 +115,7 @@ export class DashboardRpcs extends RpcGroup.make(
     error: MachineNotFound,
   }),
   Rpc.make("UpdatePolling", { payload: { polling: PollingSettings } }),
+  Rpc.make("UpdateIntegrations", { payload: { integrations: IntegrationSettings } }),
   /** A null folder turns archiving off. Checkouts already in the old folder stay where they are. */
   Rpc.make("SetArchiveFolder", {
     payload: { machineId: MachineId, folder: Schema.NullOr(Schema.NonEmptyString) },

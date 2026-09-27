@@ -149,6 +149,7 @@ describe("branchesInOtherWorktrees", () => {
       identity: checkout.identity,
       name: "shop",
       label: "shop",
+      icon: null,
       checkouts: [
         { machineId, checkout: main },
         { machineId, checkout: linked },

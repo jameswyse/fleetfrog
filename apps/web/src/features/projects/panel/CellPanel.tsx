@@ -1,6 +1,7 @@
 import { FolderGit2Icon, GitForkIcon, LayersIcon, TriangleAlertIcon } from "lucide-react";
 
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
+import { ProjectIcon } from "@/ui/ProjectIcon.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { CellState, problemWords } from "../CellContent.tsx";
@@ -121,9 +122,10 @@ export function CellPanel({
                 type="button"
                 onClick={() => onSelect({ repository: repository.key, machine: null }, "Push")}
                 title="Show it on every machine"
-                className="truncate rounded underline-offset-2 hover:text-ink hover:underline"
+                className="flex min-w-0 items-center gap-1.5 rounded underline-offset-2 hover:text-ink hover:underline"
               >
-                {repository.label}
+                {repository.icon !== null && <ProjectIcon icon={repository.icon} />}
+                <span className="truncate">{repository.label}</span>
               </button>
             </Crumb>
             <Crumb last>

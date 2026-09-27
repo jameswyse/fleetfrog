@@ -3,6 +3,7 @@ import { ChevronDownIcon } from "lucide-react";
 import { useRuns } from "@/rpc/hubConnection.ts";
 import { gitHost, HostIcon } from "@/ui/HostIcon.tsx";
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
+import { ProjectIcon } from "@/ui/ProjectIcon.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { RunActivity } from "../actions/RunActivity.tsx";
@@ -295,7 +296,11 @@ export function ProjectGrid({
                       title={identity}
                       className={`flex min-w-0 flex-1 items-center gap-2 self-stretch px-4 py-2 text-start hover:underline aria-[current=true]:text-accent-text ${rowSelected ? "outline-hidden" : focusRing}`}
                     >
-                      <HostIcon host={host} className="text-ink-muted" />
+                      {repository.icon === null ? (
+                        <HostIcon host={host} className="text-ink-muted" />
+                      ) : (
+                        <ProjectIcon icon={repository.icon} />
+                      )}
                       <span className={shrinkableName}>
                         <span className="truncate">{repository.label}</span>
                       </span>

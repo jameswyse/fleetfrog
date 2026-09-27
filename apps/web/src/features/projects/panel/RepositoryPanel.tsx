@@ -3,6 +3,7 @@ import { GitPullRequestIcon, MonitorIcon } from "lucide-react";
 import { useRuns } from "@/rpc/hubConnection.ts";
 import { GitHubIcon } from "@/ui/HostIcon.tsx";
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
+import { ProjectIcon } from "@/ui/ProjectIcon.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
@@ -58,7 +59,12 @@ export function RepositoryPanel({
     <>
       <PanelHeader
         headingId={headingId}
-        title={<span className="truncate">{repository.label}</span>}
+        title={
+          <>
+            {repository.icon !== null && <ProjectIcon icon={repository.icon} />}
+            <span className="truncate">{repository.label}</span>
+          </>
+        }
         subtitle={<RepositoryLink identity={repository.identity} />}
         actions={<RepositoryActions fleet={fleet} repository={repository} />}
         onClose={onClose}

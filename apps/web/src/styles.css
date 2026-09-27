@@ -8,6 +8,9 @@
  * Each hue has one meaning: blue is anything you can act on (buttons, links, focus and selection),
  * violet is commits to push or pull and work in progress, amber is uncommitted changes, red is a
  * problem, and green is clean. Status colours always travel with a symbol or a label.
+ *
+ * Project colours are the exception: the colours T3 Code offers for project icons, as it draws
+ * them. They mean only what their owner picked them to, and colour nothing but those icons.
  */
 :root {
   --neutral-100: #ffffff;
@@ -84,6 +87,25 @@
   --clean: var(--green-52);
   --logo-frog: var(--green-61);
   --bitbucket: var(--atlassian-48);
+
+  --project-gray: #4b5563;
+  --project-red: #dc2626;
+  --project-orange: #ea580c;
+  --project-amber: #d97706;
+  --project-yellow: #ca8a04;
+  --project-lime: #65a30d;
+  --project-green: #16a34a;
+  --project-emerald: #059669;
+  --project-teal: #0d9488;
+  --project-cyan: #0891b2;
+  --project-sky: #0284c7;
+  --project-blue: #2563eb;
+  --project-indigo: #4f46e5;
+  --project-violet: #7c3aed;
+  --project-purple: #9333ea;
+  --project-fuchsia: #c026d3;
+  --project-pink: #db2777;
+  --project-rose: #e11d48;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -110,6 +132,25 @@
     --clean: var(--green-78);
     --logo-frog: var(--green-81);
     --bitbucket: var(--atlassian-69);
+
+    --project-gray: #9ca3af;
+    --project-red: #f87171;
+    --project-orange: #fb923c;
+    --project-amber: #fbbf24;
+    --project-yellow: #facc15;
+    --project-lime: #a3e635;
+    --project-green: #4ade80;
+    --project-emerald: #34d399;
+    --project-teal: #2dd4bf;
+    --project-cyan: #22d3ee;
+    --project-sky: #38bdf8;
+    --project-blue: #60a5fa;
+    --project-indigo: #818cf8;
+    --project-violet: #a78bfa;
+    --project-purple: #c084fc;
+    --project-fuchsia: #e879f9;
+    --project-pink: #f472b6;
+    --project-rose: #fb7185;
   }
 }
 

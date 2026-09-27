@@ -58,6 +58,7 @@ describe("discoverCheckouts", () => {
         const found = yield* discoverCheckouts({
           roots: [projects, path.join(home, "missing")],
           archiveFolder: null,
+          projectFolders: [],
         });
 
         expect(found.map(({ path: checkoutPath }) => checkoutPath).toSorted()).toEqual(
@@ -81,6 +82,7 @@ describe("discoverCheckouts", () => {
         const found = yield* discoverCheckouts({
           roots: [projects],
           archiveFolder: path.join(projects, "Archive"),
+          projectFolders: [],
         });
 
         expect(
