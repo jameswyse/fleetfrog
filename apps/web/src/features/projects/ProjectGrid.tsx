@@ -48,12 +48,16 @@ function columnBackground(machine: Machine): string {
   return machine.connection._tag === "Offline" ? "bg-canvas" : "bg-surface";
 }
 
-/** Machine columns have a fixed width, so a long branch or machine name is cut short, not widened. */
-const columnWidth = "w-52";
+/**
+ * Machine columns start at a fixed width, so a long branch or machine name is cut short, not
+ * widened. When the grid has room to spare, the columns share it.
+ */
+const columnWidth = "w-52 min-w-full";
 
 /**
  * The repository column grows with its longest name, up to a limit, and gives that width back
- * before the grid scrolls sideways. The name's grid track lets it shrink to nothing, so only the
+ * before the grid scrolls sideways. Its header sets the limit as the column's width, so spare room
+ * goes to the machine columns. The name's grid track lets it shrink to nothing, so only the
  * minimum width holds the column open when space is short.
  */
 const nameColumnWidth = "min-w-60 max-w-sm";
@@ -270,8 +274,8 @@ export function ProjectGrid({
     // Scrolls both ways under its pinned header row and repository column, which the scroll padding
     // keeps a focused cell clear of. Positioned so screen-reader text in the cells is clipped here
     // instead of widening the page.
-    <div className="relative min-h-0 w-fit max-w-full scroll-pt-[3.0625rem] scroll-ps-[min(24rem,40%)] overflow-auto rounded-lg border border-line bg-surface">
-      <table className="border-separate border-spacing-0 text-sm">
+    <div className="relative min-h-0 w-full max-w-grid scroll-pt-[3.0625rem] scroll-ps-[min(24rem,40%)] overflow-auto rounded-lg border border-line bg-surface">
+      <table className="w-full border-separate border-spacing-0 text-sm">
         <caption className="sr-only">
           Repositories by machine. Choose a repository or a cell to see its details.
         </caption>
@@ -279,7 +283,7 @@ export function ProjectGrid({
           <tr>
             <th
               scope="col"
-              className="sticky start-0 top-0 z-[3] border-e border-b border-line bg-surface px-4 py-2 text-start align-middle font-semibold"
+              className="sticky start-0 top-0 z-[3] w-sm border-e border-b border-line bg-surface px-4 py-2 text-start align-middle font-semibold"
             >
               Repository
             </th>

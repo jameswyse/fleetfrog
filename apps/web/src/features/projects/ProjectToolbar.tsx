@@ -177,7 +177,7 @@ export function ProjectToolbar({
   readonly query: string;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+    <div className="flex max-w-grid flex-wrap items-center gap-x-3 gap-y-2">
       <SearchField query={query} />
       <FilterPicker repositories={repositories} filter={filter} query={query} />
       <div className="ms-auto">

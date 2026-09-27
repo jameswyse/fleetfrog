@@ -156,6 +156,8 @@
 
 @theme {
   --color-*: initial;
+  /* The Projects grid and its toolbar stretch to this width, then stop. */
+  --container-grid: 1800px;
 }
 
 @theme inline {
