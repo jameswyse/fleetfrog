@@ -2,6 +2,9 @@ packages:
   - apps/*
   - packages/*
 
+cargo:
+  enabled: true
+
 catalog:
   "@effect/platform-node": 4.0.0-rc.117
   "@effect/sql-sqlite-node": 4.0.0-rc.117

@@ -17,6 +17,9 @@ data
 
 !**/.env.example
 
+# The hub image builds neither agent. Leaving out the Rust one also keeps pnpm from needing Cargo.
+apps/agent-rs
+
 # Documentation and changesets don't affect the image, so they shouldn't invalidate its cache.
 **/*.md
 .changeset

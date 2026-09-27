@@ -38,6 +38,8 @@ pnpm exec node apps/agent/dist/bin.mjs pair ffp1_…
 pnpm exec node apps/agent/dist/bin.mjs service install
 ```
 
+The agent is also available as a native binary that needs no Node and uses a fraction of the memory. It needs a Rust toolchain to build, and [`apps/agent-rs`](apps/agent-rs/README.md) explains how to install it.
+
 Pairing checks the hub's certificate against the fingerprint in the pairing string before sending anything. `service install` keeps the agent running as a systemd user service on Linux or a launchd agent on macOS. On Linux, run `loginctl enable-linger` to keep it running while you are logged out. `fleetfrog run` runs the agent in the foreground and `fleetfrog status` shows how it is paired.
 
 ## Actions

@@ -9,3 +9,6 @@ node_modules/
 dist/
 coverage/
 /data/
+# Rust build output, and the crates pnpm links from its store.
+target/
+.pnpm/

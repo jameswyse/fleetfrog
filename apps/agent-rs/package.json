@@ -1,0 +1,17 @@
+{
+  "name": "@fleetfrog/agent-rs",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The FleetFrog agent as a native Rust binary. It speaks the same protocol as apps/agent and shares its files on the machine.",
+  "license": "MIT",
+  "scripts": {
+    "build": "cargo build --release --locked && mkdir -p dist && cp target/release/fleetfrog dist/fleetfrog",
+    "format": "cargo fmt",
+    "format:check": "cargo fmt --check",
+    "lint": "cargo clippy --locked --all-targets -- --deny warnings",
+    "lint:fix": "cargo clippy --locked --all-targets --fix --allow-dirty --allow-staged",
+    "test:unit": "cargo test --locked && cargo build --locked && node ../../scripts/agentParity/compare.mjs",
+    "test:unit:changed": "cargo test --locked",
+    "typecheck": "cargo check --locked --all-targets"
+  }
+}
