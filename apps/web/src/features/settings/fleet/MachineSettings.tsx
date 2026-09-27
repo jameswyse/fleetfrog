@@ -230,7 +230,7 @@ function ConfigurationSection({
       </SettingsRow>
       <SettingsRow
         title="Archive folder"
-        description="Archiving moves a checkout here, keeping its path below its project folder, and takes it off the Projects page. It may be inside a project folder, such as ~/Projects/Archive, which is then skipped when that folder is searched. Leave it empty to turn archiving off. Changing it leaves checkouts already archived where they are."
+        description="Where archived checkouts go. Leave it empty to turn archiving off."
         htmlFor={archiveId}
       >
         <ArchiveFolderField
