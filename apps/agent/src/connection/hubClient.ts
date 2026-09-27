@@ -55,13 +55,18 @@ export class HubDisconnected extends Schema.TaggedError<HubDisconnected>()("HubD
 export const makeHubClient = Effect.fn("makeHubClient")(function* (config: AgentConfig) {
   const tls = pinnedTlsOptions(config.certificatePem);
   const dropped = yield* Deferred.make<void>();
-  const webSocket = Layer.succeed(Socket.WebSocketConstructor)(
-    (url) =>
-      new NodeSocket.NodeWS.WebSocket(url, {
-        headers: { authorization: `Bearer ${config.token}` },
-        ...tls,
-      }),
-  );
+  const webSocket = Layer.succeed(Socket.WebSocketConstructor)((url) => {
+    const socket = new NodeSocket.NodeWS.WebSocket(url, {
+      headers: { authorization: `Bearer ${config.token}` },
+      ...tls,
+    });
+
+    // Effect's socket removes its own error listener before closing the socket. Closing one that is
+    // still connecting makes `ws` emit an error on the next tick, which would exit the agent.
+    socket.on("error", () => undefined);
+
+    return socket;
+  });
   const hooks = Layer.succeed(RpcClient.ConnectionHooks)({
     onConnect: Effect.logInfo("Connected to hub"),
     onDisconnect: Deferred.succeed(dropped, undefined).pipe(Effect.asVoid),
