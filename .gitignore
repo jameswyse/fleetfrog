@@ -12,3 +12,7 @@ coverage/
 # Rust build output, and the crates pnpm links from its store.
 target/
 .pnpm/
+
+# Personal agent instructions for this checkout. AGENTS.md explains them.
+AGENTS.local.md
+CLAUDE.local.md
