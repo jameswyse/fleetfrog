@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 
 import { knownFleet, useHub } from "@/rpc/hubConnection.ts";
 import { SidebarPage } from "@/ui/SidebarLayout.tsx";
+import { T3CodeLogo } from "@/ui/T3CodeLogo.tsx";
 
 import { SettingsRow, SettingsSection } from "../SettingsSection.tsx";
 import { t3CodeIssues } from "./t3CodeHealth.ts";
@@ -37,8 +38,9 @@ export function IntegrationsSettings() {
             title={
               <Link
                 to="/settings/integrations/t3-code"
-                className="underline-offset-2 hover:underline"
+                className="inline-flex items-center gap-2 underline-offset-2 hover:underline"
               >
+                <T3CodeLogo />
                 T3 Code
               </Link>
             }

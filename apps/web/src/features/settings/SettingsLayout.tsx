@@ -9,6 +9,7 @@ import {
   sidebarSubmenuClass,
   sidebarSubmenuItemClass,
 } from "@/ui/SidebarLayout.tsx";
+import { T3CodeLogo } from "@/ui/T3CodeLogo.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { t3CodeIssues } from "./integrations/t3CodeHealth.ts";
@@ -59,6 +60,7 @@ function IntegrationLinks() {
     <ul className={sidebarSubmenuClass}>
       <li className={sidebarSubmenuItemClass}>
         <Link to="/settings/integrations/t3-code" className={sidebarLinkClass}>
+          <T3CodeLogo />
           <span className="min-w-0 flex-1 truncate">T3 Code</span>
           {attention && (
             <>
