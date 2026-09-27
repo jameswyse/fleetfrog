@@ -326,23 +326,21 @@ export function ProjectGrid({
                           </span>
                         </>
                       ) : (
-                        // T3 Code's name leads, with the repository it stands for beneath it.
-                        <>
+                        // T3 Code's name leads, with the repository it stands for beneath it. Both
+                        // icons share a column, and both lines start at the same edge.
+                        <span className="grid min-w-0 grid-cols-[1rem_minmax(0,max-content)] items-center gap-x-2 gap-y-0.5">
                           <ProjectIcon icon={repository.icon} />
-                          <span className={shrinkableName}>
-                            <span className="truncate group-hover:underline">
-                              {repository.label}
-                            </span>
-                            <span className="mt-0.5 flex min-w-0 items-center gap-1 text-xs font-normal text-ink-muted">
-                              <HostIcon host={host} className="size-3" />
-                              <span className="truncate">
-                                {repository.identity._tag === "Remote"
-                                  ? repository.identity.path
-                                  : repository.name}
-                              </span>
-                            </span>
+                          <span className="truncate group-hover:underline">{repository.label}</span>
+                          <HostIcon
+                            host={host}
+                            className="size-3 justify-self-center text-ink-muted"
+                          />
+                          <span className="truncate text-xs font-normal text-ink-muted">
+                            {repository.identity._tag === "Remote"
+                              ? repository.identity.path
+                              : repository.name}
                           </span>
-                        </>
+                        </span>
                       )}
                     </button>
                     <RepositoryActions fleet={fleet} repository={repository} />

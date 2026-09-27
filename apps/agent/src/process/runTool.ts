@@ -38,6 +38,7 @@ export function runTool(
     | "gh"
     | "ioreg"
     | "launchctl"
+    | "ps"
     | "scutil"
     | "sw_vers"
     | "sysctl"

@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 
 import { Count } from "./count.ts";
 
@@ -123,11 +123,38 @@ export const T3CodeReading = Schema.TaggedUnion({
 });
 export type T3CodeReading = typeof T3CodeReading.Type;
 
-/** What an agent last found in its machine's T3 Code database, which it reads on every scan. */
+/** T3 Code's server, which its app starts or which runs as a service. */
+export const T3CodeServer = Schema.Struct({
+  /** Such as `0.0.43-nightly.20260927.2331`, or null when the running program doesn't say. */
+  version: Schema.NullOr(Schema.String),
+  startedAt: Schema.DateTimeUtc,
+  port: Schema.Int,
+});
+export type T3CodeServer = typeof T3CodeServer.Type;
+
+/** A coding agent T3 Code runs, such as Claude or Codex, as T3 Code last checked it. */
+export const T3CodeProvider = Schema.Struct({
+  name: Schema.String,
+  version: Schema.NullOr(Schema.String),
+  /** A newer version T3 Code knows of, or null when it's up to date or can't tell. */
+  latestVersion: Schema.NullOr(Schema.String),
+  /** Installed and working, as far as T3 Code can tell. */
+  ready: Schema.Boolean,
+  signedIn: Schema.Boolean,
+});
+export type T3CodeProvider = typeof T3CodeProvider.Type;
+
+/** What an agent last found of T3 Code on its machine, which it reads on every scan. */
 export const T3CodeStatus = Schema.Struct({
   /** Where the agent looked. */
   database: Schema.String,
   reading: T3CodeReading,
+  /** Null while T3 Code isn't running, and from agents that predate reporting it. */
+  server: Schema.NullOr(T3CodeServer).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(null))),
+  /** The coding agents turned on in T3 Code. Empty from agents that predate reporting them. */
+  providers: Schema.Array(T3CodeProvider).pipe(
+    Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
+  ),
 });
 export type T3CodeStatus = typeof T3CodeStatus.Type;
 

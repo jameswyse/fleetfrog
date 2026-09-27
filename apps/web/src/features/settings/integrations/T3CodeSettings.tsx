@@ -5,50 +5,25 @@ import { TriangleAlertIcon } from "lucide-react";
 
 import { knownFleet, requestHub, useHub } from "@/rpc/hubConnection.ts";
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
-import { plural } from "@/ui/plural.ts";
 import { ProjectIcon } from "@/ui/ProjectIcon.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { SidebarPage } from "@/ui/SidebarLayout.tsx";
 import { Switch } from "@/ui/Switch.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 import {
-  schemaDrift,
   supportedT3CodeSchema,
   T3CodeSettings as SettingsSchema,
 } from "@fleetfrog/protocol/domain/t3Code";
 
 import { SettingsRow, SettingsSection, SideDetail, SidePanel } from "../SettingsSection.tsx";
 import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
+import { ReadingSummary, SchemaText, unmatchedProjects } from "./T3CodeFacts.tsx";
 import { describeIssue, t3CodeIssues } from "./t3CodeHealth.ts";
 
-import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
-import type { T3CodeProject, T3CodeSettings as Settings } from "@fleetfrog/protocol/domain/t3Code";
+import type { Fleet } from "@fleetfrog/protocol/domain/fleet";
+import type { T3CodeSettings as Settings } from "@fleetfrog/protocol/domain/t3Code";
 
 const sameSettings = Schema.toEquivalence(SettingsSchema);
-
-/** Paths of every checkout the machine reported, archived or not. */
-function checkoutPaths(fleet: Fleet, machine: Machine): ReadonlySet<string> {
-  return new Set(
-    [...fleet.repositories, ...fleet.archive].flatMap(({ checkouts }) =>
-      checkouts.flatMap(({ machineId, checkout }) =>
-        machineId === machine.id ? [checkout.path] : [],
-      ),
-    ),
-  );
-}
-
-/** T3 Code's projects on the machine whose folder isn't a checkout FleetFrog knows. */
-function unmatchedProjects(fleet: Fleet, machine: Machine): ReadonlyArray<T3CodeProject> {
-  const reading = machine.t3Code?.reading;
-
-  if (reading?._tag !== "Read") {
-    return [];
-  }
-
-  const paths = checkoutPaths(fleet, machine);
-
-  return reading.projects.filter(({ path }) => !paths.has(path));
-}
 
 function SettingsSwitches({ saved }: { readonly saved: Settings }) {
   const { state, save } = useAutoSave();
@@ -124,69 +99,6 @@ function SettingsSwitches({ saved }: { readonly saved: Settings }) {
   );
 }
 
-/** What the machine's agent last found, in a few words. */
-function ReadingSummary({ fleet, machine }: { readonly fleet: Fleet; readonly machine: Machine }) {
-  const status = machine.t3Code;
-
-  if (status === null) {
-    return (
-      <span className="text-ink-muted">
-        {machine.connection._tag === "Offline"
-          ? "Not read yet. The machine is offline."
-          : "Not read yet. If this lasts past the next scan, update the agent."}
-      </span>
-    );
-  }
-
-  const { reading } = status;
-
-  const database = <span className="font-mono text-xs break-all">{status.database}</span>;
-
-  if (reading._tag === "NotFound") {
-    return <span className="text-ink-muted">T3 Code isn't installed. There's no {database}.</span>;
-  }
-
-  if (reading._tag === "Unreadable") {
-    return (
-      <span className="text-danger">
-        {reading.message} It's at {database}.
-      </span>
-    );
-  }
-
-  const unmatched = unmatchedProjects(fleet, machine).length;
-  const working = reading.threads.filter(({ state }) => state !== "Idle").length;
-
-  return (
-    <span>
-      {plural(reading.projects.length, "project")}
-      {unmatched > 0 && `, ${unmatched} without a repository here`}
-      {" · "}
-      {plural(reading.threadCount, "thread")}
-      {working > 0 && `, ${working} in progress`}
-    </span>
-  );
-}
-
-function SchemaText({ machine }: { readonly machine: Machine }) {
-  const reading = machine.t3Code?.reading;
-  const schema = reading === undefined || reading._tag === "NotFound" ? null : reading.schema;
-
-  if (schema === null) {
-    return <span className="text-ink-muted">Unknown</span>;
-  }
-
-  const drift = schemaDrift(schema);
-
-  return (
-    <span className={drift === "Current" ? "" : "text-danger"} title={schema.name}>
-      Migration {schema.migration}
-      {drift !== "Current" &&
-        (drift === "Newer" ? ", newer than supported" : ", older than supported")}
-    </span>
-  );
-}
-
 function MachinesSection({ fleet }: { readonly fleet: Fleet }) {
   return (
     <SettingsSection title="Machines">
@@ -207,6 +119,14 @@ function MachinesSection({ fleet }: { readonly fleet: Fleet }) {
             control={
               machine.t3Code === null ? undefined : (
                 <dl className="text-end text-sm">
+                  <dt className="sr-only">Version</dt>
+                  <dd className="font-mono text-[13px]">
+                    {machine.t3Code.server === null ? (
+                      <span className="font-sans text-ink-muted">Not running</span>
+                    ) : (
+                      (machine.t3Code.server.version ?? "Version unknown")
+                    )}
+                  </dd>
                   <dt className="sr-only">Schema</dt>
                   <dd>
                     <SchemaText machine={machine} />
@@ -265,7 +185,26 @@ function UnmatchedSection({ fleet }: { readonly fleet: Fleet }) {
   );
 }
 
-function AboutPanel() {
+/** Each T3 Code version running in the fleet, with the machines running it. */
+function versionsInUse(fleet: Fleet) {
+  const machines = new Map<string, Array<string>>();
+
+  for (const machine of fleet.machines) {
+    const version = machine.t3Code?.server?.version;
+
+    if (version !== undefined && version !== null) {
+      machines.set(version, [...(machines.get(version) ?? []), machineLabel(machine)]);
+    }
+  }
+
+  return [...machines].toSorted(([left], [right]) =>
+    right.localeCompare(left, undefined, { numeric: true }),
+  );
+}
+
+function AboutPanel({ fleet }: { readonly fleet: Fleet }) {
+  const versions = versionsInUse(fleet);
+
   return (
     <SidePanel title="About">
       <SideDetail term="Built for">
@@ -273,10 +212,19 @@ function AboutPanel() {
           T3 Code's schema at migration {supportedT3CodeSchema.migration}
         </span>
       </SideDetail>
-      <SideDetail term="Access">
-        Read-only. Each agent opens T3 Code's database for a moment on every scan, and T3 Code keeps
-        working while it does.
-      </SideDetail>
+      {versions.length > 0 && (
+        <SideDetail term={versions.length === 1 ? "Version running" : "Versions running"}>
+          <ul className="space-y-1">
+            {versions.map(([version, machines]) => (
+              <li key={version}>
+                <span className="font-mono text-[13px] break-all">{version}</span>
+                <span className="block text-xs text-ink-muted">{machines.join(", ")}</span>
+              </li>
+            ))}
+          </ul>
+        </SideDetail>
+      )}
+      <SideDetail term="Access">Read-only</SideDetail>
     </SidePanel>
   );
 }
@@ -299,7 +247,7 @@ export function T3CodeSettings() {
   const issues = t3CodeIssues(fleet);
 
   return (
-    <SidebarPage title="T3 Code" parents={parents} aside={<AboutPanel />}>
+    <SidebarPage title="T3 Code" parents={parents} aside={<AboutPanel fleet={fleet} />}>
       {issues.length > 0 && (
         <div className="space-y-2">
           {issues.map((issue) => (

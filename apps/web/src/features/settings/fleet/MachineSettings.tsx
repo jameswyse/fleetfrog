@@ -22,6 +22,7 @@ import { MachineKindPicker } from "./MachineKindPicker.tsx";
 import { ActionsText, ConnectionStatus, repositoryCount } from "./MachineStatus.tsx";
 import { ProjectFolders } from "./ProjectFolders.tsx";
 import { SystemPanel } from "./SystemPanel.tsx";
+import { T3CodePanel } from "./T3CodePanel.tsx";
 
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 
@@ -356,6 +357,7 @@ export function MachineSettings() {
       aside={
         <>
           <StatusPanel fleet={fleet} machine={machine} />
+          <T3CodePanel fleet={fleet} machine={machine} />
           <SystemPanel machine={machine} />
         </>
       }

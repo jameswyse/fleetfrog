@@ -61,6 +61,8 @@ function machineWith(threads: ReadonlyArray<T3CodeThread>): Machine {
         threadCount: threads.length,
         unreadRecords: 0,
       },
+      server: null,
+      providers: [],
     },
   };
 }

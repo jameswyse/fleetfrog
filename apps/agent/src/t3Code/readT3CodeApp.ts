@@ -1,0 +1,135 @@
+import { readdir, readFile, readlink } from "node:fs/promises";
+import path from "node:path";
+
+import { Effect, Option, Schema } from "effect";
+
+import { runTool } from "../process/runTool.ts";
+
+import type { T3CodeProvider, T3CodeServer } from "@fleetfrog/protocol/domain/t3Code";
+
+/** What T3 Code writes while its server runs. */
+const RuntimeFile = Schema.fromJsonString(
+  Schema.Struct({
+    pid: Schema.Int,
+    port: Schema.Int,
+    startedAt: Schema.DateTimeUtcFromString,
+  }),
+);
+const decodeRuntime = Schema.decodeUnknownOption(RuntimeFile);
+
+/** What T3 Code last found out about one coding agent. Its sign-in details are never read. */
+const ProviderFile = Schema.fromJsonString(
+  Schema.Struct({
+    displayName: Schema.String,
+    enabled: Schema.Boolean,
+    status: Schema.String,
+    version: Schema.NullOr(Schema.String),
+    versionAdvisory: Schema.optionalKey(
+      Schema.NullOr(Schema.Struct({ latestVersion: Schema.NullOr(Schema.String) })),
+    ),
+    auth: Schema.optionalKey(Schema.Struct({ status: Schema.String })),
+  }),
+);
+const decodeProvider = Schema.decodeUnknownOption(ProviderFile);
+
+const readText = (file: string) => readFile(file, "utf8").catch(() => null);
+
+/** Whether a process is running, including one this user may not signal. */
+function isRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+
+    return true;
+  } catch (error) {
+    return error instanceof Error && "code" in error && error.code === "EPERM";
+  }
+}
+
+/** The program a process runs: from `/proc` on Linux, and from `ps` on macOS. */
+const executableOf = (pid: number) =>
+  Effect.promise(() => readlink(`/proc/${pid}/exe`).catch(() => null)).pipe(
+    Effect.flatMap((linked) =>
+      linked === null
+        ? runTool("ps", "/", ["-o", "comm=", "-p", String(pid)]).pipe(
+            Effect.map((output) => output.trim() || null),
+            Effect.orElseSucceed(() => null),
+          )
+        : Effect.succeed(linked),
+    ),
+  );
+
+/**
+ * T3 Code's version from the program running its server: a folder named after the version when it
+ * runs as a service, or the app's `Info.plist` when the app runs it.
+ */
+export async function versionOf(executable: string): Promise<string | null> {
+  const service = /\/runtime\/versions\/([^/]+)\//.exec(executable)?.[1];
+
+  if (service !== undefined) {
+    return service;
+  }
+
+  const app = /^(.*?\.app)\/Contents\//.exec(executable)?.[1];
+  const plist = app === undefined ? null : await readText(path.join(app, "Contents", "Info.plist"));
+
+  return (
+    (plist === null
+      ? undefined
+      : /<key>CFBundleShortVersionString<\/key>\s*<string>([^<]+)<\/string>/.exec(plist)?.[1]) ??
+    null
+  );
+}
+
+/**
+ * T3 Code's server, if it's running. A runtime file left behind by a server that stopped, whose
+ * process number now belongs to another program, counts as not running.
+ */
+export const readT3CodeServer = Effect.fn("readT3CodeServer")(function* (userdata: string) {
+  const text = yield* Effect.promise(() => readText(path.join(userdata, "server-runtime.json")));
+  const runtime = text === null ? Option.none() : decodeRuntime(text);
+
+  if (Option.isNone(runtime) || !isRunning(runtime.value.pid)) {
+    return null;
+  }
+
+  const executable = yield* executableOf(runtime.value.pid);
+
+  if (executable !== null && !/t3/i.test(path.basename(executable))) {
+    return null;
+  }
+
+  return {
+    version: executable === null ? null : yield* Effect.promise(() => versionOf(executable)),
+    startedAt: runtime.value.startedAt,
+    port: runtime.value.port,
+  } satisfies T3CodeServer;
+});
+
+/** The coding agents turned on in T3 Code, by name, as it last checked them. */
+export const readT3CodeProviders = Effect.fn("readT3CodeProviders")(function* (caches: string) {
+  const files = yield* Effect.promise(() =>
+    readdir(caches).then(
+      (names) => names.filter((name) => name.endsWith(".json")),
+      () => [],
+    ),
+  );
+  const texts = yield* Effect.promise(() =>
+    Promise.all(files.map((name) => readText(path.join(caches, name)))),
+  );
+
+  return texts
+    .flatMap((text) => (text === null ? [] : Option.toArray(decodeProvider(text))))
+    .filter(({ enabled }) => enabled)
+    .map((provider): T3CodeProvider => {
+      const latest = provider.versionAdvisory?.latestVersion ?? null;
+
+      return {
+        name: provider.displayName,
+        version: provider.version,
+        latestVersion: latest !== null && latest !== provider.version ? latest : null,
+        ready: provider.status === "ready",
+        signedIn: provider.auth?.status === "authenticated",
+      };
+    })
+    .toSorted((left, right) => left.name.localeCompare(right.name));
+});

@@ -38,7 +38,15 @@ function machine(id: string, reading: T3CodeReading | null): Machine {
     pairedAt: at,
     usage: null,
     trash: [],
-    t3Code: reading === null ? null : { database: "/Users/dev/.t3/userdata/state.sqlite", reading },
+    t3Code:
+      reading === null
+        ? null
+        : {
+            database: "/Users/dev/.t3/userdata/state.sqlite",
+            reading,
+            server: null,
+            providers: [],
+          },
   };
 }
 

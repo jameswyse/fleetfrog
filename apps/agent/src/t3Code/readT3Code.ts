@@ -14,6 +14,8 @@ import {
   T3CodeSchema,
 } from "@fleetfrog/protocol/domain/t3Code";
 
+import { readT3CodeProviders, readT3CodeServer } from "./readT3CodeApp.ts";
+
 import type { ProjectIconFile } from "@fleetfrog/protocol/agent/rpcs";
 import type {
   T3CodeProject,
@@ -355,9 +357,15 @@ export const readT3Code = Effect.fn("readT3Code")(function* (options: {
   readonly projectIcons: boolean;
   readonly favicons: Map<string, ProjectIconFile | null>;
 }) {
+  // The database sits in T3 Code's `userdata` folder, beside its runtime file and below its home.
+  const userdata = path.dirname(options.database);
+  const server = yield* readT3CodeServer(userdata);
+  const providers = yield* readT3CodeProviders(path.join(path.dirname(userdata), "caches"));
   const status = (reading: T3CodeReading): T3CodeStatus => ({
     database: options.database,
     reading,
+    server,
+    providers,
   });
   const exists = yield* Effect.promise(() =>
     stat(options.database).then(

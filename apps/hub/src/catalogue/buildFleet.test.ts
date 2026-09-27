@@ -208,6 +208,8 @@ describe("buildFleet", () => {
           threadCount: 0,
           unreadRecords: 0,
         },
+        server: null,
+        providers: [],
       },
     });
 
