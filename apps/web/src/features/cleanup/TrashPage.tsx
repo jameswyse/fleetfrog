@@ -244,8 +244,8 @@ export function TrashPage() {
       }
     >
       <p className="max-w-prose text-sm text-ink-muted">
-        Checkouts and branches FleetFrog deleted stay here until you empty the trash. Restoring one
-        puts it back where it was.
+        Checkouts, branches and stashes FleetFrog deleted stay here until you empty the trash.
+        Restoring one puts it back where it was.
       </p>
       {fleet === null && (
         <p className="py-16 text-center text-sm text-ink-muted">Waiting for the hub…</p>
