@@ -15,6 +15,8 @@ import {
 } from "../../branches/branchTidying.ts";
 import { SwitchBranchDialog } from "../../branches/SwitchBranchDialog.tsx";
 import { TidyBranchesDialog } from "../../branches/TidyBranchesDialog.tsx";
+import { BusyCheckoutDialog } from "../../t3Code/BusyCheckoutDialog.tsx";
+import { busyThreads } from "../../t3Code/t3CodeLookup.ts";
 import { PanelSection, ShortList } from "./PanelSection.tsx";
 
 import type { Checkout, GitStatus, Upstream } from "@fleetfrog/protocol/domain/checkout";
@@ -74,6 +76,9 @@ export function BranchesSection({
   const runs = useRuns();
   const [tidying, setTidying] = useState(false);
   const [switching, setSwitching] = useState<string | null>(null);
+  /** A branch to switch to once the developer confirms, while T3 Code works in the checkout. */
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const agents = busyThreads(machine, [checkout.path]);
   const { start, pending, failure } = useStartBatch();
   const { head } = git;
   const current = head._tag === "Detached" ? null : head.name;
@@ -91,12 +96,9 @@ export function BranchesSection({
   const { candidates, kept } = tidyCandidates({ checkout, git, inOtherWorktrees: elsewhere });
   const tidyBlocked = machineBlocker(machine, "DeleteBranches");
 
-  // Changes are stashed first, which the developer confirms.
-  const switchTo = (branch: string) => {
-    if (git.changed.total > 0) {
-      setSwitching(branch);
-    } else {
-      start({
+  const switchNow = (branch: string, onStarted?: () => void) =>
+    start(
+      {
         _tag: "Targeted",
         runs: [
           {
@@ -104,7 +106,19 @@ export function BranchesSection({
             request: { _tag: "Switch", path: checkout.path, branch, stashChanges: false },
           },
         ],
-      });
+      },
+      onStarted,
+    );
+
+  // Changes are stashed first, and switching under a T3 Code agent part-way through its work
+  // changes its files, so the developer confirms either.
+  const switchTo = (branch: string) => {
+    if (git.changed.total > 0) {
+      setSwitching(branch);
+    } else if (agents.length > 0) {
+      setConfirming(branch);
+    } else {
+      switchNow(branch);
     }
   };
 
@@ -194,6 +208,18 @@ export function BranchesSection({
           branch={switching}
           changedFiles={git.changed.total}
           onClose={() => setSwitching(null)}
+        />
+      )}
+      {confirming !== null && (
+        <BusyCheckoutDialog
+          title={`Switch to ${confirming} while T3 Code is working?`}
+          threads={agents}
+          consequence="Switching changes the files under it to another branch's, and its agent may carry on as if it hadn't."
+          confirmLabel="Switch anyway"
+          pending={pending}
+          failure={failure}
+          onConfirm={() => switchNow(confirming, () => setConfirming(null))}
+          onClose={() => setConfirming(null)}
         />
       )}
     </PanelSection>

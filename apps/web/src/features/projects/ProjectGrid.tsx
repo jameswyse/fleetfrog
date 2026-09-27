@@ -1,4 +1,4 @@
-import { ChevronDownIcon } from "lucide-react";
+import { BotIcon, ChevronDownIcon } from "lucide-react";
 
 import { useRuns } from "@/rpc/hubConnection.ts";
 import { gitHost, HostIcon } from "@/ui/HostIcon.tsx";
@@ -8,6 +8,7 @@ import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { RunActivity } from "../actions/RunActivity.tsx";
 import { activeRunOn } from "../actions/runLookup.ts";
+import { busyThreads } from "../t3Code/t3CodeLookup.ts";
 import { CellContent } from "./CellContent.tsx";
 import { cellFor } from "./cellSummary.ts";
 import { MachineActions } from "./MachineActions.tsx";
@@ -154,6 +155,13 @@ function MatrixCell({
   const cell = cellFor(repository, machine.id);
   const offline = machine.connection._tag === "Offline";
   const active = cell === null ? undefined : activeRunOn(runs, cell.entries);
+  const [agent] =
+    cell === null
+      ? []
+      : busyThreads(
+          machine,
+          cell.entries.map(({ checkout }) => checkout.path),
+        );
   const selection = { repository: repository.key, machine: machine.id };
 
   return (
@@ -177,7 +185,19 @@ function MatrixCell({
               cell={cell}
               align="Center"
               activity={
-                active === undefined ? null : (
+                active === undefined ? (
+                  agent === undefined ? null : (
+                    // A T3 Code agent at work here is the next most useful thing to see.
+                    <span
+                      className="mt-0.5 flex items-center justify-center gap-1 text-xs text-sync"
+                      title={`T3 Code: ${agent.title}`}
+                    >
+                      <BotIcon aria-hidden="true" className="size-3.5" />
+                      <span className="sr-only">T3 Code </span>
+                      {agent.state === "Waiting" ? "Waiting for you" : "Working"}
+                    </span>
+                  )
+                ) : (
                   <span className="mt-0.5 block text-xs">
                     <RunActivity run={active} layout="Inline" align="Center" />
                   </span>
@@ -294,16 +314,38 @@ export function ProjectGrid({
                       aria-current={rowSelected ? "true" : undefined}
                       onClick={() => onSelect(rowSelection, "Push")}
                       title={identity}
-                      className={`flex min-w-0 flex-1 items-center gap-2 self-stretch px-4 py-2 text-start hover:underline aria-[current=true]:text-accent-text ${rowSelected ? "outline-hidden" : focusRing}`}
+                      className={`group flex min-w-0 flex-1 items-center gap-2 self-stretch px-4 py-2 text-start aria-[current=true]:text-accent-text ${rowSelected ? "outline-hidden" : focusRing}`}
                     >
                       {repository.icon === null ? (
-                        <HostIcon host={host} className="text-ink-muted" />
+                        <>
+                          <HostIcon host={host} className="text-ink-muted" />
+                          <span className={shrinkableName}>
+                            <span className="truncate group-hover:underline">
+                              {repository.label}
+                            </span>
+                          </span>
+                        </>
                       ) : (
-                        <ProjectIcon icon={repository.icon} />
+                        // T3 Code's name leads, with the repository it stands for beneath it.
+                        <>
+                          <span className="self-start pt-0.5">
+                            <ProjectIcon icon={repository.icon} />
+                          </span>
+                          <span className={shrinkableName}>
+                            <span className="truncate group-hover:underline">
+                              {repository.label}
+                            </span>
+                            <span className="mt-0.5 flex min-w-0 items-center gap-1 text-xs font-normal text-ink-muted">
+                              <HostIcon host={host} className="size-3" />
+                              <span className="truncate">
+                                {repository.identity._tag === "Remote"
+                                  ? repository.identity.path
+                                  : repository.name}
+                              </span>
+                            </span>
+                          </span>
+                        </>
                       )}
-                      <span className={shrinkableName}>
-                        <span className="truncate">{repository.label}</span>
-                      </span>
                     </button>
                     <RepositoryActions fleet={fleet} repository={repository} />
                   </div>

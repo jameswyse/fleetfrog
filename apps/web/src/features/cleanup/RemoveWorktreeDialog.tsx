@@ -11,6 +11,8 @@ import { Spinner } from "@/ui/Spinner.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { useStartBatch } from "../actions/useStartBatch.ts";
+import { busyThreads, worktreeThread } from "../t3Code/t3CodeLookup.ts";
+import { BusyThreadsNotice, WorktreeThreadNote } from "../t3Code/T3CodeNotices.tsx";
 
 import type { HubResult } from "@/rpc/hubConnection.ts";
 import type { Machine } from "@fleetfrog/protocol/domain/fleet";
@@ -181,10 +183,21 @@ export function RemoveWorktreeDialog({
 
   const inspection = state._tag === "Ready" ? state.inspection : null;
 
+  const agents = busyThreads(machine, [worktree]);
+
   return (
     <Dialog title="Remove this worktree?" onClose={onClose}>
       <div className="space-y-4 text-sm">
         <p className="font-mono text-[13px] break-all text-ink-muted">{worktree}</p>
+        {agents.length > 0 ? (
+          <BusyThreadsNotice
+            threads={agents}
+            where="in this worktree"
+            consequence="Removing it stashes the changes it's making and deletes the folder it works in."
+          />
+        ) : (
+          <WorktreeThreadNote thread={worktreeThread(machine, worktree)} />
+        )}
         {state._tag === "Checking" && (
           <p role="status" className="flex items-center gap-2 text-ink-muted">
             <Spinner />

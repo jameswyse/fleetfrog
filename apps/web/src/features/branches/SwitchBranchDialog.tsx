@@ -3,6 +3,8 @@ import { Dialog } from "@/ui/Dialog.tsx";
 import { plural } from "@/ui/plural.ts";
 
 import { useStartBatch } from "../actions/useStartBatch.ts";
+import { busyThreads } from "../t3Code/t3CodeLookup.ts";
+import { BusyThreadsNotice } from "../t3Code/T3CodeNotices.tsx";
 
 import type { Checkout } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine } from "@fleetfrog/protocol/domain/fleet";
@@ -31,6 +33,11 @@ export function SwitchBranchDialog({
           are carried to <span className="font-mono break-all">{branch}</span>. They stay in the
           Stashes list, where you can bring them back. Untracked files stay where they are.
         </p>
+        <BusyThreadsNotice
+          threads={busyThreads(machine, [checkout.path])}
+          where="in this checkout"
+          consequence="Switching stashes the changes it's making and changes the files under it to another branch's."
+        />
         <p role="status" className="text-danger">
           {failure}
         </p>

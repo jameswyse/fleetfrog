@@ -1,12 +1,14 @@
 import { useState } from "react";
 
-import { GitForkIcon } from "lucide-react";
+import { BotIcon, GitForkIcon } from "lucide-react";
 
 import { useRuns } from "@/rpc/hubConnection.ts";
 
 import { machineBlocker } from "../../actions/actionAvailability.ts";
 import { activeRunFor } from "../../actions/runLookup.ts";
 import { RemoveWorktreeDialog } from "../../cleanup/RemoveWorktreeDialog.tsx";
+import { worktreeThread } from "../../t3Code/t3CodeLookup.ts";
+import { threadDoing } from "../../t3Code/T3CodeNotices.tsx";
 import { PanelSection } from "./PanelSection.tsx";
 
 import type { Checkout, GitStatus, LinkedWorktree } from "@fleetfrog/protocol/domain/checkout";
@@ -43,6 +45,7 @@ export function WorktreesSection({
       <ul className="space-y-1.5">
         {git.worktrees.map((worktree) => {
           const note = stateNotes[worktree.state];
+          const thread = worktreeThread(machine, worktree.path);
 
           return (
             <li key={worktree.path} className="flex items-start gap-2 text-sm">
@@ -52,6 +55,19 @@ export function WorktreesSection({
                   {worktree.branch ?? "Detached HEAD"}
                   {note !== null && <span className="text-changes"> · {note}</span>}
                 </span>
+                {thread !== undefined && (
+                  // The thread T3 Code made it for says whether it's still needed.
+                  <span className="mt-0.5 flex items-start gap-1 text-xs text-ink-muted">
+                    <BotIcon aria-hidden="true" className="size-3.5 shrink-0" />
+                    <span className="min-w-0">
+                      <span className="sr-only">T3 Code thread: </span>“{thread.title}”
+                      {thread.state !== "Idle" && (
+                        <span className="text-sync"> · {threadDoing(thread)}</span>
+                      )}
+                      {thread.archived && " · archived in T3 Code"}
+                    </span>
+                  </span>
+                )}
               </span>
               {blocked === null && (
                 <button

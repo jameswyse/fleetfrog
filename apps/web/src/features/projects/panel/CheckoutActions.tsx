@@ -20,6 +20,8 @@ import { planArchive } from "../../archive/archiveAvailability.ts";
 import { ArchiveDialog } from "../../archive/ArchiveDialog.tsx";
 import { RemoveWorktreeDialog } from "../../cleanup/RemoveWorktreeDialog.tsx";
 import { TrashCheckoutDialog } from "../../cleanup/TrashCheckoutDialog.tsx";
+import { BusyCheckoutDialog } from "../../t3Code/BusyCheckoutDialog.tsx";
+import { busyThreads } from "../../t3Code/t3CodeLookup.ts";
 
 import type { Checkout } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
@@ -39,7 +41,7 @@ export function CheckoutActions({
   readonly machine: Machine;
   readonly checkout: Checkout;
 }) {
-  const [dialog, setDialog] = useState<"stash" | "archive" | "trash" | null>(null);
+  const [dialog, setDialog] = useState<"pull" | "stash" | "archive" | "trash" | null>(null);
   const runs = useRuns();
   const { start, pending, failure } = useStartBatch();
   const [cancelling, startCancel] = useTransition();
@@ -68,6 +70,7 @@ export function CheckoutActions({
   // A linked worktree is removed from its main checkout rather than moved to the trash.
   const trashBlocked = machineBlocker(machine, linked === null ? "Trash" : "RemoveWorktree");
   const scope = { _tag: "Checkout", machineId: machine.id, path: checkout.path } as const;
+  const agents = busyThreads(machine, [checkout.path]);
   const shown = active ?? latest;
 
   return (
@@ -84,7 +87,8 @@ export function CheckoutActions({
         </Button>
         <Button
           disabled={pullBlocked !== null || active !== undefined || pending}
-          onClick={() => start({ _tag: "Pull", scope })}
+          // Pulling under a T3 Code agent part-way through its work asks first.
+          onClick={() => (agents.length > 0 ? setDialog("pull") : start({ _tag: "Pull", scope }))}
         >
           Pull
         </Button>
@@ -177,6 +181,18 @@ export function CheckoutActions({
           </span>
         )}
       </p>
+      {dialog === "pull" && (
+        <BusyCheckoutDialog
+          title={`Pull ${repository.label} while T3 Code is working?`}
+          threads={agents}
+          consequence="Pulling changes files under it, and its agent may not notice before it carries on."
+          confirmLabel="Pull anyway"
+          pending={pending}
+          failure={failure}
+          onConfirm={() => start({ _tag: "Pull", scope }, () => setDialog(null))}
+          onClose={() => setDialog(null)}
+        />
+      )}
       {dialog === "stash" && git !== null && (
         <StashDialog
           repository={repository}

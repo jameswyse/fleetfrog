@@ -1,8 +1,12 @@
+import { BotIcon } from "lucide-react";
+
 import { Button } from "@/ui/Button.tsx";
 import { Dialog } from "@/ui/Dialog.tsx";
 import { plural } from "@/ui/plural.ts";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
+import { busyThreads } from "../t3Code/t3CodeLookup.ts";
+import { threadDoing } from "../t3Code/T3CodeNotices.tsx";
 import { pullTargets } from "./actionAvailability.ts";
 import { useStartBatch } from "./useStartBatch.ts";
 
@@ -25,6 +29,11 @@ export function PullDialog({
   const runnable = targets.filter(({ skip }) => skip === null);
   const skipped = targets.filter(({ skip }) => skip !== null);
   const machineCount = new Set(runnable.map(({ machine }) => machine.id)).size;
+  const underAgents = runnable.flatMap((target) => {
+    const [thread] = busyThreads(target.machine, [target.checkout.path]);
+
+    return thread === undefined ? [] : [{ ...target, thread }];
+  });
 
   return (
     <Dialog
@@ -40,6 +49,26 @@ export function PullDialog({
           Each checkout fetches, then fast-forwards its branch. A checkout with changes or commits
           to push is left as it is.
         </p>
+        {underAgents.length > 0 && (
+          <div className="rounded-xl border border-sync/30 bg-sync-soft px-3 py-2.5">
+            <p className="flex items-start gap-2">
+              <BotIcon aria-hidden="true" className="mt-0.5 text-sync" />
+              {underAgents.length === 1
+                ? "T3 Code is working in one of these checkouts, which will be pulled too:"
+                : `T3 Code is working in ${underAgents.length} of these checkouts, which will be pulled too:`}
+            </p>
+            <ul className="mt-2 space-y-1 ps-6">
+              {underAgents.map(({ repository, machine, checkout, thread }) => (
+                <li key={`${machine.id}:${checkout.path}`}>
+                  <span className="font-medium">{repository.label}</span> on {machineLabel(machine)}
+                  <span className="text-ink-muted">
+                    : “{thread.title}” {threadDoing(thread)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {skipped.length > 0 && (
           <div>
             <p className="font-medium">

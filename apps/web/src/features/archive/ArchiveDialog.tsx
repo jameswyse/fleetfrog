@@ -11,6 +11,8 @@ import {
   archiveFolderCreator,
   saveArchiveFolder,
 } from "../settings/fleet/ArchiveFolderField.tsx";
+import { busyThreads, cloneFolders, projectsAt } from "../t3Code/t3CodeLookup.ts";
+import { BusyThreadsNotice, ProjectFolderNotice } from "../t3Code/T3CodeNotices.tsx";
 import { planArchive } from "./archiveAvailability.ts";
 
 import type { Checkout } from "@fleetfrog/protocol/domain/checkout";
@@ -110,6 +112,7 @@ export function ArchiveDialog({
 }) {
   const { start, pending, failure } = useStartBatch();
   const plan = planArchive({ machine, checkout });
+  const folders = cloneFolders(checkout);
 
   return (
     <Dialog title={`Archive ${repository.label} on ${machineLabel(machine)}?`} onClose={onClose}>
@@ -120,6 +123,15 @@ export function ArchiveDialog({
             moves with its main checkout. This archives the main checkout and all its worktrees.
           </p>
         )}
+        <BusyThreadsNotice
+          threads={busyThreads(machine, folders)}
+          where={folders.length > 1 ? "in this checkout or its worktrees" : "in this checkout"}
+          consequence="Archiving moves the files it's working on to another folder."
+        />
+        <ProjectFolderNotice
+          projects={projectsAt(machine, folders)}
+          consequence="After archiving, T3 Code won't find it where it was."
+        />
         {plan._tag === "NeedsFolder" && (
           <ChooseArchiveFolder machine={machine} problem={plan.problem} />
         )}

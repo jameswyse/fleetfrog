@@ -11,10 +11,13 @@ import { GitHubIcon } from "@/ui/HostIcon.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
+import { busyThreads } from "../../t3Code/t3CodeLookup.ts";
+import { BusyThreadsNotice } from "../../t3Code/T3CodeNotices.tsx";
 import { BranchesSection } from "./BranchesSection.tsx";
 import { CheckoutActions } from "./CheckoutActions.tsx";
 import { Fact, Facts, PanelSection, ShortList } from "./PanelSection.tsx";
 import { StashesSection } from "./StashesSection.tsx";
+import { T3CodeSection } from "./T3CodeSection.tsx";
 import { WorktreesSection } from "./WorktreesSection.tsx";
 
 import type {
@@ -282,10 +285,16 @@ export function CheckoutSections({
           <span className="min-w-0 break-words">{problem}</span>
         </p>
       )}
+      <BusyThreadsNotice
+        threads={busyThreads(machine, [checkout.path])}
+        where="in this checkout"
+        consequence="Pulling, switching branch or stashing here asks first."
+      />
       <Overview git={git} repository={repository} machine={machine} checkout={checkout} />
       {git !== null && (
         <GitSections git={git} repository={repository} machine={machine} checkout={checkout} />
       )}
+      <T3CodeSection machine={machine} checkout={checkout} />
       {(checkout.github !== null || onGithub) && (
         <PanelSection title="GitHub" icon={GitHubIcon} tone="neutral">
           {checkout.github === null ? (

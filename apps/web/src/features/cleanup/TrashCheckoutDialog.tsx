@@ -13,6 +13,8 @@ import { nothingUnique } from "@fleetfrog/protocol/domain/trash";
 
 import { operationNames } from "../actions/actionCopy.ts";
 import { useStartBatch } from "../actions/useStartBatch.ts";
+import { busyThreads, cloneFolders, projectsAt } from "../t3Code/t3CodeLookup.ts";
+import { BusyThreadsNotice, ProjectFolderNotice } from "../t3Code/T3CodeNotices.tsx";
 
 import type { HubResult } from "@/rpc/hubConnection.ts";
 import type { Checkout } from "@fleetfrog/protocol/domain/checkout";
@@ -186,6 +188,7 @@ export function TrashCheckoutDialog({
   const safe = inspection !== null && nothingUnique(inspection) && worktrees === 0;
   const cacheBytes = inspection?.caches.reduce((total, { sizeBytes }) => total + sizeBytes, 0) ?? 0;
   const deleting = permanently && inspection !== null;
+  const folders = cloneFolders(checkout);
 
   const confirm = () => {
     if (inspection === null) {
@@ -221,6 +224,23 @@ export function TrashCheckoutDialog({
     >
       <div className="space-y-4 text-sm">
         <p className="font-mono text-[13px] break-all text-ink-muted">{checkout.path}</p>
+        <BusyThreadsNotice
+          threads={busyThreads(machine, folders)}
+          where={folders.length > 1 ? "in this checkout or its worktrees" : "in this checkout"}
+          consequence={
+            deleting
+              ? "Deleting it removes the files it's working on."
+              : "Moving it to the trash takes away the files it's working on."
+          }
+        />
+        <ProjectFolderNotice
+          projects={projectsAt(machine, folders)}
+          consequence={
+            deleting
+              ? "Once it's deleted, T3 Code can't open it."
+              : "In the trash, T3 Code can't open it until you restore it."
+          }
+        />
         {state._tag === "Checking" && (
           <p role="status" className="flex items-center gap-2 text-ink-muted">
             <Spinner />

@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import {
   ArrowDownIcon,
+  BotIcon,
   ArrowUpIcon,
   CircleCheckIcon,
   FilePenIcon,
@@ -14,6 +15,7 @@ import { plural } from "@/ui/plural.ts";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
+import { busyThreads } from "../../t3Code/t3CodeLookup.ts";
 import { Glyph, problemWords } from "../CellContent.tsx";
 import { cellFor, openPullRequests } from "../cellSummary.ts";
 import { PanelHeader } from "./PanelHeader.tsx";
@@ -151,6 +153,12 @@ export function FleetOverview({
   const pullRequests = repositories.flatMap((repository) =>
     openPullRequests(repository).map((pull) => ({ repository, pull })),
   );
+  const agents = cells.flatMap((item) =>
+    busyThreads(
+      item.machine,
+      item.cell.entries.map(({ checkout }) => checkout.path),
+    ).map((thread) => ({ item, thread })),
+  );
   const online = machines.filter(({ connection }) => connection._tag === "Online").length;
   const settled = problems.length + changed.length + toPush.length + toPull.length === 0;
 
@@ -174,6 +182,43 @@ export function FleetOverview({
             ))}
           </ul>
         </PanelSection>
+        {agents.length > 0 && (
+          <PanelSection title="T3 Code at work" icon={BotIcon} tone="sync" count={agents.length}>
+            <ShortList
+              items={agents}
+              total={agents.length}
+              noun="threads"
+              listClassName={listClassName}
+              render={({ item, thread }) => (
+                <li key={thread.id}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onSelect(
+                        { repository: item.repository.key, machine: item.machine.id },
+                        "Push",
+                      )
+                    }
+                    className="w-full rounded-lg px-1.5 py-1 text-start text-sm hover:bg-canvas"
+                  >
+                    <span className="flex items-baseline gap-3">
+                      <span className="min-w-0 flex-1 truncate font-medium">{thread.title}</span>
+                      <span className="shrink-0 text-xs font-medium text-sync">
+                        {thread.state === "Waiting" ? "Waiting for you" : "Working"}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-1.5 text-xs text-ink-muted">
+                      <span className="min-w-0 truncate">{item.repository.label}</span>
+                      <span aria-hidden="true">·</span>
+                      <MachineKindIcon kind={machineKind(item.machine)} />
+                      <span className="truncate">{machineLabel(item.machine)}</span>
+                    </span>
+                  </button>
+                </li>
+              )}
+            />
+          </PanelSection>
+        )}
         {settled && (
           <p className="flex items-center gap-2.5 rounded-xl border border-line px-3 py-2.5 text-sm">
             <CircleCheckIcon className="text-clean" />
