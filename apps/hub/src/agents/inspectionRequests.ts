@@ -39,6 +39,7 @@ export class InspectionRequests extends Context.Service<
             return failed("The machine is offline.");
           }
 
+          // Inspections came with the Trash action, so an agent that has it can inspect.
           if (!agent.capabilities.actions.includes("Trash")) {
             return failed("The machine's agent needs updating before it can inspect checkouts.");
           }

@@ -30,13 +30,17 @@ export interface TidyCandidate {
  * The branches the clone's other worktrees on this machine have checked out: those FleetFrog reads
  * and every one its main checkout lists, including worktrees whose links broke.
  */
-export function branchesInOtherWorktrees(
-  repository: Repository,
-  machine: Machine,
-  checkout: Checkout,
-): ReadonlySet<string> {
+export function branchesInOtherWorktrees({
+  repository,
+  machineId,
+  checkout,
+}: {
+  readonly repository: Repository;
+  readonly machineId: Machine["id"];
+  readonly checkout: Checkout;
+}): ReadonlySet<string> {
   const clone = repository.checkouts.filter(
-    (entry) => entry.machineId === machine.id && clonePath(entry.checkout) === clonePath(checkout),
+    (entry) => entry.machineId === machineId && clonePath(entry.checkout) === clonePath(checkout),
   );
   const read = clone
     .filter((entry) => entry.checkout.path !== checkout.path)

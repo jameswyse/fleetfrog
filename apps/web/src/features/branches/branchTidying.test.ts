@@ -1,9 +1,13 @@
 import { DateTime } from "effect";
 import { describe, expect, it } from "vitest";
 
-import { tidyCandidates } from "./branchTidying.ts";
+import { MachineId } from "@fleetfrog/protocol/domain/machine";
+import { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
+
+import { branchesInOtherWorktrees, tidyCandidates } from "./branchTidying.ts";
 
 import type { Checkout, GitStatus, LocalBranch } from "@fleetfrog/protocol/domain/checkout";
+import type { Repository } from "@fleetfrog/protocol/domain/fleet";
 
 const at = DateTime.makeUnsafe("2026-09-26T00:00:00Z");
 
@@ -91,13 +95,9 @@ describe("tidyCandidates", () => {
   );
 
   it("leaves out the current, default and other worktrees' branches", () => {
-    expect([...standings.keys()]).toEqual([
-      "done",
-      "squashed",
-      "squashed-then-changed",
-      "pushed",
-      "local",
-    ]);
+    expect(new Set(standings.keys())).toEqual(
+      new Set(["done", "squashed", "squashed-then-changed", "pushed", "local"]),
+    );
   });
 
   it("counts a merged pull request only when it was merged at the branch's tip", () => {
@@ -105,5 +105,51 @@ describe("tidyCandidates", () => {
     expect(standings.get("squashed")).toBe("MergedPullRequest");
     expect(standings.get("squashed-then-changed")).toBe("Pushed");
     expect(standings.get("local")).toBe("LocalOnly");
+  });
+});
+
+describe("branchesInOtherWorktrees", () => {
+  it("includes branches of worktrees the main checkout lists, even ones whose links broke", () => {
+    const machineId = MachineId.make("aaaaaaaa-0000-4000-8000-000000000000");
+    const main: Checkout = {
+      ...checkout,
+      status: {
+        _tag: "Read",
+        git: {
+          ...git,
+          worktrees: [
+            { path: "/home/dev/Projects/shop-fix", branch: "fix", state: "Broken" },
+            { path: "/home/dev/Projects/shop-feature", branch: "feature", state: "Present" },
+          ],
+        },
+      },
+    };
+    const linked: Checkout = {
+      ...checkout,
+      path: "/home/dev/Projects/shop-feature",
+      worktree: { _tag: "Linked", mainPath: checkout.path },
+      status: {
+        _tag: "Read",
+        git: { ...git, head: { _tag: "Branch", name: "feature", upstream: null } },
+      },
+    };
+    const repository: Repository = {
+      key: RepositoryKey.make("remote:github.com/acme/shop"),
+      identity: checkout.identity,
+      name: "shop",
+      label: "shop",
+      checkouts: [
+        { machineId, checkout: main },
+        { machineId, checkout: linked },
+      ],
+    };
+    // From the main checkout, both worktrees' branches are elsewhere.
+    expect(branchesInOtherWorktrees({ repository, machineId, checkout: main })).toEqual(
+      new Set(["fix", "feature"]),
+    );
+    // From the linked worktree, its own branch isn't, but main's and the broken one's are.
+    expect(branchesInOtherWorktrees({ repository, machineId, checkout: linked })).toEqual(
+      new Set(["current", "fix"]),
+    );
   });
 });

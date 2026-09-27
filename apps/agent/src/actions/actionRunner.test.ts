@@ -14,9 +14,7 @@ import { locateCheckout } from "../git/readCheckout.ts";
 import { readLinkedWorktrees } from "../git/worktrees.ts";
 import { temporaryDirectory } from "../testing/temporaryDirectory.ts";
 import { listTrash } from "../trash/trashFolder.ts";
-import { makeActionOutput } from "./actionOutput.ts";
 import { makeActionRunner } from "./actionRunner.ts";
-import { unarchiveCheckout } from "./archiveActions.ts";
 
 import type { ActionRequest, ActionUpdate } from "@fleetfrog/protocol/domain/action";
 
@@ -81,6 +79,7 @@ const makeHarness = Effect.fn("makeHarness")(function* (options: {
   readonly policy: AgentPolicy;
 }) {
   const updates = new Map<RunId, Array<ActionUpdate>>();
+  const known = new Map([[options.location.path, options.location]]);
   const audit: Array<AuditEntry> = [];
   const tracked: Array<string> = [];
   /** For each rescan, whether it came before any run reported its outcome. */
@@ -105,16 +104,25 @@ const makeHarness = Effect.fn("makeHarness")(function* (options: {
 
   const runner = yield* makeActionRunner({
     catalogue: {
-      locate: (checkoutPath) =>
-        checkoutPath === options.location.path ? options.location : undefined,
+      locate: (checkoutPath) => known.get(checkoutPath),
       rescanRepository: () =>
         Effect.sync(() => {
           rescannedBeforeFinishing.push(
             [...updates.values()].every((sent) => sent.every(({ _tag }) => _tag !== "Finished")),
           );
         }),
-      track: (trackedPath) => Effect.sync(() => tracked.push(trackedPath)),
-      forget: () => Effect.void,
+      // Like the scanner, reads a checkout that appears, archived or not, and drops one that goes.
+      track: (trackedPath) =>
+        Effect.gen(function* () {
+          tracked.push(trackedPath);
+
+          const found = yield* locateCheckout(trackedPath);
+
+          if (Option.isSome(found)) {
+            known.set(trackedPath, yield* placeLocation(found.value, options.archiveFolder));
+          }
+        }),
+      forget: (forgottenPath) => Effect.sync(() => known.delete(forgottenPath)),
       reportTrash: Effect.void,
     },
     folders: () => ({ roots: options.roots, archiveFolder: options.archiveFolder }),
@@ -135,6 +143,7 @@ const makeHarness = Effect.fn("makeHarness")(function* (options: {
 
   return {
     runner,
+    known,
     audit,
     tracked,
     rescannedBeforeFinishing,
@@ -442,59 +451,98 @@ describe("action runner", () => {
     }),
   );
 
-  it.effect("archives a checkout below the Archive folder and brings it back", () =>
-    Effect.gen(function* () {
-      const cleanup: AgentPolicy = { allowedTiers: ["git", "cleanup"] };
-      const { run, clone, root } = yield* setUp(cleanup, "Archive");
-      const archived = path.join(root, "Archive", "clone");
-
-      expect(yield* run({ _tag: "Archive", path: clone })).toMatchObject({
-        outcome: { _tag: "Succeeded", result: { _tag: "Archived", path: archived } },
-      });
-      expect(existsSync(clone)).toBe(false);
-
-      const location = Option.getOrThrow(yield* locateCheckout(archived));
-      const placed = yield* placeLocation(location, path.join(root, "Archive"));
-
-      expect(placed.placement).toMatchObject({ _tag: "Archive", originalPath: clone });
-      expect(
-        yield* unarchiveCheckout(
-          placed,
-          {
-            roots: [path.join(root, "projects")],
-            archiveFolder: path.join(root, "Archive"),
-            home: root,
-          },
-          makeActionOutput(),
-        ),
-      ).toMatchObject({ _tag: "Succeeded", result: { _tag: "Unarchived", path: clone } });
-      expect(git(clone, "status", "--porcelain")).toBe("");
-    }),
-  );
-
-  it.effect("archives a checkout with its linked worktrees, repairing their links", () =>
+  it.effect("archives a checkout with its worktrees, inside and out, and brings them back", () =>
     Effect.gen(function* () {
       const { run, clone, root } = yield* setUp(withCleanup, "Archive");
-      const worktree = path.join(root, "projects", "clone-feature");
+      const outside = path.join(root, "projects", "clone-feature");
+      const nested = path.join(clone, "worktrees", "fix");
+      const archived = path.join(root, "Archive", "clone");
 
-      git(clone, "worktree", "add", "-q", "-b", "feature", worktree);
+      git(clone, "worktree", "add", "-q", "-b", "feature", outside);
+      git(clone, "worktree", "add", "-q", "-b", "fix", nested);
 
       expect(yield* run({ _tag: "Archive", path: clone })).toMatchObject({
         outcome: {
           _tag: "Succeeded",
           result: {
             _tag: "Archived",
-            path: path.join(root, "Archive", "clone"),
-            worktrees: [{ from: worktree, to: path.join(root, "Archive", "clone-feature") }],
+            path: archived,
+            worktrees: [{ from: outside, to: path.join(root, "Archive", "clone-feature") }],
           },
         },
       });
+
+      // Both worktrees still work where they are now, including the one that moved inside it.
       expect(git(path.join(root, "Archive", "clone-feature"), "branch", "--show-current")).toBe(
         "feature",
       );
-      expect(git(path.join(root, "Archive", "clone"), "worktree", "list")).toContain(
-        path.join(root, "Archive", "clone-feature"),
+      expect(git(path.join(archived, "worktrees", "fix"), "branch", "--show-current")).toBe("fix");
+      expect(yield* run({ _tag: "Unarchive", path: archived }, runIds.second)).toMatchObject({
+        outcome: {
+          _tag: "Succeeded",
+          result: { _tag: "Unarchived", path: clone, worktrees: [{ to: outside }] },
+        },
+      });
+      expect(git(outside, "branch", "--show-current")).toBe("feature");
+      expect(git(nested, "branch", "--show-current")).toBe("fix");
+      expect(git(clone, "worktree", "list", "--porcelain")).not.toContain("prunable");
+    }),
+  );
+
+  it.effect("won't archive when two folders would land in the same place", () =>
+    Effect.gen(function* () {
+      const { run, clone, root } = yield* setUp(withCleanup, "Archive");
+
+      // Outside the project folders, each goes to its folder name, which here is the same.
+      git(clone, "worktree", "add", "-q", "-b", "a", path.join(root, "one", "shared"));
+      git(clone, "worktree", "add", "-q", "-b", "b", path.join(root, "two", "shared"));
+
+      expect(yield* run({ _tag: "Archive", path: clone })).toMatchObject({
+        outcome: { _tag: "Skipped", reason: { _tag: "DestinationsClash" } },
+      });
+      expect(existsSync(clone)).toBe(true);
+    }),
+  );
+
+  it.effect("won't remove a worktree whose commits or ignored files would be lost", () =>
+    Effect.gen(function* () {
+      const { run, clone, root } = yield* setUp(withCleanup);
+      const detached = path.join(root, "detached");
+      const secrets = path.join(root, "secrets");
+
+      git(clone, "worktree", "add", "-q", "--detach", detached);
+      git(detached, "commit", "-q", "--allow-empty", "-m", "Only here");
+      git(clone, "worktree", "add", "-q", "-b", "secrets", secrets);
+      writeFileSync(path.join(clone, ".git", "info", "exclude"), ".env\nnode_modules/\n");
+      writeFileSync(path.join(secrets, ".env"), "SECRET=1\n");
+
+      expect(yield* run({ _tag: "RemoveWorktree", path: clone, worktree: detached })).toMatchObject(
+        {
+          outcome: { _tag: "Skipped", reason: { _tag: "UnreachableCommits", commits: 1 } },
+        },
       );
+      expect(
+        yield* run({ _tag: "RemoveWorktree", path: clone, worktree: secrets }, runIds.second),
+      ).toMatchObject({ outcome: { _tag: "Skipped", reason: { _tag: "IgnoredFiles", files: 1 } } });
+      expect(existsSync(detached) && existsSync(secrets)).toBe(true);
+    }),
+  );
+
+  it.effect("won't delete the default branch", () =>
+    Effect.gen(function* () {
+      const { run, clone } = yield* setUp(withCleanup);
+
+      git(clone, "switch", "-q", "-c", "elsewhere");
+
+      expect(
+        yield* run({
+          _tag: "DeleteBranches",
+          path: clone,
+          branches: [{ name: "main", sha: git(clone, "rev-parse", "main") }],
+        }),
+      ).toMatchObject({
+        outcome: { _tag: "Skipped", reason: { _tag: "DefaultBranch", branch: "main" } },
+      });
     }),
   );
 
@@ -611,9 +659,12 @@ describe("action runner", () => {
     }),
   );
 
-  it.effect("moves a checkout to the trash without its caches and restores it", () =>
+  it.effect("moves a checkout to the trash with its worktree but not its caches, and back", () =>
     Effect.gen(function* () {
       const { run, inspect, clone, root } = yield* setUp(withCleanup);
+      const worktree = path.join(root, "projects", "clone-feature");
+
+      git(clone, "worktree", "add", "-q", "-b", "feature", worktree);
 
       writeFileSync(path.join(clone, ".git", "info", "exclude"), "node_modules/\n");
       mkdirSync(path.join(clone, "node_modules", "left-pad"), { recursive: true });
@@ -629,9 +680,7 @@ describe("action runner", () => {
       const [item] = yield* listTrash(path.join(root, "trash"));
 
       expect(item?.originalPath).toBe(clone);
-      expect(existsSync(path.join(root, "trash", item?.id ?? "", "checkout", "node_modules"))).toBe(
-        false,
-      );
+      expect(item?.worktrees.map(({ originalPath }) => originalPath)).toEqual([worktree]);
       expect(
         yield* run(
           {
@@ -644,7 +693,31 @@ describe("action runner", () => {
         outcome: { _tag: "Succeeded", result: { _tag: "Restored", path: clone } },
       });
       expect(git(clone, "status", "--porcelain")).toBe("");
+      expect(git(worktree, "branch", "--show-current")).toBe("feature");
       expect(yield* listTrash(path.join(root, "trash"))).toEqual([]);
+    }),
+  );
+
+  it.effect("empties a checkout out of the trash for good", () =>
+    Effect.gen(function* () {
+      const { run, inspect, clone, root } = yield* setUp(withCleanup);
+      const { fingerprint } = yield* inspect(clone);
+
+      yield* run({ _tag: "Trash", path: clone, fingerprint, removeCaches: false });
+
+      const [item] = yield* listTrash(path.join(root, "trash"));
+
+      expect(
+        yield* run(
+          {
+            _tag: "Purge",
+            target: { _tag: "Checkout", id: item?.id ?? TrashId.make(randomUUID()) },
+          },
+          runIds.second,
+        ),
+      ).toMatchObject({ outcome: { _tag: "Succeeded", result: { _tag: "Purged" } } });
+      expect(yield* listTrash(path.join(root, "trash"))).toEqual([]);
+      expect(existsSync(clone)).toBe(false);
     }),
   );
 

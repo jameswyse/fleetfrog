@@ -48,14 +48,26 @@ export const readArchiveRecord = (commonDirectory: string) =>
     Effect.map(decodeRecord),
   );
 
-/** How an archived checkout came to be there. One put in the archive by hand has no record. */
-export const archivedPlacement = (location: Pick<CheckoutLocation, "commonDirectory">) =>
+/**
+ * How an archived checkout came to be there, from its clone's record. A linked worktree has its own
+ * original path in the record. One put in the archive by hand has no record.
+ */
+export const archivedPlacement = (
+  location: Pick<CheckoutLocation, "path" | "commonDirectory" | "worktree">,
+) =>
   readArchiveRecord(location.commonDirectory).pipe(
     Effect.map((record) =>
       Option.match(record, {
         onNone: () => Placement.cases.Archive.make({ originalPath: null, archivedAt: null }),
-        onSome: ({ originalPath, archivedAt }) =>
-          Placement.cases.Archive.make({ originalPath, archivedAt }),
+        onSome: ({ originalPath, archivedAt, worktrees }) =>
+          Placement.cases.Archive.make({
+            originalPath:
+              location.worktree._tag === "Main"
+                ? originalPath
+                : (worktrees.find(({ archivedPath }) => archivedPath === location.path)
+                    ?.originalPath ?? null),
+            archivedAt,
+          }),
       }),
     ),
   );

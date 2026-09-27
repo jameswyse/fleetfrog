@@ -13,7 +13,7 @@ import type { DeletedBranch, DroppedStash, LocalBranch } from "@fleetfrog/protoc
 
 import type { ParsedBranch } from "./parseBranches.ts";
 
-/** Reads remote-tracking branches and FleetFrog's deleted branches in one pass. */
+/** Reads remote-tracking branches, deleted branches and dropped stashes in one pass. */
 export const refFormat = [
   "%(refname)",
   "%(objectname)",

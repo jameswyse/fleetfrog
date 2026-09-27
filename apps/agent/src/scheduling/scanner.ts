@@ -65,6 +65,11 @@ export function makeScanner<ReportError>(options: {
   readonly githubLogin: string | null;
   /** Where trashed checkouts are kept. */
   readonly trashDirectory: string;
+  /** The project folders and Archive folder the hub last configured. */
+  readonly folders: () => {
+    readonly roots: ReadonlyArray<string>;
+    readonly archiveFolder: string | null;
+  };
   readonly report: (report: ScanReport) => Effect.Effect<void, ReportError>;
 }) {
   const readGithub =
@@ -97,8 +102,6 @@ export function makeScanner<ReportError>(options: {
       }).pipe(lock.withPermits(1));
     });
   let locations: ReadonlyArray<CheckoutLocation> = [];
-  /** The Archive folder on this machine as of the last discovery walk. */
-  let archive: string | null = null;
   const sent = new Map<string, string>();
 
   const readCheckout = Effect.fn("readCheckout")(function* (
@@ -194,7 +197,6 @@ export function makeScanner<ReportError>(options: {
           );
           yield* reportTrash;
           locations = found;
-          archive = archivePath(discovery);
           sent.clear();
 
           for (const checkout of checkouts) {
@@ -266,7 +268,7 @@ export function makeScanner<ReportError>(options: {
           return;
         }
 
-        const location = yield* placeLocation(found.value, archive);
+        const location = yield* placeLocation(found.value, archivePath(options.folders()));
 
         locations = [...locations, location];
         yield* reportChanged(yield* readAll([location], Duration.zero));

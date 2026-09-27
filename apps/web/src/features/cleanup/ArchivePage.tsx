@@ -13,7 +13,7 @@ import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { describeActiveRunBriefly } from "../actions/actionCopy.ts";
 import { useStartBatch } from "../actions/useStartBatch.ts";
-import { planUnarchive } from "../archive/archiveAvailability.ts";
+import { linkedWorktrees, planUnarchive } from "../archive/archiveAvailability.ts";
 import { trashBlocker } from "./trashAvailability.ts";
 import { TrashCheckoutDialog } from "./TrashCheckoutDialog.tsx";
 
@@ -69,9 +69,9 @@ function ArchivedRow({
           <span>{machineLabel(machine)}</span>
         </p>
         <p className="font-mono text-xs break-all text-ink-muted">{checkout.path}</p>
-        {git !== null && git.worktrees.length > 0 && (
+        {linkedWorktrees(checkout).length > 0 && (
           <p className="text-xs text-ink-muted">
-            With {plural(git.worktrees.length, "linked worktree")}
+            With {plural(linkedWorktrees(checkout).length, "linked worktree")}
           </p>
         )}
         <p className="text-xs text-ink-muted">
@@ -127,11 +127,14 @@ function ArchivedRow({
               Unarchive
             </Button>
           )}
-          {trashBlocked === null && (
-            <Button tone="quiet" onClick={() => setTrashing(true)}>
-              Move to the trash…
-            </Button>
-          )}
+          <Button
+            tone="quiet"
+            disabled={trashBlocked !== null}
+            title={trashBlocked ?? undefined}
+            onClick={() => setTrashing(true)}
+          >
+            Move to the trash…
+          </Button>
         </div>
       )}
       {trashing && (

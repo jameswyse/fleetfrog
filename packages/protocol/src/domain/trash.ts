@@ -19,6 +19,10 @@ export const TrashedCheckout = Schema.Struct({
   trashedAt: Schema.DateTimeUtc,
   /** What it takes up in the trash, after any caches were removed. */
   sizeBytes: Count,
+  /** Linked worktrees trashed with it, which restoring puts back too. */
+  worktrees: Schema.Array(
+    Schema.Struct({ originalPath: Schema.String, trashedPath: Schema.String }),
+  ).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed([]))),
 });
 export type TrashedCheckout = typeof TrashedCheckout.Type;
 
@@ -46,14 +50,14 @@ export const Inspection = Schema.Struct({
   remote: RemoteCheck,
   /** Local branches with commits no remote-tracking branch has. */
   unpushedBranches: Schema.Array(Schema.Struct({ name: Schema.String, commits: Count })),
-  /** Commits on HEAD, branches, tags or deleted branches that no remote-tracking branch has. */
+  /** Commits on any ref or HEAD that no remote-tracking branch has, stashes included. */
   unpushedCommits: Count,
   /** Tags no remote has, even when their commits are pushed. */
-  unpushedTags: Count.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(0))),
+  unpushedTags: Count,
   /** A merge, rebase or similar part-way through, whose state lives only in this checkout. */
-  operation: Schema.NullOr(Operation).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(null))),
+  operation: Schema.NullOr(Operation),
   /** Submodules with Git directories inside this checkout, whose work isn't inspected. */
-  submodules: Count.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(0))),
+  submodules: Count,
   stashes: Count,
   changedFiles: Count,
   untrackedFiles: Count,

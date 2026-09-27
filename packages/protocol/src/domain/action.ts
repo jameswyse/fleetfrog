@@ -50,7 +50,8 @@ export const ActionRequest = Schema.TaggedUnion({
   DeleteBranches: { path: Schema.String, branches: Schema.NonEmptyArray(BranchAtCommit) },
   /**
    * Removes a linked worktree of the main checkout at `path`, keeping its branch. It must have no
-   * changes, and files Git ignores in it are deleted. One whose folder is gone is forgotten.
+   * changes, no commits only it holds and no ignored files other than caches. One whose folder is
+   * gone is forgotten.
    */
   RemoveWorktree: { path: Schema.String, worktree: Schema.String },
   /**
@@ -69,8 +70,9 @@ export const ActionRequest = Schema.TaggedUnion({
   /** Moves the archived checkout at `path` back to where it was archived from. */
   Unarchive: { path: Schema.String },
   /**
-   * Moves the checkout at `path` to the machine's trash, if it still matches the inspection that
-   * produced `fingerprint`. With `removeCaches`, dependency and build folders are deleted first.
+   * Moves the checkout at `path` to the machine's trash, with its linked worktrees, if it still
+   * matches the inspection that produced `fingerprint`. With `removeCaches`, dependency and build
+   * folders are then deleted from the trashed copy.
    */
   Trash: { path: Schema.String, fingerprint: Schema.String, removeCaches: Schema.Boolean },
   /**
@@ -205,6 +207,12 @@ export const SkipReason = Schema.TaggedUnion({
   IsWorktree: {},
   /** Something is already where the checkout would move to. */
   DestinationTaken: { path: Schema.String },
+  /** Two of the folders moving together would land at or inside the same place. */
+  DestinationsClash: { path: Schema.String },
+  /** A detached HEAD holds commits no branch, tag or remote has, which removing it would lose. */
+  UnreachableCommits: { commits: Count },
+  /** Files Git ignores that aren't caches, such as `.env`, which removing it would delete. */
+  IgnoredFiles: { files: Count },
   /** The checkout changed after it was inspected, so it was left alone. */
   ChangedSinceInspection: {},
   /** Deleting for good would lose work that exists only on this machine. */
@@ -245,7 +253,7 @@ export const ActionResult = Schema.TaggedUnion({
   },
   WorktreeRemoved: {},
   StashesDropped: { stashes: Count },
-  /** `freedBytes` counts the caches removed before the move. */
+  /** `freedBytes` counts the caches removed from the trashed copy. */
   Trashed: { freedBytes: Count },
   Deleted: {},
   /** `path` is where a restored checkout is now, and null for a restored branch. */

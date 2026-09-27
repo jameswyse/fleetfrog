@@ -43,12 +43,12 @@ function RemoveWorktreeDialog({
           <p>Its folder is already gone, so this only removes Git's record of it.</p>
         ) : (
           <p>
+            The folder is deleted from {machineLabel(machine)}.{" "}
             {worktree.branch === null
-              ? "Its commits stay"
-              : `Its branch, ${worktree.branch}, stays`}{" "}
-            in the repository. The folder is deleted from {machineLabel(machine)}, including files
-            Git ignores in it, such as <code>.env</code> or <code>node_modules</code>. A worktree
-            with uncommitted changes or untracked files is left alone.
+              ? "Its HEAD is detached, so it's kept if it holds commits no branch has."
+              : `Its branch, ${worktree.branch}, stays in the repository.`}{" "}
+            It's also kept if it has uncommitted changes, untracked files, or ignored files other
+            than caches such as <code>node_modules</code>, so only rebuildable files go with it.
             {worktree.state === "Broken" &&
               " Its link to the repository broke, so it's repaired first."}
           </p>

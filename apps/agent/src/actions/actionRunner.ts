@@ -59,6 +59,34 @@ interface CheckoutCatalogue {
 
 type Network = "Network" | "Local";
 
+/** An action that ran, with the rescan to do before reporting it. */
+interface Performed {
+  readonly outcome: ActionOutcome;
+  readonly afterwards: Effect.Effect<void, unknown>;
+}
+
+/**
+ * Whether cancelling or disconnecting may stop an action part-way. Anything that moves, deletes or
+ * rewrites refs runs to the end once started, so nothing is left half done, and cancelling only
+ * stops it while it waits for its turn.
+ */
+const interruption = {
+  Fetch: "Cancellable",
+  Pull: "Cancellable",
+  Clone: "Cancellable",
+  Switch: "Atomic",
+  Stash: "Atomic",
+  DeleteBranches: "Atomic",
+  RemoveWorktree: "Atomic",
+  DropStashes: "Atomic",
+  Archive: "Atomic",
+  Unarchive: "Atomic",
+  Trash: "Atomic",
+  Delete: "Atomic",
+  Restore: "Atomic",
+  Purge: "Atomic",
+} as const satisfies Record<ActionRequest["_tag"], "Cancellable" | "Atomic">;
+
 /** An action resolved against this machine: what it locks, how it runs and what to rescan after. */
 type Plan =
   /** Nothing on this machine matches the request, so it can't run at all. */
@@ -442,7 +470,12 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
    * again in case the owner changed it meanwhile, then runs the action. Returns its outcome and the
    * rescan to do before reporting it, or null when the request was refused.
    */
-  const perform = (runId: RunId, request: ActionRequest, output: ActionOutput) =>
+  const perform = (
+    runId: RunId,
+    request: ActionRequest,
+    output: ActionOutput,
+    settle: (performed: Performed) => void,
+  ) =>
     Effect.gen(function* () {
       const tier = actionTiers[request._tag];
       const refusal = yield* policyRefusal(tier);
@@ -477,9 +510,19 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
         yield* options.audit({ event: "ActionStarted", runId, request });
         yield* Effect.forkScoped(reportProgress(runId, output));
 
-        const outcome = yield* planned.perform(output);
+        const running = planned.perform(output).pipe(
+          Effect.map((outcome): Performed => {
+            const performed = { outcome, afterwards: planned.afterwards(outcome) };
 
-        return { outcome, afterwards: planned.afterwards(outcome) };
+            settle(performed);
+
+            return performed;
+          }),
+        );
+
+        return yield* interruption[request._tag] === "Atomic"
+          ? Effect.uninterruptible(running)
+          : running;
       }).pipe(
         Effect.scoped,
         (performing) =>
@@ -489,20 +532,43 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
       );
     });
 
+  /**
+   * Reports a performed action: the rescan goes first, so the hub has the checkout's new state, or
+   * a new clone's checkout, by the time it hears the outcome. The outcome is sent even when the
+   * rescan fails or a cancel arrives during it.
+   */
+  const complete = (runId: RunId, performed: Performed, output: ActionOutput) =>
+    Effect.catchCause(performed.afterwards, (cause) =>
+      Effect.logWarning("Could not rescan after an action", cause),
+    ).pipe(
+      Effect.ensuring(Effect.uninterruptible(finish(runId, performed.outcome, output.tail()))),
+    );
+
   const execute = (runId: RunId, request: ActionRequest) => {
     const output = makeActionOutput();
+    /** Set once the action has run, so a late interruption still reports what it did. */
+    let settled: Performed | null = null;
+    let reporting = false;
 
-    return perform(runId, request, output).pipe(
-      // A cancelled action says so. One stopped by a lost connection can't, so only the log knows.
-      Effect.onInterrupt(() =>
-        cancelled.delete(runId)
-          ? finish(runId, ActionOutcome.cases.Cancelled.make({}), output.tail())
-          : options.audit({ event: "ActionInterrupted", runId }),
-      ),
+    /** Reports the action's result, once, however the run ends after it has performed. */
+    const report = (performed: Performed) =>
+      Effect.suspend(() => {
+        if (reporting) {
+          return Effect.void;
+        }
+
+        reporting = true;
+
+        return complete(runId, performed, output);
+      });
+
+    return perform(runId, request, output, (performed) => {
+      settled = performed;
+    }).pipe(
       // An unexpected error still ends the run, so the hub never waits on it forever.
       Effect.catchDefect((defect) =>
         Effect.logError("An action crashed", defect).pipe(
-          Effect.as({
+          Effect.as<Performed>({
             outcome: ActionOutcome.cases.Failed.make({
               message: `The agent hit an unexpected error: ${String(defect)}`,
             }),
@@ -510,20 +576,19 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
           }),
         ),
       ),
-      Effect.flatMap((performed) =>
-        performed === null
-          ? Effect.void
-          : // The rescan goes first, so the hub has the checkout's new state, or a new clone's
-            // checkout, by the time it hears the outcome. The outcome is sent even when the rescan
-            // fails or a cancel arrives during it.
-            Effect.catchCause(performed.afterwards, (cause) =>
-              Effect.logWarning("Could not rescan after an action", cause),
-            ).pipe(
-              Effect.ensuring(
-                Effect.uninterruptible(finish(runId, performed.outcome, output.tail())),
-              ),
-            ),
-      ),
+      Effect.flatMap((performed) => (performed === null ? Effect.void : report(performed))),
+      // A cancelled action says so. One stopped by a lost connection can't, so only the log knows.
+      // One that had already performed reports its real outcome instead, even when the
+      // interruption came between performing and reporting.
+      Effect.onInterrupt(() => {
+        if (settled !== null) {
+          return report(settled);
+        }
+
+        return cancelled.delete(runId)
+          ? finish(runId, ActionOutcome.cases.Cancelled.make({}), output.tail())
+          : options.audit({ event: "ActionInterrupted", runId });
+      }),
       Effect.ensuring(Effect.sync(() => cancelled.delete(runId))),
     );
   };

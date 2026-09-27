@@ -1,6 +1,7 @@
-import { Effect, Stream } from "effect";
+import { Effect, Schema, Stream } from "effect";
 
 import { AgentRpcs, CurrentMachine, ScanReport } from "@fleetfrog/protocol/agent/rpcs";
+import { ActionOutcome, ActionUpdate } from "@fleetfrog/protocol/domain/action";
 
 import { ActionDispatcher } from "../actions/actionDispatcher.ts";
 import { CheckoutStore } from "../catalogue/checkoutStore.ts";
@@ -9,6 +10,9 @@ import { MachineStore } from "../machines/machineStore.ts";
 import { AgentSessions } from "./agentSessions.ts";
 import { FolderRequests } from "./folderRequests.ts";
 import { InspectionRequests } from "./inspectionRequests.ts";
+
+const isScanReport = Schema.is(ScanReport);
+const isActionUpdate = Schema.is(ActionUpdate);
 
 export const AgentHandlers = AgentRpcs.toLayer(
   Effect.gen(function* () {
@@ -36,6 +40,11 @@ export const AgentHandlers = AgentRpcs.toLayer(
         Effect.gen(function* () {
           const { id } = yield* CurrentMachine;
 
+          // A kind of report from a newer agent that this hub doesn't know is left for later.
+          if (!isScanReport(report)) {
+            return yield* Effect.logWarning(`Ignored a report this hub can't read: ${report._tag}`);
+          }
+
           yield* ScanReport.match(report, {
             Discovery: ({ checkouts: inventory, roots, completedAt }) =>
               checkouts
@@ -56,7 +65,8 @@ export const AgentHandlers = AgentRpcs.toLayer(
                   ),
                 ),
           });
-          yield* feed.invalidate;
+
+          return yield* feed.invalidate;
         }),
       Heartbeat: () => CurrentMachine.use(({ id }) => sessions.heartbeat(id)),
       Advertise: ({ capabilities }) =>
@@ -66,7 +76,25 @@ export const AgentHandlers = AgentRpcs.toLayer(
           machines.recordUsage({ machineId: id, usage }).pipe(Effect.andThen(feed.invalidate)),
         ),
       ReportAction: ({ runId, update }) =>
-        CurrentMachine.use(({ id }) => dispatcher.receive({ machineId: id, runId, update })),
+        CurrentMachine.use(({ id }) => {
+          if (isActionUpdate(update)) {
+            return dispatcher.receive({ machineId: id, runId, update });
+          }
+
+          // A newer agent's outcome still ends the run, so the hub doesn't wait on it forever.
+          return update._tag === "Finished" && "output" in update
+            ? dispatcher.receive({
+                machineId: id,
+                runId,
+                update: ActionUpdate.cases.Finished.make({
+                  outcome: ActionOutcome.cases.Failed.make({
+                    message: "The agent reported an outcome this hub can't read. Update the hub.",
+                  }),
+                  output: update.output,
+                }),
+              })
+            : Effect.logWarning(`Ignored an action update this hub can't read: ${update._tag}`);
+        }),
       ReportFolder: ({ requestId, outcome }) =>
         CurrentMachine.use(({ id }) => folders.answer({ machineId: id, requestId, outcome })),
       ReportInspection: ({ requestId, result }) =>

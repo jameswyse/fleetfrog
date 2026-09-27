@@ -75,7 +75,7 @@ export function BranchesSection({
   const { start, pending, failure } = useStartBatch();
   const { head } = git;
   const current = head._tag === "Detached" ? null : head.name;
-  const elsewhere = branchesInOtherWorktrees(repository, machine, checkout);
+  const elsewhere = branchesInOtherWorktrees({ repository, machineId: machine.id, checkout });
   const busy = pending || activeRunFor(runs, { machineId: machine.id, checkout }) !== undefined;
   const others = git.branches.items.filter(({ name }) => name !== current && !elsewhere.has(name));
   const reasons = new Map(

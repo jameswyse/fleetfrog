@@ -2,6 +2,7 @@ import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { Tier } from "@fleetfrog/protocol/domain/action";
 import { agentOutdated } from "@fleetfrog/protocol/domain/actionAvailability";
 
+import { tierNames } from "../../actions/actionCopy.ts";
 import { shortProcessorName } from "./systemFormat.ts";
 
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
@@ -43,8 +44,6 @@ export function ConnectionStatus({ machine }: { readonly machine: Machine }) {
     </span>
   );
 }
-
-const tierNames = { git: "Git", cleanup: "cleanup" } satisfies Record<Tier, string>;
 
 /** What the hub may ask this machine to do, as its owner's policy allows. */
 export function ActionsText({ machine }: { readonly machine: Machine }) {

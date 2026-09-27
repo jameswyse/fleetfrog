@@ -28,7 +28,6 @@ const cacheNames = new Set([
   ".turbo",
   ".parcel-cache",
   ".vite",
-  ".cache",
   ".expo",
   "dist",
   "build",
@@ -63,7 +62,7 @@ const ignoredListLimit = 100;
 const fetchTimeout = Duration.seconds(90);
 
 /** Ignored files and folders, each folder once rather than everything inside it. */
-const listIgnored = (location: CheckoutLocation) =>
+const listIgnored = (location: Pick<CheckoutLocation, "path">) =>
   runGit(location.path, [
     "ls-files",
     "--others",
@@ -86,7 +85,7 @@ export interface InspectionOptions {
 
 /** The ignored entries that are caches, and those that are anything else. */
 export const readIgnored = (
-  location: CheckoutLocation,
+  location: Pick<CheckoutLocation, "path">,
 ): Effect.Effect<IgnoredEntries, CommandFailed> =>
   listIgnored(location).pipe(
     Effect.map((entries) => ({
@@ -96,7 +95,7 @@ export const readIgnored = (
   );
 
 /**
- * A digest of what the checkout holds: HEAD, every branch, tag, stash and deleted branch, each
+ * A digest of what the checkout holds: HEAD, every ref other than remote-tracking branches, each
  * changed or untracked path, and each ignored entry, caches included, so a cache that appears after
  * the inspection isn't deleted unseen. Remote-tracking branches are left out, so fetching doesn't
  * change it.
@@ -110,14 +109,14 @@ export const fingerprintCheckout = Effect.fn("fingerprintCheckout")(function* (
       runGit(location.path, ["rev-parse", "--symbolic-full-name", "HEAD"]).pipe(
         Effect.orElseSucceed(() => "unborn"),
       ),
-      runGit(location.path, [
-        "for-each-ref",
-        "--format=%(refname) %(objectname)",
-        "refs/heads",
-        "refs/tags",
-        "refs/stash",
-        "refs/fleetfrog",
-      ]),
+      runGit(location.path, ["for-each-ref", "--format=%(refname) %(objectname)"]).pipe(
+        Effect.map((listing) =>
+          listing
+            .split("\n")
+            .filter((line) => !line.startsWith("refs/remotes/"))
+            .join("\n"),
+        ),
+      ),
       runGit(location.path, ["status", "--porcelain=v2", "--untracked-files=all", "-z"]),
     ],
     { concurrency: "unbounded" },
@@ -230,15 +229,15 @@ export const inspectCheckout = Effect.fn("inspectCheckout")(function* (
 ) {
   const remote = yield* checkRemotes(location, options);
   const git = yield* readGitStatus(location);
-  // HEAD counts too, since a detached HEAD can hold commits no branch has.
+  // Every ref counts, including notes and the trash's, and HEAD too, since a detached HEAD can
+  // hold commits no branch has. Stashes are counted on their own.
   const unpushedCommits = Number(
     (yield* runGit(location.path, [
       "rev-list",
       "--count",
+      "--exclude=refs/stash",
+      "--all",
       ...(git.head._tag === "Unborn" ? [] : ["HEAD"]),
-      "--branches",
-      "--tags",
-      "--glob=refs/fleetfrog/*",
       "--not",
       "--remotes",
     ])).trim(),

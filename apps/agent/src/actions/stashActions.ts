@@ -18,9 +18,9 @@ const stashCommits = (location: CheckoutLocation) =>
 
 /**
  * Moves stashes to the trash: each is kept as `refs/fleetfrog/stashes/<time>/<index>`, then dropped
- * from the stash list, newest index first so the others keep their numbers. Nothing is dropped
- * unless every stash is still the commit the dashboard showed, and each is checked again just
- * before it goes.
+ * from the stash list, highest index first so the others keep their numbers. Nothing is dropped
+ * unless every stash is still the commit the dashboard showed, and each is checked again and kept
+ * just before it goes, so a stop partway leaves no copy of a stash that wasn't dropped.
  */
 export const dropStashes = Effect.fn("dropStashes")(
   function* (
@@ -36,21 +36,16 @@ export const dropStashes = Effect.fn("dropStashes")(
 
     const droppedAt = DateTime.toEpochMillis(yield* DateTime.now);
 
-    yield* runGitAction({
-      cwd: location.path,
-      args: ["update-ref", "--stdin"],
-      input: stashes
-        .map(({ index, sha }) => `create ${droppedStashPrefix}${droppedAt}/${index} ${sha}`)
-        .join("\n")
-        .concat("\n"),
-      onOutput: output.write,
-    });
-
     for (const { index, sha } of stashes.toSorted((left, right) => right.index - left.index)) {
       if ((yield* refCommit(location, `stash@{${index}}`)) !== sha) {
         return skipped(SkipReason.cases.StashesChanged.make({}));
       }
 
+      yield* runGitAction({
+        cwd: location.path,
+        args: ["update-ref", `${droppedStashPrefix}${droppedAt}/${index}`, sha, ""],
+        onOutput: output.write,
+      });
       yield* runGitAction({
         cwd: location.path,
         args: ["stash", "drop", "--quiet", `stash@{${index}}`],

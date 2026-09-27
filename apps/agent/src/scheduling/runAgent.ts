@@ -1,7 +1,7 @@
 import { Clock, Duration, Effect, Fiber, FiberHandle, Option, Schema, Stream } from "effect";
 
 import { HubCommand, heartbeatSeconds } from "@fleetfrog/protocol/agent/rpcs";
-import { ActionKind } from "@fleetfrog/protocol/domain/action";
+import { ActionKind, ActionOutcome, ActionUpdate } from "@fleetfrog/protocol/domain/action";
 
 import { makeActionRunner } from "../actions/actionRunner.ts";
 import { writeAuditEntry } from "../audit/auditLog.ts";
@@ -65,23 +65,25 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
   const { client, disconnected } = yield* makeHubClient(config);
   const info = yield* readMachineInfo;
   const trashDirectory = defaultTrashDirectory();
+  let configuration: Configuration | null = null;
+  const folders = () => ({
+    roots: configuration?.discoveryRoots ?? [],
+    archiveFolder: configuration?.archiveFolder ?? null,
+  });
   const scanner = makeScanner({
     githubLogin: info.githubCli._tag === "Available" ? info.githubCli.login : null,
     trashDirectory,
+    folders,
     report: (report) => client.Report({ report }),
   });
   const timers = yield* FiberHandle.make();
   const sessionScope = yield* Effect.scope;
-  let configuration: Configuration | null = null;
   let capabilities = yield* readCapabilities;
 
   yield* warnIfUnreadable(capabilities);
   const actions = yield* makeActionRunner({
     catalogue: scanner,
-    folders: () => ({
-      roots: configuration?.discoveryRoots ?? [],
-      archiveFolder: configuration?.archiveFolder ?? null,
-    }),
+    folders,
     trashDirectory,
     loadPolicy,
     report: (runId, update) => client.ReportAction({ runId, update }),
@@ -198,7 +200,29 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
   yield* client.Connect({ info, capabilities }).pipe(
     Stream.runForEach((received) => {
       if (!isHubCommand(received)) {
-        return Effect.logWarning(`Skipped a command this agent can't read: ${received._tag}`);
+        const skipping = Effect.logWarning(
+          `Skipped a command this agent can't read: ${received._tag}`,
+        );
+
+        // A run the hub is waiting on ends as failed, rather than staying queued forever.
+        return received.runId === undefined
+          ? skipping
+          : skipping.pipe(
+              Effect.andThen(
+                client.ReportAction({
+                  runId: received.runId,
+                  update: ActionUpdate.cases.Finished.make({
+                    outcome: ActionOutcome.cases.Failed.make({
+                      message: "This machine's agent can't read the request. Update the agent.",
+                    }),
+                    output: [],
+                  }),
+                }),
+              ),
+              Effect.catchCause((cause) =>
+                Effect.logWarning("Could not report a skipped run", cause),
+              ),
+            );
       }
 
       return HubCommand.match(received, {

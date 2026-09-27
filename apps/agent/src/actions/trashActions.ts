@@ -12,13 +12,16 @@ import { readGitStatus } from "../git/readCheckout.ts";
 import { fingerprintCheckout, inspectCheckout, readIgnored } from "../inspect/inspectCheckout.ts";
 import { diskUsage } from "../process/diskUsage.ts";
 import {
+  forgetTrashItem,
   itemCheckoutPath,
+  itemWorktreePath,
   readTrashItem,
   removeTrashItem,
   writeTrashItem,
 } from "../trash/trashFolder.ts";
-import { movableProblem, moveFolder, unmoved, worktreesProblem } from "./movableCheckout.ts";
-import { failed, skipped, succeeded } from "./outcomes.ts";
+import { performCheckoutMove, planCheckoutMove } from "./checkoutMove.ts";
+import { movableProblem, worktreesProblem } from "./movableCheckout.ts";
+import { failed, failedWith, skipped, succeeded } from "./outcomes.ts";
 
 import type { TrashedCheckout } from "@fleetfrog/protocol/domain/trash";
 
@@ -56,9 +59,9 @@ const removeCaches = (folder: string, caches: ReadonlyArray<string>) =>
   });
 
 /**
- * Moves a checkout into the machine's trash, with a record of where it came from, if it still
- * matches the inspection the dashboard showed. Caches are deleted from the trashed copy when asked,
- * so a move that fails leaves everything where it was.
+ * Moves a checkout into the machine's trash, with its linked worktrees and a record of where they
+ * came from, if it still matches the inspection the dashboard showed. Caches are deleted from the
+ * trashed copy when asked, so a move that fails leaves everything where it was.
  */
 export const trashCheckout = Effect.fn("trashCheckout")(
   function* (
@@ -70,7 +73,7 @@ export const trashCheckout = Effect.fn("trashCheckout")(
     },
     output: ActionOutput,
   ) {
-    const problem = movableProblem(location) ?? (yield* worktreesProblem(location));
+    const problem = movableProblem(location);
 
     if (problem !== null) {
       return problem;
@@ -84,6 +87,21 @@ export const trashCheckout = Effect.fn("trashCheckout")(
 
     const git = yield* readGitStatus(location);
     const id = TrashId.make(randomUUID());
+    let worktreeCount = 0;
+    const planned = yield* planCheckoutMove({
+      location,
+      destination: itemCheckoutPath(options.trash, id),
+      worktreeDestination: (worktree) => {
+        worktreeCount += 1;
+
+        return itemWorktreePath(options.trash, id, `${worktreeCount}-${path.basename(worktree)}`);
+      },
+    });
+
+    if (planned._tag === "Refused") {
+      return planned.outcome;
+    }
+
     const item: TrashedCheckout = {
       id,
       originalPath: location.path,
@@ -93,6 +111,10 @@ export const trashCheckout = Effect.fn("trashCheckout")(
       lastCommit: git.lastCommit,
       trashedAt: yield* DateTime.now,
       sizeBytes: yield* sizeOf(location.path),
+      worktrees: planned.move.separate.map(({ from, to }) => ({
+        originalPath: from,
+        trashedPath: to,
+      })),
     };
     const unprepared = yield* writeTrashItem(options.trash, item);
 
@@ -100,33 +122,34 @@ export const trashCheckout = Effect.fn("trashCheckout")(
       return failed(unprepared);
     }
 
-    const trashed = itemCheckoutPath(options.trash, id);
-    const notMoved = unmoved(yield* moveFolder({ from: location.path, to: trashed }), trashed);
+    const result = yield* performCheckoutMove(planned.move, output);
 
-    if (notMoved !== null) {
+    if (result._tag === "NotMoved") {
       yield* removeTrashItem(options.trash, id);
 
-      return notMoved;
+      return result.outcome;
     }
 
-    output.write(`Moved ${location.path} to the trash\n`);
-
-    if (!options.removeCaches || ignored.caches.length === 0) {
-      return succeeded(ActionResult.cases.Trashed.make({ freedBytes: 0 }));
-    }
-
-    const removal = yield* removeCaches(trashed, ignored.caches);
+    const trashed = planned.move.main.to;
+    const removal =
+      options.removeCaches && ignored.caches.length > 0
+        ? yield* removeCaches(trashed, ignored.caches)
+        : { freedBytes: 0, problems: [] };
 
     for (const line of removal.problems) {
       output.write(`Couldn't delete a cache folder, ${line}\n`);
     }
 
-    // The record is already saved, so a failure here only leaves its size out of date.
-    yield* writeTrashItem(options.trash, { ...item, sizeBytes: yield* sizeOf(trashed) });
+    // The record is already saved, so a failure here only leaves it out of date.
+    yield* writeTrashItem(options.trash, {
+      ...item,
+      sizeBytes: yield* sizeOf(trashed),
+      worktrees: result.worktrees.map(({ from, to }) => ({ originalPath: from, trashedPath: to })),
+    });
 
     return succeeded(ActionResult.cases.Trashed.make({ freedBytes: removal.freedBytes }));
   },
-  Effect.catchTag("CommandFailed", ({ message }) => Effect.succeed(failed(message))),
+  Effect.catchTag("CommandFailed", failedWith),
 );
 
 /**
@@ -170,36 +193,48 @@ export const deleteCheckout = Effect.fn("deleteCheckout")(
 
     return succeeded(ActionResult.cases.Deleted.make({}));
   },
-  Effect.catchTag("CommandFailed", ({ message }) => Effect.succeed(failed(message))),
+  Effect.catchTag("CommandFailed", failedWith),
 );
 
-/** Moves a trashed checkout back to where it was, unless something is there now. */
-export const restoreCheckout = Effect.fn("restoreCheckout")(function* (
-  trash: string,
-  id: TrashId,
-  output: ActionOutput,
-) {
-  const item = yield* readTrashItem(trash, id);
+/**
+ * Moves a trashed checkout back to where it was, unless something is there now, with the worktrees
+ * trashed alongside it. The trash record goes, but a worktree that couldn't move back stays in the
+ * trash folder rather than being deleted with it.
+ */
+export const restoreCheckout = Effect.fn("restoreCheckout")(
+  function* (trash: string, id: TrashId, output: ActionOutput) {
+    const item = yield* readTrashItem(trash, id);
 
-  if (Option.isNone(item)) {
-    return skipped(SkipReason.cases.NotInTrash.make({}));
-  }
+    if (Option.isNone(item)) {
+      return skipped(SkipReason.cases.NotInTrash.make({}));
+    }
 
-  const destination = item.value.originalPath;
-  const notMoved = unmoved(
-    yield* moveFolder({ from: itemCheckoutPath(trash, id), to: destination }),
-    destination,
-  );
+    const trashed = itemCheckoutPath(trash, id);
+    const returning = new Map(
+      item.value.worktrees.map(({ originalPath, trashedPath }) => [trashedPath, originalPath]),
+    );
+    const planned = yield* planCheckoutMove({
+      location: { path: trashed, commonDirectory: path.join(trashed, ".git") },
+      destination: item.value.originalPath,
+      worktreeDestination: (worktree) => returning.get(worktree) ?? null,
+    });
 
-  if (notMoved !== null) {
-    return notMoved;
-  }
+    if (planned._tag === "Refused") {
+      return planned.outcome;
+    }
 
-  yield* removeTrashItem(trash, id);
-  output.write(`Moved ${destination} back from the trash\n`);
+    const result = yield* performCheckoutMove(planned.move, output);
 
-  return succeeded(ActionResult.cases.Restored.make({ path: destination }));
-});
+    if (result._tag === "NotMoved") {
+      return result.outcome;
+    }
+
+    yield* forgetTrashItem(trash, id);
+
+    return succeeded(ActionResult.cases.Restored.make({ path: item.value.originalPath }));
+  },
+  Effect.catchTag("CommandFailed", failedWith),
+);
 
 /** Deletes a trashed checkout for good. */
 export const purgeCheckout = Effect.fn("purgeCheckout")(function* (

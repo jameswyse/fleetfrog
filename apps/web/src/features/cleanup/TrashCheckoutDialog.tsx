@@ -11,6 +11,7 @@ import { Spinner } from "@/ui/Spinner.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 import { nothingUnique } from "@fleetfrog/protocol/domain/trash";
 
+import { operationNames } from "../actions/actionCopy.ts";
 import { useStartBatch } from "../actions/useStartBatch.ts";
 
 import type { HubResult } from "@/rpc/hubConnection.ts";
@@ -63,7 +64,7 @@ function uniqueWork(inspection: Inspection): ReadonlyArray<string> {
   }
 
   if (inspection.operation !== null) {
-    lines.push(`A ${inspection.operation} that isn't finished`);
+    lines.push(`${operationNames[inspection.operation]} that isn't finished`);
   }
 
   if (inspection.submodules > 0) {
@@ -173,9 +174,11 @@ export function TrashCheckoutDialog({
   }, [machine.id, checkout.path]);
 
   const inspection = state._tag === "Ready" ? state.inspection : null;
-  const safe = inspection !== null && nothingUnique(inspection);
-  const cacheBytes = inspection?.caches.reduce((total, { sizeBytes }) => total + sizeBytes, 0) ?? 0;
   const worktrees = inspection?.linkedWorktrees ?? 0;
+  // Worktrees go to the trash with it, but their work isn't inspected, so they rule out deleting.
+  const safe = inspection !== null && nothingUnique(inspection) && worktrees === 0;
+  const cacheBytes = inspection?.caches.reduce((total, { sizeBytes }) => total + sizeBytes, 0) ?? 0;
+  const deleting = permanently && safe;
 
   const confirm = () => {
     if (inspection === null) {
@@ -190,10 +193,9 @@ export function TrashCheckoutDialog({
         runs: [
           {
             machineId: machine.id,
-            request:
-              permanently && safe
-                ? { _tag: "Delete", path: checkout.path, fingerprint }
-                : { _tag: "Trash", path: checkout.path, fingerprint, removeCaches },
+            request: deleting
+              ? { _tag: "Delete", path: checkout.path, fingerprint }
+              : { _tag: "Trash", path: checkout.path, fingerprint, removeCaches },
           },
         ],
       },
@@ -202,7 +204,14 @@ export function TrashCheckoutDialog({
   };
 
   return (
-    <Dialog title={`Move ${label} on ${machineLabel(machine)} to the trash?`} onClose={onClose}>
+    <Dialog
+      title={
+        deleting
+          ? `Permanently delete ${label} on ${machineLabel(machine)}?`
+          : `Move ${label} on ${machineLabel(machine)} to the trash?`
+      }
+      onClose={onClose}
+    >
       <div className="space-y-4 text-sm">
         <p className="font-mono text-[13px] break-all text-ink-muted">{checkout.path}</p>
         {state._tag === "Checking" && (
@@ -225,20 +234,21 @@ export function TrashCheckoutDialog({
               {cacheBytes > 0 && `, including ${formatBytes(cacheBytes)} of caches`}. The trash
               keeps it whole until you empty the trash, and restoring puts it back here.
             </p>
-            {worktrees > 0 ? (
-              <p className="text-danger">
-                Remove its {plural(worktrees, "linked worktree")} first, since moving it would break
-                them.
+            {worktrees > 0 && (
+              <p>
+                Its {plural(worktrees, "linked worktree")} {worktrees === 1 ? "goes" : "go"} to the
+                trash with it, and {worktrees === 1 ? "comes" : "come"} back with it.
               </p>
-            ) : (
+            )}
+            {
               <fieldset className="min-w-0 space-y-3">
                 <legend className="sr-only">Options</legend>
                 {inspection.caches.length > 0 && (
                   <label className="flex items-start gap-2.5">
                     <input
                       type="checkbox"
-                      checked={removeCaches || permanently}
-                      disabled={permanently}
+                      checked={removeCaches || deleting}
+                      disabled={deleting}
                       onChange={(event) => setRemoveCaches(event.currentTarget.checked)}
                       className="mt-0.5 size-4 shrink-0 accent-accent"
                     />
@@ -267,14 +277,16 @@ export function TrashCheckoutDialog({
                   <span className={safe ? "" : "text-ink-muted"}>
                     Skip the trash and delete it permanently
                     <span className="block text-xs text-ink-muted">
-                      {safe
-                        ? "It can be cloned again from its remote."
-                        : "Only for a checkout with nothing that exists only here."}
+                      {safe && "It can be cloned again from its remote."}
+                      {!safe &&
+                        (worktrees > 0
+                          ? "Not while it has linked worktrees. Remove them first to delete it."
+                          : "Only for a checkout with nothing that exists only here.")}
                     </span>
                   </span>
                 </label>
               </fieldset>
-            )}
+            }
           </>
         )}
         <p role="status" className="text-danger">
@@ -282,10 +294,10 @@ export function TrashCheckoutDialog({
         </p>
         <div className="flex justify-end gap-3">
           <Button onClick={onClose}>Cancel</Button>
-          {inspection !== null && worktrees === 0 && (
-            <Button tone={permanently ? "danger" : "primary"} disabled={pending} onClick={confirm}>
+          {inspection !== null && (
+            <Button tone={deleting ? "danger" : "primary"} disabled={pending} onClick={confirm}>
               {pending && "Starting…"}
-              {!pending && (permanently ? "Delete permanently" : "Move to the trash")}
+              {!pending && (deleting ? "Delete permanently" : "Move to the trash")}
             </Button>
           )}
         </div>

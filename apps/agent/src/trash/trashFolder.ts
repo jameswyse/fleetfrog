@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, rmdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 
@@ -26,13 +26,20 @@ const ItemJson = Schema.fromJsonString(Schema.toCodecJson(TrashedCheckout));
 const decodeItem = Schema.decodeUnknownOption(ItemJson);
 const encodeItem = Schema.encodeSync(ItemJson);
 
-/** The folder holding one trashed checkout: its record and, inside it, the checkout itself. */
-export function itemDirectory(trash: string, id: TrashId): string {
+/**
+ * The folder holding one trashed checkout: its record, the checkout itself, and any linked
+ * worktrees trashed with it.
+ */
+function itemDirectory(trash: string, id: TrashId): string {
   return path.join(trash, id);
 }
 
 export function itemCheckoutPath(trash: string, id: TrashId): string {
   return path.join(itemDirectory(trash, id), "checkout");
+}
+
+export function itemWorktreePath(trash: string, id: TrashId, name: string): string {
+  return path.join(itemDirectory(trash, id), "worktrees", name);
 }
 
 function itemRecordPath(trash: string, id: TrashId): string {
@@ -66,6 +73,17 @@ export const removeTrashItem = (trash: string, id: TrashId) =>
       (error: unknown) => `Couldn't remove it from the trash: ${String(error)}`,
     ),
   );
+
+/**
+ * Removes the item's record and whatever folders are left empty after a restore. Anything still in
+ * them, such as a worktree that couldn't move back, stays in place.
+ */
+export const forgetTrashItem = (trash: string, id: TrashId) =>
+  Effect.promise(async () => {
+    await rm(itemRecordPath(trash, id), { force: true }).catch(() => undefined);
+    await rmdir(path.join(itemDirectory(trash, id), "worktrees")).catch(() => undefined);
+    await rmdir(itemDirectory(trash, id)).catch(() => undefined);
+  });
 
 /** Everything in the trash, newest first. Folders without a readable record are left out. */
 export const listTrash = (trash: string) =>

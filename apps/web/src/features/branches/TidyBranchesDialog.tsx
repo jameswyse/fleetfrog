@@ -57,8 +57,15 @@ export function TidyBranchesDialog({
   const groups: ReadonlyArray<Group> = [
     {
       title: "Merged",
-      description: `Their commits are in ${defaultBranch}, directly or through a merged pull request.`,
-      candidates: candidates.filter(isMerged),
+      description: `Their commits are in ${defaultBranch}.`,
+      candidates: candidates.filter(({ standing }) => standing._tag === "Merged"),
+      tone: "normal",
+    },
+    {
+      title: "Merged pull request",
+      description:
+        "A pull request from each was merged, such as by squashing, and the branch hasn't changed since.",
+      candidates: candidates.filter(({ standing }) => standing._tag === "MergedPullRequest"),
       tone: "normal",
     },
     {
@@ -122,7 +129,8 @@ export function TidyBranchesDialog({
       >
         <p>
           Deleted branches go to the Trash on {machineLabel(machine)}, where you can restore them
-          until you empty it. If any of them has new commits since the last scan, none are deleted.
+          until you empty it. A branch with new commits since the last scan, or one a worktree has
+          checked out, is kept, and the rest are deleted.
         </p>
         {candidates.length === 0 && (
           <p className="rounded-md border border-line bg-canvas px-3 py-2 text-ink-muted">
@@ -139,18 +147,22 @@ export function TidyBranchesDialog({
 
               return (
                 <fieldset key={group.title} className="min-w-0">
+                  {/* The legend names the group for screen readers; the heading row shows it. */}
+                  <legend className="sr-only">{group.title}</legend>
                   <div className="mb-2 flex items-baseline gap-2">
-                    <legend
+                    <span
+                      aria-hidden="true"
                       className={`font-medium ${group.tone === "warning" ? "text-changes" : ""}`}
                     >
                       {group.title}
-                    </legend>
+                    </span>
                     <span className="text-xs text-ink-muted tabular-nums">
                       {group.candidates.length}
                     </span>
                     <button
                       type="button"
                       onClick={() => toggle(names, !allChosen)}
+                      aria-label={`${allChosen ? "Select none" : "Select all"} in ${group.title}`}
                       className="ms-auto text-xs text-accent-text underline-offset-2 hover:underline"
                     >
                       {allChosen ? "Select none" : "Select all"}

@@ -4,10 +4,12 @@ import { DateTime, Effect } from "effect";
 import { MachineId } from "@fleetfrog/protocol/domain/machine";
 import { defaultPollingSettings } from "@fleetfrog/protocol/domain/polling";
 import { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
+import { TrashId } from "@fleetfrog/protocol/domain/trash";
 
 import { planBatch } from "./planBatch.ts";
 
 import type { ActionOutcome, AgentCapabilities } from "@fleetfrog/protocol/domain/action";
+import type { TargetedRun } from "@fleetfrog/protocol/domain/activity";
 import type { Checkout } from "@fleetfrog/protocol/domain/checkout";
 import type { Fleet, Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
@@ -249,6 +251,82 @@ describe("planBatch", () => {
           },
         }),
       ).toBe("RepositoryNotFound");
+    }),
+  );
+
+  it.effect("acts on archived checkouts only for actions that may reach them", () =>
+    Effect.gen(function* () {
+      const archivedShop = {
+        ...checkout("/home/dev/Archive/shop"),
+        placement: { _tag: "Archive" as const, originalPath: null, archivedAt: null },
+      };
+      const fleet: Fleet = {
+        ...fleetWith([{ machineId: online.id, checkout: checkout("/home/dev/Projects/shop") }]),
+        archive: [
+          {
+            key: shopKey,
+            identity: { _tag: "Remote", host: "github.com", path: "acme/shop" },
+            name: "shop",
+            label: "shop",
+            checkouts: [{ machineId: online.id, checkout: archivedShop }],
+          },
+        ],
+      };
+      const plan = (request: TargetedRun["request"]) =>
+        planBatch({ _tag: "Targeted", runs: [{ machineId: online.id, request }] }, fleet).pipe(
+          Effect.map(({ runs }) => runs.map(({ path }) => path)),
+          Effect.catchTag("NothingToRun", () => Effect.succeed("nothing to run")),
+        );
+
+      expect(yield* plan({ _tag: "Unarchive", path: "/home/dev/Archive/shop" })).toEqual([
+        "/home/dev/Archive/shop",
+      ]);
+      expect(yield* plan({ _tag: "Unarchive", path: "/home/dev/Projects/shop" })).toBe(
+        "nothing to run",
+      );
+      expect(yield* plan({ _tag: "Stash", path: "/home/dev/Archive/shop" })).toBe("nothing to run");
+      expect(
+        yield* plan({ _tag: "RemoveWorktree", path: "/home/dev/Archive/shop", worktree: "/w" }),
+      ).toEqual(["/home/dev/Archive/shop"]);
+    }),
+  );
+
+  it.effect("empties what's still in the trash when some of it has already gone", () =>
+    Effect.gen(function* () {
+      const kept = TrashId.make("11111111-1111-4111-8111-111111111111");
+      const gone = TrashId.make("22222222-2222-4222-8222-222222222222");
+      const withTrash: Machine = {
+        ...online,
+        trash: [
+          {
+            id: kept,
+            originalPath: "/home/dev/Projects/old",
+            identity: { _tag: "RootCommit", sha: "abc" },
+            directoryName: "old",
+            branch: "main",
+            lastCommit: null,
+            trashedAt: now,
+            sizeBytes: 0,
+            worktrees: [],
+          },
+        ],
+      };
+      const fleet: Fleet = { ...fleetWith([]), machines: [withTrash] };
+      const purge = (id: TrashId) => ({
+        machineId: online.id,
+        request: { _tag: "Purge" as const, target: { _tag: "Checkout" as const, id } },
+      });
+      const plan = yield* planBatch({ _tag: "Targeted", runs: [purge(gone), purge(kept)] }, fleet);
+
+      expect(plan.runs.map(({ path, repository }) => [path, repository.label])).toEqual([
+        ["/home/dev/Projects/old", "old"],
+      ]);
+      expect(
+        yield* planBatch({ _tag: "Targeted", runs: [purge(gone)] }, fleet).pipe(
+          Effect.flip,
+          Effect.map(({ _tag }) => _tag),
+        ),
+      ).toBe("NothingToRun");
     }),
   );
 });

@@ -1,4 +1,8 @@
-import { archiveDestination, unarchiveDestination } from "@fleetfrog/protocol/domain/archiveFolder";
+import {
+  archiveDestination,
+  checkArchiveFolder,
+  unarchiveDestination,
+} from "@fleetfrog/protocol/domain/archiveFolder";
 import { expandHome, isWithin } from "@fleetfrog/protocol/domain/cloneDestination";
 
 import { machineBlocker } from "../actions/actionAvailability.ts";
@@ -29,6 +33,24 @@ function roots(machine: Machine): ReadonlyArray<string> {
   return machine.discoveryRoots.map(({ path }) => path);
 }
 
+const unusableFolderReason =
+  "The Archive folder holds one of this machine's project folders, so the agent ignores it. Change it in the machine's settings";
+
+/**
+ * Whether the machine's Archive folder still passes the checks it was saved with. Changing the
+ * project folders afterwards can make it hold one, and the agent then ignores it.
+ */
+function archiveFolderUsable(machine: Machine): boolean {
+  return (
+    machine.archiveFolder !== null &&
+    checkArchiveFolder({
+      folder: machine.archiveFolder,
+      home: machine.info.homeDirectory,
+      roots: roots(machine),
+    })._tag === "Valid"
+  );
+}
+
 /** The linked worktrees whose folders still exist, as the checkout lists them. */
 export function linkedWorktrees(checkout: Checkout): ReadonlyArray<LinkedWorktree> {
   return checkout.status._tag === "Read"
@@ -50,6 +72,10 @@ export function planArchive(options: {
 
   if (machine.archiveFolder === null) {
     return { _tag: "Blocked", reason: "Set an Archive folder in this machine's settings first" };
+  }
+
+  if (!archiveFolderUsable(machine)) {
+    return { _tag: "Blocked", reason: unusableFolderReason };
   }
 
   if (checkout.worktree._tag === "Linked") {
@@ -92,6 +118,10 @@ export function planUnarchive(options: {
 
   if (machine.archiveFolder === null) {
     return { _tag: "Blocked", reason: "The machine has no Archive folder set" };
+  }
+
+  if (!archiveFolderUsable(machine)) {
+    return { _tag: "Blocked", reason: unusableFolderReason };
   }
 
   const destination = unarchiveDestination({

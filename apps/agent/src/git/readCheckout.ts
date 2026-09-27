@@ -145,7 +145,7 @@ export const locateCheckout = Effect.fn("locateCheckout")(function* (directory: 
     originUrl,
     worktree,
     directoryName: path.basename(mainPath),
-    // Discovery moves checkouts it finds in the Archive folder into the archive.
+    // Discovery marks checkouts it finds in the Archive folder as archived.
     placement: Placement.cases.Projects.make({}),
     gitDirectory,
     commonDirectory,

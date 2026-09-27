@@ -70,7 +70,7 @@ async function linksBack(worktree: string, commonDirectory: string): Promise<boo
 
 /** The clone's linked worktrees, each with whether its folder is there and still linked. */
 export const readLinkedWorktrees = Effect.fn("readLinkedWorktrees")(function* (
-  location: CheckoutLocation,
+  location: Pick<CheckoutLocation, "path" | "commonDirectory">,
 ) {
   const [, ...linked] = yield* listWorktrees(location.path);
 

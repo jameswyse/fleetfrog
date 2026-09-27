@@ -17,45 +17,52 @@ import type {
 } from "@fleetfrog/protocol/domain/activity";
 import type { Operation } from "@fleetfrog/protocol/domain/checkout";
 
-/** The words before what a batch acted on, such as "Switch branch in" before "shop". */
-const batchVerbs = {
-  Fetch: "Fetch",
-  Pull: "Pull",
-  Clone: "Clone",
-  Switch: "Switch branch in",
-  Stash: "Stash changes in",
-  DeleteBranches: "Delete branches in",
-  RemoveWorktree: "Remove a worktree of",
-  DropStashes: "Drop stashes in",
-  Archive: "Archive",
-  Unarchive: "Unarchive",
-  Trash: "Trash",
-  Delete: "Permanently delete",
-  Restore: "Restore from the trash in",
-  Purge: "Permanently delete from",
-} satisfies Record<ActionKind, string>;
+/**
+ * How Activity names a batch of each kind: `one` goes before the repository it acted on, and
+ * `several` stands for a batch across several checkouts.
+ */
+const batchPhrases = {
+  Fetch: { one: "Fetch", several: "Fetch" },
+  Pull: { one: "Pull", several: "Pull" },
+  Clone: { one: "Clone", several: "Clone" },
+  Switch: { one: "Switch branch in", several: "Switch branches" },
+  Stash: { one: "Stash changes in", several: "Stash changes" },
+  DeleteBranches: { one: "Delete branches in", several: "Delete branches" },
+  RemoveWorktree: { one: "Remove a worktree of", several: "Remove worktrees" },
+  DropStashes: { one: "Drop stashes in", several: "Drop stashes" },
+  Archive: { one: "Archive", several: "Archive checkouts" },
+  Unarchive: { one: "Unarchive", several: "Unarchive checkouts" },
+  Trash: { one: "Trash", several: "Move checkouts to the trash" },
+  Delete: { one: "Permanently delete", several: "Permanently delete checkouts" },
+  Restore: { one: "Restore from the trash in", several: "Restore from the trash" },
+  Purge: { one: "Permanently delete from the trash in", several: "Empty the trash" },
+} satisfies Record<ActionKind, { readonly one: string; readonly several: string }>;
 
 export function describeBatch({ kind, scope }: Pick<ActionBatch, "kind" | "scope">): string {
-  const verb = batchVerbs[kind];
+  const { one, several } = batchPhrases[kind];
   // Fetches and pulls cover a whole scope; other batches name each checkout they act on.
   const expanded = kind === "Fetch" || kind === "Pull";
   const things = kind === "Pull" ? "checkout" : "repository";
 
   return BatchScope.match(scope, {
-    Checkout: ({ repositoryName, machineName }) => `${verb} ${repositoryName} on ${machineName}`,
+    Checkout: ({ repositoryName, machineName }) => `${one} ${repositoryName} on ${machineName}`,
     Repository: ({ repositoryName }) =>
-      kind === "Clone" ? `Clone ${repositoryName}` : `${verb} ${repositoryName} on every machine`,
+      kind === "Clone" ? `Clone ${repositoryName}` : `${one} ${repositoryName} on every machine`,
     Machine: ({ machineName }) =>
-      expanded
-        ? `${verb} every ${things} on ${machineName}`
-        : `${verb} several checkouts on ${machineName}`,
-    All: () => (expanded ? `${verb} every ${things}` : `${verb} checkouts on several machines`),
+      expanded ? `${one} every ${things} on ${machineName}` : `${several} on ${machineName}`,
+    All: () => (expanded ? `${one} every ${things}` : `${several} on several machines`),
   });
 }
 
-const tierNames = { git: "Git", cleanup: "Cleanup" } satisfies Record<Tier, string>;
+/** Each tier as a sentence names it after its first word, such as "cleanup actions". */
+export const tierNames = { git: "Git", cleanup: "cleanup" } satisfies Record<Tier, string>;
 
-const operationNames = {
+/** The first letter capitalised, for a tier name that starts a sentence. */
+function capitalised(text: string): string {
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+}
+
+export const operationNames = {
   merge: "A merge",
   rebase: "A rebase",
   "cherry-pick": "A cherry-pick",
@@ -88,9 +95,15 @@ export function describeSkip(reason: SkipReason): string {
       `It has ${plural(count, "linked worktree")}, which moving it would break`,
     IsWorktree: () => "It's a linked worktree, which moves with its main checkout",
     DestinationTaken: ({ path }) => `Something is already at ${path}`,
+    DestinationsClash: ({ path }) => `Two of the folders would land at ${path}`,
+    UnreachableCommits: ({ commits }) =>
+      `Its detached HEAD holds ${plural(commits, "commit")} no branch has`,
+    IgnoredFiles: ({ files }) =>
+      `It has ${plural(files, "ignored file")} other than caches, such as .env, that would be deleted`,
     ChangedSinceInspection: () => "It changed after it was checked, so it was left alone",
     UniqueWork: () => "It has work that exists only on this machine",
-    NotAllowed: ({ tier }) => `${tierNames[tier]} actions are turned off on this machine`,
+    NotAllowed: ({ tier }) =>
+      `${capitalised(tierNames[tier])} actions are turned off on this machine`,
     AgentOutdated: () => "The agent needs updating",
   });
 }

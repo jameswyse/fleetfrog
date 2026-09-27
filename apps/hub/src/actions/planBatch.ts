@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 
 import {
   MachineNotFound,
@@ -43,6 +43,24 @@ export interface BatchPlan {
 type Target = { readonly repository: Repository; readonly entry: MachineCheckout };
 
 type PlanError = MachineNotFound | RepositoryNotFound | NothingToRun | NoCloneSource;
+
+/**
+ * Which checkouts each targeted action may act on. Only an archived checkout can be unarchived, and
+ * an archived one can still lose its worktrees, stashes and branches or go to the trash.
+ */
+const targetPlacements = {
+  Switch: "Active",
+  Stash: "Active",
+  DeleteBranches: "Either",
+  RemoveWorktree: "Either",
+  DropStashes: "Either",
+  Archive: "Active",
+  Unarchive: "Archived",
+  Trash: "Either",
+  Delete: "Either",
+  Restore: "Either",
+  Purge: "Either",
+} as const satisfies Record<TargetedRequest["_tag"], "Active" | "Archived" | "Either">;
 
 /** What a targeted request names: a checkout by its path, or a checkout in the trash. */
 function targetOf(
@@ -167,15 +185,12 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
    * removing a checkout or acting on the trash covers both kinds. Every other action works on
    * active checkouts.
    */
-  const candidatesFor = (targeted: TargetedRequest): ReadonlyArray<Target> => {
-    if (targeted._tag === "Unarchive") {
-      return archivedTargets;
-    }
-
-    return ["Trash", "Delete", "Restore", "Purge"].includes(targeted._tag)
-      ? [...allTargets, ...archivedTargets]
-      : allTargets;
-  };
+  const candidatesFor = (targeted: TargetedRequest): ReadonlyArray<Target> =>
+    ({
+      Active: allTargets,
+      Archived: archivedTargets,
+      Either: [...allTargets, ...archivedTargets],
+    })[targetPlacements[targeted._tag]];
 
   /**
    * The repository a trashed checkout belongs to. One no longer anywhere else in the fleet stands
@@ -313,21 +328,23 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
       Effect.gen(function* () {
         // The request's schema holds every run to the first one's kind.
         const kind = runs[0].request._tag;
+        // A target that's gone since the dashboard showed it, such as an item already restored,
+        // is left out, so the rest still run. Only a batch left with nothing fails.
         const planned = yield* Effect.forEach(
           runs,
           ({ machineId, request: targeted }: TargetedRun) =>
             Effect.gen(function* () {
               const machine = yield* findMachine(machineId);
-              const target = yield* locate(machineId, targeted);
+              const target = yield* locate(machineId, targeted).pipe(Effect.option);
 
-              return {
+              return Option.map(target, (found): PlannedRun => ({
                 machine,
-                ...target,
+                ...found,
                 request: targeted,
                 outcome: actionBlocker(machine, kind),
-              } satisfies PlannedRun;
+              }));
             }),
-        );
+        ).pipe(Effect.map((found) => found.flatMap((run) => Option.toArray(run))));
 
         return { kind, scope: targetedScope(planned), runs: planned };
       }),

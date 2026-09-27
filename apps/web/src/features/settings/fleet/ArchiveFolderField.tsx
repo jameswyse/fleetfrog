@@ -52,6 +52,8 @@ export function ArchiveFolderField({
   const [creation, setCreation] = useState<Creation | null>(null);
   const folder = machine.archiveFolder;
   const status = machine.archiveFolderStatus;
+  // The saved folder can stop passing its checks when the project folders change.
+  const savedProblem = folder === null ? null : folderProblem(folder, machine);
 
   const create = async (path: string) => {
     if (createFolder === null) {
@@ -118,6 +120,12 @@ export function ArchiveFolderField({
       />
       <div id={`${id}-status`} role="status" className="mt-2 text-sm empty:hidden">
         {problem !== null && <p className="text-danger">{problem}</p>}
+        {problem === null && savedProblem !== null && (
+          <p className="text-changes">
+            {savedProblem} Until then the agent ignores it, and archived checkouts inside it show up
+            as projects again.
+          </p>
+        )}
         {problem === null && creation?._tag === "Failed" && (
           <p className="text-danger">Couldn't create it. {creation.message}</p>
         )}

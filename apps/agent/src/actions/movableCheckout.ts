@@ -34,6 +34,15 @@ export const worktreesProblem = (location: CheckoutLocation) =>
     ),
   );
 
+/** Whether something is already at the path. */
+export const exists = (target: string) =>
+  Effect.promise(() =>
+    lstat(target).then(
+      () => true,
+      () => false,
+    ),
+  );
+
 /** Whether a rename failed because its two paths are on different disks. */
 function isCrossDevice(error: unknown): boolean {
   return error instanceof Error && "code" in error && error.code === "EXDEV";

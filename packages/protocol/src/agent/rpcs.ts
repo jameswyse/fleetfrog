@@ -66,10 +66,13 @@ export const HubCommand = Schema.TaggedUnion({
 export type HubCommand = typeof HubCommand.Type;
 
 /**
- * A command as the agent receives it. A newer hub may send a command this agent doesn't know, which
- * it skips instead of ending the connection.
+ * A command as the agent receives it. A newer hub may send a command this agent can't read, which
+ * it skips instead of ending the connection, answering one that carries a run id as failed.
  */
-export const ReceivedCommand = Schema.Union([HubCommand, Schema.Struct({ _tag: Schema.String })]);
+export const ReceivedCommand = Schema.Union([
+  HubCommand,
+  Schema.Struct({ _tag: Schema.String, runId: Schema.optionalKey(RunId) }),
+]);
 
 export const ReportedRoot = Schema.Struct({ path: Schema.String, status: FolderStatus });
 export type ReportedRoot = typeof ReportedRoot.Type;
@@ -96,6 +99,22 @@ export const ScanReport = Schema.TaggedUnion({
 });
 export type ScanReport = typeof ScanReport.Type;
 
+/**
+ * A report as the hub receives it. A newer agent may send a kind of report this hub doesn't know,
+ * which it ignores instead of refusing the report.
+ */
+export const ReceivedReport = Schema.Union([ScanReport, Schema.Struct({ _tag: Schema.String })]);
+
+/**
+ * An action update as the hub receives it. A newer agent may finish a run with an outcome this hub
+ * can't read, which still ends the run, or send a kind of update it doesn't know, which it ignores.
+ */
+export const ReceivedUpdate = Schema.Union([
+  ActionUpdate,
+  Schema.Struct({ _tag: Schema.Literal("Finished"), output: Schema.Array(Schema.String) }),
+  Schema.Struct({ _tag: Schema.String }),
+]);
+
 /** Served over WebSocket on the agent port. The agent is always the client. */
 export class AgentRpcs extends RpcGroup.make(
   /** Holds the connection open. The machine is online for as long as this stream runs. */
@@ -104,10 +123,10 @@ export class AgentRpcs extends RpcGroup.make(
     success: ReceivedCommand,
     stream: true,
   }),
-  Rpc.make("Report", { payload: { report: ScanReport } }),
+  Rpc.make("Report", { payload: { report: ReceivedReport } }),
   /** Sent when the machine's owner changes its policy while connected. */
   Rpc.make("Advertise", { payload: { capabilities: AgentCapabilities } }),
-  Rpc.make("ReportAction", { payload: { runId: RunId, update: ActionUpdate } }),
+  Rpc.make("ReportAction", { payload: { runId: RunId, update: ReceivedUpdate } }),
   /** Answers a `CreateFolder` command. */
   Rpc.make("ReportFolder", { payload: { requestId: Schema.String, outcome: FolderOutcome } }),
   Rpc.make("ReportUsage", { payload: { usage: SystemUsage } }),
