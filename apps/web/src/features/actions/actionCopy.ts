@@ -23,6 +23,9 @@ const batchVerbs = {
   Clone: "Clone",
   Switch: "Switch branch in",
   Stash: "Stash changes in",
+  DeleteBranches: "Delete branches in",
+  Restore: "Restore from the trash in",
+  Purge: "Permanently delete from",
 } satisfies Record<ActionKind, string>;
 
 export function describeBatch({ kind, scope }: Pick<ActionBatch, "kind" | "scope">): string {
@@ -66,6 +69,11 @@ export function describeSkip(reason: SkipReason): string {
     AlreadyOnBranch: () => "Already on that branch",
     BranchInUse: () => "Another worktree has that branch checked out",
     NoSuchBranch: () => "The branch no longer exists",
+    BranchChanged: ({ branch }) => `${branch} has new commits since the last scan`,
+    BranchCheckedOut: ({ branch }) => `${branch} is checked out`,
+    DefaultBranch: ({ branch }) => `${branch} is the default branch`,
+    BranchExists: ({ branch }) => `A branch called ${branch} exists now`,
+    NotInTrash: () => "It's no longer in the trash",
     NotAllowed: ({ tier }) => `${tierNames[tier]} actions are turned off on this machine`,
     AgentOutdated: () => "The agent needs updating",
   });
@@ -79,6 +87,10 @@ function describeResult(result: ActionResult): string {
     Cloned: () => "Cloned",
     Switched: ({ branch }) => `Switched to ${branch}`,
     Stashed: ({ files }) => `Stashed ${plural(files, "file")}`,
+    BranchesDeleted: ({ branches }) =>
+      `Moved ${plural(branches, "branch", "branches")} to the trash`,
+    Restored: () => "Restored",
+    Purged: () => "Permanently deleted",
   });
 }
 
@@ -149,6 +161,9 @@ const activeVerbs = {
   Clone: "Cloning",
   Switch: "Switching branch",
   Stash: "Stashing",
+  DeleteBranches: "Deleting branches",
+  Restore: "Restoring",
+  Purge: "Deleting permanently",
 } satisfies Record<ActionKind, string>;
 
 const waitingVerbs = {
@@ -157,6 +172,9 @@ const waitingVerbs = {
   Clone: "clone",
   Switch: "switch branch",
   Stash: "stash",
+  DeleteBranches: "delete branches",
+  Restore: "restore",
+  Purge: "delete permanently",
 } satisfies Record<ActionKind, string>;
 
 /** What a queued or running run is doing, in a word or two: "Cloning", or "Waiting to clone". */

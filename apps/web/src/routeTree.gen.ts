@@ -12,9 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppActivityRouteImport } from './routes/_app/activity'
+import { Route as AppCleanupRouteImport } from './routes/_app/cleanup'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppActivityIndexRouteImport } from './routes/_app/activity/index'
 import { Route as AppActivityRunningRouteImport } from './routes/_app/activity/running'
+import { Route as AppCleanupIndexRouteImport } from './routes/_app/cleanup/index'
+import { Route as AppCleanupTrashRouteImport } from './routes/_app/cleanup/trash'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
 import { Route as AppSettingsScanningRouteImport } from './routes/_app/settings/scanning'
 import { Route as AppSettingsFleetIndexRouteImport } from './routes/_app/settings/fleet/index'
@@ -35,6 +38,11 @@ const AppActivityRoute = AppActivityRouteImport.update({
   path: '/activity',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCleanupRoute = AppCleanupRouteImport.update({
+  id: '/cleanup',
+  path: '/cleanup',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -49,6 +57,16 @@ const AppActivityRunningRoute = AppActivityRunningRouteImport.update({
   id: '/running',
   path: '/running',
   getParentRoute: () => AppActivityRoute,
+} as any)
+const AppCleanupIndexRoute = AppCleanupIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppCleanupRoute,
+} as any)
+const AppCleanupTrashRoute = AppCleanupTrashRouteImport.update({
+  id: '/trash',
+  path: '/trash',
+  getParentRoute: () => AppCleanupRoute,
 } as any)
 const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   id: '/',
@@ -80,10 +98,13 @@ const AppSettingsFleetPairRoute = AppSettingsFleetPairRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/activity': typeof AppActivityRouteWithChildren
+  '/cleanup': typeof AppCleanupRouteWithChildren
   '/settings': typeof AppSettingsRouteWithChildren
   '/activity/running': typeof AppActivityRunningRoute
+  '/cleanup/trash': typeof AppCleanupTrashRoute
   '/settings/scanning': typeof AppSettingsScanningRoute
   '/activity/': typeof AppActivityIndexRoute
+  '/cleanup/': typeof AppCleanupIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
   '/settings/fleet/$machineId': typeof AppSettingsFleetMachineIdRoute
   '/settings/fleet/pair': typeof AppSettingsFleetPairRoute
@@ -92,8 +113,10 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/activity/running': typeof AppActivityRunningRoute
+  '/cleanup/trash': typeof AppCleanupTrashRoute
   '/settings/scanning': typeof AppSettingsScanningRoute
   '/activity': typeof AppActivityIndexRoute
+  '/cleanup': typeof AppCleanupIndexRoute
   '/settings': typeof AppSettingsIndexRoute
   '/settings/fleet/$machineId': typeof AppSettingsFleetMachineIdRoute
   '/settings/fleet/pair': typeof AppSettingsFleetPairRoute
@@ -103,11 +126,14 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/_app/activity': typeof AppActivityRouteWithChildren
+  '/_app/cleanup': typeof AppCleanupRouteWithChildren
   '/_app/settings': typeof AppSettingsRouteWithChildren
   '/_app/': typeof AppIndexRoute
   '/_app/activity/running': typeof AppActivityRunningRoute
+  '/_app/cleanup/trash': typeof AppCleanupTrashRoute
   '/_app/settings/scanning': typeof AppSettingsScanningRoute
   '/_app/activity/': typeof AppActivityIndexRoute
+  '/_app/cleanup/': typeof AppCleanupIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
   '/_app/settings/fleet/$machineId': typeof AppSettingsFleetMachineIdRoute
   '/_app/settings/fleet/pair': typeof AppSettingsFleetPairRoute
@@ -118,10 +144,13 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/activity'
+    | '/cleanup'
     | '/settings'
     | '/activity/running'
+    | '/cleanup/trash'
     | '/settings/scanning'
     | '/activity/'
+    | '/cleanup/'
     | '/settings/'
     | '/settings/fleet/$machineId'
     | '/settings/fleet/pair'
@@ -130,8 +159,10 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/activity/running'
+    | '/cleanup/trash'
     | '/settings/scanning'
     | '/activity'
+    | '/cleanup'
     | '/settings'
     | '/settings/fleet/$machineId'
     | '/settings/fleet/pair'
@@ -140,11 +171,14 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/_app/activity'
+    | '/_app/cleanup'
     | '/_app/settings'
     | '/_app/'
     | '/_app/activity/running'
+    | '/_app/cleanup/trash'
     | '/_app/settings/scanning'
     | '/_app/activity/'
+    | '/_app/cleanup/'
     | '/_app/settings/'
     | '/_app/settings/fleet/$machineId'
     | '/_app/settings/fleet/pair'
@@ -178,6 +212,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppActivityRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/cleanup': {
+      id: '/_app/cleanup'
+      path: '/cleanup'
+      fullPath: '/cleanup'
+      preLoaderRoute: typeof AppCleanupRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings': {
       id: '/_app/settings'
       path: '/settings'
@@ -198,6 +239,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/activity/running'
       preLoaderRoute: typeof AppActivityRunningRouteImport
       parentRoute: typeof AppActivityRoute
+    }
+    '/_app/cleanup/': {
+      id: '/_app/cleanup/'
+      path: '/'
+      fullPath: '/cleanup/'
+      preLoaderRoute: typeof AppCleanupIndexRouteImport
+      parentRoute: typeof AppCleanupRoute
+    }
+    '/_app/cleanup/trash': {
+      id: '/_app/cleanup/trash'
+      path: '/trash'
+      fullPath: '/cleanup/trash'
+      preLoaderRoute: typeof AppCleanupTrashRouteImport
+      parentRoute: typeof AppCleanupRoute
     }
     '/_app/settings/': {
       id: '/_app/settings/'
@@ -251,6 +306,20 @@ const AppActivityRouteWithChildren = AppActivityRoute._addFileChildren(
   AppActivityRouteChildren,
 )
 
+interface AppCleanupRouteChildren {
+  AppCleanupTrashRoute: typeof AppCleanupTrashRoute
+  AppCleanupIndexRoute: typeof AppCleanupIndexRoute
+}
+
+const AppCleanupRouteChildren: AppCleanupRouteChildren = {
+  AppCleanupTrashRoute: AppCleanupTrashRoute,
+  AppCleanupIndexRoute: AppCleanupIndexRoute,
+}
+
+const AppCleanupRouteWithChildren = AppCleanupRoute._addFileChildren(
+  AppCleanupRouteChildren,
+)
+
 interface AppSettingsRouteChildren {
   AppSettingsScanningRoute: typeof AppSettingsScanningRoute
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
@@ -273,12 +342,14 @@ const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppActivityRoute: typeof AppActivityRouteWithChildren
+  AppCleanupRoute: typeof AppCleanupRouteWithChildren
   AppSettingsRoute: typeof AppSettingsRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppActivityRoute: AppActivityRouteWithChildren,
+  AppCleanupRoute: AppCleanupRouteWithChildren,
   AppSettingsRoute: AppSettingsRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
 }

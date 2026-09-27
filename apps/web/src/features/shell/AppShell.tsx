@@ -9,6 +9,7 @@ import { StaleNotice } from "./StaleNotice.tsx";
 
 const navigation = [
   { to: "/", label: "Projects" },
+  { to: "/cleanup", label: "Cleanup" },
   { to: "/activity", label: "Activity" },
   { to: "/settings", label: "Settings" },
 ] as const;

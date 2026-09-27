@@ -90,6 +90,27 @@ describe("reading a checkout", () => {
     }),
   );
 
+  it.effect("tells merged, pushed and local-only branches apart", () =>
+    Effect.gen(function* () {
+      const fixture = createFixture(yield* temporaryDirectory("fleetfrog-agent-"));
+
+      git(fixture.clone, "branch", "old", "origin/main~1");
+
+      const location = Option.getOrThrow(yield* locateCheckout(fixture.clone));
+      const status = yield* readGitStatus(location);
+      const tips = new Map(status.branches.items.map(({ name, tip }) => [name, tip]));
+
+      expect(status.defaultBranch).toBe("main");
+      expect(tips.get("old")).toMatchObject({ merged: true, pushed: true, localCommits: 0 });
+      expect(tips.get("main")).toMatchObject({
+        subject: "Local work",
+        merged: false,
+        pushed: false,
+        localCommits: 1,
+      });
+    }),
+  );
+
   it.effect("identifies a linked worktree with its main checkout", () =>
     Effect.gen(function* () {
       const fixture = createFixture(yield* temporaryDirectory("fleetfrog-agent-"));

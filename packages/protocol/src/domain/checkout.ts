@@ -45,9 +45,25 @@ export const Commit = Schema.Struct({
 });
 export type Commit = typeof Commit.Type;
 
+/** Where a local branch's newest commit is, which says what deleting the branch would lose. */
+export const BranchTip = Schema.Struct({
+  sha: Schema.String,
+  subject: Schema.String,
+  committedAt: Schema.DateTimeUtc,
+  /** The tip is in the default branch as last fetched from `origin`. */
+  merged: Schema.Boolean,
+  /** The tip is in some remote-tracking branch, so every commit is on a remote. */
+  pushed: Schema.Boolean,
+  /** Commits in no remote-tracking branch, which exist only on this machine. */
+  localCommits: Count,
+});
+export type BranchTip = typeof BranchTip.Type;
+
 export const LocalBranch = Schema.Struct({
   name: Schema.String,
   upstream: Schema.NullOr(Upstream),
+  /** Null from agents that predate reporting it. */
+  tip: Schema.NullOr(BranchTip).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(null))),
 });
 export type LocalBranch = typeof LocalBranch.Type;
 
@@ -61,6 +77,25 @@ export type Stash = typeof Stash.Type;
 export const Operation = Schema.Literals(["merge", "rebase", "cherry-pick", "revert", "bisect"]);
 export type Operation = typeof Operation.Type;
 
+/**
+ * A branch FleetFrog deleted, kept in `ref` so it can be restored until the trash is emptied.
+ * Refs are shared by every worktree of a clone, so only the main worktree reports them.
+ */
+export const DeletedBranch = Schema.Struct({
+  name: Schema.String,
+  /** `refs/fleetfrog/deleted/<epoch milliseconds>/<name>`. */
+  ref: Schema.String,
+  sha: Schema.String,
+  subject: Schema.String,
+  deletedAt: Schema.DateTimeUtc,
+});
+export type DeletedBranch = typeof DeletedBranch.Type;
+
+/** Where FleetFrog keeps the branches it deletes. */
+export const deletedBranchPrefix = "refs/fleetfrog/deleted/";
+
+const noneYet = Effect.succeed({ items: [], total: 0 });
+
 export const GitStatus = Schema.Struct({
   head: Head,
   /** Null when no operation is in progress, and from agents that predate reporting it. */
@@ -70,10 +105,24 @@ export const GitStatus = Schema.Struct({
   untracked: Capped(Schema.String),
   stashes: Capped(Stash),
   branches: Capped(LocalBranch),
+  /** The branch `origin/HEAD` points at, or null when the clone doesn't record one. */
+  defaultBranch: Schema.NullOr(Schema.String).pipe(
+    Schema.withDecodingDefaultTypeKey(Effect.succeed(null)),
+  ),
+  deletedBranches: Capped(DeletedBranch).pipe(Schema.withDecodingDefaultTypeKey(noneYet)),
   /** When this checkout last fetched, from the modification time of `FETCH_HEAD`. */
   lastFetchedAt: Schema.NullOr(Schema.DateTimeUtc),
 });
 export type GitStatus = typeof GitStatus.Type;
+
+/** A merged pull request from a local branch, with the commit it was merged at. */
+export const MergedPullRequest = Schema.Struct({
+  number: Count,
+  url: Schema.String,
+  branch: Schema.String,
+  sha: Schema.String,
+});
+export type MergedPullRequest = typeof MergedPullRequest.Type;
 
 export const PullRequest = Schema.Struct({
   number: Count,
@@ -92,6 +141,10 @@ export const GithubState = Schema.Struct({
   /** The local remote-tracking ref for the default branch, when present. */
   trackingSha: Schema.NullOr(Schema.String),
   pullRequests: Schema.Array(PullRequest),
+  /** Recently merged pull requests from branches that still exist locally. */
+  mergedPullRequests: Schema.Array(MergedPullRequest).pipe(
+    Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
+  ),
   checkedAt: Schema.DateTimeUtc,
 });
 export type GithubState = typeof GithubState.Type;

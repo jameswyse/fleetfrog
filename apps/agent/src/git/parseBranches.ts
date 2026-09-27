@@ -6,7 +6,7 @@ import type { Commit, LocalBranch, Upstream } from "@fleetfrog/protocol/domain/c
 
 export const branchFormat = [
   "%(HEAD)",
-  "%(refname:short)",
+  "%(refname:lstrip=2)",
   "%(upstream:short)",
   "%(upstream:track,nobracket)",
   "%(objectname)",
@@ -14,8 +14,15 @@ export const branchFormat = [
   "%(contents:subject)",
 ].join("%00");
 
+/** A local branch with its newest commit, before its reachability from remotes is known. */
+export interface ParsedBranch {
+  readonly name: string;
+  readonly upstream: LocalBranch["upstream"];
+  readonly tip: Commit;
+}
+
 export interface ParsedBranches {
-  readonly branches: { readonly items: ReadonlyArray<LocalBranch>; readonly total: number };
+  readonly branches: { readonly items: ReadonlyArray<ParsedBranch>; readonly total: number };
   /** The tip of the checked-out branch, absent when HEAD is detached or unborn. */
   readonly currentCommit: Commit | null;
 }
@@ -44,7 +51,7 @@ function upstreamFrom(name: string, track: string): Upstream | null {
 
 /** Parses `git for-each-ref refs/heads --format=<branchFormat>`. */
 export function parseBranches(output: string): ParsedBranches {
-  const items: Array<LocalBranch> = [];
+  const items: Array<ParsedBranch> = [];
   let total = 0;
   let currentCommit: Commit | null = null;
 
@@ -56,18 +63,20 @@ export function parseBranches(output: string): ParsedBranches {
     const [marker, name = "", upstream = "", track = "", sha = "", committedAt = "", subject = ""] =
       line.split("\0");
 
+    const tip: Commit = {
+      sha,
+      subject,
+      committedAt: DateTime.makeUnsafe(committedAt).pipe(DateTime.toUtc),
+    };
+
     total += 1;
 
     if (items.length < listLimit) {
-      items.push({ name, upstream: upstreamFrom(upstream, track) });
+      items.push({ name, upstream: upstreamFrom(upstream, track), tip });
     }
 
     if (marker === "*") {
-      currentCommit = {
-        sha,
-        subject,
-        committedAt: DateTime.makeUnsafe(committedAt).pipe(DateTime.toUtc),
-      };
+      currentCommit = tip;
     }
   }
 

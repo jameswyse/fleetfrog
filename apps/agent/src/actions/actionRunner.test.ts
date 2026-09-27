@@ -319,4 +319,83 @@ describe("action runner", () => {
       expect(git(clone, "stash", "list")).toContain("Stashed from FleetFrog");
     }),
   );
+
+  it.effect("moves branches to the trash and restores them at the same commit", () =>
+    Effect.gen(function* () {
+      const { run, clone } = yield* setUp({ allowedTiers: ["git", "cleanup"] });
+
+      git(clone, "branch", "feature");
+
+      const sha = git(clone, "rev-parse", "feature");
+
+      expect(
+        yield* run({
+          _tag: "DeleteBranches",
+          path: clone,
+          branches: [{ name: "feature", sha }],
+        }),
+      ).toMatchObject({
+        outcome: { _tag: "Succeeded", result: { _tag: "BranchesDeleted", branches: 1 } },
+      });
+      expect(git(clone, "branch", "--list", "feature")).toBe("");
+
+      const ref = git(clone, "for-each-ref", "--format=%(refname)", "refs/fleetfrog/deleted");
+
+      expect(ref).toMatch(/^refs\/fleetfrog\/deleted\/\d+\/feature$/);
+      expect(
+        yield* run(
+          { _tag: "Restore", target: { _tag: "Branch", path: clone, ref } },
+          runIds.second,
+        ),
+      ).toMatchObject({ outcome: { _tag: "Succeeded", result: { _tag: "Restored" } } });
+      expect(git(clone, "rev-parse", "feature")).toBe(sha);
+      expect(git(clone, "for-each-ref", "refs/fleetfrog/deleted")).toBe("");
+    }),
+  );
+
+  it.effect("deletes no branch when any has moved since the dashboard showed it", () =>
+    Effect.gen(function* () {
+      const { run, clone } = yield* setUp({ allowedTiers: ["git", "cleanup"] });
+
+      git(clone, "branch", "stale");
+      git(clone, "branch", "moved");
+
+      const shown = git(clone, "rev-parse", "moved");
+
+      git(clone, "commit", "-q", "--allow-empty", "-m", "Newer");
+      git(clone, "branch", "-f", "moved", "HEAD");
+
+      expect(
+        yield* run({
+          _tag: "DeleteBranches",
+          path: clone,
+          branches: [
+            { name: "stale", sha: git(clone, "rev-parse", "stale") },
+            { name: "moved", sha: shown },
+          ],
+        }),
+      ).toMatchObject({
+        outcome: { _tag: "Skipped", reason: { _tag: "BranchChanged", branch: "moved" } },
+      });
+      expect(git(clone, "branch", "--list", "stale", "moved")).toContain("stale");
+    }),
+  );
+
+  it.effect("won't delete the checked-out branch", () =>
+    Effect.gen(function* () {
+      const { run, clone } = yield* setUp({ allowedTiers: ["git", "cleanup"] });
+
+      git(clone, "switch", "-q", "-c", "current");
+
+      expect(
+        yield* run({
+          _tag: "DeleteBranches",
+          path: clone,
+          branches: [{ name: "current", sha: git(clone, "rev-parse", "current") }],
+        }),
+      ).toMatchObject({
+        outcome: { _tag: "Skipped", reason: { _tag: "BranchCheckedOut", branch: "current" } },
+      });
+    }),
+  );
 });

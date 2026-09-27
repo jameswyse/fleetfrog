@@ -1,11 +1,19 @@
+import { useState } from "react";
+
 import { GitBranchIcon } from "lucide-react";
 
 import { useRuns } from "@/rpc/hubConnection.ts";
-import { clonePath } from "@fleetfrog/protocol/domain/checkout";
+import { Button } from "@/ui/Button.tsx";
 
-import { switchSkipReason } from "../../actions/actionAvailability.ts";
+import { machineBlocker, switchSkipReason } from "../../actions/actionAvailability.ts";
 import { activeRunFor } from "../../actions/runLookup.ts";
 import { useStartBatch } from "../../actions/useStartBatch.ts";
+import {
+  branchesInOtherWorktrees,
+  isMerged,
+  tidyCandidates,
+} from "../../branches/branchTidying.ts";
+import { TidyBranchesDialog } from "../../branches/TidyBranchesDialog.tsx";
 import { PanelSection, ShortList } from "./PanelSection.tsx";
 
 import type { Checkout, GitStatus, Upstream } from "@fleetfrog/protocol/domain/checkout";
@@ -47,29 +55,10 @@ function UpstreamState({ upstream }: { readonly upstream: Upstream | null }) {
   );
 }
 
-/** The branches the clone's other worktrees on this machine have checked out. */
-function branchesInOtherWorktrees(
-  repository: Repository,
-  machine: Machine,
-  checkout: Checkout,
-): ReadonlySet<string> {
-  return new Set(
-    repository.checkouts
-      .filter(
-        (entry) =>
-          entry.machineId === machine.id &&
-          entry.checkout.path !== checkout.path &&
-          clonePath(entry.checkout) === clonePath(checkout),
-      )
-      .flatMap(({ checkout: other }) =>
-        other.status._tag === "Read" && other.status.git.head._tag === "Branch"
-          ? [other.status.git.head.name]
-          : [],
-      ),
-  );
-}
-
-/** The checkout's local branches, each with its upstream and a way to switch to it. */
+/**
+ * The checkout's local branches, each with its upstream and a way to switch to it, and a way to
+ * tidy away the ones no longer needed.
+ */
 export function BranchesSection({
   repository,
   machine,
@@ -82,6 +71,7 @@ export function BranchesSection({
   readonly git: GitStatus;
 }) {
   const runs = useRuns();
+  const [tidying, setTidying] = useState(false);
   const { start, pending, failure } = useStartBatch();
   const { head } = git;
   const current = head._tag === "Detached" ? null : head.name;
@@ -95,6 +85,9 @@ export function BranchesSection({
   const sharedReason = others.every(({ name }) => reasons.get(name) !== null)
     ? (reasons.get(others[0]?.name ?? "") ?? null)
     : null;
+
+  const candidates = tidyCandidates({ checkout, git, inOtherWorktrees: elsewhere });
+  const tidyBlocked = machineBlocker(machine, "DeleteBranches");
 
   const switchTo = (branch: string) =>
     start({
@@ -153,6 +146,26 @@ export function BranchesSection({
         <p role="status" className="mt-2 text-sm text-danger">
           {failure}
         </p>
+      )}
+      {candidates.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line pt-3">
+          <Button disabled={tidyBlocked !== null || busy} onClick={() => setTidying(true)}>
+            Tidy branches…
+          </Button>
+          <span className="text-xs text-ink-muted">
+            {tidyBlocked ?? `${candidates.filter(isMerged).length} of ${candidates.length} merged`}
+          </span>
+        </div>
+      )}
+      {tidying && (
+        <TidyBranchesDialog
+          repository={repository}
+          machine={machine}
+          checkout={checkout}
+          git={git}
+          candidates={candidates}
+          onClose={() => setTidying(false)}
+        />
       )}
     </PanelSection>
   );

@@ -91,6 +91,8 @@ export function runGitAction(options: {
   readonly onOutput: (text: string) => void;
   /** Extra variables, such as `GIT_ALLOW_PROTOCOL` for clones. */
   readonly environment?: Readonly<Record<string, string>>;
+  /** Written to Git's standard input, such as commands for `update-ref --stdin`. */
+  readonly input?: string;
 }) {
   const args = ["-c", "core.hooksPath=/dev/null", "-c", "core.askPass=", ...options.args];
 
@@ -101,8 +103,11 @@ export function runGitAction(options: {
       cwd: options.cwd,
       env: { ...actionEnvironment, ...options.environment },
       detached: true,
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: ["pipe", "pipe", "pipe"],
     });
+
+    // Git sees the input, or else an immediate end of input, never a terminal.
+    child.stdin.end(options.input ?? "");
     const closed = new Promise<void>((settle) => {
       child.once("close", () => {
         exited = true;

@@ -6,8 +6,9 @@ import { DateTime, Effect, Option } from "effect";
 import { RepositoryIdentity } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
 import { runGit } from "../process/runTool.ts";
+import { parseRefs, readBranchTips, refFormat, refPatterns } from "./branchReach.ts";
 import { branchFormat, parseBranches } from "./parseBranches.ts";
-import { parseStatus } from "./parseStatus.ts";
+import { listLimit, parseStatus } from "./parseStatus.ts";
 import { cloneableUrl, remoteIdentity } from "./remoteIdentity.ts";
 
 import type {
@@ -166,7 +167,7 @@ async function readOperation(gitDirectory: string): Promise<Operation | null> {
 }
 
 export const readGitStatus = Effect.fn("readGitStatus")(function* (location: CheckoutLocation) {
-  const [statusOutput, branchOutput, lastFetchedAt, operation] = yield* Effect.all(
+  const [statusOutput, branchOutput, refOutput, lastFetchedAt, operation] = yield* Effect.all(
     [
       runGit(location.path, [
         "status",
@@ -177,6 +178,7 @@ export const readGitStatus = Effect.fn("readGitStatus")(function* (location: Che
         "-z",
       ]),
       runGit(location.path, ["for-each-ref", "refs/heads", `--format=${branchFormat}`]),
+      runGit(location.path, ["for-each-ref", `--format=${refFormat}`, ...refPatterns]),
       Effect.promise(() => readLastFetch(location.commonDirectory)),
       Effect.promise(() => readOperation(location.gitDirectory)),
     ],
@@ -184,6 +186,16 @@ export const readGitStatus = Effect.fn("readGitStatus")(function* (location: Che
   );
   const status = parseStatus(statusOutput);
   const { branches, currentCommit } = parseBranches(branchOutput);
+  const refs = parseRefs(refOutput);
+  const branchItems = yield* readBranchTips({
+    directory: location.path,
+    commonDirectory: location.commonDirectory,
+    branches: branches.items,
+    refs,
+    refOutput,
+  });
+  // Every worktree shares the clone's refs, so only the main worktree reports deleted branches.
+  const deleted = location.worktree._tag === "Main" ? refs.deleted : [];
   const stashes = status.stashCount > 0 ? yield* readStashes(location.path) : [];
   const lastCommit =
     status.head._tag === "Detached" && status.commit !== null
@@ -197,7 +209,9 @@ export const readGitStatus = Effect.fn("readGitStatus")(function* (location: Che
     changed: status.changed,
     untracked: status.untracked,
     stashes: { items: stashes, total: status.stashCount },
-    branches,
+    branches: { items: branchItems, total: branches.total },
+    defaultBranch: refs.defaultRef?.replace(/^refs\/remotes\/origin\//, "") ?? null,
+    deletedBranches: { items: deleted.slice(0, listLimit), total: deleted.length },
     lastFetchedAt,
   } satisfies GitStatus;
 });

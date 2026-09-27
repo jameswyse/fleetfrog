@@ -6,7 +6,11 @@ import { repositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
 import { runGit, runTool } from "../process/runTool.ts";
 
-import type { GithubState, PullRequest } from "@fleetfrog/protocol/domain/checkout";
+import type {
+  GithubState,
+  MergedPullRequest,
+  PullRequest,
+} from "@fleetfrog/protocol/domain/checkout";
 import type { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
 import type { CheckoutLocation } from "../git/readCheckout.ts";
@@ -17,8 +21,14 @@ const query = `query($owner: String!, $name: String!) {
     pullRequests(states: OPEN, first: 100, orderBy: { field: UPDATED_AT, direction: DESC }) {
       nodes { number title url headRefName isDraft isCrossRepository headRepositoryOwner { login } }
     }
+    merged: pullRequests(states: MERGED, first: 50, orderBy: { field: UPDATED_AT, direction: DESC }) {
+      nodes { number url headRefName headRefOid isCrossRepository headRepositoryOwner { login } }
+    }
   }
 }`;
+
+// Null when the fork that opened the pull request has been deleted.
+const HeadOwner = Schema.NullOr(Schema.Struct({ login: Schema.String }));
 
 const RepositoryResponse = Schema.fromJsonString(
   Schema.Struct({
@@ -37,8 +47,19 @@ const RepositoryResponse = Schema.fromJsonString(
               headRefName: Schema.String,
               isDraft: Schema.Boolean,
               isCrossRepository: Schema.Boolean,
-              // Null when the fork that opened the pull request has been deleted.
-              headRepositoryOwner: Schema.NullOr(Schema.Struct({ login: Schema.String })),
+              headRepositoryOwner: HeadOwner,
+            }),
+          ),
+        }),
+        merged: Schema.Struct({
+          nodes: Schema.Array(
+            Schema.Struct({
+              number: Schema.Int,
+              url: Schema.String,
+              headRefName: Schema.String,
+              headRefOid: Schema.String,
+              isCrossRepository: Schema.Boolean,
+              headRepositoryOwner: HeadOwner,
             }),
           ),
         }),
@@ -52,6 +73,7 @@ interface RemoteState {
   readonly defaultBranch: string;
   readonly remoteSha: string;
   readonly pullRequests: ReadonlyArray<PullRequest>;
+  readonly mergedPullRequests: ReadonlyArray<MergedPullRequest>;
   readonly checkedAt: DateTime.Utc;
 }
 
@@ -78,22 +100,28 @@ export function makeGithubReader(reader: {
       `name=${name}`,
     ]);
     const { repository } = (yield* decodeResponse(output)).data;
+    // A fork's `main` is not the local `main`, so only branches pushed here or to our fork match.
+    const ours = (node: {
+      readonly isCrossRepository: boolean;
+      readonly headRepositoryOwner: typeof HeadOwner.Type;
+    }) => !node.isCrossRepository || node.headRepositoryOwner?.login === reader.login;
 
     return {
       defaultBranch: repository.defaultBranchRef.name,
       remoteSha: repository.defaultBranchRef.target.oid,
-      pullRequests: repository.pullRequests.nodes
-        // A fork's `main` is not the local `main`, so only branches pushed here or to our fork match.
-        .filter(
-          (node) => !node.isCrossRepository || node.headRepositoryOwner?.login === reader.login,
-        )
-        .map((node) => ({
-          number: node.number,
-          title: node.title,
-          url: node.url,
-          branch: node.headRefName,
-          draft: node.isDraft,
-        })),
+      pullRequests: repository.pullRequests.nodes.filter(ours).map((node) => ({
+        number: node.number,
+        title: node.title,
+        url: node.url,
+        branch: node.headRefName,
+        draft: node.isDraft,
+      })),
+      mergedPullRequests: repository.merged.nodes.filter(ours).map((node) => ({
+        number: node.number,
+        url: node.url,
+        branch: node.headRefName,
+        sha: node.headRefOid,
+      })),
       checkedAt: yield* DateTime.now,
     } satisfies RemoteState;
   });
@@ -151,6 +179,9 @@ export function makeGithubReader(reader: {
       remoteSha: remote.value.remoteSha,
       trackingSha,
       pullRequests: remote.value.pullRequests.filter(({ branch }) => branches.has(branch)),
+      mergedPullRequests: remote.value.mergedPullRequests.filter(({ branch }) =>
+        branches.has(branch),
+      ),
       checkedAt: remote.value.checkedAt,
     });
   });

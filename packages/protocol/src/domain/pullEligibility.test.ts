@@ -17,6 +17,8 @@ function status(options: {
     untracked: { items: ["notes.txt"], total: 1 },
     stashes: { items: [], total: 0 },
     branches: { items: [], total: 0 },
+    defaultBranch: null,
+    deletedBranches: { items: [], total: 0 },
     lastFetchedAt: null,
   };
 }

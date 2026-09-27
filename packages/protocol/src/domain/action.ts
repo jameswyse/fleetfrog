@@ -1,4 +1,4 @@
-import { Effect, Schema } from "effect";
+import { Effect, Schema, SchemaGetter } from "effect";
 
 import { Operation } from "./checkout.ts";
 import { Count } from "./count.ts";
@@ -12,6 +12,16 @@ import { Count } from "./count.ts";
  */
 export const Tier = Schema.Literals(["git", "cleanup"]);
 export type Tier = typeof Tier.Type;
+
+export const BranchAtCommit = Schema.Struct({ name: Schema.String, sha: Schema.String });
+export type BranchAtCommit = typeof BranchAtCommit.Type;
+
+/** Something in a machine's trash. */
+export const TrashTarget = Schema.TaggedUnion({
+  /** A deleted branch, kept as `ref` in the repository of the checkout at `path`. */
+  Branch: { path: Schema.String, ref: Schema.String },
+});
+export type TrashTarget = typeof TrashTarget.Type;
 
 /**
  * What the hub can ask an agent to do. Parameters are references that the agent resolves and
@@ -29,10 +39,28 @@ export const ActionRequest = Schema.TaggedUnion({
   Switch: { path: Schema.String, branch: Schema.String },
   /** Stashes every change in the checkout at `path`, including untracked files. */
   Stash: { path: Schema.String },
+  /**
+   * Moves local branches of the checkout at `path` to the trash, each only if its tip is still the
+   * commit the dashboard showed. Nothing is deleted unless every branch can be.
+   */
+  DeleteBranches: { path: Schema.String, branches: Schema.NonEmptyArray(BranchAtCommit) },
+  /** Puts something back from the trash. */
+  Restore: { target: TrashTarget },
+  /** Deletes something in the trash for good. */
+  Purge: { target: TrashTarget },
 });
 export type ActionRequest = typeof ActionRequest.Type;
 
-export const ActionKind = Schema.Literals(["Fetch", "Pull", "Clone", "Switch", "Stash"]);
+export const ActionKind = Schema.Literals([
+  "Fetch",
+  "Pull",
+  "Clone",
+  "Switch",
+  "Stash",
+  "DeleteBranches",
+  "Restore",
+  "Purge",
+]);
 export type ActionKind = typeof ActionKind.Type;
 
 export const actionTiers = {
@@ -41,19 +69,41 @@ export const actionTiers = {
   Clone: "git",
   Switch: "git",
   Stash: "git",
+  DeleteBranches: "cleanup",
+  Restore: "cleanup",
+  Purge: "cleanup",
 } as const satisfies Record<ActionRequest["_tag"], Tier>;
 
 /** Actions the dashboard addresses to one target each, rather than to a scope the hub expands. */
 export const TargetedRequest = Schema.Union([
   ActionRequest.cases.Switch,
   ActionRequest.cases.Stash,
+  ActionRequest.cases.DeleteBranches,
+  ActionRequest.cases.Restore,
+  ActionRequest.cases.Purge,
 ]);
 export type TargetedRequest = typeof TargetedRequest.Type;
 
+/**
+ * A list of names that keeps only those this version of FleetFrog knows. The hub and agents update
+ * separately, so each side ignores names the other has added instead of refusing the connection.
+ */
+function knownNames<const Names extends ReadonlyArray<string>>(names: Schema.Literals<Names>) {
+  const isKnown = Schema.is(names);
+
+  return Schema.Array(Schema.String).pipe(
+    Schema.decodeTo(Schema.Array(names), {
+      decode: SchemaGetter.transform((values) => values.filter(isKnown)),
+      encode: SchemaGetter.transform((values) => values),
+    }),
+  );
+}
+
 /** What a connected agent can run and what its owner allows. */
 export const AgentCapabilities = Schema.Struct({
-  actions: Schema.Array(ActionKind),
-  allowedTiers: Schema.Array(Tier),
+  /** Actions from a newer agent that this hub doesn't know are left out. */
+  actions: knownNames(ActionKind),
+  allowedTiers: knownNames(Tier),
   /** False when the policy file is damaged, which allows nothing until the owner fixes it. */
   policyReadable: Schema.Boolean,
   /** Whether the agent can create a missing project folder. Agents from before it say nothing. */
@@ -84,6 +134,15 @@ export const SkipReason = Schema.TaggedUnion({
   /** The branch is checked out in another worktree, which Git doesn't allow twice. */
   BranchInUse: {},
   NoSuchBranch: {},
+  /** The branch has new commits since the dashboard showed it, so it was left alone. */
+  BranchChanged: { branch: Schema.String },
+  /** A branch to delete is checked out in one of the clone's worktrees. */
+  BranchCheckedOut: { branch: Schema.String },
+  DefaultBranch: { branch: Schema.String },
+  /** A branch to restore has the name of one that exists now. */
+  BranchExists: { branch: Schema.String },
+  /** The item is no longer in the trash. */
+  NotInTrash: {},
   /** The machine's owner has not allowed the action's tier. */
   NotAllowed: { tier: Tier },
   /** The agent is too old to know the action. */
@@ -98,6 +157,9 @@ export const ActionResult = Schema.TaggedUnion({
   Cloned: {},
   Switched: { branch: Schema.String },
   Stashed: { files: Count },
+  BranchesDeleted: { branches: Count },
+  Restored: {},
+  Purged: {},
 });
 export type ActionResult = typeof ActionResult.Type;
 

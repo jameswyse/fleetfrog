@@ -7,6 +7,7 @@ import {
   ActionRequest,
   ActionUpdate,
   SkipReason,
+  TrashTarget,
   actionTiers,
 } from "@fleetfrog/protocol/domain/action";
 import { checkCloneDestination } from "@fleetfrog/protocol/domain/cloneDestination";
@@ -16,7 +17,10 @@ import {
   cloneRepository,
   destinationProblems,
   fetchRepository,
+  deleteBranches,
   pullCheckout,
+  purgeBranch,
+  restoreBranch,
   stashChanges,
   switchBranch,
 } from "./gitActions.ts";
@@ -124,6 +128,18 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
       Switch: ({ path, branch }) =>
         checkoutPlan(path, false, (location, output) => switchBranch(location, branch, output)),
       Stash: ({ path }) => checkoutPlan(path, false, stashChanges),
+      DeleteBranches: ({ path, branches }) =>
+        checkoutPlan(path, false, (location, output) => deleteBranches(location, branches, output)),
+      Restore: ({ target }) =>
+        TrashTarget.match(target, {
+          Branch: ({ path, ref }) =>
+            checkoutPlan(path, false, (location, output) => restoreBranch(location, ref, output)),
+        }),
+      Purge: ({ target }) =>
+        TrashTarget.match(target, {
+          Branch: ({ path, ref }) =>
+            checkoutPlan(path, false, (location, output) => purgeBranch(location, ref, output)),
+        }),
       Clone: ({ url, destination }) => {
         const checked = checkCloneDestination({
           destination,

@@ -145,8 +145,12 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
     machineId: MachineId,
     targeted: TargetedRequest,
   ): Effect.Effect<Pick<PlannedRun, "repository" | "path">, NothingToRun> => {
+    const path =
+      targeted._tag === "Restore" || targeted._tag === "Purge"
+        ? targeted.target.path
+        : targeted.path;
     const found = allTargets.find(
-      ({ entry }) => entry.machineId === machineId && entry.checkout.path === targeted.path,
+      ({ entry }) => entry.machineId === machineId && entry.checkout.path === path,
     );
 
     return found === undefined

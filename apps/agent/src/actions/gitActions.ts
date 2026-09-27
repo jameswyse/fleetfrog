@@ -4,6 +4,7 @@ import path from "node:path";
 import { DateTime, Effect, Option } from "effect";
 
 import { ActionOutcome, ActionResult, SkipReason } from "@fleetfrog/protocol/domain/action";
+import { deletedBranchPrefix } from "@fleetfrog/protocol/domain/checkout";
 import { checkCloneDestination, expandHome } from "@fleetfrog/protocol/domain/cloneDestination";
 import { pullBlocker } from "@fleetfrog/protocol/domain/pullEligibility";
 import { stashBlocker } from "@fleetfrog/protocol/domain/stashEligibility";
@@ -14,6 +15,7 @@ import { readGitStatus } from "../git/readCheckout.ts";
 import { cloneableUrl } from "../git/remoteIdentity.ts";
 import { runGit, runGitAction } from "../process/runTool.ts";
 
+import type { BranchAtCommit } from "@fleetfrog/protocol/domain/action";
 import type { DestinationCheck } from "@fleetfrog/protocol/domain/cloneDestination";
 
 import type { CheckoutLocation } from "../git/readCheckout.ts";
@@ -278,6 +280,130 @@ export const cloneRepository = Effect.fn("cloneRepository")(
     });
 
     return succeeded(ActionResult.cases.Cloned.make({}));
+  },
+  Effect.catchTag("CommandFailed", failedWith),
+);
+
+const deletedRefPattern = /^refs\/fleetfrog\/deleted\/\d+\/(.+)$/;
+
+/** The commit a ref points at, or null when there is no such ref. */
+const refCommit = (location: CheckoutLocation, ref: string) =>
+  runGit(location.path, ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]).pipe(
+    Effect.map((output): string | null => output.trim()),
+    Effect.orElseSucceed(() => null),
+  );
+
+/** The branch `origin/HEAD` points at, which is never deleted. */
+const defaultBranchOf = (location: CheckoutLocation) =>
+  runGit(location.path, ["symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"]).pipe(
+    Effect.map((ref): string | null => ref.trim().replace(/^refs\/remotes\/origin\//, "")),
+    Effect.orElseSucceed(() => null),
+  );
+
+/**
+ * Moves branches to the trash: each is kept as `refs/fleetfrog/deleted/<time>/<name>` and removed
+ * from `refs/heads` in one transaction, which Git applies only if every branch still points at the
+ * commit the dashboard showed. A branch that moved, is checked out or is the default branch stops
+ * the whole request, so nothing changes.
+ */
+export const deleteBranches = Effect.fn("deleteBranches")(
+  function* (
+    location: CheckoutLocation,
+    branches: ReadonlyArray<BranchAtCommit>,
+    output: ActionOutput,
+  ) {
+    const checkedOut = yield* checkedOutBranches(location);
+    const defaultBranch = yield* defaultBranchOf(location);
+
+    for (const { name, sha } of branches) {
+      if (name === defaultBranch) {
+        return skipped(SkipReason.cases.DefaultBranch.make({ branch: name }));
+      }
+
+      if (checkedOut.has(name)) {
+        return skipped(SkipReason.cases.BranchCheckedOut.make({ branch: name }));
+      }
+
+      if ((yield* refCommit(location, `refs/heads/${name}`)) !== sha) {
+        return skipped(SkipReason.cases.BranchChanged.make({ branch: name }));
+      }
+    }
+
+    const deletedAt = DateTime.toEpochMillis(yield* DateTime.now);
+
+    yield* runGitAction({
+      cwd: location.path,
+      args: ["update-ref", "--stdin"],
+      input: branches
+        .flatMap(({ name, sha }) => [
+          `create ${deletedBranchPrefix}${deletedAt}/${name} ${sha}`,
+          `delete refs/heads/${name} ${sha}`,
+        ])
+        .join("\n")
+        .concat("\n"),
+      onOutput: output.write,
+    });
+
+    // The branch's upstream and other settings go too, as `git branch -D` would remove them.
+    yield* Effect.forEach(
+      branches,
+      ({ name }) =>
+        runGit(location.path, ["config", "--remove-section", `branch.${name}`]).pipe(Effect.ignore),
+      { discard: true },
+    );
+
+    return succeeded(ActionResult.cases.BranchesDeleted.make({ branches: branches.length }));
+  },
+  Effect.catchTag("CommandFailed", failedWith),
+);
+
+/** The branch a deleted-branch ref keeps, or null for any other ref. */
+function deletedBranchName(ref: string): string | null {
+  return deletedRefPattern.exec(ref)?.[1] ?? null;
+}
+
+/** Recreates a deleted branch at its commit, unless a branch with its name exists now. */
+export const restoreBranch = Effect.fn("restoreBranch")(
+  function* (location: CheckoutLocation, ref: string, output: ActionOutput) {
+    const name = deletedBranchName(ref);
+    const sha = name === null ? null : yield* refCommit(location, ref);
+
+    if (name === null || sha === null) {
+      return skipped(SkipReason.cases.NotInTrash.make({}));
+    }
+
+    if ((yield* refCommit(location, `refs/heads/${name}`)) !== null) {
+      return skipped(SkipReason.cases.BranchExists.make({ branch: name }));
+    }
+
+    yield* runGitAction({
+      cwd: location.path,
+      args: ["update-ref", "--stdin"],
+      input: `create refs/heads/${name} ${sha}\ndelete ${ref} ${sha}\n`,
+      onOutput: output.write,
+    });
+
+    return succeeded(ActionResult.cases.Restored.make({}));
+  },
+  Effect.catchTag("CommandFailed", failedWith),
+);
+
+/** Forgets a deleted branch. Its commits go once Git's garbage collection finds them unreachable. */
+export const purgeBranch = Effect.fn("purgeBranch")(
+  function* (location: CheckoutLocation, ref: string, output: ActionOutput) {
+    const sha = deletedBranchName(ref) === null ? null : yield* refCommit(location, ref);
+
+    if (sha === null) {
+      return skipped(SkipReason.cases.NotInTrash.make({}));
+    }
+
+    yield* runGitAction({
+      cwd: location.path,
+      args: ["update-ref", "-d", ref, sha],
+      onOutput: output.write,
+    });
+
+    return succeeded(ActionResult.cases.Purged.make({}));
   },
   Effect.catchTag("CommandFailed", failedWith),
 );

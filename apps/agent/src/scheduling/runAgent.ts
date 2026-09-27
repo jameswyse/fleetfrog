@@ -24,6 +24,8 @@ export class MachineRemoved extends Schema.TaggedError<MachineRemoved>()("Machin
 
 type Configuration = (typeof HubCommand.cases.Configure)["Type"];
 
+const isHubCommand = Schema.is(HubCommand);
+
 const firstRetryDelay = Duration.seconds(1);
 const maximumRetryDelay = Duration.seconds(60);
 /** Disk space and load change slowly, and a minute keeps the dashboard current enough. */
@@ -186,8 +188,12 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
       Effect.forkScoped,
     );
   yield* client.Connect({ info, capabilities }).pipe(
-    Stream.runForEach((command) =>
-      HubCommand.match(command, {
+    Stream.runForEach((received) => {
+      if (!isHubCommand(received)) {
+        return Effect.logWarning(`Skipped a command this agent doesn't know: ${received._tag}`);
+      }
+
+      return HubCommand.match(received, {
         Configure: (next) => {
           const rootsChanged =
             configuration === null || !sameList(configuration.discoveryRoots, next.discoveryRoots);
@@ -221,8 +227,8 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
               Effect.logWarning("Could not answer a folder request", cause),
             ),
           ),
-      }),
-    ),
+      });
+    }),
     Effect.catchTag("Unauthorised", () => Effect.fail(new MachineRemoved())),
     Effect.raceFirst(disconnected),
   );

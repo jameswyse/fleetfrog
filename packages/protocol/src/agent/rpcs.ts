@@ -51,6 +51,12 @@ export const HubCommand = Schema.TaggedUnion({
 });
 export type HubCommand = typeof HubCommand.Type;
 
+/**
+ * A command as the agent receives it. A newer hub may send a command this agent doesn't know, which
+ * it skips instead of ending the connection.
+ */
+export const ReceivedCommand = Schema.Union([HubCommand, Schema.Struct({ _tag: Schema.String })]);
+
 export const ReportedRoot = Schema.Struct({ path: Schema.String, status: FolderStatus });
 export type ReportedRoot = typeof ReportedRoot.Type;
 
@@ -76,7 +82,7 @@ export class AgentRpcs extends RpcGroup.make(
   /** Holds the connection open. The machine is online for as long as this stream runs. */
   Rpc.make("Connect", {
     payload: { info: MachineInfo, capabilities: AdvertisedCapabilities },
-    success: HubCommand,
+    success: ReceivedCommand,
     stream: true,
   }),
   Rpc.make("Report", { payload: { report: ScanReport } }),

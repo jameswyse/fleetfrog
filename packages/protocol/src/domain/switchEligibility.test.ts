@@ -20,9 +20,11 @@ function status(options: {
     untracked: { items: ["notes.txt"], total: 1 },
     stashes: { items: [], total: 0 },
     branches: {
-      items: branches.map((name) => ({ name, upstream: null })),
+      items: branches.map((name) => ({ name, upstream: null, tip: null })),
       total: options.branchTotal ?? branches.length,
     },
+    defaultBranch: null,
+    deletedBranches: { items: [], total: 0 },
     lastFetchedAt: null,
   };
 }
