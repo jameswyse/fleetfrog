@@ -42,10 +42,12 @@ Ideas for after phase 2. They're captured, not planned: an entry doesn't mean it
 - **Archives off the machine.** Move an archived checkout to TrueNAS as a tarball and a `git bundle`, stored once for the whole fleet. It needs file transfer, like the `files` tier.
 - **Preserving on GitHub.** Push every branch of a checkout whose remote is gone to a new private repository, so it can be cloned again.
 - **Emptying the trash automatically.** Purge trashed checkouts after a set time, such as 30 days.
+- **Removing linked worktrees.** Archiving or trashing a checkout refuses while it has linked worktrees. A `git worktree remove` action, which keeps the branch, would clear the way.
+- **Restoring a branch's upstream.** A branch restored from the trash comes back without its upstream, because deleting it also removes its settings.
 
 ## Agent capabilities
 
-Phase 2 ships only the `git` tier.
+Agents have the `git` and `cleanup` tiers.
 
 - **`scripts` tier.** Install dependencies and run repository scripts, tests and dev servers. Commands come from the repository, such as `package.json` scripts, never from the hub.
 - **`files` tier.** Detect missing environment files and required keys, allowing deliberate differences between machines. Later, transfer selected environment and config files on request. Routine reports carry key names only, never values.
