@@ -330,11 +330,38 @@ export const cloneRepository = Effect.fn("cloneRepository")(
   Effect.catchTag("CommandFailed", failedWith),
 );
 
+/** Why one requested branch must stay, or null when it can be deleted. */
+const branchSkipReason = Effect.fn("branchSkipReason")(function* (options: {
+  readonly location: CheckoutLocation;
+  readonly name: string;
+  readonly sha: string;
+  readonly inUse: ReadonlySet<string>;
+  readonly defaultBranch: string | null;
+}) {
+  const { location, name } = options;
+
+  if (!(yield* isBranchName(location, name))) {
+    return SkipReason.cases.NoSuchBranch.make({});
+  }
+
+  if (name === options.defaultBranch) {
+    return SkipReason.cases.DefaultBranch.make({ branch: name });
+  }
+
+  if (options.inUse.has(name)) {
+    return SkipReason.cases.BranchCheckedOut.make({ branch: name });
+  }
+
+  return (yield* refCommit(location, `refs/heads/${name}`)) === options.sha
+    ? null
+    : SkipReason.cases.BranchChanged.make({ branch: name });
+});
+
 /**
  * Moves branches to the trash: each is kept as `refs/fleetfrog/deleted/<time>/<name>` and removed
- * from `refs/heads` in one transaction, which Git applies only if every branch still points at the
- * commit the dashboard showed. A branch that moved, is checked out or is the default branch stops
- * the whole request, so nothing changes.
+ * from `refs/heads` in one transaction, which Git applies only if every branch in it still points
+ * at the commit the dashboard showed. A branch that moved, is in use by a worktree or is the
+ * default branch is left out of the transaction and reported as skipped.
  */
 export const deleteBranches = Effect.fn("deleteBranches")(
   function* (
@@ -344,23 +371,23 @@ export const deleteBranches = Effect.fn("deleteBranches")(
   ) {
     const inUse = yield* branchesInUse(location);
     const defaultBranch = yield* defaultBranchOf(location);
+    const deletable: Array<BranchAtCommit> = [];
+    const skippedBranches: Array<{ readonly branch: string; readonly reason: SkipReason }> = [];
 
     for (const { name, sha } of branches) {
-      if (!(yield* isBranchName(location, name))) {
-        return skipped(SkipReason.cases.NoSuchBranch.make({}));
-      }
+      const reason = yield* branchSkipReason({ location, name, sha, inUse, defaultBranch });
 
-      if (name === defaultBranch) {
-        return skipped(SkipReason.cases.DefaultBranch.make({ branch: name }));
+      if (reason === null) {
+        deletable.push({ name, sha });
+      } else {
+        skippedBranches.push({ branch: name, reason });
       }
+    }
 
-      if (inUse.has(name)) {
-        return skipped(SkipReason.cases.BranchCheckedOut.make({ branch: name }));
-      }
+    const [first] = skippedBranches;
 
-      if ((yield* refCommit(location, `refs/heads/${name}`)) !== sha) {
-        return skipped(SkipReason.cases.BranchChanged.make({ branch: name }));
-      }
+    if (deletable.length === 0 && first !== undefined) {
+      return skipped(first.reason);
     }
 
     const deletedAt = DateTime.toEpochMillis(yield* DateTime.now);
@@ -368,7 +395,7 @@ export const deleteBranches = Effect.fn("deleteBranches")(
     yield* runGitAction({
       cwd: location.path,
       args: ["update-ref", "--stdin"],
-      input: branches
+      input: deletable
         .flatMap(({ name, sha }) => [
           `create ${deletedBranchPrefix}${deletedAt}/${name} ${sha}`,
           `delete refs/heads/${name} ${sha}`,
@@ -380,13 +407,18 @@ export const deleteBranches = Effect.fn("deleteBranches")(
 
     // The branch's upstream and other settings go too, as `git branch -D` would remove them.
     yield* Effect.forEach(
-      branches,
+      deletable,
       ({ name }) =>
         runGit(location.path, ["config", "--remove-section", `branch.${name}`]).pipe(Effect.ignore),
       { discard: true },
     );
 
-    return succeeded(ActionResult.cases.BranchesDeleted.make({ branches: branches.length }));
+    return succeeded(
+      ActionResult.cases.BranchesDeleted.make({
+        branches: deletable.length,
+        skipped: skippedBranches,
+      }),
+    );
   },
   Effect.catchTag("CommandFailed", failedWith),
 );

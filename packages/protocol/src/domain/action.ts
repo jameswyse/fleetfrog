@@ -43,7 +43,7 @@ export const ActionRequest = Schema.TaggedUnion({
   Stash: { path: Schema.String },
   /**
    * Moves local branches of the checkout at `path` to the trash, each only if its tip is still the
-   * commit the dashboard showed. Nothing is deleted unless every branch can be.
+   * commit the dashboard showed and nothing has it checked out. The rest are left alone.
    */
   DeleteBranches: { path: Schema.String, branches: Schema.NonEmptyArray(BranchAtCommit) },
   /** Moves the checkout at `path` into the Archive folder, keeping its path below its project folder. */
@@ -196,7 +196,13 @@ export const ActionResult = Schema.TaggedUnion({
   Cloned: {},
   Switched: { branch: Schema.String },
   Stashed: { files: Count },
-  BranchesDeleted: { branches: Count },
+  /** `skipped` names the requested branches left alone, each with why. */
+  BranchesDeleted: {
+    branches: Count,
+    skipped: Schema.Array(Schema.Struct({ branch: Schema.String, reason: SkipReason })).pipe(
+      Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
+    ),
+  },
   /** `path` is where the checkout is now. */
   Archived: { path: Schema.String },
   Unarchived: { path: Schema.String },

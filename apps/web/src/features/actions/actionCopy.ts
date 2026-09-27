@@ -99,8 +99,13 @@ function describeResult(result: ActionResult): string {
     Cloned: () => "Cloned",
     Switched: ({ branch }) => `Switched to ${branch}`,
     Stashed: ({ files }) => `Stashed ${plural(files, "file")}`,
-    BranchesDeleted: ({ branches }) =>
-      `Moved ${plural(branches, "branch", "branches")} to the trash`,
+    BranchesDeleted: ({ branches, skipped }) => {
+      const moved = `Moved ${plural(branches, "branch", "branches")} to the trash`;
+
+      return skipped.length === 0
+        ? moved
+        : `${moved}. Kept ${skipped.length}: ${skipped.map(({ reason }) => describeSkip(reason)).join("; ")}`;
+    },
     Archived: ({ path }) => `Archived to ${path}`,
     Unarchived: ({ path }) => `Moved back to ${path}`,
     Trashed: ({ freedBytes }) =>

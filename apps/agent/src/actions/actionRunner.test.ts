@@ -388,7 +388,7 @@ describe("action runner", () => {
     }),
   );
 
-  it.effect("deletes no branch when any has moved since the dashboard showed it", () =>
+  it.effect("deletes the branches that haven't moved and reports the one that has", () =>
     Effect.gen(function* () {
       const { run, clone } = yield* setUp({ allowedTiers: ["git", "cleanup"] });
 
@@ -410,9 +410,16 @@ describe("action runner", () => {
           ],
         }),
       ).toMatchObject({
-        outcome: { _tag: "Skipped", reason: { _tag: "BranchChanged", branch: "moved" } },
+        outcome: {
+          _tag: "Succeeded",
+          result: {
+            _tag: "BranchesDeleted",
+            branches: 1,
+            skipped: [{ branch: "moved", reason: { _tag: "BranchChanged", branch: "moved" } }],
+          },
+        },
       });
-      expect(git(clone, "branch", "--list", "stale", "moved")).toContain("stale");
+      expect(git(clone, "branch", "--list", "stale", "moved")).toBe("moved");
     }),
   );
 
