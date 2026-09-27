@@ -1,7 +1,7 @@
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
+import { Tier } from "@fleetfrog/protocol/domain/action";
 import { agentOutdated } from "@fleetfrog/protocol/domain/actionAvailability";
 
-import { machineBlocker } from "../../actions/actionAvailability.ts";
 import { shortProcessorName } from "./systemFormat.ts";
 
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
@@ -44,6 +44,8 @@ export function ConnectionStatus({ machine }: { readonly machine: Machine }) {
   );
 }
 
+const tierNames = { git: "Git", cleanup: "cleanup" } satisfies Record<Tier, string>;
+
 /** What the hub may ask this machine to do, as its owner's policy allows. */
 export function ActionsText({ machine }: { readonly machine: Machine }) {
   if (machine.connection._tag === "Offline") {
@@ -63,13 +65,25 @@ export function ActionsText({ machine }: { readonly machine: Machine }) {
     );
   }
 
-  if (machineBlocker(machine, "Fetch") === null) {
-    return <>Git actions allowed</>;
+  const { allowedTiers } = machine.connection.capabilities;
+  const denied = Tier.literals.filter((tier) => !allowedTiers.includes(tier));
+  const [only] = Tier.literals.filter((tier) => allowedTiers.includes(tier));
+
+  if (denied.length === 0) {
+    return <>Git and cleanup actions allowed</>;
   }
 
   return (
     <>
-      Git actions turned off. To allow them, run <code>fleetfrog allow git</code> on the machine.
+      {only === undefined ? "No actions allowed" : `Only ${tierNames[only]} actions allowed`}. To
+      allow the rest, run{" "}
+      {denied.map((tier, index) => (
+        <span key={tier}>
+          {index > 0 && " and "}
+          <code>fleetfrog allow {tier}</code>
+        </span>
+      ))}{" "}
+      on the machine.
     </>
   );
 }
