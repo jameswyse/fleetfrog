@@ -4,7 +4,6 @@ Ideas for after phase 2. They're captured, not planned: an entry doesn't mean it
 
 ## Repositories and discovery
 
-- **T3 Code discovery.** Find repositories through T3 Code's project list as well as discovery folders.
 - **Correcting repository matches.** Merge or split repositories when matching by normalised remote or root commit gets it wrong.
 - **Projects.** Group related repositories into a project, once, on the hub.
 - **Shared layouts.** Define predictable relative paths such as `~/Projects/shop/api`, which machines should have each repository and which checkout is primary. Extra clones and tool-managed worktrees are tracked where they are. Phase 2's clone destination rule is a first step.
@@ -21,10 +20,10 @@ Ideas for after phase 2. They're captured, not planned: an entry doesn't mean it
 
 ## Git actions
 
-- **Automatic pull.** Pull the default branch periodically, as T3 Code does, only when the working tree is clean.
+- **Automatic pull.** Pull the default branch periodically, as T3 Code does, only when the working tree is clean. The checkout panel already says when T3 Code pulls a project itself, which such a feature should leave to T3 Code.
 - **Scheduled fetching.** An opt-in setting. Phase 2 leaves it out because it runs network operations with the user's credentials without being asked.
 - **Fast-forwarding other branches.** Pull updates only checked-out branches. Branches not checked out anywhere could be fast-forwarded too.
-- **Open in editor.** Open a checkout in VS Code, Cursor, Zed or T3 Code, which registers `t3code://`. Dropped from phase 2 because links open on the viewing device, Remote-SSH needs an SSH host for each machine, and T3 Code's link format is unknown.
+- **Open in editor.** Open a checkout in VS Code, Cursor, Zed or T3 Code. Dropped from phase 2 because links open on the viewing device and Remote-SSH needs an SSH host for each machine. T3 Code registers `t3code://`, but only as its own window's origin and a sign-in callback, not as a link that opens a folder or thread.
 
 ## Tidying with Jev
 
