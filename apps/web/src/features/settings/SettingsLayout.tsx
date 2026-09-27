@@ -86,17 +86,6 @@ export function SettingsLayout() {
             </li>
             <li>
               <Link
-                to="/settings/fleet"
-                activeOptions={{ exact: true }}
-                className={sidebarLinkClass}
-              >
-                <LayersIcon />
-                Fleet
-              </Link>
-              <MachineLinks />
-            </li>
-            <li>
-              <Link
                 to="/settings/integrations"
                 activeOptions={{ exact: true }}
                 className={sidebarLinkClass}
@@ -105,6 +94,17 @@ export function SettingsLayout() {
                 Integrations
               </Link>
               <IntegrationLinks />
+            </li>
+            <li>
+              <Link
+                to="/settings/fleet"
+                activeOptions={{ exact: true }}
+                className={sidebarLinkClass}
+              >
+                <LayersIcon />
+                Fleet
+              </Link>
+              <MachineLinks />
             </li>
           </ul>
         </nav>
