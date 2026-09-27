@@ -184,12 +184,16 @@ export function TrashPage() {
         Branches FleetFrog deleted stay here until you empty the trash. Restoring one puts it back
         where it was.
       </p>
-      {entries.length === 0 ? (
+      {fleet === null && (
+        <p className="py-16 text-center text-sm text-ink-muted">Waiting for the hub…</p>
+      )}
+      {fleet !== null && entries.length === 0 && (
         <div className="rounded-xl border border-dashed border-line px-6 py-10 text-center text-sm">
           <p className="font-medium">The trash is empty</p>
           <p className="mt-1 text-ink-muted">Branches you delete with Tidy branches appear here.</p>
         </div>
-      ) : (
+      )}
+      {entries.length > 0 && (
         <ul className="divide-y divide-line rounded-xl border border-line bg-surface">
           {entries.map((entry) => (
             <TrashRow

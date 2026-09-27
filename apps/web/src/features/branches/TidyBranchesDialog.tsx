@@ -76,19 +76,20 @@ export function TidyBranchesDialog({
   ];
   const selected = candidates.filter(({ name }) => chosen.has(name));
 
-  const toggle = (names: ReadonlyArray<string>, on: boolean) => {
-    const next = new Set(chosen);
+  const toggle = (names: ReadonlyArray<string>, on: boolean) =>
+    setChosen((previous) => {
+      const next = new Set(previous);
 
-    for (const name of names) {
-      if (on) {
-        next.add(name);
-      } else {
-        next.delete(name);
+      for (const name of names) {
+        if (on) {
+          next.add(name);
+        } else {
+          next.delete(name);
+        }
       }
-    }
 
-    setChosen(next);
-  };
+      return next;
+    });
 
   return (
     <Dialog title={`Tidy branches in ${repository.label}`} onClose={onClose}>
