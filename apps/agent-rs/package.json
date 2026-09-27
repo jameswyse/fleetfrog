@@ -5,7 +5,7 @@
   "description": "The FleetFrog agent as a native Rust binary. It speaks the same protocol as apps/agent and shares its files on the machine.",
   "license": "MIT",
   "scripts": {
-    "build": "cargo build --release --locked && mkdir -p dist && cp target/release/fleetfrog dist/fleetfrog",
+    "build": "cargo build --release --locked && mkdir -p dist && cp target/release/fleetfrog dist/fleetfrog.tmp && mv -f dist/fleetfrog.tmp dist/fleetfrog",
     "format": "cargo fmt",
     "format:check": "cargo fmt --check",
     "lint": "cargo clippy --locked --all-targets -- --deny warnings",
