@@ -2,6 +2,7 @@
 
 - Run everything through pnpm. `devEngines` pins Node 26, which may differ from the `node` on `PATH`, so use `pnpm exec node` for one-off scripts.
 - `packages/protocol` is consumed as TypeScript source and Node runs the hub and agent without a build step, so relative imports need `.ts` extensions and code must use erasable syntax only.
+- The hub's database and the agent's files (its config, archive records and trash) store data that was written under older schemas. When a schema change would stop existing data from decoding, such as a new required field, a renamed field or a removed variant, migrate that data as part of the change. For the hub, add a migration under `apps/hub/src/persistence/migrations` and test it by migrating a database from before the change and reading it back, as `0008_machine_archive_events.test.ts` does. On the hub, a row that fails to decode fails every query that reads it. On the agent, an archive record or trash item that fails to decode is skipped, so it disappears without an error.
 - `docs/backlog.md` holds ideas for later phases. Record new ideas there instead of building them.
 - `pnpm verify` runs formatting, lint, typecheck, build and unit tests. The pre-commit hook formats and lints staged files and typechecks everything.
 - Write commit messages as Conventional Commits, such as `fix(web): centre rows in the Projects grid`.
