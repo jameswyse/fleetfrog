@@ -7,12 +7,12 @@ import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { useStartBatch } from "../actions/useStartBatch.ts";
-import { isMerged } from "./branchTidying.ts";
+import { isPreselected } from "./branchTidying.ts";
 
 import type { Checkout, GitStatus } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
-import type { TidyCandidate } from "./branchTidying.ts";
+import type { KeptBranch, TidyCandidate } from "./branchTidying.ts";
 
 interface Group {
   readonly title: string;
@@ -22,12 +22,21 @@ interface Group {
 }
 
 /** What the list says about a branch beyond its last commit, when there's more to say. */
-function detail({ standing }: TidyCandidate): string | null {
-  if (standing._tag === "MergedPullRequest") {
-    return `Merged in #${standing.pullRequest.number}`;
+function detail(candidate: TidyCandidate): string | null {
+  const { standing } = candidate;
+
+  return standing._tag === "MergedPullRequest" ? `Merged in #${standing.pullRequest.number}` : null;
+}
+
+/** Why the branch deserves a second look, shown as a warning, or null when it doesn't. */
+function warning(candidate: TidyCandidate): string | null {
+  if (candidate.isDefault) {
+    return "The default branch. You can check it out again from the remote";
   }
 
-  return standing._tag === "LocalOnly" ? `${plural(standing.commits, "commit")} only here` : null;
+  return candidate.standing._tag === "LocalOnly"
+    ? `${plural(candidate.standing.commits, "commit")} only here`
+    : null;
 }
 
 /**
@@ -40,6 +49,7 @@ export function TidyBranchesDialog({
   checkout,
   git,
   candidates,
+  kept,
   onClose,
 }: {
   readonly repository: Repository;
@@ -47,11 +57,13 @@ export function TidyBranchesDialog({
   readonly checkout: Checkout;
   readonly git: GitStatus;
   readonly candidates: ReadonlyArray<TidyCandidate>;
+  /** Branches that can't be deleted yet, each with what to do first. */
+  readonly kept: ReadonlyArray<KeptBranch>;
   readonly onClose: () => void;
 }) {
   const { start, pending, failure } = useStartBatch();
   const [chosen, setChosen] = useState<ReadonlySet<string>>(
-    () => new Set(candidates.filter(isMerged).map(({ name }) => name)),
+    () => new Set(candidates.filter(isPreselected).map(({ name }) => name)),
   );
   const defaultBranch = git.defaultBranch ?? checkout.github?.defaultBranch ?? "the default branch";
   const groups: ReadonlyArray<Group> = [
@@ -129,15 +141,9 @@ export function TidyBranchesDialog({
       >
         <p>
           Deleted branches go to the Trash on {machineLabel(machine)}, where you can restore them
-          until you empty it. A branch with new commits since the last scan, or one a worktree has
-          checked out, is kept, and the rest are deleted.
+          until you empty it. A branch with new commits since the last scan is kept, and the
+          Activity page says which.
         </p>
-        {candidates.length === 0 && (
-          <p className="rounded-md border border-line bg-canvas px-3 py-2 text-ink-muted">
-            There are no branches to tidy. The current branch, the default branch and branches
-            checked out in other worktrees can't be deleted.
-          </p>
-        )}
         <div className="max-h-[55vh] space-y-4 overflow-y-auto">
           {groups
             .filter(({ candidates: members }) => members.length > 0)
@@ -171,7 +177,8 @@ export function TidyBranchesDialog({
                   <p className="mb-2 text-ink-muted">{group.description}</p>
                   <ul className="divide-y divide-line rounded-md border border-line">
                     {group.candidates.map((candidate) => {
-                      const extra = detail(candidate);
+                      const caution = warning(candidate);
+                      const extra = caution ?? detail(candidate);
 
                       return (
                         <li key={candidate.name}>
@@ -190,11 +197,7 @@ export function TidyBranchesDialog({
                               </span>
                               <span className="block truncate text-xs text-ink-muted">
                                 {extra !== null && (
-                                  <span
-                                    className={
-                                      candidate.standing._tag === "LocalOnly" ? "text-changes" : ""
-                                    }
-                                  >
+                                  <span className={caution === null ? "" : "text-changes"}>
                                     {extra} ·{" "}
                                   </span>
                                 )}
@@ -210,11 +213,26 @@ export function TidyBranchesDialog({
                 </fieldset>
               );
             })}
+          {kept.length > 0 && (
+            <section aria-labelledby="tidy-kept" className="min-w-0">
+              <h3 id="tidy-kept" className="mb-2 font-medium">
+                Can't delete yet
+              </h3>
+              <ul className="divide-y divide-line rounded-md border border-line">
+                {kept.map(({ name, reason }) => (
+                  <li key={name} className="px-3 py-2">
+                    <span className="block font-mono text-[13px] break-all">{name}</span>
+                    <span className="block text-xs text-ink-muted">{reason}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </div>
         {git.branches.total > git.branches.items.length && (
           <p className="text-ink-muted">
             {plural(git.branches.total - git.branches.items.length, "branch", "branches")} weren't
-            listed by the agent and aren't shown.
+            listed by the agent. Tidy these, and the rest appear once they're gone.
           </p>
         )}
         <p role="status" className="text-danger">

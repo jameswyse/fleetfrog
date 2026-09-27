@@ -58,7 +58,7 @@ function isCache(entry: string): boolean {
 }
 
 /** How many ignored entries the dashboard lists by name. */
-const ignoredListLimit = 100;
+export const ignoredListLimit = 100;
 const fetchTimeout = Duration.seconds(90);
 
 /** Ignored files and folders, each folder once rather than everything inside it. */
@@ -213,7 +213,11 @@ const countSubmodules = (location: CheckoutLocation) =>
     ),
   );
 
-function sized(paths: ReadonlyArray<string>, sizes: ReadonlyArray<number>): Array<SizedPath> {
+/** Each path with its size, largest first. */
+export function sized(
+  paths: ReadonlyArray<string>,
+  sizes: ReadonlyArray<number>,
+): Array<SizedPath> {
   return paths
     .map((entry, index) => ({ path: entry, sizeBytes: sizes[index] ?? 0 }))
     .toSorted((left, right) => right.sizeBytes - left.sizeBytes);

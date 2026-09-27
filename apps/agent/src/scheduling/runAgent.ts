@@ -264,8 +264,8 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
             ),
           ),
         // An inspection fetches and measures, so it runs beside the commands that follow it.
-        Inspect: ({ requestId, path }) =>
-          actions.inspect(path).pipe(
+        Inspect: ({ requestId, path, worktree }) =>
+          actions.inspect({ path, worktree }).pipe(
             Effect.flatMap((result) => client.ReportInspection({ requestId, result })),
             Effect.catchCause((cause) =>
               Effect.logWarning("Could not answer an inspection", cause),

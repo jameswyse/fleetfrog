@@ -39,24 +39,33 @@ export const ActionRequest = Schema.TaggedUnion({
   Pull: { path: Schema.String },
   /** Clones `url` into `destination`, which may start with `~`. */
   Clone: { url: Schema.String, destination: Schema.String },
-  /** Switches the checkout at `path` to the local branch `branch`, if it has no changes. */
-  Switch: { path: Schema.String, branch: Schema.String },
+  /**
+   * Switches the checkout at `path` to the local branch `branch`. Changes to tracked files are
+   * stashed first with `stashChanges`, and otherwise stop the switch. Commits only a detached HEAD
+   * holds go to the trash as a branch.
+   */
+  Switch: {
+    path: Schema.String,
+    branch: Schema.String,
+    stashChanges: Schema.Boolean.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(false))),
+  },
   /** Stashes every change in the checkout at `path`, including untracked files. */
   Stash: { path: Schema.String },
   /**
    * Moves local branches of the checkout at `path` to the trash, each only if its tip is still the
-   * commit the dashboard showed and nothing has it checked out. The rest are left alone.
+   * commit the dashboard showed and no worktree has it checked out. The rest are left alone.
    */
   DeleteBranches: { path: Schema.String, branches: Schema.NonEmptyArray(BranchAtCommit) },
   /**
-   * Removes a linked worktree of the main checkout at `path`, keeping its branch. It must have no
-   * changes, no commits only it holds and no ignored files other than caches. One whose folder is
-   * gone is forgotten.
+   * Removes a linked worktree of the main checkout at `path`, keeping its branch, if it still
+   * matches the inspection that produced `fingerprint`. Its changes are stashed and commits only
+   * its detached HEAD holds go to the trash as a branch, so only ignored files are lost. One whose
+   * folder is gone is forgotten.
    */
-  RemoveWorktree: { path: Schema.String, worktree: Schema.String },
+  RemoveWorktree: { path: Schema.String, worktree: Schema.String, fingerprint: Schema.String },
   /**
-   * Moves stashes of the checkout at `path` to the trash, each only if the stash at that index is
-   * still the commit the dashboard showed.
+   * Moves stashes of the checkout at `path` to the trash, each found by its commit, since dropping
+   * one renumbers the rest. A stash that's gone already is left out.
    */
   DropStashes: {
     path: Schema.String,
@@ -64,10 +73,14 @@ export const ActionRequest = Schema.TaggedUnion({
   },
   /**
    * Moves the checkout at `path` into the Archive folder, keeping its path below its project
-   * folder. Its linked worktrees move too, each the same way.
+   * folder, or with a number added when something is already there. Its linked worktrees move too,
+   * each the same way.
    */
   Archive: { path: Schema.String },
-  /** Moves the archived checkout at `path` back to where it was archived from. */
+  /**
+   * Moves the archived checkout at `path` back to where it was archived from, or with a number
+   * added when something is there now.
+   */
   Unarchive: { path: Schema.String },
   /**
    * Moves the checkout at `path` to the machine's trash, with its linked worktrees, if it still
@@ -76,11 +89,21 @@ export const ActionRequest = Schema.TaggedUnion({
    */
   Trash: { path: Schema.String, fingerprint: Schema.String, removeCaches: Schema.Boolean },
   /**
-   * Deletes the checkout at `path` for good, only if it still matches `fingerprint` and a fresh
-   * inspection finds nothing that exists only here.
+   * Deletes the checkout at `path` for good, only if it still matches `fingerprint`. Unless the
+   * developer accepted losing it with `discardUniqueWork`, a fresh inspection must also find
+   * nothing that exists only here and no linked worktrees, which otherwise go with it.
    */
-  Delete: { path: Schema.String, fingerprint: Schema.String },
-  /** Puts something back from the trash. */
+  Delete: {
+    path: Schema.String,
+    fingerprint: Schema.String,
+    discardUniqueWork: Schema.Boolean.pipe(
+      Schema.withDecodingDefaultTypeKey(Effect.succeed(false)),
+    ),
+  },
+  /**
+   * Puts something back from the trash. A branch whose name is taken comes back with `-restored`
+   * added, and a checkout whose place is taken with a number added.
+   */
   Restore: { target: TrashTarget },
   /** Deletes something in the trash for good. */
   Purge: { target: TrashTarget },
@@ -201,6 +224,8 @@ export const SkipReason = Schema.TaggedUnion({
   NoSuchWorktree: {},
   /** The stashes changed after the dashboard showed them, so none were dropped. */
   StashesChanged: {},
+  /** Every stash to drop was gone already. */
+  NoSuchStash: {},
   /** A checkout with linked worktrees can't move without breaking them. */
   HasWorktrees: { count: Count },
   /** A linked worktree moves with its main checkout, not on its own. */
@@ -229,7 +254,12 @@ export const ActionResult = Schema.TaggedUnion({
   FastForwarded: { commits: Count },
   UpToDate: {},
   Cloned: {},
-  Switched: { branch: Schema.String },
+  /** `stashedFiles` were stashed first, and `savedCommits` from a detached HEAD went to the trash. */
+  Switched: {
+    branch: Schema.String,
+    stashedFiles: Count.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(0))),
+    savedCommits: Count.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(0))),
+  },
   Stashed: { files: Count },
   /** `skipped` names the requested branches left alone, each with why. */
   BranchesDeleted: {
@@ -251,14 +281,32 @@ export const ActionResult = Schema.TaggedUnion({
       Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
     ),
   },
-  WorktreeRemoved: {},
-  StashesDropped: { stashes: Count },
+  /**
+   * `stashedFiles` were stashed first, `savedCommits` from a detached HEAD went to the trash and
+   * `deletedIgnored` ignored entries other than caches were deleted with the folder.
+   */
+  WorktreeRemoved: {
+    stashedFiles: Count.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(0))),
+    savedCommits: Count.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(0))),
+    deletedIgnored: Count.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(0))),
+  },
+  /** `missing` counts the stashes that were gone already. */
+  StashesDropped: {
+    stashes: Count,
+    missing: Count.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(0))),
+  },
   /** `freedBytes` counts the caches removed from the trashed copy. */
   Trashed: { freedBytes: Count },
   Deleted: {},
-  /** `path` is where a restored checkout is now, and null for a restored branch. */
+  /**
+   * `path` is where a restored checkout is now, and null otherwise. `branch` is the name a
+   * restored branch came back as, and null otherwise.
+   */
   Restored: {
     path: Schema.NullOr(Schema.String).pipe(
+      Schema.withDecodingDefaultTypeKey(Effect.succeed(null)),
+    ),
+    branch: Schema.NullOr(Schema.String).pipe(
       Schema.withDecodingDefaultTypeKey(Effect.succeed(null)),
     ),
   },

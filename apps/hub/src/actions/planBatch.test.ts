@@ -286,7 +286,12 @@ describe("planBatch", () => {
       );
       expect(yield* plan({ _tag: "Stash", path: "/home/dev/Archive/shop" })).toBe("nothing to run");
       expect(
-        yield* plan({ _tag: "RemoveWorktree", path: "/home/dev/Archive/shop", worktree: "/w" }),
+        yield* plan({
+          _tag: "RemoveWorktree",
+          path: "/home/dev/Archive/shop",
+          worktree: "/w",
+          fingerprint: "f",
+        }),
       ).toEqual(["/home/dev/Archive/shop"]);
     }),
   );

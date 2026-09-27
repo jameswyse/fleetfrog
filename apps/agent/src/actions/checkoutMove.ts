@@ -33,46 +33,62 @@ export interface CheckoutMove {
   readonly staying: ReadonlyArray<string>;
 }
 
+/** Whether either path is the other or inside it. */
+function overlaps(left: string, right: string): boolean {
+  return isWithin(left, right) || isWithin(right, left);
+}
+
+/**
+ * The first of `target`, `target-2`, `target-3` and so on that nothing is at and that doesn't
+ * overlap a place already chosen.
+ */
+const freePlace = Effect.fn("freePlace")(function* (target: string, chosen: ReadonlyArray<string>) {
+  for (let number = 1; ; number += 1) {
+    const candidate = number === 1 ? target : `${target}-${number}`;
+
+    if (!chosen.some((other) => overlaps(candidate, other)) && !(yield* exists(candidate))) {
+      return candidate;
+    }
+  }
+});
+
 /**
  * Plans moving the main checkout to `destination`. `worktreeDestination` says where each linked
- * worktree outside it goes, or null to leave it. Returns a skip when something is already at a
- * destination, or when two destinations are the same or one is inside another.
+ * worktree outside it goes, or null to leave it. With `whenTaken: "Number"`, a destination that
+ * something is already at, or that overlaps another, gets a number added, as `-2` and so on.
+ * Otherwise the plan is refused.
  */
 export const planCheckoutMove = Effect.fn("planCheckoutMove")(function* (options: {
   readonly location: Pick<CheckoutLocation, "path" | "commonDirectory">;
   readonly destination: string;
   readonly worktreeDestination: (worktree: string) => string | null;
+  readonly whenTaken: "Refuse" | "Number";
 }) {
-  const { location, destination } = options;
+  const { location } = options;
   // A worktree whose folder is gone has nothing to move, and Git can prune it later.
   const linked = (yield* readLinkedWorktrees(location)).filter(({ state }) => state !== "Missing");
-  const nested: Array<Move> = [];
-  const separate: Array<Move> = [];
+  const wanted: Array<Move> = [];
   const staying: Array<string> = [];
 
   for (const { path: worktree } of linked) {
-    if (isWithin(worktree, location.path)) {
-      nested.push({
-        from: worktree,
-        to: path.join(destination, path.relative(location.path, worktree)),
-      });
-    } else {
+    if (!isWithin(worktree, location.path)) {
       const to = options.worktreeDestination(worktree);
 
       if (to === null) {
         staying.push(worktree);
       } else {
-        separate.push({ from: worktree, to });
+        wanted.push({ from: worktree, to });
       }
     }
   }
 
-  const targets = [destination, ...separate.map(({ to }) => to)];
+  /** Where a folder can go, or the refusal when it can't go where it was meant to. */
+  const place = Effect.fnUntraced(function* (target: string, chosen: ReadonlyArray<string>) {
+    if (options.whenTaken === "Number") {
+      return { _tag: "Placed", path: yield* freePlace(target, chosen) } as const;
+    }
 
-  for (const [index, target] of targets.entries()) {
-    const clash = targets.find(
-      (other, otherIndex) => otherIndex !== index && isWithin(target, other),
-    );
+    const clash = chosen.find((other) => overlaps(target, other));
 
     if (clash !== undefined) {
       return {
@@ -81,13 +97,41 @@ export const planCheckoutMove = Effect.fn("planCheckoutMove")(function* (options
       } as const;
     }
 
-    if (yield* exists(target)) {
-      return {
-        _tag: "Refused",
-        outcome: skipped(SkipReason.cases.DestinationTaken.make({ path: target })),
-      } as const;
-    }
+    return (yield* exists(target))
+      ? ({
+          _tag: "Refused",
+          outcome: skipped(SkipReason.cases.DestinationTaken.make({ path: target })),
+        } as const)
+      : ({ _tag: "Placed", path: target } as const);
+  });
+
+  const main = yield* place(options.destination, []);
+
+  if (main._tag === "Refused") {
+    return main;
   }
+
+  const destination = main.path;
+  const chosen = [destination];
+  const separate: Array<Move> = [];
+
+  for (const { from, to } of wanted) {
+    const placed = yield* place(to, chosen);
+
+    if (placed._tag === "Refused") {
+      return placed;
+    }
+
+    chosen.push(placed.path);
+    separate.push({ from, to: placed.path });
+  }
+
+  const nested = linked
+    .filter(({ path: worktree }) => isWithin(worktree, location.path))
+    .map(({ path: worktree }) => ({
+      from: worktree,
+      to: path.join(destination, path.relative(location.path, worktree)),
+    }));
 
   return {
     _tag: "Planned",

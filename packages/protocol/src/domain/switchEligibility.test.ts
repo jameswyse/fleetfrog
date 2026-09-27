@@ -32,14 +32,17 @@ function status(options: {
 }
 
 describe("switchBlocker", () => {
-  it("allows a switch with only untracked files", () => {
+  it("allows a switch with changes to stash or from a detached HEAD", () => {
     expect(switchBlocker(status({}), "feature")).toBeNull();
+    expect(switchBlocker(status({ changed: 2 }), "feature")).toBeNull();
+    expect(switchBlocker(status({ head: { _tag: "Detached" } }), "main")).toBeNull();
   });
 
-  it("skips a switch that would carry changes or leave commits behind", () => {
-    expect(switchBlocker(status({ changed: 2 }), "feature")?._tag).toBe("UncommittedChanges");
-    expect(switchBlocker(status({ head: { _tag: "Detached" } }), "feature")?._tag).toBe("Detached");
+  it("stops a switch the developer has to sort out first", () => {
     expect(switchBlocker(status({}), "main")?._tag).toBe("AlreadyOnBranch");
+    expect(switchBlocker({ ...status({}), operation: "rebase" }, "feature")?._tag).toBe(
+      "OperationInProgress",
+    );
   });
 
   it("rules out a missing branch only when every branch was listed", () => {

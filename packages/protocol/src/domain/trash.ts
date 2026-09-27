@@ -69,16 +69,40 @@ export const Inspection = Schema.Struct({
 });
 export type Inspection = typeof Inspection.Type;
 
+/**
+ * What removing a linked worktree would do, found by reading it. Its changes would be stashed and
+ * its detached HEAD's own commits kept in the trash, so only its ignored files other than caches
+ * are lost. The fingerprint changes when its HEAD, changes or ignored entries do.
+ */
+export const WorktreeInspection = Schema.Struct({
+  fingerprint: Schema.String,
+  path: Schema.String,
+  /** The folder is gone, and `parentMissing` says whether the folder above it is too. */
+  missing: Schema.NullOr(Schema.Struct({ parentMissing: Schema.Boolean })),
+  branch: Schema.NullOr(Schema.String),
+  /** Why Git was told to keep the worktree, when it was locked, or an empty reason. */
+  locked: Schema.NullOr(Schema.String),
+  changedFiles: Count,
+  untrackedFiles: Count,
+  /** Commits only its detached HEAD holds. */
+  unreachableCommits: Count,
+  /** Ignored files and folders that aren't known caches, largest first. */
+  ignored: Schema.Struct({ items: Schema.Array(SizedPath), total: Count }),
+  caches: Schema.Array(SizedPath),
+});
+export type WorktreeInspection = typeof WorktreeInspection.Type;
+
 export const InspectionResult = Schema.TaggedUnion({
   Inspected: { inspection: Inspection },
+  WorktreeInspected: { inspection: WorktreeInspection },
   Failed: { message: Schema.String },
 });
 export type InspectionResult = typeof InspectionResult.Type;
 
 /**
  * Whether everything in the checkout can be had again from its remotes or rebuilt, so deleting it
- * for good loses nothing. The dashboard offers permanent deletion only then, and the agent checks
- * again before deleting.
+ * for good loses nothing. Otherwise the dashboard warns before deleting, and asks the agent to
+ * delete regardless; without that, the agent checks again and keeps a checkout with unique work.
  */
 export function nothingUnique(inspection: Inspection): boolean {
   return (

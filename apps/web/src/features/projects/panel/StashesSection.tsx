@@ -48,8 +48,9 @@ function DropStashesDialog({
         {stashes.length === 1 && <p className="break-words text-ink-muted">{only.message}</p>}
         <p>
           {stashes.length === 1 ? "It leaves" : "They leave"} the stash list on{" "}
-          {machineLabel(machine)} and go to the Trash, where you can restore them until you empty
-          it. If the stashes change before this runs, none are dropped.
+          {machineLabel(machine)} and {stashes.length === 1 ? "goes" : "go"} to the Trash, where you
+          can restore {stashes.length === 1 ? "it" : "them"} until you empty it. Stashes made
+          meanwhile are left alone.
         </p>
         <p role="status" className="text-danger">
           {failure}
@@ -106,8 +107,7 @@ export function StashesSection({
   const blocked = machineBlocker(machine, "DropStashes");
   const busy = activeRunFor(runs, { machineId: machine.id, checkout }) !== undefined;
   const known = git.stashes.items.filter(isKnown);
-  // Every stash has to be listed to drop them all, or one past the list would stay.
-  const [first, ...rest] = known.length === git.stashes.total ? known : [];
+  const [first, ...rest] = known;
 
   return (
     <PanelSection title="Stashes" icon={ArchiveIcon} tone="neutral" count={git.stashes.total}>
@@ -135,10 +135,12 @@ export function StashesSection({
           </li>
         )}
       />
-      {first !== undefined && git.stashes.total > 1 && blocked === null && (
+      {first !== undefined && rest.length > 0 && blocked === null && (
         <div className="mt-3 border-t border-line pt-3">
           <Button disabled={busy} onClick={() => setDropping([first, ...rest])}>
-            Drop all stashes…
+            {known.length === git.stashes.total
+              ? "Drop all stashes…"
+              : `Drop the ${known.length} listed stashes…`}
           </Button>
         </div>
       )}

@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { requestHub } from "@/rpc/hubConnection.ts";
 import { checkArchiveFolder } from "@fleetfrog/protocol/domain/archiveFolder";
 
 import type { HubResult } from "@/rpc/hubConnection.ts";
@@ -30,6 +31,25 @@ function folderProblem(folder: string, machine: Machine): string | null {
   return check._tag === "ContainsProjectFolder"
     ? `It holds ${check.root}, one of this machine's project folders. Choose a folder inside it or elsewhere.`
     : null;
+}
+
+/**
+ * Asks the machine to create its Archive folder, or null when its agent can't, or isn't allowed
+ * to, so the field offers no button to try.
+ */
+export function archiveFolderCreator(
+  machine: Machine,
+): ((path: string) => Promise<HubResult<FolderOutcome>>) | null {
+  return machine.connection._tag === "Online" &&
+    machine.connection.capabilities.createsFolders &&
+    machine.connection.capabilities.allowedTiers.includes("cleanup")
+    ? (path) => requestHub((client) => client.CreateProjectFolder({ machineId: machine.id, path }))
+    : null;
+}
+
+/** Saves the machine's Archive folder, or turns archiving off with null. */
+export function saveArchiveFolder(machine: Machine, folder: string | null) {
+  return requestHub((client) => client.SetArchiveFolder({ machineId: machine.id, folder }));
 }
 
 /**

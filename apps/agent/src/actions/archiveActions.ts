@@ -13,7 +13,7 @@ import {
 } from "../archive/archiveRecord.ts";
 import { archivePath } from "../discovery/discoverCheckouts.ts";
 import { performCheckoutMove, planCheckoutMove } from "./checkoutMove.ts";
-import { exists, movableProblem } from "./movableCheckout.ts";
+import { movableProblem } from "./movableCheckout.ts";
 import { failed, failedWith, skipped, succeeded } from "./outcomes.ts";
 
 import type { CheckoutLocation } from "../git/readCheckout.ts";
@@ -30,7 +30,7 @@ export interface Folders {
 /**
  * Moves a checkout into the Archive folder, at the same path below it as it had below its project
  * folder, and records where it came from. Its linked worktrees move too, each the same way, and
- * Git relinks them. Nothing moves if any destination is taken or two would clash.
+ * Git relinks them. A place something is already at gets a number added, as `-2` and so on.
  */
 export const archiveCheckout = Effect.fn("archiveCheckout")(
   function* (location: CheckoutLocation, folders: Folders, output: ActionOutput) {
@@ -57,6 +57,7 @@ export const archiveCheckout = Effect.fn("archiveCheckout")(
       destination,
       worktreeDestination: (worktree) =>
         archiveDestination({ path: worktree, archive, ...folders }),
+      whenTaken: "Number",
     });
 
     if (planned._tag === "Refused") {
@@ -86,11 +87,13 @@ export const archiveCheckout = Effect.fn("archiveCheckout")(
       return result.outcome;
     }
 
+    const archived = planned.move.main.to;
+
     // The record travelled with the checkout. It now lists only the worktrees that moved.
-    yield* writeArchiveRecord(path.join(destination, ".git"), record(result.worktrees, archivedAt));
+    yield* writeArchiveRecord(path.join(archived, ".git"), record(result.worktrees, archivedAt));
 
     return succeeded(
-      ActionResult.cases.Archived.make({ path: destination, worktrees: result.worktrees }),
+      ActionResult.cases.Archived.make({ path: archived, worktrees: result.worktrees }),
     );
   },
   Effect.catchTag("CommandFailed", failedWith),
@@ -98,8 +101,9 @@ export const archiveCheckout = Effect.fn("archiveCheckout")(
 
 /**
  * Moves an archived checkout back where it was archived from, or below the first project folder
- * when that place is no longer in one, with the worktrees archived alongside it that are still
- * where they were left. Every worktree is relinked, including ones that stay.
+ * when that place is no longer in one, with a number added when something is there now. The
+ * worktrees archived alongside it go back likewise. Every worktree is relinked, including ones
+ * that stay.
  */
 export const unarchiveCheckout = Effect.fn("unarchiveCheckout")(
   function* (location: CheckoutLocation, folders: Folders, output: ActionOutput) {
@@ -126,21 +130,21 @@ export const unarchiveCheckout = Effect.fn("unarchiveCheckout")(
     }
 
     const record = yield* readArchiveRecord(location.commonDirectory);
-    const returning = new Map<string, string>();
-
-    for (const { originalPath, archivedPath } of Option.isSome(record)
-      ? record.value.worktrees
-      : []) {
-      // One moved or removed since, or whose old place is taken, stays where it is.
-      if (!(yield* exists(originalPath))) {
-        returning.set(archivedPath, originalPath);
-      }
-    }
+    // A worktree moved or removed since it was archived isn't at its archived path, so it stays.
+    const returning = new Map(
+      Option.isSome(record)
+        ? record.value.worktrees.map(({ originalPath, archivedPath }) => [
+            archivedPath,
+            originalPath,
+          ])
+        : [],
+    );
 
     const planned = yield* planCheckoutMove({
       location,
       destination,
       worktreeDestination: (worktree) => returning.get(worktree) ?? null,
+      whenTaken: "Number",
     });
 
     if (planned._tag === "Refused") {
@@ -153,10 +157,12 @@ export const unarchiveCheckout = Effect.fn("unarchiveCheckout")(
       return result.outcome;
     }
 
-    yield* removeArchiveRecord(path.join(destination, ".git"));
+    const unarchived = planned.move.main.to;
+
+    yield* removeArchiveRecord(path.join(unarchived, ".git"));
 
     return succeeded(
-      ActionResult.cases.Unarchived.make({ path: destination, worktrees: result.worktrees }),
+      ActionResult.cases.Unarchived.make({ path: unarchived, worktrees: result.worktrees }),
     );
   },
   Effect.catchTag("CommandFailed", failedWith),

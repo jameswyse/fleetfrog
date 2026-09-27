@@ -58,10 +58,18 @@ export const HubCommand = Schema.TaggedUnion({
    */
   CreateFolder: { requestId: Schema.String, path: Schema.String },
   /**
-   * Inspects a checkout before it is trashed or deleted, answered by `ReportInspection` with the
-   * same request id. Sent only to agents that advertise the `Trash` action.
+   * Inspects a checkout before it is trashed or deleted, or with `worktree`, that linked worktree
+   * of it before it is removed. Answered by `ReportInspection` with the same request id. Sent only
+   * to agents that advertise the `Trash` action. One too old to know `worktree` inspects the
+   * checkout instead, which the hub can tell from the kind of result.
    */
-  Inspect: { requestId: Schema.String, path: Schema.String },
+  Inspect: {
+    requestId: Schema.String,
+    path: Schema.String,
+    worktree: Schema.NullOr(Schema.String).pipe(
+      Schema.withDecodingDefaultTypeKey(Effect.succeed(null)),
+    ),
+  },
 });
 export type HubCommand = typeof HubCommand.Type;
 

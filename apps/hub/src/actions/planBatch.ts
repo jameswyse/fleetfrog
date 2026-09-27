@@ -228,10 +228,17 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
         return { repository: trashedRepository(item), path: item.originalPath };
       }
 
-      const { path } = target;
-      const found = candidatesFor(targeted).find(
-        ({ entry }) => entry.machineId === machineId && entry.checkout.path === path,
-      );
+      // A worktree outside the project folders may be listed without its main checkout.
+      const paths =
+        targeted._tag === "RemoveWorktree" ? [target.path, targeted.worktree] : [target.path];
+      const candidates = candidatesFor(targeted);
+      const found = paths
+        .map((path) =>
+          candidates.find(
+            ({ entry }) => entry.machineId === machineId && entry.checkout.path === path,
+          ),
+        )
+        .find((candidate) => candidate !== undefined);
 
       if (found === undefined) {
         return yield* new NothingToRun();

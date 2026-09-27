@@ -13,6 +13,7 @@ import {
   isMerged,
   tidyCandidates,
 } from "../../branches/branchTidying.ts";
+import { SwitchBranchDialog } from "../../branches/SwitchBranchDialog.tsx";
 import { TidyBranchesDialog } from "../../branches/TidyBranchesDialog.tsx";
 import { PanelSection, ShortList } from "./PanelSection.tsx";
 
@@ -72,6 +73,7 @@ export function BranchesSection({
 }) {
   const runs = useRuns();
   const [tidying, setTidying] = useState(false);
+  const [switching, setSwitching] = useState<string | null>(null);
   const { start, pending, failure } = useStartBatch();
   const { head } = git;
   const current = head._tag === "Detached" ? null : head.name;
@@ -86,14 +88,25 @@ export function BranchesSection({
     ? (reasons.get(others[0]?.name ?? "") ?? null)
     : null;
 
-  const candidates = tidyCandidates({ checkout, git, inOtherWorktrees: elsewhere });
+  const { candidates, kept } = tidyCandidates({ checkout, git, inOtherWorktrees: elsewhere });
   const tidyBlocked = machineBlocker(machine, "DeleteBranches");
 
-  const switchTo = (branch: string) =>
-    start({
-      _tag: "Targeted",
-      runs: [{ machineId: machine.id, request: { _tag: "Switch", path: checkout.path, branch } }],
-    });
+  // Changes are stashed first, which the developer confirms.
+  const switchTo = (branch: string) => {
+    if (git.changed.total > 0) {
+      setSwitching(branch);
+    } else {
+      start({
+        _tag: "Targeted",
+        runs: [
+          {
+            machineId: machine.id,
+            request: { _tag: "Switch", path: checkout.path, branch, stashChanges: false },
+          },
+        ],
+      });
+    }
+  };
 
   return (
     <PanelSection
@@ -142,6 +155,12 @@ export function BranchesSection({
       {sharedReason !== null && (
         <p className="mt-2 text-xs text-ink-muted">Switching isn't available: {sharedReason}.</p>
       )}
+      {sharedReason === null && git.branches.items.some(({ name }) => elsewhere.has(name)) && (
+        <p className="mt-2 text-xs text-ink-muted">
+          A branch in another worktree can't be checked out here too. Switch that worktree to
+          another branch, or remove it, first.
+        </p>
+      )}
       {failure !== null && (
         <p role="status" className="mt-2 text-sm text-danger">
           {failure}
@@ -164,7 +183,17 @@ export function BranchesSection({
           checkout={checkout}
           git={git}
           candidates={candidates}
+          kept={kept}
           onClose={() => setTidying(false)}
+        />
+      )}
+      {switching !== null && (
+        <SwitchBranchDialog
+          machine={machine}
+          checkout={checkout}
+          branch={switching}
+          changedFiles={git.changed.total}
+          onClose={() => setSwitching(null)}
         />
       )}
     </PanelSection>

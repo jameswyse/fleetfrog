@@ -93,8 +93,10 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
 
           return outcome;
         }),
-      InspectCheckout: ({ machineId, path }) =>
-        machines.find(machineId).pipe(Effect.andThen(inspections.inspect(machineId, path))),
+      InspectCheckout: ({ machineId, path, worktree }) =>
+        machines
+          .find(machineId)
+          .pipe(Effect.andThen(inspections.inspect({ machineId, path, worktree }))),
       RemoveMachine: ({ machineId }) =>
         Effect.gen(function* () {
           const machine = yield* machines.find(machineId);

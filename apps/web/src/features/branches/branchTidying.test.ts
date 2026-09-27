@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { MachineId } from "@fleetfrog/protocol/domain/machine";
 import { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
-import { branchesInOtherWorktrees, tidyCandidates } from "./branchTidying.ts";
+import { branchesInOtherWorktrees, isPreselected, tidyCandidates } from "./branchTidying.ts";
 
 import type { Checkout, GitStatus, LocalBranch } from "@fleetfrog/protocol/domain/checkout";
 import type { Repository } from "@fleetfrog/protocol/domain/fleet";
@@ -88,16 +88,27 @@ const checkout: Checkout = {
 };
 
 describe("tidyCandidates", () => {
-  const standings = new Map(
-    tidyCandidates({ checkout, git, inOtherWorktrees: new Set(["elsewhere"]) }).map(
-      ({ name, standing }) => [name, standing._tag],
-    ),
-  );
+  const { candidates, kept } = tidyCandidates({
+    checkout,
+    git,
+    inOtherWorktrees: new Map([["elsewhere", "/home/dev/Projects/shop-elsewhere"]]),
+  });
+  const standings = new Map(candidates.map(({ name, standing }) => [name, standing._tag]));
 
-  it("leaves out the current, default and other worktrees' branches", () => {
+  it("keeps the current and other worktrees' branches, saying what to do first", () => {
     expect(new Set(standings.keys())).toEqual(
-      new Set(["done", "squashed", "squashed-then-changed", "pushed", "local"]),
+      new Set(["main", "done", "squashed", "squashed-then-changed", "pushed", "local"]),
     );
+    expect(kept.map(({ name }) => name)).toEqual(["current", "elsewhere"]);
+    expect(kept[1]?.reason).toContain("/home/dev/Projects/shop-elsewhere");
+  });
+
+  it("offers the default branch without choosing it to start with", () => {
+    const main = candidates.find(({ name }) => name === "main");
+
+    expect(main?.isDefault).toBe(true);
+    expect(main !== undefined && isPreselected(main)).toBe(false);
+    expect(candidates.filter(isPreselected).map(({ name }) => name)).toEqual(["done", "squashed"]);
   });
 
   it("counts a merged pull request only when it was merged at the branch's tip", () => {
@@ -144,12 +155,12 @@ describe("branchesInOtherWorktrees", () => {
       ],
     };
     // From the main checkout, both worktrees' branches are elsewhere.
-    expect(branchesInOtherWorktrees({ repository, machineId, checkout: main })).toEqual(
-      new Set(["fix", "feature"]),
-    );
+    expect(
+      new Set(branchesInOtherWorktrees({ repository, machineId, checkout: main }).keys()),
+    ).toEqual(new Set(["fix", "feature"]));
     // From the linked worktree, its own branch isn't, but main's and the broken one's are.
-    expect(branchesInOtherWorktrees({ repository, machineId, checkout: linked })).toEqual(
-      new Set(["current", "fix"]),
-    );
+    expect(
+      new Set(branchesInOtherWorktrees({ repository, machineId, checkout: linked }).keys()),
+    ).toEqual(new Set(["current", "fix"]));
   });
 });

@@ -11,10 +11,10 @@ import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { SidebarPage } from "@/ui/SidebarLayout.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
+import { machineBlocker } from "../actions/actionAvailability.ts";
 import { describeActiveRunBriefly } from "../actions/actionCopy.ts";
 import { useStartBatch } from "../actions/useStartBatch.ts";
 import { linkedWorktrees, planUnarchive } from "../archive/archiveAvailability.ts";
-import { trashBlocker } from "./trashAvailability.ts";
 import { TrashCheckoutDialog } from "./TrashCheckoutDialog.tsx";
 
 import type { ActionRun } from "@fleetfrog/protocol/domain/activity";
@@ -53,7 +53,7 @@ function ArchivedRow({
   const [trashing, setTrashing] = useState(false);
   const { repository, machine, checkout } = entry;
   const plan = planUnarchive({ machine, checkout });
-  const trashBlocked = trashBlocker({ machine, checkout });
+  const trashBlocked = machineBlocker(machine, "Trash");
   const git = checkout.status._tag === "Read" ? checkout.status.git : null;
   const lastCommit = git?.lastCommit ?? null;
   const { placement } = checkout;
@@ -95,7 +95,8 @@ function ArchivedRow({
         </p>
         {plan._tag === "Ready" && (
           <p className="text-xs text-ink-muted">
-            Unarchiving moves it to <span className="font-mono break-all">{plan.destination}</span>
+            Unarchiving moves it to <span className="font-mono break-all">{plan.destination}</span>,
+            or with a number added if something is there now
           </p>
         )}
         {failure !== null && (

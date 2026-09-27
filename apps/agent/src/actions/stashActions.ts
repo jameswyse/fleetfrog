@@ -17,10 +17,10 @@ const stashCommits = (location: CheckoutLocation) =>
   );
 
 /**
- * Moves stashes to the trash: each is kept as `refs/fleetfrog/stashes/<time>/<index>`, then dropped
- * from the stash list, highest index first so the others keep their numbers. Nothing is dropped
- * unless every stash is still the commit the dashboard showed, and each is checked again and kept
- * just before it goes, so a stop partway leaves no copy of a stash that wasn't dropped.
+ * Moves stashes to the trash: each is kept as `refs/fleetfrog/stashes/<time>/<index>`, with the
+ * index the dashboard showed, then dropped from the stash list. Each is found by its commit just
+ * before it goes, since dropping one renumbers the ones after it, and a stash that's gone already
+ * is left out. Keeping it first means a stop partway leaves no copy of a stash that wasn't dropped.
  */
 export const dropStashes = Effect.fn("dropStashes")(
   function* (
@@ -28,32 +28,35 @@ export const dropStashes = Effect.fn("dropStashes")(
     stashes: ReadonlyArray<{ readonly index: number; readonly sha: string }>,
     output: ActionOutput,
   ) {
-    const current = yield* stashCommits(location);
-
-    if (stashes.some(({ index, sha }) => current[index] !== sha)) {
-      return skipped(SkipReason.cases.StashesChanged.make({}));
-    }
-
     const droppedAt = DateTime.toEpochMillis(yield* DateTime.now);
+    let dropped = 0;
 
-    for (const { index, sha } of stashes.toSorted((left, right) => right.index - left.index)) {
-      if ((yield* refCommit(location, `stash@{${index}}`)) !== sha) {
-        return skipped(SkipReason.cases.StashesChanged.make({}));
+    for (const { index, sha } of stashes) {
+      const current = (yield* stashCommits(location)).indexOf(sha);
+
+      if (current !== -1) {
+        yield* runGitAction({
+          cwd: location.path,
+          args: ["update-ref", `${droppedStashPrefix}${droppedAt}/${index}`, sha, ""],
+          onOutput: output.write,
+        });
+        yield* runGitAction({
+          cwd: location.path,
+          args: ["stash", "drop", "--quiet", `stash@{${current}}`],
+          onOutput: output.write,
+        });
+        dropped += 1;
       }
-
-      yield* runGitAction({
-        cwd: location.path,
-        args: ["update-ref", `${droppedStashPrefix}${droppedAt}/${index}`, sha, ""],
-        onOutput: output.write,
-      });
-      yield* runGitAction({
-        cwd: location.path,
-        args: ["stash", "drop", "--quiet", `stash@{${index}}`],
-        onOutput: output.write,
-      });
     }
 
-    return succeeded(ActionResult.cases.StashesDropped.make({ stashes: stashes.length }));
+    return dropped === 0
+      ? skipped(SkipReason.cases.NoSuchStash.make({}))
+      : succeeded(
+          ActionResult.cases.StashesDropped.make({
+            stashes: dropped,
+            missing: stashes.length - dropped,
+          }),
+        );
   },
   Effect.catchTag("CommandFailed", failedWith),
 );
@@ -84,7 +87,7 @@ export const restoreStash = Effect.fn("restoreStash")(
       onOutput: output.write,
     });
 
-    return succeeded(ActionResult.cases.Restored.make({ path: null }));
+    return succeeded(ActionResult.cases.Restored.make({ path: null, branch: null }));
   },
   Effect.catchTag("CommandFailed", failedWith),
 );

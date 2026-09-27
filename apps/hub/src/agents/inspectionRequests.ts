@@ -12,11 +12,19 @@ function failed(message: string): InspectionResult {
   return InspectionResult.cases.Failed.make({ message });
 }
 
-/** Asks agents what deleting a checkout would lose and waits for each answer. */
+/**
+ * Asks agents what deleting a checkout, or removing one of its linked worktrees, would lose and
+ * waits for each answer.
+ */
 export class InspectionRequests extends Context.Service<
   InspectionRequests,
   {
-    readonly inspect: (machineId: MachineId, path: string) => Effect.Effect<InspectionResult>;
+    readonly inspect: (request: {
+      readonly machineId: MachineId;
+      readonly path: string;
+      /** A linked worktree of the checkout at `path` to inspect instead. */
+      readonly worktree: string | null;
+    }) => Effect.Effect<InspectionResult>;
     /** Takes an agent's answer. Only the machine that was asked can answer. */
     readonly answer: (answer: {
       readonly machineId: MachineId;
@@ -32,7 +40,7 @@ export class InspectionRequests extends Context.Service<
       const queries = makeAgentQueries({ timeout: Duration.minutes(3), unanswered: failed });
 
       return {
-        inspect: Effect.fn("InspectionRequests.inspect")(function* (machineId, path) {
+        inspect: Effect.fn("InspectionRequests.inspect")(function* ({ machineId, path, worktree }) {
           const agent = (yield* SubscriptionRef.get(sessions.online)).get(machineId);
 
           if (agent === undefined) {
@@ -44,9 +52,14 @@ export class InspectionRequests extends Context.Service<
             return failed("The machine's agent needs updating before it can inspect checkouts.");
           }
 
-          return yield* queries.ask(machineId, (requestId) =>
-            sessions.send(machineId, HubCommand.cases.Inspect.make({ requestId, path })),
+          const result = yield* queries.ask(machineId, (requestId) =>
+            sessions.send(machineId, HubCommand.cases.Inspect.make({ requestId, path, worktree })),
           );
+
+          // An agent too old to know `worktree` inspects the whole checkout instead.
+          return worktree !== null && result._tag === "Inspected"
+            ? failed("The machine's agent needs updating before it can inspect worktrees.")
+            : result;
         }),
         answer: ({ machineId, requestId, result }) =>
           queries.answer({ machineId, requestId, value: result }),

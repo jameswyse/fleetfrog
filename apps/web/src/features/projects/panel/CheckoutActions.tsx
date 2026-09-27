@@ -18,11 +18,13 @@ import { StashDialog } from "../../actions/StashDialog.tsx";
 import { useStartBatch } from "../../actions/useStartBatch.ts";
 import { planArchive } from "../../archive/archiveAvailability.ts";
 import { ArchiveDialog } from "../../archive/ArchiveDialog.tsx";
-import { trashBlocker } from "../../cleanup/trashAvailability.ts";
+import { RemoveWorktreeDialog } from "../../cleanup/RemoveWorktreeDialog.tsx";
 import { TrashCheckoutDialog } from "../../cleanup/TrashCheckoutDialog.tsx";
 
 import type { Checkout } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
+
+import type { ArchivePlan } from "../../archive/archiveAvailability.ts";
 
 /**
  * Actions for one checkout, from fetching to archiving or trashing it, with what is running on it
@@ -48,8 +50,23 @@ export function CheckoutActions({
   const git = checkout.status._tag === "Read" ? checkout.status.git : null;
   const hasChanges = git !== null && git.changed.total + git.untracked.total > 0;
   const stashBlocked = stashSkipReason(machine, checkout);
-  const archive = planArchive({ machine, checkout });
-  const trashBlocked = trashBlocker({ machine, checkout });
+  const linked = checkout.worktree._tag === "Linked" ? checkout.worktree.mainPath : null;
+  // A linked worktree is archived with its main checkout.
+  const archiveTarget =
+    linked === null
+      ? checkout
+      : (repository.checkouts.find(
+          (entry) => entry.machineId === machine.id && entry.checkout.path === linked,
+        )?.checkout ?? null);
+  const archive: ArchivePlan =
+    archiveTarget === null
+      ? {
+          _tag: "Blocked",
+          reason: `It's a linked worktree of ${linked}, which FleetFrog doesn't list, so it can't be archived from here`,
+        }
+      : planArchive({ machine, checkout: archiveTarget });
+  // A linked worktree is removed from its main checkout rather than moved to the trash.
+  const trashBlocked = machineBlocker(machine, linked === null ? "Trash" : "RemoveWorktree");
   const scope = { _tag: "Checkout", machineId: machine.id, path: checkout.path } as const;
   const shown = active ?? latest;
 
@@ -110,7 +127,7 @@ export function CheckoutActions({
                   setDialog("trash");
                 }}
               >
-                Move to the trash…
+                {linked === null ? "Move to the trash…" : "Remove worktree…"}
               </MenuItem>
               {trashBlocked !== null && (
                 <p className="px-3 pb-2 text-xs text-ink-muted">{trashBlocked}.</p>
@@ -169,7 +186,7 @@ export function CheckoutActions({
           onClose={() => setDialog(null)}
         />
       )}
-      {dialog === "trash" && (
+      {dialog === "trash" && linked === null && (
         <TrashCheckoutDialog
           label={repository.label}
           machine={machine}
@@ -177,13 +194,20 @@ export function CheckoutActions({
           onClose={() => setDialog(null)}
         />
       )}
-      {dialog === "archive" && archive._tag === "Ready" && (
+      {dialog === "trash" && linked !== null && (
+        <RemoveWorktreeDialog
+          machine={machine}
+          mainPath={linked}
+          worktree={checkout.path}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog === "archive" && archiveTarget !== null && (
         <ArchiveDialog
           repository={repository}
           machine={machine}
-          checkout={checkout}
-          destination={archive.destination}
-          worktrees={archive.worktrees}
+          checkout={archiveTarget}
+          fromWorktree={linked === null ? null : checkout.path}
           onClose={() => setDialog(null)}
         />
       )}

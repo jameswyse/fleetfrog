@@ -154,12 +154,23 @@ const makeHarness = Effect.fn("makeHarness")(function* (options: {
     /** Inspects a checkout through the runner, as the hub asks for it. */
     inspect: (checkoutPath: string) =>
       runner
-        .inspect(checkoutPath)
+        .inspect({ path: checkoutPath, worktree: null })
         .pipe(
           Effect.flatMap((result) =>
             result._tag === "Inspected"
               ? Effect.succeed(result.inspection)
-              : Effect.die(new Error(`Inspection failed: ${result.message}`)),
+              : Effect.die(new Error(`Inspection failed: ${JSON.stringify(result)}`)),
+          ),
+        ),
+    /** Inspects a linked worktree of the checkout through the runner. */
+    inspectWorktree: (checkoutPath: string, worktree: string) =>
+      runner
+        .inspect({ path: checkoutPath, worktree })
+        .pipe(
+          Effect.flatMap((result) =>
+            result._tag === "WorktreeInspected"
+              ? Effect.succeed(result.inspection)
+              : Effect.die(new Error(`Inspection failed: ${JSON.stringify(result)}`)),
           ),
         ),
     started: (runId: RunId) => Deferred.await(signalFor(runId, "Started")),
@@ -317,7 +328,9 @@ describe("action runner", () => {
       git(clone, "branch", "feature");
       writeFileSync(path.join(clone, "notes.txt"), "untracked\n");
 
-      expect(yield* run({ _tag: "Switch", path: clone, branch: "feature" })).toMatchObject({
+      expect(
+        yield* run({ _tag: "Switch", path: clone, branch: "feature", stashChanges: false }),
+      ).toMatchObject({
         outcome: { _tag: "Succeeded", result: { _tag: "Switched", branch: "feature" } },
       });
       expect(git(clone, "branch", "--show-current")).toBe("feature");
@@ -331,10 +344,53 @@ describe("action runner", () => {
       git(clone, "branch", "feature");
       writeFileSync(path.join(clone, "readme.md"), "edited\n");
 
-      expect(yield* run({ _tag: "Switch", path: clone, branch: "feature" })).toMatchObject({
+      expect(
+        yield* run({ _tag: "Switch", path: clone, branch: "feature", stashChanges: false }),
+      ).toMatchObject({
         outcome: { _tag: "Skipped", reason: { _tag: "UncommittedChanges", files: 1 } },
       });
       expect(git(clone, "branch", "--show-current")).toBe("main");
+    }),
+  );
+
+  it.effect("stashes changes to tracked files first when asked, then switches", () =>
+    Effect.gen(function* () {
+      const { run, clone } = yield* setUp();
+
+      git(clone, "branch", "feature");
+      writeFileSync(path.join(clone, "readme.md"), "edited\n");
+
+      expect(
+        yield* run({ _tag: "Switch", path: clone, branch: "feature", stashChanges: true }),
+      ).toMatchObject({
+        outcome: {
+          _tag: "Succeeded",
+          result: { _tag: "Switched", branch: "feature", stashedFiles: 1 },
+        },
+      });
+      expect(git(clone, "branch", "--show-current")).toBe("feature");
+      expect(git(clone, "stash", "list")).toContain("before switching to feature");
+    }),
+  );
+
+  it.effect("keeps a detached HEAD's own commits in the trash when switching away", () =>
+    Effect.gen(function* () {
+      const { run, clone } = yield* setUp();
+
+      git(clone, "switch", "-q", "--detach");
+      writeFileSync(path.join(clone, "readme.md"), "detached\n");
+      git(clone, "commit", "-q", "-am", "Only on a detached HEAD");
+
+      const sha = git(clone, "rev-parse", "HEAD");
+
+      expect(
+        yield* run({ _tag: "Switch", path: clone, branch: "main", stashChanges: false }),
+      ).toMatchObject({
+        outcome: { _tag: "Succeeded", result: { _tag: "Switched", savedCommits: 1 } },
+      });
+      expect(
+        git(clone, "for-each-ref", "--format=%(refname) %(objectname)", "refs/fleetfrog/deleted/"),
+      ).toMatch(new RegExp(`/detached-${sha.slice(0, 7)} ${sha}$`));
     }),
   );
 
@@ -344,7 +400,9 @@ describe("action runner", () => {
 
       git(clone, "worktree", "add", "-q", "-b", "feature", path.join(root, "feature"));
 
-      expect(yield* run({ _tag: "Switch", path: clone, branch: "feature" })).toMatchObject({
+      expect(
+        yield* run({ _tag: "Switch", path: clone, branch: "feature", stashChanges: false }),
+      ).toMatchObject({
         outcome: { _tag: "Skipped", reason: { _tag: "BranchInUse" } },
       });
     }),
@@ -387,13 +445,21 @@ describe("action runner", () => {
       const ref = git(clone, "for-each-ref", "--format=%(refname)", "refs/fleetfrog/deleted");
 
       expect(ref).toMatch(/^refs\/fleetfrog\/deleted\/\d+\/feature$/);
+
+      // A new branch has the name now, so the deleted one comes back under another.
+      git(clone, "branch", "feature");
       expect(
         yield* run(
           { _tag: "Restore", target: { _tag: "Branch", path: clone, ref } },
           runIds.second,
         ),
-      ).toMatchObject({ outcome: { _tag: "Succeeded", result: { _tag: "Restored" } } });
-      expect(git(clone, "rev-parse", "feature")).toBe(sha);
+      ).toMatchObject({
+        outcome: {
+          _tag: "Succeeded",
+          result: { _tag: "Restored", branch: "feature-restored" },
+        },
+      });
+      expect(git(clone, "rev-parse", "feature-restored")).toBe(sha);
       expect(git(clone, "for-each-ref", "refs/fleetfrog/deleted")).toBe("");
     }),
   );
@@ -489,24 +555,35 @@ describe("action runner", () => {
     }),
   );
 
-  it.effect("won't archive when two folders would land in the same place", () =>
+  it.effect("adds a number to an archive place that's taken or shared", () =>
     Effect.gen(function* () {
       const { run, clone, root } = yield* setUp(withCleanup, "Archive");
 
       // Outside the project folders, each goes to its folder name, which here is the same.
       git(clone, "worktree", "add", "-q", "-b", "a", path.join(root, "one", "shared"));
       git(clone, "worktree", "add", "-q", "-b", "b", path.join(root, "two", "shared"));
+      mkdirSync(path.join(root, "Archive", "clone"), { recursive: true });
 
       expect(yield* run({ _tag: "Archive", path: clone })).toMatchObject({
-        outcome: { _tag: "Skipped", reason: { _tag: "DestinationsClash" } },
+        outcome: {
+          _tag: "Succeeded",
+          result: {
+            _tag: "Archived",
+            path: path.join(root, "Archive", "clone-2"),
+            worktrees: [
+              { to: path.join(root, "Archive", "shared") },
+              { to: path.join(root, "Archive", "shared-2") },
+            ],
+          },
+        },
       });
-      expect(existsSync(clone)).toBe(true);
+      expect(git(path.join(root, "Archive", "shared-2"), "branch", "--show-current")).toBe("b");
     }),
   );
 
-  it.effect("won't remove a worktree whose commits or ignored files would be lost", () =>
+  it.effect("removes a worktree after keeping its commits and changes in the trash", () =>
     Effect.gen(function* () {
-      const { run, clone, root } = yield* setUp(withCleanup);
+      const { run, clone, root, inspectWorktree } = yield* setUp(withCleanup);
       const detached = path.join(root, "detached");
       const secrets = path.join(root, "secrets");
 
@@ -515,20 +592,48 @@ describe("action runner", () => {
       git(clone, "worktree", "add", "-q", "-b", "secrets", secrets);
       writeFileSync(path.join(clone, ".git", "info", "exclude"), ".env\nnode_modules/\n");
       writeFileSync(path.join(secrets, ".env"), "SECRET=1\n");
+      writeFileSync(path.join(secrets, "notes.txt"), "work in progress\n");
 
-      expect(yield* run({ _tag: "RemoveWorktree", path: clone, worktree: detached })).toMatchObject(
-        {
-          outcome: { _tag: "Skipped", reason: { _tag: "UnreachableCommits", commits: 1 } },
-        },
-      );
+      const lonely = yield* inspectWorktree(clone, detached);
+      const withSecrets = yield* inspectWorktree(clone, secrets);
+
+      expect(lonely).toMatchObject({ unreachableCommits: 1, changedFiles: 0 });
+      expect(withSecrets).toMatchObject({
+        untrackedFiles: 1,
+        ignored: { total: 1, items: [{ path: ".env" }] },
+      });
       expect(
-        yield* run({ _tag: "RemoveWorktree", path: clone, worktree: secrets }, runIds.second),
-      ).toMatchObject({ outcome: { _tag: "Skipped", reason: { _tag: "IgnoredFiles", files: 1 } } });
-      expect(existsSync(detached) && existsSync(secrets)).toBe(true);
+        yield* run({
+          _tag: "RemoveWorktree",
+          path: clone,
+          worktree: detached,
+          fingerprint: lonely.fingerprint,
+        }),
+      ).toMatchObject({
+        outcome: { _tag: "Succeeded", result: { _tag: "WorktreeRemoved", savedCommits: 1 } },
+      });
+      expect(git(clone, "for-each-ref", "--format=%(refname)", "refs/fleetfrog/deleted/")).toMatch(
+        /\/detached-[0-9a-f]{7}$/,
+      );
+
+      // A change made after the inspection keeps the worktree until it's inspected again.
+      writeFileSync(path.join(secrets, "later.txt"), "more\n");
+      expect(
+        yield* run(
+          {
+            _tag: "RemoveWorktree",
+            path: clone,
+            worktree: secrets,
+            fingerprint: withSecrets.fingerprint,
+          },
+          runIds.second,
+        ),
+      ).toMatchObject({ outcome: { _tag: "Skipped", reason: { _tag: "ChangedSinceInspection" } } });
+      expect(existsSync(secrets)).toBe(true);
     }),
   );
 
-  it.effect("won't delete the default branch", () =>
+  it.effect("deletes the default branch when it isn't checked out", () =>
     Effect.gen(function* () {
       const { run, clone } = yield* setUp(withCleanup);
 
@@ -541,12 +646,12 @@ describe("action runner", () => {
           branches: [{ name: "main", sha: git(clone, "rev-parse", "main") }],
         }),
       ).toMatchObject({
-        outcome: { _tag: "Skipped", reason: { _tag: "DefaultBranch", branch: "main" } },
+        outcome: { _tag: "Succeeded", result: { _tag: "BranchesDeleted", branches: 1 } },
       });
     }),
   );
 
-  it.effect("removes worktrees left behind by a moved checkout, but not one with changes", () =>
+  it.effect("removes worktrees left behind by a moved checkout, stashing one's changes", () =>
     Effect.gen(function* () {
       const { root } = yield* setUp(withCleanup);
       const main = path.join(root, "projects", "main");
@@ -578,17 +683,24 @@ describe("action runner", () => {
         [broken, "Broken"],
         [dirty, "Broken"],
       ]);
-      expect(
-        yield* harness.run({ _tag: "RemoveWorktree", path: main, worktree: broken }),
-      ).toMatchObject({ outcome: { _tag: "Succeeded", result: { _tag: "WorktreeRemoved" } } });
-      expect(
-        yield* harness.run({ _tag: "RemoveWorktree", path: main, worktree: dirty }, runIds.second),
-      ).toMatchObject({
-        outcome: { _tag: "Skipped", reason: { _tag: "UncommittedChanges", files: 1 } },
+      const remove = Effect.fn(function* (worktree: string, runId: RunId) {
+        const { fingerprint } = yield* harness.inspectWorktree(main, worktree);
+
+        return yield* harness.run(
+          { _tag: "RemoveWorktree", path: main, worktree, fingerprint },
+          runId,
+        );
       });
-      expect(existsSync(broken)).toBe(false);
-      expect(existsSync(dirty)).toBe(true);
+
+      expect(yield* remove(broken, runIds.first)).toMatchObject({
+        outcome: { _tag: "Succeeded", result: { _tag: "WorktreeRemoved", stashedFiles: 0 } },
+      });
+      expect(yield* remove(dirty, runIds.second)).toMatchObject({
+        outcome: { _tag: "Succeeded", result: { _tag: "WorktreeRemoved", stashedFiles: 1 } },
+      });
+      expect(existsSync(broken) || existsSync(dirty)).toBe(false);
       expect(git(main, "branch", "--list", "broken")).toBe("broken");
+      expect(git(main, "stash", "list")).toContain(`removing the worktree at ${dirty}`);
     }),
   );
 
@@ -603,12 +715,18 @@ describe("action runner", () => {
 
       const sha = git(clone, "rev-parse", "stash@{1}");
 
+      // A stash made since renumbers the one to drop, which is found by its commit instead.
+      writeFileSync(path.join(clone, "readme.md"), "third idea\n");
+      git(clone, "stash", "push", "-q", "-m", "third idea");
+
       expect(
         yield* run({ _tag: "DropStashes", path: clone, stashes: [{ index: 1, sha }] }),
       ).toMatchObject({
         outcome: { _tag: "Succeeded", result: { _tag: "StashesDropped", stashes: 1 } },
       });
-      expect(git(clone, "stash", "list", "--format=%s")).toBe("On main: second idea");
+      expect(git(clone, "stash", "list", "--format=%s")).toBe(
+        "On main: third idea\nOn main: second idea",
+      );
 
       const ref = git(clone, "for-each-ref", "--format=%(refname)", "refs/fleetfrog/stashes");
 
@@ -616,7 +734,7 @@ describe("action runner", () => {
         yield* run({ _tag: "Restore", target: { _tag: "Stash", path: clone, ref } }, runIds.second),
       ).toMatchObject({ outcome: { _tag: "Succeeded", result: { _tag: "Restored" } } });
       expect(git(clone, "stash", "list", "--format=%s")).toBe(
-        "On main: first idea\nOn main: second idea",
+        "On main: first idea\nOn main: third idea\nOn main: second idea",
       );
     }),
   );
@@ -747,7 +865,12 @@ describe("action runner", () => {
       const withSecret = yield* inspect(clone);
 
       expect(
-        yield* run({ _tag: "Delete", path: clone, fingerprint: withSecret.fingerprint }),
+        yield* run({
+          _tag: "Delete",
+          path: clone,
+          fingerprint: withSecret.fingerprint,
+          discardUniqueWork: false,
+        }),
       ).toMatchObject({ outcome: { _tag: "Skipped", reason: { _tag: "UniqueWork" } } });
       expect(existsSync(clone)).toBe(true);
 
@@ -757,9 +880,35 @@ describe("action runner", () => {
 
       expect(nothingUnique(clean)).toBe(true);
       expect(
-        yield* run({ _tag: "Delete", path: clone, fingerprint: clean.fingerprint }, runIds.second),
+        yield* run(
+          { _tag: "Delete", path: clone, fingerprint: clean.fingerprint, discardUniqueWork: false },
+          runIds.second,
+        ),
       ).toMatchObject({ outcome: { _tag: "Succeeded", result: { _tag: "Deleted" } } });
       expect(existsSync(clone)).toBe(false);
+    }),
+  );
+
+  it.effect("deletes unique work and linked worktrees for good once that's accepted", () =>
+    Effect.gen(function* () {
+      const { run, clone, root, inspect } = yield* setUp(withCleanup);
+      const worktree = path.join(root, "feature");
+
+      git(clone, "worktree", "add", "-q", "-b", "feature", worktree);
+      writeFileSync(path.join(clone, "notes.txt"), "only here\n");
+
+      const inspection = yield* inspect(clone);
+
+      expect(nothingUnique(inspection)).toBe(false);
+      expect(
+        yield* run({
+          _tag: "Delete",
+          path: clone,
+          fingerprint: inspection.fingerprint,
+          discardUniqueWork: true,
+        }),
+      ).toMatchObject({ outcome: { _tag: "Succeeded", result: { _tag: "Deleted" } } });
+      expect(existsSync(clone) || existsSync(worktree)).toBe(false);
     }),
   );
 

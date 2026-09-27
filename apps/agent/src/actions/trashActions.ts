@@ -9,8 +9,10 @@ import { isWithin } from "@fleetfrog/protocol/domain/cloneDestination";
 import { nothingUnique, TrashId } from "@fleetfrog/protocol/domain/trash";
 
 import { readGitStatus } from "../git/readCheckout.ts";
+import { readLinkedWorktrees } from "../git/worktrees.ts";
 import { fingerprintCheckout, inspectCheckout, readIgnored } from "../inspect/inspectCheckout.ts";
 import { diskUsage } from "../process/diskUsage.ts";
+import { runGitAction } from "../process/runTool.ts";
 import {
   forgetTrashItem,
   itemCheckoutPath,
@@ -96,6 +98,7 @@ export const trashCheckout = Effect.fn("trashCheckout")(
 
         return itemWorktreePath(options.trash, id, `${worktreeCount}-${path.basename(worktree)}`);
       },
+      whenTaken: "Refuse",
     });
 
     if (planned._tag === "Refused") {
@@ -153,29 +156,61 @@ export const trashCheckout = Effect.fn("trashCheckout")(
 );
 
 /**
- * Deletes a checkout for good, only if it still matches the inspection the dashboard showed and a
- * fresh inspection, after fetching, finds nothing that exists only here.
+ * Deletes a checkout for good, only if it still matches the inspection the dashboard showed. Unless
+ * the developer accepted losing its unique work with `discardUniqueWork`, a fresh inspection, after
+ * fetching, must also find nothing that exists only here and no linked worktrees. Otherwise its
+ * linked worktrees are removed through Git first, which deletes their folders.
  */
 export const deleteCheckout = Effect.fn("deleteCheckout")(
   function* (
     location: CheckoutLocation,
-    options: InspectionOptions & { readonly fingerprint: string },
+    options: InspectionOptions & {
+      readonly fingerprint: string;
+      readonly discardUniqueWork: boolean;
+    },
     output: ActionOutput,
   ) {
-    const problem = movableProblem(location) ?? (yield* worktreesProblem(location));
+    const problem =
+      movableProblem(location) ??
+      (options.discardUniqueWork ? null : yield* worktreesProblem(location));
 
     if (problem !== null) {
       return problem;
     }
 
-    const inspection = yield* inspectCheckout(location, options);
+    if (options.discardUniqueWork) {
+      const fingerprint = yield* fingerprintCheckout(location, yield* readIgnored(location));
 
-    if (inspection.fingerprint !== options.fingerprint) {
-      return skipped(SkipReason.cases.ChangedSinceInspection.make({}));
+      if (fingerprint !== options.fingerprint) {
+        return skipped(SkipReason.cases.ChangedSinceInspection.make({}));
+      }
+    } else {
+      const inspection = yield* inspectCheckout(location, options);
+
+      if (inspection.fingerprint !== options.fingerprint) {
+        return skipped(SkipReason.cases.ChangedSinceInspection.make({}));
+      }
+
+      if (!nothingUnique(inspection)) {
+        return skipped(SkipReason.cases.UniqueWork.make({}));
+      }
     }
 
-    if (!nothingUnique(inspection)) {
-      return skipped(SkipReason.cases.UniqueWork.make({}));
+    for (const worktree of yield* readLinkedWorktrees(location)) {
+      // Git removes only a worktree whose link it can follow back to this repository.
+      if (worktree.state === "Broken") {
+        yield* runGitAction({
+          cwd: location.path,
+          args: ["worktree", "repair", worktree.path],
+          onOutput: output.write,
+        });
+      }
+
+      yield* runGitAction({
+        cwd: location.path,
+        args: ["worktree", "remove", "--force", "--force", worktree.path],
+        onOutput: output.write,
+      });
     }
 
     const removal = yield* Effect.promise(() =>
@@ -197,9 +232,9 @@ export const deleteCheckout = Effect.fn("deleteCheckout")(
 );
 
 /**
- * Moves a trashed checkout back to where it was, unless something is there now, with the worktrees
- * trashed alongside it. The trash record goes, but a worktree that couldn't move back stays in the
- * trash folder rather than being deleted with it.
+ * Moves a trashed checkout back to where it was, with a number added when something is there now,
+ * and the worktrees trashed alongside it likewise. The trash record goes, but a worktree that
+ * couldn't move back stays in the trash folder rather than being deleted with it.
  */
 export const restoreCheckout = Effect.fn("restoreCheckout")(
   function* (trash: string, id: TrashId, output: ActionOutput) {
@@ -217,6 +252,7 @@ export const restoreCheckout = Effect.fn("restoreCheckout")(
       location: { path: trashed, commonDirectory: path.join(trashed, ".git") },
       destination: item.value.originalPath,
       worktreeDestination: (worktree) => returning.get(worktree) ?? null,
+      whenTaken: "Number",
     });
 
     if (planned._tag === "Refused") {
@@ -231,7 +267,9 @@ export const restoreCheckout = Effect.fn("restoreCheckout")(
 
     yield* forgetTrashItem(trash, id);
 
-    return succeeded(ActionResult.cases.Restored.make({ path: item.value.originalPath }));
+    return succeeded(
+      ActionResult.cases.Restored.make({ path: planned.move.main.to, branch: null }),
+    );
   },
   Effect.catchTag("CommandFailed", failedWith),
 );

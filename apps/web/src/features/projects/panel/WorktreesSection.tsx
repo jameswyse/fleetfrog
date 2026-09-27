@@ -3,13 +3,10 @@ import { useState } from "react";
 import { GitForkIcon } from "lucide-react";
 
 import { useRuns } from "@/rpc/hubConnection.ts";
-import { Button } from "@/ui/Button.tsx";
-import { Dialog } from "@/ui/Dialog.tsx";
-import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { machineBlocker } from "../../actions/actionAvailability.ts";
 import { activeRunFor } from "../../actions/runLookup.ts";
-import { useStartBatch } from "../../actions/useStartBatch.ts";
+import { RemoveWorktreeDialog } from "../../cleanup/RemoveWorktreeDialog.tsx";
 import { PanelSection } from "./PanelSection.tsx";
 
 import type { Checkout, GitStatus, LinkedWorktree } from "@fleetfrog/protocol/domain/checkout";
@@ -20,73 +17,6 @@ const stateNotes = {
   Missing: "Folder gone",
   Broken: "Link broken",
 } satisfies Record<LinkedWorktree["state"], string | null>;
-
-/** Confirms removing a linked worktree, saying what goes with it. */
-function RemoveWorktreeDialog({
-  machine,
-  checkout,
-  worktree,
-  onClose,
-}: {
-  readonly machine: Machine;
-  readonly checkout: Checkout;
-  readonly worktree: LinkedWorktree;
-  readonly onClose: () => void;
-}) {
-  const { start, pending, failure } = useStartBatch();
-
-  return (
-    <Dialog title="Remove this worktree?" onClose={onClose}>
-      <div className="space-y-4 text-sm">
-        <p className="font-mono text-[13px] break-all text-ink-muted">{worktree.path}</p>
-        {worktree.state === "Missing" ? (
-          <p>Its folder is already gone, so this only removes Git's record of it.</p>
-        ) : (
-          <p>
-            The folder is deleted from {machineLabel(machine)}.{" "}
-            {worktree.branch === null
-              ? "Its HEAD is detached, so it's kept if it holds commits no branch has."
-              : `Its branch, ${worktree.branch}, stays in the repository.`}{" "}
-            It's also kept if it has uncommitted changes, untracked files, or ignored files other
-            than caches such as <code>node_modules</code>, so only rebuildable files go with it.
-            {worktree.state === "Broken" &&
-              " Its link to the repository broke, so it's repaired first."}
-          </p>
-        )}
-        <p role="status" className="text-danger">
-          {failure}
-        </p>
-        <div className="flex justify-end gap-3">
-          <Button onClick={onClose}>Cancel</Button>
-          <Button
-            tone="danger"
-            disabled={pending}
-            onClick={() =>
-              start(
-                {
-                  _tag: "Targeted",
-                  runs: [
-                    {
-                      machineId: machine.id,
-                      request: {
-                        _tag: "RemoveWorktree",
-                        path: checkout.path,
-                        worktree: worktree.path,
-                      },
-                    },
-                  ],
-                },
-                onClose,
-              )
-            }
-          >
-            {pending ? "Starting…" : "Remove worktree"}
-          </Button>
-        </div>
-      </div>
-    </Dialog>
-  );
-}
 
 /** The clone's linked worktrees, as its main checkout lists them, each of which can be removed. */
 export function WorktreesSection({
@@ -142,8 +72,8 @@ export function WorktreesSection({
       {removing !== null && (
         <RemoveWorktreeDialog
           machine={machine}
-          checkout={checkout}
-          worktree={removing}
+          mainPath={checkout.path}
+          worktree={removing.path}
           onClose={() => setRemoving(null)}
         />
       )}

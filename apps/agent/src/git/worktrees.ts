@@ -16,6 +16,8 @@ export interface WorktreeRecord {
   readonly branch: string | null;
   /** Git has noticed the folder is gone. */
   readonly prunable: boolean;
+  /** Why the worktree is locked against removal, possibly empty, or null when it isn't. */
+  readonly locked: string | null;
   readonly bare: boolean;
 }
 
@@ -27,6 +29,7 @@ export function parseWorktreeList(output: string): ReadonlyArray<WorktreeRecord>
     .flatMap((lines) => {
       const worktree = lines.find((line) => line.startsWith("worktree "));
       const branch = lines.find((line) => line.startsWith("branch refs/heads/"));
+      const locked = lines.find((line) => line === "locked" || line.startsWith("locked "));
 
       return worktree === undefined
         ? []
@@ -35,6 +38,7 @@ export function parseWorktreeList(output: string): ReadonlyArray<WorktreeRecord>
               path: worktree.slice("worktree ".length),
               branch: branch === undefined ? null : branch.slice("branch refs/heads/".length),
               prunable: lines.some((line) => line.startsWith("prunable")),
+              locked: locked === undefined ? null : locked.slice("locked".length).trim(),
               bare: lines.includes("bare"),
             },
           ];

@@ -15,6 +15,7 @@ import { readGitStatus } from "../git/readCheckout.ts";
 import { cloneableUrl } from "../git/remoteIdentity.ts";
 import { listWorktrees } from "../git/worktrees.ts";
 import { runGit, runGitAction } from "../process/runTool.ts";
+import { keepDetachedCommits } from "./detachedCommits.ts";
 import { failed, failedWith, skipped, succeeded } from "./outcomes.ts";
 
 import type { BranchAtCommit } from "@fleetfrog/protocol/domain/action";
@@ -84,13 +85,6 @@ export const refCommit = (location: CheckoutLocation, ref: string) =>
     Effect.orElseSucceed(() => null),
   );
 
-/** The branch `origin/HEAD` points at, which is never deleted. */
-const defaultBranchOf = (location: CheckoutLocation) =>
-  runGit(location.path, ["symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"]).pipe(
-    Effect.map((ref): string | null => ref.trim().replace(/^refs\/remotes\/origin\//, "")),
-    Effect.orElseSucceed(() => null),
-  );
-
 /** Files in a worktree's Git directory naming a branch an operation is part-way through. */
 const operationBranchFiles = [
   path.join("rebase-merge", "head-name"),
@@ -137,13 +131,28 @@ const isBranchName = (location: CheckoutLocation, name: string) =>
     Effect.orElseSucceed(() => false),
   );
 
+/** A time such as 27/09/2026 14:05 in the machine's own time zone, for a stash message. */
+export function stashDate(now: DateTime.Utc): string {
+  const parts = DateTime.toParts(DateTime.setZone(now, DateTime.zoneMakeLocal()));
+  const pad = (value: number) => String(value).padStart(2, "0");
+
+  return `${pad(parts.day)}/${pad(parts.month)}/${parts.year} ${pad(parts.hour)}:${pad(parts.minute)}`;
+}
+
 /**
- * Switches the checkout to one of its local branches. The checkout must have no changes to tracked
- * files, so none are carried across, and the branch must not be checked out in another worktree.
+ * Switches the checkout to one of its local branches, which no other worktree may have checked
+ * out. Changes to tracked files are stashed first with `stashChanges`, and otherwise stop the
+ * switch, so none are carried across. Commits only a detached HEAD holds go to the trash.
  */
 export const switchBranch = Effect.fn("switchBranch")(
-  function* (location: CheckoutLocation, branch: string, output: ActionOutput) {
-    const blocker = switchBlocker(yield* readGitStatus(location), branch);
+  function* (
+    location: CheckoutLocation,
+    options: { readonly branch: string; readonly stashChanges: boolean },
+    output: ActionOutput,
+  ) {
+    const { branch } = options;
+    const git = yield* readGitStatus(location);
+    const blocker = switchBlocker(git, branch);
 
     if (blocker !== null) {
       return skipped(blocker);
@@ -161,24 +170,39 @@ export const switchBranch = Effect.fn("switchBranch")(
       return skipped(SkipReason.cases.BranchInUse.make({}));
     }
 
+    const stashedFiles = git.changed.total;
+
+    if (stashedFiles > 0) {
+      if (!options.stashChanges) {
+        return skipped(SkipReason.cases.UncommittedChanges.make({ files: stashedFiles }));
+      }
+
+      // Untracked files stay, as they would for a switch without changes.
+      yield* runGitAction({
+        cwd: location.path,
+        args: [
+          "stash",
+          "push",
+          "--message",
+          `Stashed from FleetFrog before switching to ${branch} on ${stashDate(yield* DateTime.now)}`,
+        ],
+        onOutput: output.write,
+      });
+    }
+
+    const savedCommits =
+      git.head._tag === "Detached" ? yield* keepDetachedCommits(location.path, output) : 0;
+
     yield* runGitAction({
       cwd: location.path,
       args: ["switch", "--no-guess", branch],
       onOutput: output.write,
     });
 
-    return succeeded(ActionResult.cases.Switched.make({ branch }));
+    return succeeded(ActionResult.cases.Switched.make({ branch, stashedFiles, savedCommits }));
   },
   Effect.catchTag("CommandFailed", failedWith),
 );
-
-/** A time such as 27/09/2026 14:05 in the machine's own time zone, for a stash message. */
-function stashDate(now: DateTime.Utc): string {
-  const parts = DateTime.toParts(DateTime.setZone(now, DateTime.zoneMakeLocal()));
-  const pad = (value: number) => String(value).padStart(2, "0");
-
-  return `${pad(parts.day)}/${pad(parts.month)}/${parts.year} ${pad(parts.hour)}:${pad(parts.minute)}`;
-}
 
 /**
  * Stashes every change, untracked files included, so the working tree is clean and the changes can
@@ -329,16 +353,11 @@ const branchSkipReason = Effect.fn("branchSkipReason")(function* (options: {
   readonly name: string;
   readonly sha: string;
   readonly inUse: ReadonlySet<string>;
-  readonly defaultBranch: string | null;
 }) {
   const { location, name } = options;
 
   if (!(yield* isBranchName(location, name))) {
     return SkipReason.cases.NoSuchBranch.make({});
-  }
-
-  if (name === options.defaultBranch) {
-    return SkipReason.cases.DefaultBranch.make({ branch: name });
   }
 
   if (options.inUse.has(name)) {
@@ -353,8 +372,9 @@ const branchSkipReason = Effect.fn("branchSkipReason")(function* (options: {
 /**
  * Moves branches to the trash: each is kept as `refs/fleetfrog/deleted/<time>/<name>` and removed
  * from `refs/heads` in one transaction, which Git applies only if every branch in it still points
- * at the commit the dashboard showed. A branch that moved, is in use by a worktree or is the
- * default branch is left out of the transaction and reported as skipped.
+ * at the commit the dashboard showed. A branch that moved or is in use by a worktree is left out of
+ * the transaction and reported as skipped. The default branch can go too, since the dashboard
+ * warns about it and it can be had again from its remote.
  */
 export const deleteBranches = Effect.fn("deleteBranches")(
   function* (
@@ -363,12 +383,11 @@ export const deleteBranches = Effect.fn("deleteBranches")(
     output: ActionOutput,
   ) {
     const inUse = yield* branchesInUse(location);
-    const defaultBranch = yield* defaultBranchOf(location);
     const deletable: Array<BranchAtCommit> = [];
     const skippedBranches: Array<{ readonly branch: string; readonly reason: SkipReason }> = [];
 
     for (const { name, sha } of branches) {
-      const reason = yield* branchSkipReason({ location, name, sha, inUse, defaultBranch });
+      const reason = yield* branchSkipReason({ location, name, sha, inUse });
 
       if (reason === null) {
         deletable.push({ name, sha });
@@ -421,7 +440,25 @@ function deletedBranchName(ref: string): string | null {
   return parseDeletedRef(ref)?.name ?? null;
 }
 
-/** Recreates a deleted branch at its commit, unless a branch with its name exists now. */
+/** The first of `name`, `name-restored`, `name-restored-2` and so on that no branch has. */
+const freeBranchName = Effect.fn("freeBranchName")(function* (
+  location: CheckoutLocation,
+  name: string,
+) {
+  for (let attempt = 1; ; attempt += 1) {
+    const candidate =
+      attempt === 1 ? name : `${name}-restored${attempt === 2 ? "" : `-${attempt - 1}`}`;
+
+    if ((yield* refCommit(location, `refs/heads/${candidate}`)) === null) {
+      return candidate;
+    }
+  }
+});
+
+/**
+ * Recreates a deleted branch at its commit, as `name-restored` when a branch with its name exists
+ * now.
+ */
 export const restoreBranch = Effect.fn("restoreBranch")(
   function* (location: CheckoutLocation, ref: string, output: ActionOutput) {
     const name = deletedBranchName(ref);
@@ -431,18 +468,16 @@ export const restoreBranch = Effect.fn("restoreBranch")(
       return skipped(SkipReason.cases.NotInTrash.make({}));
     }
 
-    if ((yield* refCommit(location, `refs/heads/${name}`)) !== null) {
-      return skipped(SkipReason.cases.BranchExists.make({ branch: name }));
-    }
+    const branch = yield* freeBranchName(location, name);
 
     yield* runGitAction({
       cwd: location.path,
       args: ["update-ref", "--stdin"],
-      input: `create refs/heads/${name} ${sha}\ndelete ${ref} ${sha}\n`,
+      input: `create refs/heads/${branch} ${sha}\ndelete ${ref} ${sha}\n`,
       onOutput: output.write,
     });
 
-    return succeeded(ActionResult.cases.Restored.make({ path: null }));
+    return succeeded(ActionResult.cases.Restored.make({ path: null, branch }));
   },
   Effect.catchTag("CommandFailed", failedWith),
 );

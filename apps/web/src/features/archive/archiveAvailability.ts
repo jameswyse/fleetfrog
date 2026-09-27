@@ -23,6 +23,8 @@ export type ArchivePlan =
       /** Linked worktrees that move along, each the same way. */
       readonly worktrees: ReadonlyArray<FolderMove>;
     }
+  /** The machine has no Archive folder it can use yet, which the developer can set. */
+  | { readonly _tag: "NeedsFolder"; readonly problem: string | null }
   | { readonly _tag: "Blocked"; readonly reason: string };
 
 export type UnarchivePlan =
@@ -34,7 +36,7 @@ function roots(machine: Machine): ReadonlyArray<string> {
 }
 
 const unusableFolderReason =
-  "The Archive folder holds one of this machine's project folders, so the agent ignores it. Change it in the machine's settings";
+  "The Archive folder holds one of this machine's project folders, so the agent ignores it";
 
 /**
  * Whether the machine's Archive folder still passes the checks it was saved with. Changing the
@@ -58,7 +60,11 @@ export function linkedWorktrees(checkout: Checkout): ReadonlyArray<LinkedWorktre
     : [];
 }
 
-/** Where archiving the checkout would move it, or why it can't be archived, as last scanned. */
+/**
+ * Where archiving the checkout would move it, whether the machine needs an Archive folder first,
+ * or why it can't be archived, as last scanned. A linked worktree is archived with its main
+ * checkout, so the caller plans for that instead.
+ */
 export function planArchive(options: {
   readonly machine: Machine;
   readonly checkout: Checkout;
@@ -70,19 +76,19 @@ export function planArchive(options: {
     return { _tag: "Blocked", reason: blocked };
   }
 
-  if (machine.archiveFolder === null) {
-    return { _tag: "Blocked", reason: "Set an Archive folder in this machine's settings first" };
-  }
-
-  if (!archiveFolderUsable(machine)) {
-    return { _tag: "Blocked", reason: unusableFolderReason };
-  }
-
   if (checkout.worktree._tag === "Linked") {
     return {
       _tag: "Blocked",
       reason: "It's a linked worktree. Archiving its main checkout takes it along",
     };
+  }
+
+  if (machine.archiveFolder === null) {
+    return { _tag: "NeedsFolder", problem: null };
+  }
+
+  if (!archiveFolderUsable(machine)) {
+    return { _tag: "NeedsFolder", problem: unusableFolderReason };
   }
 
   const archive = expandHome(machine.archiveFolder, machine.info.homeDirectory);
@@ -121,7 +127,10 @@ export function planUnarchive(options: {
   }
 
   if (!archiveFolderUsable(machine)) {
-    return { _tag: "Blocked", reason: unusableFolderReason };
+    return {
+      _tag: "Blocked",
+      reason: `${unusableFolderReason}. Change it in the machine's settings`,
+    };
   }
 
   const destination = unarchiveDestination({
@@ -133,6 +142,10 @@ export function planUnarchive(options: {
   });
 
   return destination === null
-    ? { _tag: "Blocked", reason: "The machine has no project folders to move it back into" }
+    ? {
+        _tag: "Blocked",
+        reason:
+          "The machine has no project folders to move it back into. Add one in the machine's settings",
+      }
     : { _tag: "Ready", destination };
 }

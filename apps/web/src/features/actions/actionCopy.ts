@@ -72,40 +72,55 @@ export const operationNames = {
 
 export function describeSkip(reason: SkipReason): string {
   return SkipReason.match(reason, {
-    Detached: () => "Not on a branch",
+    Detached: () => "Not on a branch. Switch to one first",
     NoCommits: () => "The branch has no commits yet",
     NoUpstream: () => "The branch has no upstream",
     UpstreamGone: () => "The upstream branch was deleted",
-    UncommittedChanges: ({ files }) => plural(files, "changed file"),
+    UncommittedChanges: ({ files }) =>
+      `${plural(files, "changed file")}. Commit or stash them first`,
     UnpushedCommits: ({ commits }) => `${plural(commits, "commit")} to push`,
-    OperationInProgress: ({ operation }) => `${operationNames[operation]} is in progress`,
+    OperationInProgress: ({ operation }) =>
+      `${operationNames[operation]} is in progress. Finish or abort it first`,
     NothingToStash: () => "There are no changes to stash",
     AlreadyOnBranch: () => "Already on that branch",
-    BranchInUse: () => "Another worktree has that branch checked out",
+    BranchInUse: () =>
+      "Another worktree has that branch checked out. Switch that worktree to another branch, or remove it, first",
     NoSuchBranch: () => "The branch no longer exists",
-    BranchChanged: ({ branch }) => `${branch} has new commits since the last scan`,
-    BranchCheckedOut: ({ branch }) => `${branch} is checked out`,
+    BranchChanged: ({ branch }) =>
+      `${branch} has new commits since the last scan. Open Tidy branches again to review it`,
+    BranchCheckedOut: ({ branch }) =>
+      `${branch} is checked out. Switch its worktree to another branch first`,
     DefaultBranch: ({ branch }) => `${branch} is the default branch`,
     BranchExists: ({ branch }) => `A branch called ${branch} exists now`,
     NotInTrash: () => "It's no longer in the trash",
-    NoArchiveFolder: () => "No Archive folder is set",
+    NoArchiveFolder: () => "No Archive folder is set. Set one in the machine's settings",
     NoSuchWorktree: () => "The worktree is no longer there",
     StashesChanged: () => "The stashes changed since the last scan",
+    NoSuchStash: () => "The stashes were dropped already",
     HasWorktrees: ({ count }) =>
-      `It has ${plural(count, "linked worktree")}, which moving it would break`,
-    IsWorktree: () => "It's a linked worktree, which moves with its main checkout",
-    DestinationTaken: ({ path }) => `Something is already at ${path}`,
+      `It has ${plural(count, "linked worktree")} now. Check it again to delete them with it`,
+    IsWorktree: () =>
+      "It's a linked worktree, which moves with its main checkout. Act on the main checkout, or remove the worktree",
+    DestinationTaken: ({ path }) =>
+      `Something is already at ${path}. Move or rename it, then try again`,
     DestinationsClash: ({ path }) => `Two of the folders would land at ${path}`,
     UnreachableCommits: ({ commits }) =>
       `Its detached HEAD holds ${plural(commits, "commit")} no branch has`,
     IgnoredFiles: ({ files }) =>
       `It has ${plural(files, "ignored file")} other than caches, such as .env, that would be deleted`,
-    ChangedSinceInspection: () => "It changed after it was checked, so it was left alone",
-    UniqueWork: () => "It has work that exists only on this machine",
+    ChangedSinceInspection: () =>
+      "It changed after it was checked, so it was left alone. Check it again to continue",
+    UniqueWork: () =>
+      "It has work that exists only on this machine now. Check it again to see what would be lost",
     NotAllowed: ({ tier }) =>
-      `${capitalised(tierNames[tier])} actions are turned off on this machine`,
-    AgentOutdated: () => "The agent needs updating",
+      `${capitalised(tierNames[tier])} actions are turned off on this machine. Run fleetfrog allow ${tier} on it to turn them on`,
+    AgentOutdated: () => "The machine's agent is too old for this. Update FleetFrog on it",
   });
+}
+
+/** The parts that apply, as sentences without the last full stop, like the other descriptions. */
+function sentences(parts: ReadonlyArray<string | false>): string {
+  return parts.filter((part) => part !== false).join(". ");
 }
 
 function describeResult(result: ActionResult): string {
@@ -114,7 +129,13 @@ function describeResult(result: ActionResult): string {
     FastForwarded: ({ commits }) => `Pulled ${plural(commits, "commit")}`,
     UpToDate: () => "Already up to date",
     Cloned: () => "Cloned",
-    Switched: ({ branch }) => `Switched to ${branch}`,
+    Switched: ({ branch, stashedFiles, savedCommits }) =>
+      sentences([
+        `Switched to ${branch}`,
+        stashedFiles > 0 && `Stashed ${plural(stashedFiles, "changed file")} first`,
+        savedCommits > 0 &&
+          `Kept ${plural(savedCommits, "commit")} from the detached HEAD in the trash`,
+      ]),
     Stashed: ({ files }) => `Stashed ${plural(files, "file")}`,
     BranchesDeleted: ({ branches, skipped }) => {
       const moved = `Moved ${plural(branches, "branch", "branches")} to the trash`;
@@ -127,14 +148,28 @@ function describeResult(result: ActionResult): string {
       `Archived to ${path}${worktrees.length > 0 ? `, with ${plural(worktrees.length, "worktree")}` : ""}`,
     Unarchived: ({ path, worktrees }) =>
       `Moved back to ${path}${worktrees.length > 0 ? `, with ${plural(worktrees.length, "worktree")}` : ""}`,
-    WorktreeRemoved: () => "Removed the worktree",
-    StashesDropped: ({ stashes }) => `Moved ${plural(stashes, "stash", "stashes")} to the trash`,
+    WorktreeRemoved: ({ stashedFiles, savedCommits, deletedIgnored }) =>
+      sentences([
+        "Removed the worktree",
+        stashedFiles > 0 && `Stashed ${plural(stashedFiles, "changed file")} first`,
+        savedCommits > 0 && `Kept ${plural(savedCommits, "commit")} in the trash`,
+        deletedIgnored > 0 &&
+          `Deleted ${plural(deletedIgnored, "ignored file or folder", "ignored files or folders")}`,
+      ]),
+    StashesDropped: ({ stashes, missing }) =>
+      `Moved ${plural(stashes, "stash", "stashes")} to the trash${missing > 0 ? `. ${plural(missing, "was", "were")} dropped already` : ""}`,
     Trashed: ({ freedBytes }) =>
       freedBytes > 0
         ? `Moved to the trash, after removing ${formatBytes(freedBytes)} of caches`
         : "Moved to the trash",
     Deleted: () => "Permanently deleted",
-    Restored: ({ path }) => (path === null ? "Restored" : `Restored to ${path}`),
+    Restored: ({ path, branch }) => {
+      if (branch !== null) {
+        return `Restored as ${branch}`;
+      }
+
+      return path === null ? "Restored" : `Restored to ${path}`;
+    },
     Purged: () => "Permanently deleted",
   });
 }

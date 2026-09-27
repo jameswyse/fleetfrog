@@ -3,10 +3,11 @@ import { SkipReason } from "./action.ts";
 import type { GitStatus } from "./checkout.ts";
 
 /**
- * Why switching this checkout to `branch` would be skipped, or `null` when it can go ahead. The
- * working tree must have no changes to tracked files, so nothing is carried to the other branch,
- * and HEAD must be on a branch, so no commit is left behind. Untracked files stay where they are,
- * and Git refuses a switch that would overwrite one.
+ * Why switching this checkout to `branch` can't happen, or `null` when it can go ahead. Only what
+ * the developer has to sort out first counts: an operation such as a rebase part-way through, or a
+ * branch that isn't there. Changes to tracked files can be stashed first, and commits only a
+ * detached HEAD holds are kept in the trash, so neither stops a switch. Untracked files stay where
+ * they are, and Git refuses a switch that would overwrite one.
  *
  * The dashboard uses this to predict skips and the agent checks it again before switching. Only
  * the agent can tell whether another worktree has the branch checked out.
@@ -18,24 +19,14 @@ export function switchBlocker(git: GitStatus, branch: string): SkipReason | null
     return SkipReason.cases.OperationInProgress.make({ operation: git.operation });
   }
 
-  if (head._tag === "Detached") {
-    return SkipReason.cases.Detached.make({});
-  }
-
-  if (head.name === branch) {
+  if (head._tag !== "Detached" && head.name === branch) {
     return SkipReason.cases.AlreadyOnBranch.make({});
   }
 
   const listed = git.branches.items.some(({ name }) => name === branch);
 
   // A branch past the end of a truncated list may still exist, so only a full list can rule it out.
-  if (!listed && git.branches.items.length === git.branches.total) {
-    return SkipReason.cases.NoSuchBranch.make({});
-  }
-
-  if (git.changed.total > 0) {
-    return SkipReason.cases.UncommittedChanges.make({ files: git.changed.total });
-  }
-
-  return null;
+  return !listed && git.branches.items.length === git.branches.total
+    ? SkipReason.cases.NoSuchBranch.make({})
+    : null;
 }

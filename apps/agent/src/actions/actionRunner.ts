@@ -1,4 +1,5 @@
 import { homedir } from "node:os";
+import nodePath from "node:path";
 
 import { Duration, Effect, FiberMap, Semaphore } from "effect";
 
@@ -14,6 +15,7 @@ import { checkCloneDestination } from "@fleetfrog/protocol/domain/cloneDestinati
 import { InspectionResult } from "@fleetfrog/protocol/domain/trash";
 
 import { inspectCheckout } from "../inspect/inspectCheckout.ts";
+import { inspectWorktree } from "../inspect/inspectWorktree.ts";
 import { makeActionOutput } from "./actionOutput.ts";
 import { archiveCheckout, unarchiveCheckout } from "./archiveActions.ts";
 import {
@@ -251,11 +253,36 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
   };
 
   /**
+   * Where the main checkout at `path` is, found from the checkout itself or, when the agent doesn't
+   * list it, from its linked worktree at `worktree`, which shares its Git directory.
+   */
+  const mainLocation = (
+    path: string,
+    worktree: string,
+  ): Pick<CheckoutLocation, "path" | "commonDirectory"> | undefined => {
+    const main = options.catalogue.locate(path);
+
+    if (main !== undefined) {
+      return main;
+    }
+
+    const linked = options.catalogue.locate(worktree);
+
+    return linked === undefined || nodePath.dirname(linked.commonDirectory) !== path
+      ? undefined
+      : { path, commonDirectory: linked.commonDirectory };
+  };
+
+  /**
    * Removing a linked worktree of the main checkout at `path`. Afterwards the agent forgets the
    * worktree and reads the clone again, which lists its worktrees.
    */
-  const worktreeRemovalPlan = (path: string, worktree: string): Plan => {
-    const location = options.catalogue.locate(path);
+  const worktreeRemovalPlan = (
+    path: string,
+    removal: { readonly worktree: string; readonly fingerprint: string },
+  ): Plan => {
+    const location = mainLocation(path, removal.worktree);
+    const { worktree } = removal;
 
     return location === undefined
       ? { _tag: "Refused", message: `This machine has no checkout at ${path}.` }
@@ -263,7 +290,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
           _tag: "Ready",
           lockKey: location.commonDirectory,
           network: "Local",
-          perform: (output) => removeWorktree(location, worktree, output),
+          perform: (output) => removeWorktree(location, removal, output),
           afterwards: (outcome) =>
             (outcome._tag === "Succeeded" ? options.catalogue.forget(worktree) : Effect.void).pipe(
               Effect.andThen(options.catalogue.rescanRepository(location.commonDirectory)),
@@ -294,10 +321,11 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
     ActionRequest.match(request, {
       Fetch: ({ path }) => checkoutPlan(path, "Network", fetchRepository),
       Pull: ({ path }) => checkoutPlan(path, "Network", pullCheckout),
-      Switch: ({ path, branch }) =>
-        checkoutPlan(path, "Local", (location, output) => switchBranch(location, branch, output)),
+      Switch: ({ path, ...target }) =>
+        checkoutPlan(path, "Local", (location, output) => switchBranch(location, target, output)),
       Stash: ({ path }) => checkoutPlan(path, "Local", stashChanges),
-      RemoveWorktree: ({ path, worktree }) => worktreeRemovalPlan(path, worktree),
+      RemoveWorktree: ({ path, worktree, fingerprint }) =>
+        worktreeRemovalPlan(path, { worktree, fingerprint }),
       DropStashes: ({ path, stashes }) =>
         checkoutPlan(path, "Local", (location, output) => dropStashes(location, stashes, output)),
       Archive: ({ path }) => movePlan(path, "Projects", archiveCheckout),
@@ -314,12 +342,12 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
             output,
           ),
         ),
-      Delete: ({ path, fingerprint }) =>
-        // Deleting inspects the checkout again, fetching first.
-        removalPlan(path, "Network", (location, output) =>
+      Delete: ({ path, fingerprint, discardUniqueWork }) =>
+        // Unless unique work may go, deleting inspects the checkout again, fetching first.
+        removalPlan(path, discardUniqueWork ? "Local" : "Network", (location, output) =>
           inspectionOptions.pipe(
             Effect.flatMap((inspection) =>
-              deleteCheckout(location, { ...inspection, fingerprint }, output),
+              deleteCheckout(location, { ...inspection, fingerprint, discardUniqueWork }, output),
             ),
           ),
         ),
@@ -410,24 +438,51 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
     );
 
   /**
-   * Inspects a checkout for the hub, if the owner allows cleanup actions. It waits for the
-   * repository like an action, and for a network slot when it fetches. Every problem becomes a
-   * failed result the dashboard can show.
+   * Inspects a checkout for the hub, or one of its linked worktrees, if the owner allows cleanup
+   * actions. It waits for the repository like an action, and for a network slot when it fetches.
+   * Every problem becomes a failed result the dashboard can show.
    */
-  const inspect = (path: string): Effect.Effect<InspectionResult> =>
+  const inspect = (request: {
+    readonly path: string;
+    readonly worktree: string | null;
+  }): Effect.Effect<InspectionResult> =>
     Effect.gen(function* () {
+      const { path, worktree } = request;
+
       if ((yield* policyRefusal("cleanup")) !== null) {
         return InspectionResult.cases.Failed.make({
           message: "Cleanup actions are turned off on this machine.",
         });
       }
 
+      const noCheckout = InspectionResult.cases.Failed.make({
+        message: `This machine has no checkout at ${path}.`,
+      });
+
+      if (worktree !== null) {
+        const main = mainLocation(path, worktree);
+
+        return main === undefined
+          ? noCheckout
+          : yield* inspectWorktree(main, worktree).pipe(
+              Effect.map((found) =>
+                found === null
+                  ? InspectionResult.cases.Failed.make({
+                      message: `${worktree} is no longer one of this checkout's worktrees.`,
+                    })
+                  : InspectionResult.cases.WorktreeInspected.make({ inspection: found }),
+              ),
+              Effect.catchTag("CommandFailed", ({ message }) =>
+                Effect.succeed(InspectionResult.cases.Failed.make({ message })),
+              ),
+              lockFor(main.commonDirectory).withPermits(1),
+            );
+      }
+
       const location = options.catalogue.locate(path);
 
       if (location === undefined) {
-        return InspectionResult.cases.Failed.make({
-          message: `This machine has no checkout at ${path}.`,
-        });
+        return noCheckout;
       }
 
       const inspection = yield* inspectionOptions;

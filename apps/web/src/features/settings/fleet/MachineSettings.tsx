@@ -13,7 +13,11 @@ import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { SettingsRow, SettingsSection, SideDetail, SidePanel } from "../SettingsSection.tsx";
 import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
-import { ArchiveFolderField } from "./ArchiveFolderField.tsx";
+import {
+  ArchiveFolderField,
+  archiveFolderCreator,
+  saveArchiveFolder,
+} from "./ArchiveFolderField.tsx";
 import { MachineKindPicker } from "./MachineKindPicker.tsx";
 import { ActionsText, ConnectionStatus, repositoryCount } from "./MachineStatus.tsx";
 import { ProjectFolders } from "./ProjectFolders.tsx";
@@ -236,22 +240,8 @@ function ConfigurationSection({
         <ArchiveFolderField
           id={archiveId}
           machine={machine}
-          onChange={(folder) =>
-            save(() =>
-              requestHub((client) => client.SetArchiveFolder({ machineId: machine.id, folder })),
-            )
-          }
-          createFolder={
-            // An agent that can't create folders, or isn't allowed to, gets no button to try.
-            machine.connection._tag === "Online" &&
-            machine.connection.capabilities.createsFolders &&
-            machine.connection.capabilities.allowedTiers.includes("cleanup")
-              ? (path) =>
-                  requestHub((client) =>
-                    client.CreateProjectFolder({ machineId: machine.id, path }),
-                  )
-              : null
-          }
+          onChange={(folder) => save(() => saveArchiveFolder(machine, folder))}
+          createFolder={archiveFolderCreator(machine)}
         />
       </SettingsRow>
     </SettingsSection>

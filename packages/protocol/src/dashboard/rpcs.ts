@@ -104,11 +104,12 @@ export class DashboardRpcs extends RpcGroup.make(
   }),
   Rpc.make("RemoveMachine", { payload: { machineId: MachineId }, error: MachineNotFound }),
   /**
-   * Asks the machine what deleting one of its checkouts would lose. It fetches first, so it can
-   * take a while. Any problem on the way comes back as a failed result with its reason.
+   * Asks the machine what deleting one of its checkouts would lose, or with `worktree`, what
+   * removing that linked worktree of it would. Inspecting a checkout fetches first, so it can take
+   * a while. Any problem on the way comes back as a failed result with its reason.
    */
   Rpc.make("InspectCheckout", {
-    payload: { machineId: MachineId, path: Schema.String },
+    payload: { machineId: MachineId, path: Schema.String, worktree: Schema.NullOr(Schema.String) },
     success: InspectionResult,
     error: MachineNotFound,
   }),

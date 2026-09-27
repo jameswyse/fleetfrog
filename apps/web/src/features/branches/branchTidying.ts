@@ -24,11 +24,26 @@ export interface TidyCandidate {
   readonly name: string;
   readonly tip: BranchTip;
   readonly standing: BranchStanding;
+  /** The branch the remote's HEAD points at, which can go but is never preselected. */
+  readonly isDefault: boolean;
+}
+
+/** A branch that can't be deleted yet, with what to do first. */
+export interface KeptBranch {
+  readonly name: string;
+  readonly reason: string;
+}
+
+/** The branches a checkout could tidy away, and those it can't yet. */
+export interface BranchTidying {
+  readonly candidates: ReadonlyArray<TidyCandidate>;
+  readonly kept: ReadonlyArray<KeptBranch>;
 }
 
 /**
- * The branches the clone's other worktrees on this machine have checked out: those FleetFrog reads
- * and every one its main checkout lists, including worktrees whose links broke.
+ * The branches the clone's other worktrees on this machine have checked out, each with that
+ * worktree's path: those FleetFrog reads and every one its main checkout lists, including
+ * worktrees whose links broke.
  */
 export function branchesInOtherWorktrees({
   repository,
@@ -38,26 +53,26 @@ export function branchesInOtherWorktrees({
   readonly repository: Repository;
   readonly machineId: Machine["id"];
   readonly checkout: Checkout;
-}): ReadonlySet<string> {
+}): ReadonlyMap<string, string> {
   const clone = repository.checkouts.filter(
     (entry) => entry.machineId === machineId && clonePath(entry.checkout) === clonePath(checkout),
   );
   const read = clone
     .filter((entry) => entry.checkout.path !== checkout.path)
-    .flatMap(({ checkout: other }) =>
+    .flatMap(({ checkout: other }): ReadonlyArray<readonly [string, string]> =>
       other.status._tag === "Read" && other.status.git.head._tag === "Branch"
-        ? [other.status.git.head.name]
+        ? [[other.status.git.head.name, other.path]]
         : [],
     );
-  const listed = clone.flatMap(({ checkout: other }) =>
+  const listed = clone.flatMap(({ checkout: other }): ReadonlyArray<readonly [string, string]> =>
     other.status._tag === "Read"
       ? other.status.git.worktrees
           .filter(({ path }) => path !== checkout.path)
-          .flatMap(({ branch }) => (branch === null ? [] : [branch]))
+          .flatMap(({ branch, path }) => (branch === null ? [] : [[branch, path] as const]))
       : [],
   );
 
-  return new Set([...read, ...listed]);
+  return new Map([...listed, ...read]);
 }
 
 function standingOf(
@@ -82,37 +97,58 @@ function standingOf(
 }
 
 /**
- * The branches that could be deleted, each with how safe that is. The checked-out branch, the
- * default branch and branches checked out in other worktrees are left out, as are branches from an
- * agent too old to report their tips.
+ * The branches that could be deleted, each with how safe that is, and those that can't be yet,
+ * each with what to do first: the checked-out branch, branches checked out in other worktrees and
+ * branches from an agent too old to report their tips.
  */
 export function tidyCandidates(options: {
   readonly checkout: Checkout;
   readonly git: GitStatus;
-  readonly inOtherWorktrees: ReadonlySet<string>;
-}): ReadonlyArray<TidyCandidate> {
+  /** Branches checked out in other worktrees, each with that worktree's path. */
+  readonly inOtherWorktrees: ReadonlyMap<string, string>;
+}): BranchTidying {
   const { git } = options;
   const current = git.head._tag === "Detached" ? null : git.head.name;
   const defaultBranch = git.defaultBranch ?? options.checkout.github?.defaultBranch ?? null;
   const merged = options.checkout.github?.mergedPullRequests ?? [];
+  const candidates: Array<TidyCandidate> = [];
+  const kept: Array<KeptBranch> = [];
 
-  return git.branches.items.flatMap((branch) => {
-    const { tip } = branch;
+  for (const branch of git.branches.items) {
+    const { name, tip } = branch;
+    const worktree = options.inOtherWorktrees.get(name);
 
-    if (
-      tip === null ||
-      branch.name === current ||
-      branch.name === defaultBranch ||
-      options.inOtherWorktrees.has(branch.name)
-    ) {
-      return [];
+    if (name === current) {
+      kept.push({ name, reason: "Checked out here. Switch to another branch first." });
+    } else if (worktree !== undefined) {
+      kept.push({
+        name,
+        reason: `Checked out in the worktree at ${worktree}. Switch it to another branch, or remove it, first.`,
+      });
+    } else if (tip === null) {
+      kept.push({
+        name,
+        reason: "The machine's agent didn't report its commits. Update FleetFrog on it first.",
+      });
+    } else {
+      candidates.push({
+        name,
+        tip,
+        standing: standingOf({ ...branch, tip }, merged),
+        isDefault: name === defaultBranch,
+      });
     }
+  }
 
-    return [{ name: branch.name, tip, standing: standingOf({ ...branch, tip }, merged) }];
-  });
+  return { candidates, kept };
 }
 
-/** Whether deleting the branch loses nothing that isn't already merged, so it can be preselected. */
+/** Whether deleting the branch loses nothing that isn't already merged. */
 export function isMerged(candidate: TidyCandidate): boolean {
   return candidate.standing._tag === "Merged" || candidate.standing._tag === "MergedPullRequest";
+}
+
+/** Whether the dialog chooses the branch to start with: merged, and not the default branch. */
+export function isPreselected(candidate: TidyCandidate): boolean {
+  return isMerged(candidate) && !candidate.isDefault;
 }

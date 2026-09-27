@@ -29,14 +29,21 @@ function stateFrom(result: HubResult<InspectionResult>): InspectionState {
     return { _tag: "Failed", message: result.message };
   }
 
-  return result.value._tag === "Failed"
-    ? { _tag: "Failed", message: result.value.message }
-    : { _tag: "Ready", inspection: result.value.inspection };
+  const { value } = result;
+
+  if (value._tag === "Inspected") {
+    return { _tag: "Ready", inspection: value.inspection };
+  }
+
+  return {
+    _tag: "Failed",
+    message: value._tag === "Failed" ? value.message : "The machine inspected the wrong thing.",
+  };
 }
 
 /**
  * The things only this checkout has, each as a short line. It covers every condition
- * `nothingUnique` checks, so the dialog never offers permanent deletion beside a warning.
+ * `nothingUnique` checks, so permanent deletion is never offered as safe beside a warning.
  */
 function uniqueWork(inspection: Inspection): ReadonlyArray<string> {
   const lines: Array<string> = [];
@@ -158,7 +165,7 @@ export function TrashCheckoutDialog({
 
     const load = async () => {
       const result = await requestHub((client) =>
-        client.InspectCheckout({ machineId: machine.id, path: checkout.path }),
+        client.InspectCheckout({ machineId: machine.id, path: checkout.path, worktree: null }),
       );
 
       if (current) {
@@ -175,10 +182,10 @@ export function TrashCheckoutDialog({
 
   const inspection = state._tag === "Ready" ? state.inspection : null;
   const worktrees = inspection?.linkedWorktrees ?? 0;
-  // Worktrees go to the trash with it, but their work isn't inspected, so they rule out deleting.
+  // Worktrees go to the trash with it, but their work isn't inspected, so deleting them warns.
   const safe = inspection !== null && nothingUnique(inspection) && worktrees === 0;
   const cacheBytes = inspection?.caches.reduce((total, { sizeBytes }) => total + sizeBytes, 0) ?? 0;
-  const deleting = permanently && safe;
+  const deleting = permanently && inspection !== null;
 
   const confirm = () => {
     if (inspection === null) {
@@ -194,7 +201,7 @@ export function TrashCheckoutDialog({
           {
             machineId: machine.id,
             request: deleting
-              ? { _tag: "Delete", path: checkout.path, fingerprint }
+              ? { _tag: "Delete", path: checkout.path, fingerprint, discardUniqueWork: !safe }
               : { _tag: "Trash", path: checkout.path, fingerprint, removeCaches },
           },
         ],
@@ -234,7 +241,7 @@ export function TrashCheckoutDialog({
               {cacheBytes > 0 && `, including ${formatBytes(cacheBytes)} of caches`}. The trash
               keeps it whole until you empty the trash, and restoring puts it back here.
             </p>
-            {worktrees > 0 && (
+            {worktrees > 0 && !deleting && (
               <p>
                 Its {plural(worktrees, "linked worktree")} {worktrees === 1 ? "goes" : "go"} to the
                 trash with it, and {worktrees === 1 ? "comes" : "come"} back with it.
@@ -270,21 +277,33 @@ export function TrashCheckoutDialog({
                   <input
                     type="checkbox"
                     checked={permanently}
-                    disabled={!safe}
                     onChange={(event) => setPermanently(event.currentTarget.checked)}
                     className="mt-0.5 size-4 shrink-0 accent-accent"
                   />
-                  <span className={safe ? "" : "text-ink-muted"}>
+                  <span>
                     Skip the trash and delete it permanently
                     <span className="block text-xs text-ink-muted">
-                      {safe && "It can be cloned again from its remote."}
-                      {!safe &&
-                        (worktrees > 0
-                          ? "Not while it has linked worktrees. Remove them first to delete it."
-                          : "Only for a checkout with nothing that exists only here.")}
+                      {safe
+                        ? "It can be cloned again from its remote."
+                        : "It can't be restored afterwards."}
                     </span>
                   </span>
                 </label>
+                {deleting && !safe && (
+                  <p className="flex items-start gap-2 rounded-md border border-danger/30 bg-danger-soft px-3 py-2 text-danger">
+                    <TriangleAlertIcon className="mt-0.5 shrink-0" />
+                    <span>
+                      {[
+                        !nothingUnique(inspection) &&
+                          `What only ${machineLabel(machine)} has, listed above, is lost for good.`,
+                        worktrees > 0 &&
+                          `Its ${plural(worktrees, "linked worktree")} ${worktrees === 1 ? "is" : "are"} deleted too, without being checked for work of ${worktrees === 1 ? "its" : "their"} own.`,
+                      ]
+                        .filter((line) => line !== false)
+                        .join(" ")}
+                    </span>
+                  </p>
+                )}
               </fieldset>
             }
           </>

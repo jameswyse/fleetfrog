@@ -1,60 +1,130 @@
+import { useId } from "react";
+
 import { Button } from "@/ui/Button.tsx";
 import { Dialog } from "@/ui/Dialog.tsx";
 import { plural } from "@/ui/plural.ts";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { useStartBatch } from "../actions/useStartBatch.ts";
+import {
+  ArchiveFolderField,
+  archiveFolderCreator,
+  saveArchiveFolder,
+} from "../settings/fleet/ArchiveFolderField.tsx";
+import { planArchive } from "./archiveAvailability.ts";
 
 import type { Checkout } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
-import type { FolderMove } from "./archiveAvailability.ts";
+import type { ArchivePlan } from "./archiveAvailability.ts";
 
-/** Confirms moving a checkout into the Archive folder, showing where it will go. */
+/** Asks for the machine's Archive folder, after which the dialog shows where the checkout goes. */
+function ChooseArchiveFolder({
+  machine,
+  problem,
+}: {
+  readonly machine: Machine;
+  readonly problem: string | null;
+}) {
+  const id = useId();
+
+  return (
+    <div className="space-y-2">
+      <label htmlFor={id} className="block font-medium">
+        Archive folder on {machineLabel(machine)}
+      </label>
+      <p id={`${id}-description`} className="text-ink-muted">
+        {problem === null
+          ? "This machine has no Archive folder yet. Choose where archived checkouts go, such as ~/Archive."
+          : `${problem}. Choose another folder.`}
+      </p>
+      <ArchiveFolderField
+        id={id}
+        machine={machine}
+        onChange={(folder) => saveArchiveFolder(machine, folder)}
+        createFolder={archiveFolderCreator(machine)}
+      />
+    </div>
+  );
+}
+
+function ArchiveMoves({
+  checkout,
+  plan,
+}: {
+  readonly checkout: Checkout;
+  readonly plan: Extract<ArchivePlan, { _tag: "Ready" }>;
+}) {
+  const { destination, worktrees } = plan;
+
+  return (
+    <>
+      <p>The whole folder moves, with its changes, stashes and ignored files:</p>
+      <dl className="grid grid-cols-[4rem_minmax(0,1fr)] gap-x-3 gap-y-1 rounded-md border border-line bg-canvas px-3 py-2">
+        <dt className="text-ink-muted">From</dt>
+        <dd className="font-mono text-[13px] break-all">{checkout.path}</dd>
+        <dt className="text-ink-muted">To</dt>
+        <dd className="font-mono text-[13px] break-all">{destination}</dd>
+      </dl>
+      {worktrees.length > 0 && (
+        <div>
+          <p>
+            Its {plural(worktrees.length, "linked worktree")}{" "}
+            {worktrees.length === 1 ? "moves" : "move"} too, and Git repairs{" "}
+            {worktrees.length === 1 ? "its link" : "their links"}:
+          </p>
+          <ul className="mt-2 space-y-1 rounded-md border border-line bg-canvas px-3 py-2">
+            {worktrees.map(({ from, to }) => (
+              <li key={from} className="font-mono text-[13px] break-all">
+                {from} <span className="text-ink-muted">→</span> {to}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <p className="text-ink-muted">
+        If something is already at a destination, a number is added to it, such as -2.
+      </p>
+    </>
+  );
+}
+
+/**
+ * Confirms moving a checkout into the Archive folder, showing where it will go, or first asks for
+ * the machine's Archive folder when it has none it can use.
+ */
 export function ArchiveDialog({
   repository,
   machine,
   checkout,
-  destination,
-  worktrees,
+  fromWorktree,
   onClose,
 }: {
   readonly repository: Repository;
   readonly machine: Machine;
+  /** The main checkout to archive. */
   readonly checkout: Checkout;
-  readonly destination: string;
-  /** Linked worktrees that move along. */
-  readonly worktrees: ReadonlyArray<FolderMove>;
+  /** The linked worktree the developer chose to archive, which goes with its main checkout. */
+  readonly fromWorktree: string | null;
   readonly onClose: () => void;
 }) {
   const { start, pending, failure } = useStartBatch();
+  const plan = planArchive({ machine, checkout });
 
   return (
     <Dialog title={`Archive ${repository.label} on ${machineLabel(machine)}?`} onClose={onClose}>
       <div className="space-y-4 text-sm">
-        <p>The whole folder moves, with its changes, stashes and ignored files:</p>
-        <dl className="grid grid-cols-[4rem_minmax(0,1fr)] gap-x-3 gap-y-1 rounded-md border border-line bg-canvas px-3 py-2">
-          <dt className="text-ink-muted">From</dt>
-          <dd className="font-mono text-[13px] break-all">{checkout.path}</dd>
-          <dt className="text-ink-muted">To</dt>
-          <dd className="font-mono text-[13px] break-all">{destination}</dd>
-        </dl>
-        {worktrees.length > 0 && (
-          <div>
-            <p>
-              Its {plural(worktrees.length, "linked worktree")}{" "}
-              {worktrees.length === 1 ? "moves" : "move"} too, and Git repairs{" "}
-              {worktrees.length === 1 ? "its link" : "their links"}:
-            </p>
-            <ul className="mt-2 space-y-1 rounded-md border border-line bg-canvas px-3 py-2">
-              {worktrees.map(({ from, to }) => (
-                <li key={from} className="font-mono text-[13px] break-all">
-                  {from} <span className="text-ink-muted">→</span> {to}
-                </li>
-              ))}
-            </ul>
-          </div>
+        {fromWorktree !== null && (
+          <p>
+            <span className="font-mono break-all">{fromWorktree}</span> is a linked worktree, so it
+            moves with its main checkout. This archives the main checkout and all its worktrees.
+          </p>
         )}
+        {plan._tag === "NeedsFolder" && (
+          <ChooseArchiveFolder machine={machine} problem={plan.problem} />
+        )}
+        {plan._tag === "Blocked" && <p className="text-danger">{plan.reason}.</p>}
+        {plan._tag === "Ready" && <ArchiveMoves checkout={checkout} plan={plan} />}
         <p className="text-ink-muted">
           It leaves the Projects page and is listed under Cleanup, where you can move it back. Close
           it in any editor or terminal on {machineLabel(machine)} first.
@@ -66,7 +136,7 @@ export function ArchiveDialog({
           <Button onClick={onClose}>Cancel</Button>
           <Button
             tone="primary"
-            disabled={pending}
+            disabled={pending || plan._tag !== "Ready"}
             onClick={() =>
               start(
                 {

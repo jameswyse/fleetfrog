@@ -1,95 +1,83 @@
-import path from "node:path";
-
-import { Effect } from "effect";
+import { DateTime, Effect } from "effect";
 
 import { ActionResult, SkipReason } from "@fleetfrog/protocol/domain/action";
 
-import { readLinkedWorktrees } from "../git/worktrees.ts";
-import { readIgnored } from "../inspect/inspectCheckout.ts";
-import { runGit, runGitAction } from "../process/runTool.ts";
-import { exists } from "./movableCheckout.ts";
+import { inspectWorktree } from "../inspect/inspectWorktree.ts";
+import { runGitAction } from "../process/runTool.ts";
+import { keepDetachedCommits } from "./detachedCommits.ts";
+import { stashDate } from "./gitActions.ts";
 import { failedWith, skipped, succeeded } from "./outcomes.ts";
+
+import type { WorktreeInspection } from "@fleetfrog/protocol/domain/trash";
 
 import type { CheckoutLocation } from "../git/readCheckout.ts";
 import type { ActionOutput } from "./actionOutput.ts";
 
+/** Git needs forcing twice to remove a locked worktree, and once to forget a missing one. */
+function forceFlags(inspection: WorktreeInspection): ReadonlyArray<string> {
+  if (inspection.locked !== null) {
+    return ["--force", "--force"];
+  }
+
+  return inspection.missing === null ? [] : ["--force"];
+}
+
 /**
- * Removes a linked worktree of the main checkout, keeping its branch. One whose folder is gone is
- * only forgotten, and only while the folder above it exists, so a worktree on a disk that isn't
- * mounted is left alone. One whose link broke, such as after the main checkout moved, is repaired
- * first. Nothing is removed while the worktree has changes, untracked files, commits that only
- * its detached HEAD holds, or ignored files other than caches, so only rebuildable files go.
+ * Removes a linked worktree of the main checkout, keeping its branch, if it still matches the
+ * inspection the dashboard showed. Its changes and untracked files are stashed first, and commits
+ * only its detached HEAD holds go to the trash, so only its ignored files are lost. One whose
+ * folder is gone is only forgotten, and a locked one is unlocked, both as the dashboard warned.
  */
 export const removeWorktree = Effect.fn("removeWorktree")(
-  function* (location: CheckoutLocation, worktree: string, output: ActionOutput) {
-    const found = (yield* readLinkedWorktrees(location)).find((listed) => listed.path === worktree);
+  function* (
+    location: Pick<CheckoutLocation, "path" | "commonDirectory">,
+    options: { readonly worktree: string; readonly fingerprint: string },
+    output: ActionOutput,
+  ) {
+    const { worktree } = options;
+    const inspection = yield* inspectWorktree(location, worktree);
 
-    if (found === undefined) {
+    if (inspection === null) {
       return skipped(SkipReason.cases.NoSuchWorktree.make({}));
     }
 
-    if (found.state === "Missing") {
-      if (!(yield* exists(path.dirname(worktree)))) {
-        return skipped(SkipReason.cases.NoSuchWorktree.make({}));
-      }
+    if (inspection.fingerprint !== options.fingerprint) {
+      return skipped(SkipReason.cases.ChangedSinceInspection.make({}));
+    }
 
-      // Its folder is gone, so forcing only removes Git's record of it.
+    const force = forceFlags(inspection);
+    const stashedFiles = inspection.changedFiles + inspection.untrackedFiles;
+
+    if (stashedFiles > 0) {
       yield* runGitAction({
-        cwd: location.path,
-        args: ["worktree", "remove", "--force", worktree],
+        cwd: worktree,
+        args: [
+          "stash",
+          "push",
+          "--include-untracked",
+          "--message",
+          `Stashed from FleetFrog before removing the worktree at ${worktree} on ${stashDate(yield* DateTime.now)}`,
+        ],
         onOutput: output.write,
       });
-
-      return succeeded(ActionResult.cases.WorktreeRemoved.make({}));
     }
 
-    if (found.state === "Broken") {
-      yield* runGitAction({
-        cwd: location.path,
-        args: ["worktree", "repair", worktree],
-        onOutput: output.write,
-      });
-    }
-
-    const changes = (yield* runGit(worktree, ["status", "--porcelain", "--untracked-files=normal"]))
-      .split("\n")
-      .filter((line) => line !== "").length;
-
-    if (changes > 0) {
-      return skipped(SkipReason.cases.UncommittedChanges.make({ files: changes }));
-    }
-
-    // A branch keeps its commits, but a detached HEAD's own commits would become unreachable.
-    const unreachable = Number(
-      (yield* runGit(worktree, [
-        "rev-list",
-        "--count",
-        "HEAD",
-        "--not",
-        "--branches",
-        "--tags",
-        "--remotes",
-        "--glob=refs/fleetfrog/*",
-      ])).trim(),
-    );
-
-    if (unreachable > 0) {
-      return skipped(SkipReason.cases.UnreachableCommits.make({ commits: unreachable }));
-    }
-
-    const ignored = yield* readIgnored({ path: worktree });
-
-    if (ignored.other.length > 0) {
-      return skipped(SkipReason.cases.IgnoredFiles.make({ files: ignored.other.length }));
-    }
+    const savedCommits =
+      inspection.unreachableCommits > 0 ? yield* keepDetachedCommits(worktree, output) : 0;
 
     yield* runGitAction({
       cwd: location.path,
-      args: ["worktree", "remove", worktree],
+      args: ["worktree", "remove", ...force, worktree],
       onOutput: output.write,
     });
 
-    return succeeded(ActionResult.cases.WorktreeRemoved.make({}));
+    return succeeded(
+      ActionResult.cases.WorktreeRemoved.make({
+        stashedFiles,
+        savedCommits,
+        deletedIgnored: inspection.ignored.total,
+      }),
+    );
   },
   Effect.catchTag("CommandFailed", failedWith),
 );
