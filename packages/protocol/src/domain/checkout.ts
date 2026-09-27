@@ -57,8 +57,14 @@ export const Stash = Schema.Struct({
 });
 export type Stash = typeof Stash.Type;
 
+/** A Git operation stopped part-way, waiting for the developer to continue or abort it. */
+export const Operation = Schema.Literals(["merge", "rebase", "cherry-pick", "revert", "bisect"]);
+export type Operation = typeof Operation.Type;
+
 export const GitStatus = Schema.Struct({
   head: Head,
+  /** Null when no operation is in progress, and from agents that predate reporting it. */
+  operation: Schema.NullOr(Operation).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(null))),
   lastCommit: Schema.NullOr(Commit),
   changed: Capped(ChangedFile),
   untracked: Capped(Schema.String),

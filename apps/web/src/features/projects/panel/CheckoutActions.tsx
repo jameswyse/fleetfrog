@@ -1,26 +1,37 @@
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 
 import { Link } from "@tanstack/react-router";
 
 import { requestHub, useRuns } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
 
-import { machineBlocker, pullSkipReason } from "../../actions/actionAvailability.ts";
+import {
+  machineBlocker,
+  pullSkipReason,
+  stashSkipReason,
+} from "../../actions/actionAvailability.ts";
 import { activeRunFor, latestRunFor } from "../../actions/runLookup.ts";
 import { RunStateText } from "../../actions/RunStateText.tsx";
+import { StashDialog } from "../../actions/StashDialog.tsx";
 import { useStartBatch } from "../../actions/useStartBatch.ts";
 
 import type { Checkout } from "@fleetfrog/protocol/domain/checkout";
-import type { Machine } from "@fleetfrog/protocol/domain/fleet";
+import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
-/** Fetch and pull for one checkout, with what is running on it now or how its last action ended. */
+/**
+ * Fetch, pull and stash for one checkout, with what is running on it now or how its last action
+ * ended.
+ */
 export function CheckoutActions({
+  repository,
   machine,
   checkout,
 }: {
+  readonly repository: Repository;
   readonly machine: Machine;
   readonly checkout: Checkout;
 }) {
+  const [stashing, setStashing] = useState(false);
   const runs = useRuns();
   const { start, pending, failure } = useStartBatch();
   const [cancelling, startCancel] = useTransition();
@@ -28,6 +39,9 @@ export function CheckoutActions({
   const latest = latestRunFor(runs, { machineId: machine.id, checkout });
   const fetchBlocked = machineBlocker(machine, "Fetch");
   const pullBlocked = pullSkipReason(machine, checkout);
+  const git = checkout.status._tag === "Read" ? checkout.status.git : null;
+  const hasChanges = git !== null && git.changed.total + git.untracked.total > 0;
+  const stashBlocked = stashSkipReason(machine, checkout);
   const scope = { _tag: "Checkout", machineId: machine.id, path: checkout.path } as const;
   const shown = active ?? latest;
 
@@ -49,6 +63,14 @@ export function CheckoutActions({
         >
           Pull
         </Button>
+        {hasChanges && (
+          <Button
+            disabled={stashBlocked !== null || active !== undefined || pending}
+            onClick={() => setStashing(true)}
+          >
+            Stash changes
+          </Button>
+        )}
         {active !== undefined && (
           <Button
             tone="quiet"
@@ -72,6 +94,9 @@ export function CheckoutActions({
             : `Actions aren't available: ${fetchBlocked}.`}
         </p>
       )}
+      {active === undefined && fetchBlocked === null && hasChanges && stashBlocked !== null && (
+        <p className="text-sm text-ink-muted">Stashing isn't available: {stashBlocked}.</p>
+      )}
       <p role="status" className="text-sm">
         {failure !== null && <span className="text-danger">{failure}</span>}
         {failure === null && shown !== undefined && (
@@ -88,6 +113,15 @@ export function CheckoutActions({
           </span>
         )}
       </p>
+      {stashing && git !== null && (
+        <StashDialog
+          repository={repository}
+          machine={machine}
+          checkout={checkout}
+          git={git}
+          onClose={() => setStashing(false)}
+        />
+      )}
     </section>
   );
 }

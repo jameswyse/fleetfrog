@@ -31,6 +31,7 @@ function entry(
           name: options.branch,
           upstream: { name: `origin/${options.branch}`, ahead: 0, behind: 0, gone: false },
         },
+        operation: null,
         lastCommit: null,
         changed: none,
         untracked: none,

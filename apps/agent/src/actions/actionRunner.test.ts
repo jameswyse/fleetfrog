@@ -17,6 +17,12 @@ import type { AuditEntry } from "../audit/auditLog.ts";
 import type { AgentPolicy } from "../config/agentPolicy.ts";
 import type { CheckoutLocation } from "../git/readCheckout.ts";
 
+// The agent's own Git commands, such as the commit a stash makes, need an identity too.
+process.env.GIT_AUTHOR_NAME = "Test";
+process.env.GIT_AUTHOR_EMAIL = "test@example.com";
+process.env.GIT_COMMITTER_NAME = "Test";
+process.env.GIT_COMMITTER_EMAIL = "test@example.com";
+
 function git(cwd: string, ...args: Array<string>): string {
   return execFileSync("git", args, {
     cwd,
@@ -256,6 +262,61 @@ describe("action runner", () => {
       }
 
       expect(existsSync(path.join(root, "projects", "shop"))).toBe(false);
+    }),
+  );
+
+  it.effect("switches a clean checkout to another local branch", () =>
+    Effect.gen(function* () {
+      const { run, clone } = yield* setUp();
+
+      git(clone, "branch", "feature");
+      writeFileSync(path.join(clone, "notes.txt"), "untracked\n");
+
+      expect(yield* run({ _tag: "Switch", path: clone, branch: "feature" })).toMatchObject({
+        outcome: { _tag: "Succeeded", result: { _tag: "Switched", branch: "feature" } },
+      });
+      expect(git(clone, "branch", "--show-current")).toBe("feature");
+    }),
+  );
+
+  it.effect("won't switch while tracked files have changes", () =>
+    Effect.gen(function* () {
+      const { run, clone } = yield* setUp();
+
+      git(clone, "branch", "feature");
+      writeFileSync(path.join(clone, "readme.md"), "edited\n");
+
+      expect(yield* run({ _tag: "Switch", path: clone, branch: "feature" })).toMatchObject({
+        outcome: { _tag: "Skipped", reason: { _tag: "UncommittedChanges", files: 1 } },
+      });
+      expect(git(clone, "branch", "--show-current")).toBe("main");
+    }),
+  );
+
+  it.effect("won't switch to a branch another worktree has checked out", () =>
+    Effect.gen(function* () {
+      const { run, clone, root } = yield* setUp();
+
+      git(clone, "worktree", "add", "-q", "-b", "feature", path.join(root, "feature"));
+
+      expect(yield* run({ _tag: "Switch", path: clone, branch: "feature" })).toMatchObject({
+        outcome: { _tag: "Skipped", reason: { _tag: "BranchInUse" } },
+      });
+    }),
+  );
+
+  it.effect("stashes tracked and untracked changes, leaving a clean working tree", () =>
+    Effect.gen(function* () {
+      const { run, clone } = yield* setUp();
+
+      writeFileSync(path.join(clone, "readme.md"), "edited\n");
+      writeFileSync(path.join(clone, "notes.txt"), "untracked\n");
+
+      expect(yield* run({ _tag: "Stash", path: clone })).toMatchObject({
+        outcome: { _tag: "Succeeded", result: { _tag: "Stashed", files: 2 } },
+      });
+      expect(git(clone, "status", "--porcelain")).toBe("");
+      expect(git(clone, "stash", "list")).toContain("Stashed from FleetFrog");
     }),
   );
 });

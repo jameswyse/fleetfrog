@@ -27,6 +27,7 @@ function checkout(git: Partial<GitStatus>, github: Checkout["github"] = null): C
           name: "main",
           upstream: { name: "origin/main", ahead: 0, behind: 0, gone: false },
         },
+        operation: null,
         lastCommit: null,
         changed: none,
         untracked: none,

@@ -7,7 +7,9 @@ import { changePolicy, policyPath } from "../config/agentPolicy.ts";
 import { reportFailure } from "./reportFailure.ts";
 
 export const tierDescriptions = {
-  git: "Git actions: fetch, pull (fast-forward only) and clone into a project folder",
+  git: "Git actions: fetch, pull (fast-forward only), clone into a project folder, switch branches and stash changes",
+  cleanup:
+    "Cleanup actions: delete branches, archive checkouts, move them to the trash or delete them, and restore or empty the trash",
 } satisfies Record<Tier, string>;
 
 const tierArgument = Argument.Literals("tier", Tier.literals).pipe(

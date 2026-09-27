@@ -1,6 +1,12 @@
 import { Schema } from "effect";
 
-import { ActionKind, ActionOutcome, ActionRequest, OutcomeKind } from "./action.ts";
+import {
+  ActionKind,
+  ActionOutcome,
+  ActionRequest,
+  OutcomeKind,
+  TargetedRequest,
+} from "./action.ts";
 import { Count } from "./count.ts";
 import { MachineId } from "./machine.ts";
 import { PollingSettings } from "./polling.ts";
@@ -28,11 +34,25 @@ export const CloneTarget = Schema.Struct({
 });
 export type CloneTarget = typeof CloneTarget.Type;
 
+/** One action addressed to one target on one machine. */
+export const TargetedRun = Schema.Struct({ machineId: MachineId, request: TargetedRequest });
+export type TargetedRun = typeof TargetedRun.Type;
+
 /** What the dashboard asks for. The hub expands it into one run per machine and checkout. */
 export const BatchRequest = Schema.TaggedUnion({
   Fetch: { scope: ActionScope },
   Pull: { scope: ActionScope },
   Clone: { repositoryKey: RepositoryKey, targets: Schema.NonEmptyArray(CloneTarget) },
+  /** Actions of one kind, each on its own target. */
+  Targeted: {
+    runs: Schema.NonEmptyArray(TargetedRun).check(
+      Schema.makeFilter(
+        ([first, ...rest]) =>
+          rest.every(({ request }) => request._tag === first.request._tag) ||
+          "Every run in a batch must be the same kind of action.",
+      ),
+    ),
+  },
 });
 export type BatchRequest = typeof BatchRequest.Type;
 

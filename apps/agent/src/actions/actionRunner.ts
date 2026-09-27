@@ -17,6 +17,8 @@ import {
   destinationProblems,
   fetchRepository,
   pullCheckout,
+  stashChanges,
+  switchBranch,
 } from "./gitActions.ts";
 
 import type { Tier } from "@fleetfrog/protocol/domain/action";
@@ -46,14 +48,17 @@ type Plan =
   | {
       readonly _tag: "Ready";
       readonly lockKey: string;
+      /** Whether it waits for one of the slots that limit network use. */
+      readonly usesNetwork: boolean;
       readonly perform: (output: ActionOutput) => Effect.Effect<ActionOutcome>;
       readonly afterwards: (outcome: ActionOutcome) => Effect.Effect<void, unknown>;
     };
 
 /**
  * Runs the hub's action requests on this machine. Each action is checked against the owner's
- * policy when it arrives, waits for any other action on the same repository and for a network
- * slot, then reports its progress and outcome. Every step is recorded in the audit log.
+ * policy when it arrives, waits for any other action on the same repository and, if it uses the
+ * network, for a network slot, then reports its progress and outcome. Every step is recorded in the
+ * audit log.
  */
 export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options: {
   readonly catalogue: CheckoutCatalogue;
@@ -95,6 +100,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
 
   const checkoutPlan = (
     path: string,
+    usesNetwork: boolean,
     perform: (location: CheckoutLocation, output: ActionOutput) => Effect.Effect<ActionOutcome>,
   ): Plan => {
     const location = options.catalogue.locate(path);
@@ -105,6 +111,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
           _tag: "Ready",
           // Worktrees share one repository, and Git locks it while fetching or merging.
           lockKey: location.commonDirectory,
+          usesNetwork,
           perform: (output) => perform(location, output),
           afterwards: () => options.catalogue.rescanRepository(location.commonDirectory),
         };
@@ -112,8 +119,11 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
 
   const plan = (request: ActionRequest): Plan =>
     ActionRequest.match(request, {
-      Fetch: ({ path }) => checkoutPlan(path, fetchRepository),
-      Pull: ({ path }) => checkoutPlan(path, pullCheckout),
+      Fetch: ({ path }) => checkoutPlan(path, true, fetchRepository),
+      Pull: ({ path }) => checkoutPlan(path, true, pullCheckout),
+      Switch: ({ path, branch }) =>
+        checkoutPlan(path, false, (location, output) => switchBranch(location, branch, output)),
+      Stash: ({ path }) => checkoutPlan(path, false, stashChanges),
       Clone: ({ url, destination }) => {
         const checked = checkCloneDestination({
           destination,
@@ -128,6 +138,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
         return {
           _tag: "Ready",
           lockKey: `clone:${checked.path}`,
+          usesNetwork: true,
           perform: (output) => cloneRepository({ url, destination: checked, home }, output),
           // Only a clone this agent made is added, so a refused one can't point it elsewhere.
           afterwards: (outcome) =>
@@ -192,9 +203,9 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
       );
 
   /**
-   * Checks the policy, waits for the repository and a network slot, checks the policy again in
-   * case the owner changed it meanwhile, then runs the action. Returns its outcome and the rescan
-   * to do before reporting it, or null when the request was refused.
+   * Checks the policy, waits for the repository and any network slot it needs, checks the policy
+   * again in case the owner changed it meanwhile, then runs the action. Returns its outcome and the
+   * rescan to do before reporting it, or null when the request was refused.
    */
   const perform = (runId: RunId, request: ActionRequest, output: ActionOutput) =>
     Effect.gen(function* () {
@@ -236,7 +247,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
         return { outcome, afterwards: planned.afterwards(outcome) };
       }).pipe(
         Effect.scoped,
-        network.withPermits(1),
+        (performing) => (planned.usesNetwork ? network.withPermits(1)(performing) : performing),
         // The repository lock is taken first, so a queued action never holds a network slot.
         lockFor(planned.lockKey).withPermits(1),
       );

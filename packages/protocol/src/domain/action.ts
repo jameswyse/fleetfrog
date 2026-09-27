@@ -1,13 +1,16 @@
 import { Effect, Schema } from "effect";
 
+import { Operation } from "./checkout.ts";
 import { Count } from "./count.ts";
 
 /**
  * A group of actions that a machine's owner allows or denies on that machine, with
  * `fleetfrog allow` and `fleetfrog deny`. The hub can see the policy but never change it. `git`
- * covers fetching, pulling and cloning, and creating the project folders that clones go into.
+ * covers fetching, pulling, cloning, switching branches and stashing, and creating the project
+ * folders that clones go into. `cleanup` covers actions that remove things from where the
+ * developer works, even though each can be undone until the trash is emptied.
  */
-export const Tier = Schema.Literals(["git"]);
+export const Tier = Schema.Literals(["git", "cleanup"]);
 export type Tier = typeof Tier.Type;
 
 /**
@@ -22,17 +25,30 @@ export const ActionRequest = Schema.TaggedUnion({
   Pull: { path: Schema.String },
   /** Clones `url` into `destination`, which may start with `~`. */
   Clone: { url: Schema.String, destination: Schema.String },
+  /** Switches the checkout at `path` to the local branch `branch`, if it has no changes. */
+  Switch: { path: Schema.String, branch: Schema.String },
+  /** Stashes every change in the checkout at `path`, including untracked files. */
+  Stash: { path: Schema.String },
 });
 export type ActionRequest = typeof ActionRequest.Type;
 
-export const ActionKind = Schema.Literals(["Fetch", "Pull", "Clone"]);
+export const ActionKind = Schema.Literals(["Fetch", "Pull", "Clone", "Switch", "Stash"]);
 export type ActionKind = typeof ActionKind.Type;
 
 export const actionTiers = {
   Fetch: "git",
   Pull: "git",
   Clone: "git",
+  Switch: "git",
+  Stash: "git",
 } as const satisfies Record<ActionRequest["_tag"], Tier>;
+
+/** Actions the dashboard addresses to one target each, rather than to a scope the hub expands. */
+export const TargetedRequest = Schema.Union([
+  ActionRequest.cases.Switch,
+  ActionRequest.cases.Stash,
+]);
+export type TargetedRequest = typeof TargetedRequest.Type;
 
 /** What a connected agent can run and what its owner allows. */
 export const AgentCapabilities = Schema.Struct({
@@ -61,6 +77,13 @@ export const SkipReason = Schema.TaggedUnion({
   UpstreamGone: {},
   UncommittedChanges: { files: Count },
   UnpushedCommits: { commits: Count },
+  /** A merge, rebase or similar is part-way through, and the developer should finish it. */
+  OperationInProgress: { operation: Operation },
+  NothingToStash: {},
+  AlreadyOnBranch: {},
+  /** The branch is checked out in another worktree, which Git doesn't allow twice. */
+  BranchInUse: {},
+  NoSuchBranch: {},
   /** The machine's owner has not allowed the action's tier. */
   NotAllowed: { tier: Tier },
   /** The agent is too old to know the action. */
@@ -73,6 +96,8 @@ export const ActionResult = Schema.TaggedUnion({
   FastForwarded: { commits: Count },
   UpToDate: {},
   Cloned: {},
+  Switched: { branch: Schema.String },
+  Stashed: { files: Count },
 });
 export type ActionResult = typeof ActionResult.Type;
 

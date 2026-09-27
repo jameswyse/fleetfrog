@@ -12,6 +12,7 @@ import { GitHubIcon } from "@/ui/HostIcon.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
+import { BranchesSection } from "./BranchesSection.tsx";
 import { CheckoutActions } from "./CheckoutActions.tsx";
 import { Fact, Facts, PanelSection, ShortList } from "./PanelSection.tsx";
 
@@ -20,7 +21,6 @@ import type {
   Checkout,
   FileState,
   GitStatus,
-  Upstream,
 } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
@@ -40,23 +40,6 @@ function describeChange(file: ChangedFile): string {
   const unstaged = stateWords[file.unstaged];
 
   return [staged && `${staged}, staged`, unstaged].filter(Boolean).join("; ");
-}
-
-function describeUpstream(upstream: Upstream | null): string {
-  if (upstream === null) {
-    return "No upstream branch";
-  }
-
-  if (upstream.gone) {
-    return `${upstream.name} was deleted on the remote`;
-  }
-
-  const parts = [
-    upstream.ahead > 0 && `${upstream.ahead} to push`,
-    upstream.behind > 0 && `${upstream.behind} to pull`,
-  ].filter(Boolean);
-
-  return `Tracks ${upstream.name}${parts.length > 0 ? `, ${parts.join(", ")}` : ", up to date"}`;
 }
 
 const letterTones = new Map([
@@ -134,10 +117,12 @@ function problemOf(checkout: Checkout): string | null {
 
 function Overview({
   git,
+  repository,
   machine,
   checkout,
 }: {
   readonly git: GitStatus | null;
+  readonly repository: Repository;
   readonly machine: Machine;
   readonly checkout: Checkout;
 }) {
@@ -185,12 +170,22 @@ function Overview({
           </div>
         </>
       )}
-      <CheckoutActions machine={machine} checkout={checkout} />
+      <CheckoutActions repository={repository} machine={machine} checkout={checkout} />
     </div>
   );
 }
 
-function GitSections({ git, checkout }: { readonly git: GitStatus; readonly checkout: Checkout }) {
+function GitSections({
+  git,
+  repository,
+  machine,
+  checkout,
+}: {
+  readonly git: GitStatus;
+  readonly repository: Repository;
+  readonly machine: Machine;
+  readonly checkout: Checkout;
+}) {
   const { head } = git;
   const pullRequest =
     head._tag === "Branch"
@@ -255,45 +250,7 @@ function GitSections({ git, checkout }: { readonly git: GitStatus; readonly chec
           )}
         </PanelSection>
       )}
-      <PanelSection
-        title="Local branches"
-        icon={GitBranchIcon}
-        tone="sync"
-        count={git.branches.total}
-      >
-        <ShortList
-          items={git.branches.items}
-          total={git.branches.total}
-          noun="branches"
-          render={(branch) => (
-            <li
-              key={branch.name}
-              className="flex items-center gap-2 text-sm"
-              title={describeUpstream(branch.upstream)}
-            >
-              <span className="min-w-0 flex-1 truncate font-mono text-[13px]">{branch.name}</span>
-              {head._tag !== "Detached" && branch.name === head.name && (
-                <span className="rounded-full bg-sync-soft px-2 text-xs text-sync">current</span>
-              )}
-              <span className="shrink-0 text-xs tabular-nums">
-                {branch.upstream === null && <span className="text-ink-muted">no upstream</span>}
-                {branch.upstream?.gone === true && <span className="text-danger">deleted</span>}
-                {branch.upstream !== null &&
-                  !branch.upstream.gone &&
-                  (branch.upstream.ahead + branch.upstream.behind === 0 ? (
-                    <span className="text-clean">✓</span>
-                  ) : (
-                    <span className="text-sync">
-                      {branch.upstream.ahead > 0 && `↑${branch.upstream.ahead} `}
-                      {branch.upstream.behind > 0 && `↓${branch.upstream.behind}`}
-                    </span>
-                  ))}
-              </span>
-              <span className="sr-only">, {describeUpstream(branch.upstream)}</span>
-            </li>
-          )}
-        />
-      </PanelSection>
+      <BranchesSection repository={repository} machine={machine} checkout={checkout} git={git} />
       {git.stashes.total > 0 && (
         <PanelSection title="Stashes" icon={ArchiveIcon} tone="neutral" count={git.stashes.total}>
           <ShortList
@@ -337,8 +294,10 @@ export function CheckoutSections({
           <span className="min-w-0 break-words">{problem}</span>
         </p>
       )}
-      <Overview git={git} machine={machine} checkout={checkout} />
-      {git !== null && <GitSections git={git} checkout={checkout} />}
+      <Overview git={git} repository={repository} machine={machine} checkout={checkout} />
+      {git !== null && (
+        <GitSections git={git} repository={repository} machine={machine} checkout={checkout} />
+      )}
       {(checkout.github !== null || onGithub) && (
         <PanelSection title="GitHub" icon={GitHubIcon} tone="neutral">
           {checkout.github === null ? (

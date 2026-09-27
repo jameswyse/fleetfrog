@@ -2,12 +2,14 @@ import { actionBlocker } from "@fleetfrog/protocol/domain/actionAvailability";
 import { checkCloneDestination } from "@fleetfrog/protocol/domain/cloneDestination";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 import { pullBlocker } from "@fleetfrog/protocol/domain/pullEligibility";
+import { stashBlocker } from "@fleetfrog/protocol/domain/stashEligibility";
+import { switchBlocker } from "@fleetfrog/protocol/domain/switchEligibility";
 
 import { describeOutcome, describeSkip } from "./actionCopy.ts";
 
-import type { ActionKind } from "@fleetfrog/protocol/domain/action";
+import type { ActionKind, SkipReason } from "@fleetfrog/protocol/domain/action";
 import type { ActionScope } from "@fleetfrog/protocol/domain/activity";
-import type { Checkout } from "@fleetfrog/protocol/domain/checkout";
+import type { Checkout, GitStatus } from "@fleetfrog/protocol/domain/checkout";
 import type { Fleet, Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
 /** Why the machine can't run an action now, or null when it can. The agent has the final say. */
@@ -78,9 +80,17 @@ export function cloneDestinationProblem(options: {
     : null;
 }
 
-/** Why a pull would skip this checkout as last scanned, or null when it would go ahead. */
-export function pullSkipReason(machine: Machine, checkout: Checkout): string | null {
-  const blocked = machineBlocker(machine, "Pull");
+/**
+ * Why an action on this checkout would be skipped as last scanned, or null when it would go ahead:
+ * the machine can't take it, or the checkout's state rules it out.
+ */
+function checkoutSkipReason(
+  machine: Machine,
+  checkout: Checkout,
+  kind: ActionKind,
+  blocker: (git: GitStatus) => SkipReason | null,
+): string | null {
+  const blocked = machineBlocker(machine, kind);
 
   if (blocked !== null) {
     return blocked;
@@ -91,9 +101,28 @@ export function pullSkipReason(machine: Machine, checkout: Checkout): string | n
     return null;
   }
 
-  const reason = pullBlocker(checkout.status.git);
+  const reason = blocker(checkout.status.git);
 
   return reason === null ? null : describeSkip(reason);
+}
+
+/** Why a pull would skip this checkout as last scanned, or null when it would go ahead. */
+export function pullSkipReason(machine: Machine, checkout: Checkout): string | null {
+  return checkoutSkipReason(machine, checkout, "Pull", pullBlocker);
+}
+
+/** Why stashing would skip this checkout as last scanned, or null when it would go ahead. */
+export function stashSkipReason(machine: Machine, checkout: Checkout): string | null {
+  return checkoutSkipReason(machine, checkout, "Stash", stashBlocker);
+}
+
+/** Why switching this checkout to `branch` would be skipped as last scanned, or null. */
+export function switchSkipReason(
+  machine: Machine,
+  checkout: Checkout,
+  branch: string,
+): string | null {
+  return checkoutSkipReason(machine, checkout, "Switch", (git) => switchBlocker(git, branch));
 }
 
 /** The scopes a pull asks to confirm, because they can cover more than one checkout. */

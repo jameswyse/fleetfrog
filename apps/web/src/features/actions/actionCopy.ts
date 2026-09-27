@@ -7,24 +7,51 @@ import {
 } from "@fleetfrog/protocol/domain/action";
 import { BatchScope, HubEvent } from "@fleetfrog/protocol/domain/activity";
 
+import type { ActionKind, Tier } from "@fleetfrog/protocol/domain/action";
 import type {
   ActionBatch,
   ActionRun,
   RunCounts,
   RunStatus,
 } from "@fleetfrog/protocol/domain/activity";
+import type { Operation } from "@fleetfrog/protocol/domain/checkout";
+
+/** The words before what a batch acted on, such as "Switch branch in" before "shop". */
+const batchVerbs = {
+  Fetch: "Fetch",
+  Pull: "Pull",
+  Clone: "Clone",
+  Switch: "Switch branch in",
+  Stash: "Stash changes in",
+} satisfies Record<ActionKind, string>;
 
 export function describeBatch({ kind, scope }: Pick<ActionBatch, "kind" | "scope">): string {
+  const verb = batchVerbs[kind];
+  // Fetches and pulls cover a whole scope; other batches name each checkout they act on.
+  const expanded = kind === "Fetch" || kind === "Pull";
   const things = kind === "Pull" ? "checkout" : "repository";
 
   return BatchScope.match(scope, {
-    Checkout: ({ repositoryName, machineName }) => `${kind} ${repositoryName} on ${machineName}`,
+    Checkout: ({ repositoryName, machineName }) => `${verb} ${repositoryName} on ${machineName}`,
     Repository: ({ repositoryName }) =>
-      kind === "Clone" ? `Clone ${repositoryName}` : `${kind} ${repositoryName} on every machine`,
-    Machine: ({ machineName }) => `${kind} every ${things} on ${machineName}`,
-    All: () => `${kind} every ${things}`,
+      kind === "Clone" ? `Clone ${repositoryName}` : `${verb} ${repositoryName} on every machine`,
+    Machine: ({ machineName }) =>
+      expanded
+        ? `${verb} every ${things} on ${machineName}`
+        : `${verb} several checkouts on ${machineName}`,
+    All: () => (expanded ? `${verb} every ${things}` : `${verb} checkouts on several machines`),
   });
 }
+
+const tierNames = { git: "Git", cleanup: "Cleanup" } satisfies Record<Tier, string>;
+
+const operationNames = {
+  merge: "A merge",
+  rebase: "A rebase",
+  "cherry-pick": "A cherry-pick",
+  revert: "A revert",
+  bisect: "A bisect",
+} satisfies Record<Operation, string>;
 
 export function describeSkip(reason: SkipReason): string {
   return SkipReason.match(reason, {
@@ -34,7 +61,12 @@ export function describeSkip(reason: SkipReason): string {
     UpstreamGone: () => "The upstream branch was deleted",
     UncommittedChanges: ({ files }) => plural(files, "changed file"),
     UnpushedCommits: ({ commits }) => `${plural(commits, "commit")} to push`,
-    NotAllowed: () => "Git actions are turned off on this machine",
+    OperationInProgress: ({ operation }) => `${operationNames[operation]} is in progress`,
+    NothingToStash: () => "There are no changes to stash",
+    AlreadyOnBranch: () => "Already on that branch",
+    BranchInUse: () => "Another worktree has that branch checked out",
+    NoSuchBranch: () => "The branch no longer exists",
+    NotAllowed: ({ tier }) => `${tierNames[tier]} actions are turned off on this machine`,
     AgentOutdated: () => "The agent needs updating",
   });
 }
@@ -45,6 +77,8 @@ function describeResult(result: ActionResult): string {
     FastForwarded: ({ commits }) => `Pulled ${plural(commits, "commit")}`,
     UpToDate: () => "Already up to date",
     Cloned: () => "Cloned",
+    Switched: ({ branch }) => `Switched to ${branch}`,
+    Stashed: ({ files }) => `Stashed ${plural(files, "file")}`,
   });
 }
 
@@ -109,11 +143,27 @@ export function describeCounts(counts: RunCounts): string {
     .join(", ");
 }
 
+const activeVerbs = {
+  Fetch: "Fetching",
+  Pull: "Pulling",
+  Clone: "Cloning",
+  Switch: "Switching branch",
+  Stash: "Stashing",
+} satisfies Record<ActionKind, string>;
+
+const waitingVerbs = {
+  Fetch: "fetch",
+  Pull: "pull",
+  Clone: "clone",
+  Switch: "switch branch",
+  Stash: "stash",
+} satisfies Record<ActionKind, string>;
+
 /** What a queued or running run is doing, in a word or two: "Cloning", or "Waiting to clone". */
 export function describeActiveRunBriefly(run: ActionRun): string {
-  return run.state._tag === "Running"
-    ? { Fetch: "Fetching", Pull: "Pulling", Clone: "Cloning" }[run.request._tag]
-    : `Waiting to ${run.request._tag.toLowerCase()}`;
+  const kind = run.request._tag;
+
+  return run.state._tag === "Running" ? activeVerbs[kind] : `Waiting to ${waitingVerbs[kind]}`;
 }
 
 /** What a queued or running run is doing now, with Git's latest progress line. */

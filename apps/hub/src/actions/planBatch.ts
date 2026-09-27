@@ -12,8 +12,13 @@ import { clonePath } from "@fleetfrog/protocol/domain/checkout";
 import { cloneSource, expandHome } from "@fleetfrog/protocol/domain/cloneDestination";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
-import type { ActionKind, ActionOutcome, ActionRequest } from "@fleetfrog/protocol/domain/action";
-import type { BatchScope } from "@fleetfrog/protocol/domain/activity";
+import type {
+  ActionKind,
+  ActionOutcome,
+  ActionRequest,
+  TargetedRequest,
+} from "@fleetfrog/protocol/domain/action";
+import type { BatchScope, TargetedRun } from "@fleetfrog/protocol/domain/activity";
 import type { Fleet, Machine, MachineCheckout, Repository } from "@fleetfrog/protocol/domain/fleet";
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 
@@ -135,6 +140,42 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
       };
     });
 
+  /** The repository and path a targeted request acts on, as the fleet knows them now. */
+  const locate = (
+    machineId: MachineId,
+    targeted: TargetedRequest,
+  ): Effect.Effect<Pick<PlannedRun, "repository" | "path">, NothingToRun> => {
+    const found = allTargets.find(
+      ({ entry }) => entry.machineId === machineId && entry.checkout.path === targeted.path,
+    );
+
+    return found === undefined
+      ? Effect.fail(new NothingToRun())
+      : Effect.succeed({ repository: found.repository, path: found.entry.checkout.path });
+  };
+
+  /** One checkout's name when the batch has a single run, or the machine, or the whole fleet. */
+  const targetedScope = (runs: ReadonlyArray<PlannedRun>): BatchScope => {
+    const [only, ...others] = runs;
+
+    if (only === undefined) {
+      return { _tag: "All" };
+    }
+
+    if (others.length === 0) {
+      return {
+        _tag: "Checkout",
+        machineName: machineLabel(only.machine),
+        repositoryName: only.repository.label,
+        path: only.path,
+      };
+    }
+
+    return runs.every(({ machine }) => machine.id === only.machine.id)
+      ? { _tag: "Machine", machineName: machineLabel(only.machine) }
+      : { _tag: "All" };
+  };
+
   const plan = yield* BatchRequest.match(request, {
     Fetch: ({ scope }): Effect.Effect<BatchPlan, PlanError> =>
       Effect.gen(function* () {
@@ -196,6 +237,28 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
           scope: { _tag: "Repository", repositoryName: repository.label },
           runs,
         };
+      }),
+    Targeted: ({ runs }): Effect.Effect<BatchPlan, PlanError> =>
+      Effect.gen(function* () {
+        // The request's schema holds every run to the first one's kind.
+        const kind = runs[0].request._tag;
+        const planned = yield* Effect.forEach(
+          runs,
+          ({ machineId, request: targeted }: TargetedRun) =>
+            Effect.gen(function* () {
+              const machine = yield* findMachine(machineId);
+              const target = yield* locate(machineId, targeted);
+
+              return {
+                machine,
+                ...target,
+                request: targeted,
+                outcome: actionBlocker(machine, kind),
+              } satisfies PlannedRun;
+            }),
+        );
+
+        return { kind, scope: targetedScope(planned), runs: planned };
       }),
   });
 

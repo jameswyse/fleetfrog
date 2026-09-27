@@ -1,16 +1,18 @@
 import { lstat, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 
-import { Effect, Option } from "effect";
+import { DateTime, Effect, Option } from "effect";
 
-import { ActionOutcome, ActionResult } from "@fleetfrog/protocol/domain/action";
+import { ActionOutcome, ActionResult, SkipReason } from "@fleetfrog/protocol/domain/action";
 import { checkCloneDestination, expandHome } from "@fleetfrog/protocol/domain/cloneDestination";
 import { pullBlocker } from "@fleetfrog/protocol/domain/pullEligibility";
+import { stashBlocker } from "@fleetfrog/protocol/domain/stashEligibility";
+import { switchBlocker } from "@fleetfrog/protocol/domain/switchEligibility";
 
 import { isMissingFile } from "../config/agentConfig.ts";
 import { readGitStatus } from "../git/readCheckout.ts";
 import { cloneableUrl } from "../git/remoteIdentity.ts";
-import { runGitAction } from "../process/runTool.ts";
+import { runGit, runGitAction } from "../process/runTool.ts";
 
 import type { DestinationCheck } from "@fleetfrog/protocol/domain/cloneDestination";
 
@@ -72,6 +74,104 @@ export const pullCheckout = Effect.fn("pullCheckout")(
     });
 
     return succeeded(ActionResult.cases.FastForwarded.make({ commits: behind }));
+  },
+  Effect.catchTag("CommandFailed", failedWith),
+);
+
+const skipped = (reason: SkipReason) => ActionOutcome.cases.Skipped.make({ reason });
+
+/** The branches checked out in any worktree of the repository, this one included. */
+const checkedOutBranches = (location: CheckoutLocation) =>
+  runGit(location.path, ["worktree", "list", "--porcelain"]).pipe(
+    Effect.map(
+      (output) =>
+        new Set(
+          output
+            .split("\n")
+            .filter((line) => line.startsWith("branch refs/heads/"))
+            .map((line) => line.slice("branch refs/heads/".length)),
+        ),
+    ),
+  );
+
+/**
+ * Switches the checkout to one of its local branches. The checkout must have no changes to tracked
+ * files, so none are carried across, and the branch must not be checked out in another worktree.
+ */
+export const switchBranch = Effect.fn("switchBranch")(
+  function* (location: CheckoutLocation, branch: string, output: ActionOutput) {
+    const blocker = switchBlocker(yield* readGitStatus(location), branch);
+
+    if (blocker !== null) {
+      return skipped(blocker);
+    }
+
+    const exists = yield* runGit(location.path, [
+      "rev-parse",
+      "--verify",
+      "--quiet",
+      `refs/heads/${branch}`,
+    ]).pipe(
+      Effect.as(true),
+      Effect.orElseSucceed(() => false),
+    );
+
+    // Git forbids branch names starting with a dash, so a verified name can't be read as an option.
+    if (!exists || branch.startsWith("-")) {
+      return skipped(SkipReason.cases.NoSuchBranch.make({}));
+    }
+
+    if ((yield* checkedOutBranches(location)).has(branch)) {
+      return skipped(SkipReason.cases.BranchInUse.make({}));
+    }
+
+    yield* runGitAction({
+      cwd: location.path,
+      args: ["switch", "--no-guess", branch],
+      onOutput: output.write,
+    });
+
+    return succeeded(ActionResult.cases.Switched.make({ branch }));
+  },
+  Effect.catchTag("CommandFailed", failedWith),
+);
+
+/** A time such as 27/09/2026 14:05 in the machine's own time zone, for a stash message. */
+function stashDate(now: DateTime.Utc): string {
+  const parts = DateTime.toParts(DateTime.setZone(now, DateTime.zoneMakeLocal()));
+  const pad = (value: number) => String(value).padStart(2, "0");
+
+  return `${pad(parts.day)}/${pad(parts.month)}/${parts.year} ${pad(parts.hour)}:${pad(parts.minute)}`;
+}
+
+/**
+ * Stashes every change, untracked files included, so the working tree is clean and the changes can
+ * be brought back with `git stash pop`. Ignored files stay where they are.
+ */
+export const stashChanges = Effect.fn("stashChanges")(
+  function* (location: CheckoutLocation, output: ActionOutput) {
+    const git = yield* readGitStatus(location);
+    const blocker = stashBlocker(git);
+
+    if (blocker !== null) {
+      return skipped(blocker);
+    }
+
+    yield* runGitAction({
+      cwd: location.path,
+      args: [
+        "stash",
+        "push",
+        "--include-untracked",
+        "--message",
+        `Stashed from FleetFrog on ${stashDate(yield* DateTime.now)}`,
+      ],
+      onOutput: output.write,
+    });
+
+    return succeeded(
+      ActionResult.cases.Stashed.make({ files: git.changed.total + git.untracked.total }),
+    );
   },
   Effect.catchTag("CommandFailed", failedWith),
 );

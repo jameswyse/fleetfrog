@@ -15,8 +15,8 @@ import { ConfigUnavailable, configDirectory, isMissingFile } from "./agentConfig
 export const AgentPolicy = Schema.Struct({ allowedTiers: Schema.Array(Tier) });
 export type AgentPolicy = typeof AgentPolicy.Type;
 
-/** Git actions are allowed until the owner denies them. */
-export const defaultPolicy: AgentPolicy = { allowedTiers: ["git"] };
+/** Every tier is allowed until the owner denies it. */
+export const defaultPolicy: AgentPolicy = { allowedTiers: ["git", "cleanup"] };
 
 const PolicyJson = Schema.fromJsonString(AgentPolicy);
 const decodePolicy = Schema.decodeUnknownEffect(PolicyJson);

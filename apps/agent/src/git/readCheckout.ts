@@ -10,7 +10,13 @@ import { branchFormat, parseBranches } from "./parseBranches.ts";
 import { parseStatus } from "./parseStatus.ts";
 import { cloneableUrl, remoteIdentity } from "./remoteIdentity.ts";
 
-import type { Commit, GitStatus, Stash, Worktree } from "@fleetfrog/protocol/domain/checkout";
+import type {
+  Commit,
+  GitStatus,
+  Operation,
+  Stash,
+  Worktree,
+} from "@fleetfrog/protocol/domain/checkout";
 
 const stashLimit = 50;
 
@@ -22,6 +28,8 @@ export interface CheckoutLocation {
   readonly originUrl: string | null;
   readonly worktree: Worktree;
   readonly directoryName: string;
+  /** This worktree's own Git directory, which holds its HEAD and any operation in progress. */
+  readonly gitDirectory: string;
   readonly commonDirectory: string;
 }
 
@@ -129,12 +137,36 @@ export const locateCheckout = Effect.fn("locateCheckout")(function* (directory: 
     originUrl,
     worktree,
     directoryName: path.basename(mainPath),
+    gitDirectory,
     commonDirectory,
   }));
 });
 
+/** The files Git leaves in a worktree's Git directory while each operation waits to continue. */
+const operationMarkers: ReadonlyArray<readonly [string, Operation]> = [
+  ["rebase-merge", "rebase"],
+  ["rebase-apply", "rebase"],
+  ["MERGE_HEAD", "merge"],
+  ["CHERRY_PICK_HEAD", "cherry-pick"],
+  ["REVERT_HEAD", "revert"],
+  ["BISECT_LOG", "bisect"],
+];
+
+async function readOperation(gitDirectory: string): Promise<Operation | null> {
+  const present = await Promise.all(
+    operationMarkers.map(([marker]) =>
+      stat(path.join(gitDirectory, marker)).then(
+        () => true,
+        () => false,
+      ),
+    ),
+  );
+
+  return operationMarkers.find((_, index) => present[index])?.[1] ?? null;
+}
+
 export const readGitStatus = Effect.fn("readGitStatus")(function* (location: CheckoutLocation) {
-  const [statusOutput, branchOutput, lastFetchedAt] = yield* Effect.all(
+  const [statusOutput, branchOutput, lastFetchedAt, operation] = yield* Effect.all(
     [
       runGit(location.path, [
         "status",
@@ -146,6 +178,7 @@ export const readGitStatus = Effect.fn("readGitStatus")(function* (location: Che
       ]),
       runGit(location.path, ["for-each-ref", "refs/heads", `--format=${branchFormat}`]),
       Effect.promise(() => readLastFetch(location.commonDirectory)),
+      Effect.promise(() => readOperation(location.gitDirectory)),
     ],
     { concurrency: "unbounded" },
   );
@@ -159,6 +192,7 @@ export const readGitStatus = Effect.fn("readGitStatus")(function* (location: Che
 
   return {
     head: status.head,
+    operation,
     lastCommit,
     changed: status.changed,
     untracked: status.untracked,
