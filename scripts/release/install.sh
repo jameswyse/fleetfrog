@@ -71,7 +71,7 @@ if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/fleetfrog.service" ] ||
   [ -f "$HOME/Library/LaunchAgents/net.fleetfrog.agent.plist" ]; then
   "$install_dir/fleetfrog" service install
 else
-  echo "To connect it to your hub, open Machines in the dashboard, choose Pair a machine and run the commands it shows."
+  echo "To connect it to your hub, open Settings › Fleet › Pair a machine in the dashboard and follow the steps there."
 fi
 
 case ":$PATH:" in

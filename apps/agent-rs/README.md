@@ -6,6 +6,8 @@ Both agents read and write the same files on a machine: the pairing in `~/.confi
 
 ## Build and install
 
+Each [release](https://github.com/jameswyse/fleetfrog/releases) includes this agent for Linux and macOS, and the [main README](../../README.md#add-a-machine) explains how to install it. Build it yourself to work on it.
+
 Building needs a Rust toolchain (`rustup` installs one) as well as pnpm. pnpm resolves and vendors the crates, so run `pnpm install` before building:
 
 ```sh

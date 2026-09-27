@@ -70,5 +70,5 @@ Agents have the `git` and `cleanup` tiers.
 
 ## Distribution
 
-- **Publishing the agent** to npm, with self-update. Machines currently build it from this repository.
+- **Agent self-update.** `fleetfrog update`, or an update the hub offers, instead of running the install script again on each machine.
 - **Rust agent.** A rewrite once the idea is validated.
