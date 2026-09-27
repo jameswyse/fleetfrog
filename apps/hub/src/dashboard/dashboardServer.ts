@@ -75,7 +75,9 @@ function dashboardFiles(root: string) {
 export const DashboardServer = Layer.unwrap(
   Effect.gen(function* () {
     const config = yield* HubConfig;
-    const rpc = RpcServer.layer(DashboardRpcs).pipe(
+    // A defect fails only its own request. By default it ends every stream on the socket, and the
+    // dashboard reads that as the hub going away.
+    const rpc = RpcServer.layer(DashboardRpcs, { disableFatalDefects: true }).pipe(
       Layer.provide(sameOriginProtocol),
       Layer.provide([DashboardHandlers, RpcSerialization.layerJson]),
     );

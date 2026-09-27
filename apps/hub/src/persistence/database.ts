@@ -12,6 +12,7 @@ import machineKind from "./migrations/0004_machine_kind.ts";
 import archiveFolder from "./migrations/0005_archive_folder.ts";
 import machineArchiveFolder from "./migrations/0006_machine_archive_folder.ts";
 import machineTrash from "./migrations/0007_machine_trash.ts";
+import machineArchiveEvents from "./migrations/0008_machine_archive_events.ts";
 
 const client = Layer.unwrap(
   Effect.gen(function* () {
@@ -23,17 +24,19 @@ const client = Layer.unwrap(
   }),
 );
 
-export const Migrations = SqliteMigrator.layer({
-  loader: SqliteMigrator.fromRecord({
-    "0001_initial": initial,
-    "0002_actions": actions,
-    "0003_machine_usage": machineUsage,
-    "0004_machine_kind": machineKind,
-    "0005_archive_folder": archiveFolder,
-    "0006_machine_archive_folder": machineArchiveFolder,
-    "0007_machine_trash": machineTrash,
-  }),
-});
+/** Every migration by name, in the order they run. */
+export const migrations = {
+  "0001_initial": initial,
+  "0002_actions": actions,
+  "0003_machine_usage": machineUsage,
+  "0004_machine_kind": machineKind,
+  "0005_archive_folder": archiveFolder,
+  "0006_machine_archive_folder": machineArchiveFolder,
+  "0007_machine_trash": machineTrash,
+  "0008_machine_archive_events": machineArchiveEvents,
+};
+
+export const Migrations = SqliteMigrator.layer({ loader: SqliteMigrator.fromRecord(migrations) });
 
 export const Database = Migrations.pipe(Layer.provideMerge(client));
 
