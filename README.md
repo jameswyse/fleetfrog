@@ -69,6 +69,8 @@ pnpm dev
 
 `pnpm dev` starts the hub on port 7420 with its data in `./data` and the dashboard on Vite's port 5173, which forwards RPC to the hub. `pnpm verify` runs formatting, lint, typecheck, build and unit tests across the repository.
 
+Describe each change people will notice in a changeset with `pnpm changeset`. The hub, dashboard, agent and protocol share one version, and `pnpm changeset version` bumps it and writes the changelogs.
+
 ## Licence
 
 MIT

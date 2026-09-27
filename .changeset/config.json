@@ -1,0 +1,13 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@4.0.1/schema.json",
+  "baseBranch": "main",
+  "access": "restricted",
+  "format": "oxfmt",
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "ignore": [],
+  "fixed": [["fleetfrog", "@fleetfrog/*"]],
+  "linked": [],
+  "updateInternalDependencies": "patch",
+  "privatePackages": { "version": true, "tag": false }
+}

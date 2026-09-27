@@ -11,8 +11,8 @@
     "fix": "node scripts/turbo.mjs run lint:fix '//#lint:fix:root'",
     "format": "node scripts/turbo.mjs run format '//#format:root'",
     "format:check": "node scripts/turbo.mjs run format:check '//#format:check:root'",
-    "format:check:root": "oxfmt --list-different '*.md' 'docs/**/*.md' 'tools/**/*.ts' 'scripts/**/*.mjs' compose*.yaml package.json pnpm-workspace.yaml turbo.json tsconfig.json tsconfig.base.json tsconfig.node.json tsconfig.tooling.json oxfmt.config.ts oxlint.config.ts '.vscode/*.json'",
-    "format:root": "oxfmt '*.md' 'docs/**/*.md' 'tools/**/*.ts' 'scripts/**/*.mjs' compose*.yaml package.json pnpm-workspace.yaml turbo.json tsconfig.json tsconfig.base.json tsconfig.node.json tsconfig.tooling.json oxfmt.config.ts oxlint.config.ts '.vscode/*.json'",
+    "format:check:root": "oxfmt --list-different '*.md' '.changeset/*' 'docs/**/*.md' 'tools/**/*.ts' 'scripts/**/*.mjs' compose*.yaml package.json pnpm-workspace.yaml turbo.json tsconfig.json tsconfig.base.json tsconfig.node.json tsconfig.tooling.json oxfmt.config.ts oxlint.config.ts '.vscode/*.json'",
+    "format:root": "oxfmt '*.md' '.changeset/*' 'docs/**/*.md' 'tools/**/*.ts' 'scripts/**/*.mjs' compose*.yaml package.json pnpm-workspace.yaml turbo.json tsconfig.json tsconfig.base.json tsconfig.node.json tsconfig.tooling.json oxfmt.config.ts oxlint.config.ts '.vscode/*.json'",
     "format:staged": "lint-staged.sh \"oxfmt --list-different --no-error-on-unmatched-pattern\" \"*.js\" \"*.[cm]js\" \"*.jsx\" \"*.ts\" \"*.[cm]ts\" \"*.tsx\" \"*.css\" \"*.html\" \"*.json\" \"*.jsonc\" \"*.md\" \"*.mdx\" \"*.yaml\" \"*.yml\"",
     "lint": "node scripts/turbo.mjs run lint '//#lint:root'",
     "lint:fix": "node scripts/turbo.mjs run lint:fix '//#lint:fix:root'",
@@ -29,6 +29,7 @@
     "verify:uncached": "pnpm verify --force"
   },
   "devDependencies": {
+    "@changesets/cli": "3.0.3",
     "@e18e/eslint-plugin": "0.8.1",
     "@effect/tsgo": "catalog:",
     "@oxlint/plugins": "catalog:",
