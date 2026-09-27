@@ -15,7 +15,6 @@ import { FolderRequests } from "../agents/folderRequests.ts";
 import { FleetFeed } from "../catalogue/fleetFeed.ts";
 import { MachineStore } from "../machines/machineStore.ts";
 import { PairingOffers } from "../pairing/pairingOffers.ts";
-import { ArchiveFolderStore } from "../settings/archiveFolderStore.ts";
 import { PollingStore } from "../settings/pollingStore.ts";
 import { DashboardPresence } from "./dashboardPresence.ts";
 
@@ -26,7 +25,6 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
     const sessions = yield* AgentSessions;
     const machines = yield* MachineStore;
     const polling = yield* PollingStore;
-    const archive = yield* ArchiveFolderStore;
     const offers = yield* PairingOffers;
     const dispatcher = yield* ActionDispatcher;
     const activity = yield* ActivityFeed;
@@ -111,29 +109,32 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
           .pipe(
             Effect.andThen(activity.recordEvent({ _tag: "PollingChanged", polling: settings })),
           ),
-      SetArchiveFolder: ({ folder }) =>
+      SetArchiveFolder: ({ machineId, folder }) =>
         Effect.gen(function* () {
+          const machine = yield* machines.find(machineId);
           const trimmed = folder?.trim() ?? null;
 
-          // The folder must work on every machine, each with its own home and project folders.
-          const refused =
+          if (
             trimmed !== null &&
-            (yield* machines.all).some(
-              (machine) =>
-                checkArchiveFolder({
-                  folder: trimmed,
-                  home: machine.info.homeDirectory,
-                  roots: machine.discoveryRoots,
-                })._tag !== "Valid",
-            );
-
-          if (refused) {
+            checkArchiveFolder({
+              folder: trimmed,
+              home: machine.info.homeDirectory,
+              roots: machine.discoveryRoots,
+            })._tag !== "Valid"
+          ) {
             return yield* new InvalidArchiveFolder();
           }
 
-          yield* archive.update(trimmed);
+          yield* machines.setArchiveFolder({ machineId, folder: trimmed });
+          yield* sessions.reconfigure(machineId);
+          yield* feed.invalidate;
 
-          return yield* activity.recordEvent({ _tag: "ArchiveFolderChanged", folder: trimmed });
+          return yield* activity.recordEvent({
+            _tag: "ArchiveFolderChanged",
+            machineId,
+            machineName: machineLabel(machine),
+            folder: trimmed,
+          });
         }),
       CreatePairingOffer: () => offers.create,
       StartBatch: ({ request }) =>

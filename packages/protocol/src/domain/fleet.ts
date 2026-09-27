@@ -42,6 +42,8 @@ export const Machine = Schema.Struct({
   connection: Connection,
   /** In the owner's order. The first is the default destination for clones. */
   discoveryRoots: Schema.Array(DiscoveryRoot),
+  /** Where archived checkouts go, which may start with `~`. Null while archiving is off. */
+  archiveFolder: Schema.NullOr(Schema.String),
   /** Completion of the last discovery walk. Until then, absent repositories are unknown, not missing. */
   lastDiscoveryAt: Schema.NullOr(Schema.DateTimeUtc),
   lastStatusAt: Schema.NullOr(Schema.DateTimeUtc),
@@ -76,8 +78,6 @@ export const Fleet = Schema.Struct({
   /** Repositories with checkouts in the Archive folder, grouped the same way. */
   archive: Schema.Array(Repository),
   polling: PollingSettings,
-  /** Where archived checkouts go on every machine, which may start with `~`. */
-  archiveFolder: Schema.NullOr(Schema.String),
 });
 export type Fleet = typeof Fleet.Type;
 

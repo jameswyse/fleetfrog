@@ -140,7 +140,6 @@ export function suggestCloneDestination(options: {
   readonly machines: ReadonlyArray<Machine>;
   /** Absolute paths of checkouts already on the target. */
   readonly occupied: ReadonlySet<string>;
-  readonly archive: string | null;
 }): { readonly destination: string; readonly root: DiscoveryRoot } | null {
   const { repository, target } = options;
   const roots = target.discoveryRoots;
@@ -162,7 +161,7 @@ export function suggestCloneDestination(options: {
       destination,
       home: target.info.homeDirectory,
       roots: roots.map(({ path }) => path),
-      archive: options.archive,
+      archive: target.archiveFolder,
     });
 
     return check._tag === "Valid" && !options.occupied.has(check.path)

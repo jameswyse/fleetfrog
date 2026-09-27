@@ -117,7 +117,6 @@ export function buildFleet(sources: {
   readonly checkouts: ReadonlyArray<MachineCheckout>;
   readonly online: ReadonlyMap<MachineId, OnlineAgent>;
   readonly polling: PollingSettings;
-  readonly archiveFolder: string | null;
 }): Fleet {
   const machines = sources.machines.map((record): Machine => {
     const agent = sources.online.get(record.id);
@@ -136,6 +135,7 @@ export function buildFleet(sources: {
         path,
         status: statuses.get(path) ?? null,
       })),
+      archiveFolder: record.archiveFolder,
       lastDiscoveryAt: record.lastDiscoveryAt,
       lastStatusAt: record.lastStatusAt,
       pairedAt: record.pairedAt,
@@ -158,6 +158,5 @@ export function buildFleet(sources: {
     repositories,
     archive,
     polling: sources.polling,
-    archiveFolder: sources.archiveFolder,
   };
 }

@@ -57,14 +57,14 @@ const destinationHints = {
 export function cloneDestinationProblem(options: {
   readonly destination: string;
   readonly machine: Machine;
-  readonly fleet: Pick<Fleet, "repositories" | "archiveFolder">;
+  readonly repositories: ReadonlyArray<Repository>;
 }): string | null {
   const { machine } = options;
   const check = checkCloneDestination({
     destination: options.destination,
     home: machine.info.homeDirectory,
     roots: machine.discoveryRoots.map(({ path }) => path),
-    archive: options.fleet.archiveFolder,
+    archive: machine.archiveFolder,
   });
 
   if (check._tag !== "Valid") {
@@ -77,7 +77,7 @@ export function cloneDestinationProblem(options: {
     return `${check.root} doesn't exist on ${machineLabel(machine)}. Fix it on the Machines page.`;
   }
 
-  return checkoutPaths(options.fleet.repositories, machine.id).has(check.path)
+  return checkoutPaths(options.repositories, machine.id).has(check.path)
     ? "Another repository is already there. Choose a different folder."
     : null;
 }

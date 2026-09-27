@@ -30,7 +30,7 @@ function eventMachine(event: HubEvent): string {
     DiscoveryRootsChanged: ({ machineName }) => machineName,
     ProjectFolderCreated: ({ machineName }) => machineName,
     PollingChanged: () => "",
-    ArchiveFolderChanged: () => "",
+    ArchiveFolderChanged: ({ machineName }) => machineName,
   });
 }
 

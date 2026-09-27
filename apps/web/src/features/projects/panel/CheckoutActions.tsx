@@ -3,7 +3,7 @@ import { useState, useTransition } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArchiveIcon } from "lucide-react";
 
-import { knownFleet, requestHub, useHub, useRuns } from "@/rpc/hubConnection.ts";
+import { requestHub, useRuns } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
 import { Menu, MenuItem } from "@/ui/Menu.tsx";
 
@@ -36,7 +36,6 @@ export function CheckoutActions({
   readonly checkout: Checkout;
 }) {
   const [dialog, setDialog] = useState<"stash" | "archive" | null>(null);
-  const fleet = knownFleet(useHub());
   const runs = useRuns();
   const { start, pending, failure } = useStartBatch();
   const [cancelling, startCancel] = useTransition();
@@ -47,10 +46,7 @@ export function CheckoutActions({
   const git = checkout.status._tag === "Read" ? checkout.status.git : null;
   const hasChanges = git !== null && git.changed.total + git.untracked.total > 0;
   const stashBlocked = stashSkipReason(machine, checkout);
-  const archive =
-    fleet === null
-      ? ({ _tag: "Blocked", reason: "Waiting for the hub" } as const)
-      : planArchive({ fleet, repository, machine, checkout });
+  const archive = planArchive({ repository, machine, checkout });
   const scope = { _tag: "Checkout", machineId: machine.id, path: checkout.path } as const;
   const shown = active ?? latest;
 

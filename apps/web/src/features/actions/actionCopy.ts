@@ -218,8 +218,10 @@ export function describeEvent(event: HubEvent): string {
         ? `Removed every project folder on ${machineName}`
         : `Set the project folders on ${machineName} to ${roots.join(", ")}`,
     PollingChanged: () => "Changed the polling intervals",
-    ArchiveFolderChanged: ({ folder }) =>
-      folder === null ? "Turned off archiving" : `Set the Archive folder to ${folder}`,
+    ArchiveFolderChanged: ({ machineName, folder }) =>
+      folder === null
+        ? `Turned off archiving on ${machineName}`
+        : `Set the Archive folder on ${machineName} to ${folder}`,
     ProjectFolderCreated: ({ machineName, path }) => `Created ${path} on ${machineName}`,
   });
 }

@@ -396,7 +396,7 @@ export class ActivityStore extends Context.Service<
             DiscoveryRootsChanged: ({ machineId: id }) => id,
             ProjectFolderCreated: ({ machineId: id }) => id,
             PollingChanged: (): MachineId | null => null,
-            ArchiveFolderChanged: (): MachineId | null => null,
+            ArchiveFolderChanged: ({ machineId: id }) => id,
           });
 
           yield* sql`insert into hub_events ${sql.insert({

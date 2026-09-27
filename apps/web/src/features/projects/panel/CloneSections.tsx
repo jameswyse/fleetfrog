@@ -111,7 +111,6 @@ function CloneForm({
     target: machine,
     machines: fleet.machines,
     occupied: checkoutPaths(fleet.repositories, machine.id),
-    archive: fleet.archiveFolder,
   });
   const [draft, setDraft] = useState(() =>
     draftFromSuggestion({ machine, suggestion, repositoryName: repository.name }),
@@ -134,7 +133,7 @@ function CloneForm({
       onSubmit={(event) => {
         event.preventDefault();
 
-        const found = draftProblem({ draft, machine, fleet });
+        const found = draftProblem({ draft, machine, repositories: fleet.repositories });
 
         setProblem(found);
 

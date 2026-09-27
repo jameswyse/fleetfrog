@@ -39,6 +39,7 @@ function machine(options: {
     lastStatusAt: null,
     pairedAt: now,
     usage: null,
+    archiveFolder: null,
   };
 }
 
@@ -80,7 +81,6 @@ function repositoryAt(...checkouts: ReadonlyArray<Checkout>): Repository {
 describe("suggestCloneDestination", () => {
   it("mirrors another machine's path relative to home when a discovery folder holds it", () => {
     const suggestion = suggestCloneDestination({
-      archive: null,
       repository: repositoryAt(checkout("/Users/james/Projects/shop")),
       target: laptop,
       machines: [studio, laptop],
@@ -93,7 +93,6 @@ describe("suggestCloneDestination", () => {
 
   it("falls back to the default folder when the mirrored path is outside every folder", () => {
     const suggestion = suggestCloneDestination({
-      archive: null,
       repository: repositoryAt(checkout("/Users/james/work/shop")),
       target: laptop,
       machines: [studio, laptop],
@@ -105,7 +104,6 @@ describe("suggestCloneDestination", () => {
 
   it("falls back to the default folder when something already occupies the mirrored path", () => {
     const suggestion = suggestCloneDestination({
-      archive: null,
       repository: repositoryAt(checkout("/Users/james/Projects/shop")),
       target: laptop,
       machines: [studio, laptop],
@@ -117,7 +115,6 @@ describe("suggestCloneDestination", () => {
 
   it("ignores linked worktrees, which are not where the repository lives", () => {
     const suggestion = suggestCloneDestination({
-      archive: null,
       repository: repositoryAt(
         checkout("/Users/james/Projects/shop-feature", {
           _tag: "Linked",
@@ -135,7 +132,6 @@ describe("suggestCloneDestination", () => {
   it("has no suggestion for a machine without discovery folders", () => {
     expect(
       suggestCloneDestination({
-        archive: null,
         repository: repositoryAt(checkout("/Users/james/Projects/shop")),
         target: { ...laptop, discoveryRoots: [] },
         machines: [studio, laptop],

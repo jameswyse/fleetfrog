@@ -22,6 +22,7 @@ const MachineRow = Schema.Struct({
   custom_name: Schema.NullOr(Schema.String),
   custom_kind: Schema.NullOr(MachineKind),
   discovery_roots_json: JsonColumn(Schema.Array(Schema.String)),
+  archive_folder: Schema.NullOr(Schema.String),
   root_statuses_json: JsonColumn(Schema.Array(ReportedRoot)),
   usage_json: Schema.NullOr(JsonColumn(SystemUsage)),
   paired_at: Timestamp,
@@ -37,6 +38,7 @@ export interface MachineRecord {
   readonly customName: string | null;
   readonly customKind: MachineKind | null;
   readonly discoveryRoots: ReadonlyArray<string>;
+  readonly archiveFolder: string | null;
   /** What the agent found at each folder on its last walk, which may predate the current list. */
   readonly rootStatuses: ReadonlyArray<ReportedRoot>;
   readonly usage: SystemUsage | null;
@@ -94,6 +96,10 @@ export class MachineStore extends Context.Service<
       readonly machineId: MachineId;
       readonly roots: ReadonlyArray<string>;
     }) => Effect.Effect<void, MachineNotFound>;
+    readonly setArchiveFolder: (update: {
+      readonly machineId: MachineId;
+      readonly folder: string | null;
+    }) => Effect.Effect<void, MachineNotFound>;
     readonly remove: (id: MachineId) => Effect.Effect<void, MachineNotFound>;
   }
 >()("fleetfrog/MachineStore") {
@@ -111,6 +117,7 @@ export class MachineStore extends Context.Service<
               customName: row.custom_name,
               customKind: row.custom_kind,
               discoveryRoots: row.discovery_roots_json,
+              archiveFolder: row.archive_folder,
               rootStatuses: row.root_statuses_json,
               usage: row.usage_json,
               pairedAt: row.paired_at,
@@ -209,6 +216,11 @@ export class MachineStore extends Context.Service<
           updateOne(
             machineId,
             sql`update machines set discovery_roots_json = ${encodeRoots(roots)} where id = ${machineId} returning id`,
+          ),
+        setArchiveFolder: ({ machineId, folder }) =>
+          updateOne(
+            machineId,
+            sql`update machines set archive_folder = ${folder} where id = ${machineId} returning id`,
           ),
         remove: (machineId) =>
           updateOne(machineId, sql`delete from machines where id = ${machineId} returning id`),

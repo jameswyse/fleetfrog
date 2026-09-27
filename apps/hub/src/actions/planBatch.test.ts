@@ -45,6 +45,7 @@ function machine(
     lastStatusAt: now,
     pairedAt: now,
     usage: null,
+    archiveFolder: null,
   };
 }
 
@@ -98,7 +99,6 @@ function fleetWith(checkouts: Repository["checkouts"]): Fleet {
     ],
     archive: [],
     polling: defaultPollingSettings,
-    archiveFolder: null,
   };
 }
 

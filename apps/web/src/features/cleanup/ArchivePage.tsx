@@ -35,17 +35,15 @@ function archivedEntries(fleet: Fleet): ReadonlyArray<ArchivedEntry> {
 }
 
 function ArchivedRow({
-  fleet,
   entry,
   run,
 }: {
-  readonly fleet: Fleet;
   readonly entry: ArchivedEntry;
   readonly run: ActionRun | undefined;
 }) {
   const { start, pending, failure } = useStartBatch();
   const { repository, machine, checkout } = entry;
-  const plan = planUnarchive({ fleet, machine, checkout });
+  const plan = planUnarchive({ machine, checkout });
   const git = checkout.status._tag === "Read" ? checkout.status.git : null;
   const lastCommit = git?.lastCommit ?? null;
   const { placement } = checkout;
@@ -126,21 +124,18 @@ export function ArchivePage() {
     <SidebarPage title="Archive">
       {fleet !== null && (
         <p className="max-w-prose text-sm text-ink-muted">
-          {fleet.archiveFolder === null ? (
+          {fleet.machines.some(({ archiveFolder }) => archiveFolder !== null) ? (
+            "Checkouts in each machine's Archive folder. They stay on disk but leave the Projects page. Archive one from its checkout panel."
+          ) : (
             <>
               Archiving is off.{" "}
               <Link
-                to="/settings/archive"
+                to="/settings/fleet"
                 className="text-accent-text underline-offset-2 hover:underline"
               >
                 Set an Archive folder
               </Link>{" "}
-              to move checkouts you no longer work on out of your project folders.
-            </>
-          ) : (
-            <>
-              Checkouts in <span className="font-mono">{fleet.archiveFolder}</span> on each machine.
-              They stay on disk but leave the Projects page. Archive one from its checkout panel.
+              on a machine to move checkouts you no longer work on out of its project folders.
             </>
           )}
         </p>
@@ -159,7 +154,6 @@ export function ArchivePage() {
           {entries.map((entry) => (
             <ArchivedRow
               key={`${entry.machine.id}:${entry.checkout.path}`}
-              fleet={fleet}
               entry={entry}
               run={active.find(
                 (run) => run.machineId === entry.machine.id && run.path === entry.checkout.path,

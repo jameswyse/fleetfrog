@@ -32,6 +32,7 @@ function machine(id: MachineId, hostname: string): MachineRecord {
     discoveryRoots: ["~/Projects", "~/Code"],
     rootStatuses: [{ path: "~/Projects", status: "Folder" }],
     usage: null,
+    archiveFolder: null,
     pairedAt,
     lastSeenAt: null,
     lastDiscoveryAt: null,
@@ -78,7 +79,6 @@ describe("buildFleet", () => {
         ],
       ]),
       polling: defaultPollingSettings,
-      archiveFolder: null,
     });
 
     expect(fleet.repositories).toHaveLength(1);
@@ -96,7 +96,6 @@ describe("buildFleet", () => {
       checkouts: [],
       online: new Map(),
       polling: defaultPollingSettings,
-      archiveFolder: null,
     });
 
     expect(fleet.machines[0]?.discoveryRoots).toEqual([
@@ -118,7 +117,6 @@ describe("buildFleet", () => {
       ],
       online: new Map(),
       polling: defaultPollingSettings,
-      archiveFolder: null,
     });
 
     expect(fleet.repositories.map(({ name }) => name)).toEqual(["API", "notes"]);
@@ -156,7 +154,6 @@ describe("buildFleet", () => {
       ],
       online: new Map(),
       polling: defaultPollingSettings,
-      archiveFolder: null,
     });
 
     expect(fleet.repositories.map(({ name, label }) => [name, label])).toEqual([

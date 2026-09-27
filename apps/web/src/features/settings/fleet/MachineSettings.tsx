@@ -13,6 +13,7 @@ import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { SettingsRow, SettingsSection, SideDetail, SidePanel } from "../SettingsSection.tsx";
 import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
+import { ArchiveFolderField } from "./ArchiveFolderField.tsx";
 import { MachineKindPicker } from "./MachineKindPicker.tsx";
 import { ActionsText, ConnectionStatus, repositoryCount } from "./MachineStatus.tsx";
 import { ProjectFolders } from "./ProjectFolders.tsx";
@@ -145,6 +146,7 @@ function ConfigurationSection({
     )
     .filter((paths) => paths.length > 0);
   const nameId = `name-${machine.id}`;
+  const archiveId = `archive-${machine.id}`;
   const computerName = machine.info.prettyName ?? machine.info.hostname;
 
   const saveName = (input: HTMLInputElement) => {
@@ -223,6 +225,21 @@ function ConfigurationSection({
                     client.CreateProjectFolder({ machineId: machine.id, path }),
                   )
               : null
+          }
+        />
+      </SettingsRow>
+      <SettingsRow
+        title="Archive folder"
+        description="Archiving moves a checkout here, keeping its path below its project folder, and takes it off the Projects page. It may be inside a project folder, such as ~/Projects/Archive, which is then skipped when that folder is searched. Leave it empty to turn archiving off. Changing it leaves checkouts already archived where they are."
+        htmlFor={archiveId}
+      >
+        <ArchiveFolderField
+          id={archiveId}
+          machine={machine}
+          onChange={(folder) =>
+            save(() =>
+              requestHub((client) => client.SetArchiveFolder({ machineId: machine.id, folder })),
+            )
           }
         />
       </SettingsRow>

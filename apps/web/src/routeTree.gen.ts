@@ -20,7 +20,6 @@ import { Route as AppCleanupIndexRouteImport } from './routes/_app/cleanup/index
 import { Route as AppCleanupArchiveRouteImport } from './routes/_app/cleanup/archive'
 import { Route as AppCleanupTrashRouteImport } from './routes/_app/cleanup/trash'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
-import { Route as AppSettingsArchiveRouteImport } from './routes/_app/settings/archive'
 import { Route as AppSettingsScanningRouteImport } from './routes/_app/settings/scanning'
 import { Route as AppSettingsFleetIndexRouteImport } from './routes/_app/settings/fleet/index'
 import { Route as AppSettingsFleetMachineIdRouteImport } from './routes/_app/settings/fleet/$machineId'
@@ -80,11 +79,6 @@ const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppSettingsRoute,
 } as any)
-const AppSettingsArchiveRoute = AppSettingsArchiveRouteImport.update({
-  id: '/archive',
-  path: '/archive',
-  getParentRoute: () => AppSettingsRoute,
-} as any)
 const AppSettingsScanningRoute = AppSettingsScanningRouteImport.update({
   id: '/scanning',
   path: '/scanning',
@@ -115,7 +109,6 @@ export interface FileRoutesByFullPath {
   '/activity/running': typeof AppActivityRunningRoute
   '/cleanup/archive': typeof AppCleanupArchiveRoute
   '/cleanup/trash': typeof AppCleanupTrashRoute
-  '/settings/archive': typeof AppSettingsArchiveRoute
   '/settings/scanning': typeof AppSettingsScanningRoute
   '/activity/': typeof AppActivityIndexRoute
   '/cleanup/': typeof AppCleanupIndexRoute
@@ -129,7 +122,6 @@ export interface FileRoutesByTo {
   '/activity/running': typeof AppActivityRunningRoute
   '/cleanup/archive': typeof AppCleanupArchiveRoute
   '/cleanup/trash': typeof AppCleanupTrashRoute
-  '/settings/archive': typeof AppSettingsArchiveRoute
   '/settings/scanning': typeof AppSettingsScanningRoute
   '/activity': typeof AppActivityIndexRoute
   '/cleanup': typeof AppCleanupIndexRoute
@@ -148,7 +140,6 @@ export interface FileRoutesById {
   '/_app/activity/running': typeof AppActivityRunningRoute
   '/_app/cleanup/archive': typeof AppCleanupArchiveRoute
   '/_app/cleanup/trash': typeof AppCleanupTrashRoute
-  '/_app/settings/archive': typeof AppSettingsArchiveRoute
   '/_app/settings/scanning': typeof AppSettingsScanningRoute
   '/_app/activity/': typeof AppActivityIndexRoute
   '/_app/cleanup/': typeof AppCleanupIndexRoute
@@ -167,7 +158,6 @@ export interface FileRouteTypes {
     | '/activity/running'
     | '/cleanup/archive'
     | '/cleanup/trash'
-    | '/settings/archive'
     | '/settings/scanning'
     | '/activity/'
     | '/cleanup/'
@@ -181,7 +171,6 @@ export interface FileRouteTypes {
     | '/activity/running'
     | '/cleanup/archive'
     | '/cleanup/trash'
-    | '/settings/archive'
     | '/settings/scanning'
     | '/activity'
     | '/cleanup'
@@ -199,7 +188,6 @@ export interface FileRouteTypes {
     | '/_app/activity/running'
     | '/_app/cleanup/archive'
     | '/_app/cleanup/trash'
-    | '/_app/settings/archive'
     | '/_app/settings/scanning'
     | '/_app/activity/'
     | '/_app/cleanup/'
@@ -292,13 +280,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsIndexRouteImport
       parentRoute: typeof AppSettingsRoute
     }
-    '/_app/settings/archive': {
-      id: '/_app/settings/archive'
-      path: '/archive'
-      fullPath: '/settings/archive'
-      preLoaderRoute: typeof AppSettingsArchiveRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
     '/_app/settings/scanning': {
       id: '/_app/settings/scanning'
       path: '/scanning'
@@ -361,7 +342,6 @@ const AppCleanupRouteWithChildren = AppCleanupRoute._addFileChildren(
 )
 
 interface AppSettingsRouteChildren {
-  AppSettingsArchiveRoute: typeof AppSettingsArchiveRoute
   AppSettingsScanningRoute: typeof AppSettingsScanningRoute
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
   AppSettingsFleetMachineIdRoute: typeof AppSettingsFleetMachineIdRoute
@@ -370,7 +350,6 @@ interface AppSettingsRouteChildren {
 }
 
 const AppSettingsRouteChildren: AppSettingsRouteChildren = {
-  AppSettingsArchiveRoute: AppSettingsArchiveRoute,
   AppSettingsScanningRoute: AppSettingsScanningRoute,
   AppSettingsIndexRoute: AppSettingsIndexRoute,
   AppSettingsFleetMachineIdRoute: AppSettingsFleetMachineIdRoute,
