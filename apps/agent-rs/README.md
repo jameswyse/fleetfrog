@@ -1,6 +1,6 @@
 # FleetFrog agent in Rust
 
-This is the FleetFrog agent as a single native binary. It does everything the TypeScript agent in `apps/agent` does and speaks the same protocol, so the hub treats the two alike. It needs no Node: on a development machine it uses about 7 MB of memory and one thread, where the TypeScript agent uses about 125 MB and eleven threads.
+This is the FleetFrog agent as a single native binary. It does everything the TypeScript agent in `apps/agent-ts` does and speaks the same protocol, so the hub treats the two alike. It needs no Node: on a development machine it uses about 7 MB of memory and one thread, where the TypeScript agent uses about 125 MB and eleven threads.
 
 Both agents read and write the same files on a machine: the pairing in `~/.config/fleetfrog`, the policy, the audit log, the trash and the archive records. Both also install the same service, so installing one replaces the other and keeps its pairing.
 

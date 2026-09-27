@@ -266,7 +266,9 @@ importers:
         specifier: 'catalog:'
         version: 7.0.2
 
-  apps/agent:
+  apps/agent-rs: {}
+
+  apps/agent-ts:
     dependencies:
       '@effect/platform-node':
         specifier: 'catalog:'

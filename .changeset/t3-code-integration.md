@@ -1,5 +1,5 @@
 ---
-"fleetfrog": minor
+"@fleetfrog/agent-ts": minor
 "@fleetfrog/hub": minor
 "@fleetfrog/web": minor
 ---

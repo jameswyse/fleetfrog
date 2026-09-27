@@ -24,21 +24,21 @@ Open `http://<hub-address>:7420`. Agents connect on port `7421` over TLS using a
 
 ## Add a machine
 
-The agent is not published to npm yet, so build it from this repository on each machine. It needs Git and pnpm, which downloads the Node version the repository pins, and it uses the GitHub CLI for pull requests when `gh` is signed in. Install pnpm's standalone build rather than using Corepack, whose older releases can't start pnpm 12.
+The agent is a single native binary with no runtime dependencies. There are no prebuilt releases yet, so build it from this repository on each machine. Building needs Git, pnpm and a Rust toolchain (`rustup` installs one). Install pnpm's standalone build rather than using Corepack, whose older releases can't start pnpm 12. The agent uses the GitHub CLI for pull requests when `gh` is signed in.
 
 ```sh
 pnpm install
-pnpm --filter fleetfrog build
+pnpm --filter @fleetfrog/agent-rs build
 ```
 
-In the dashboard, open **Machines**, choose **Pair a machine** and create a pairing code. Run the command it shows on the new machine, replacing `fleetfrog` with `pnpm exec node apps/agent/dist/bin.mjs` so that it runs on the repository's Node:
+In the dashboard, open **Machines**, choose **Pair a machine** and create a pairing code. Run the command it shows on the new machine, replacing `fleetfrog` with the path to the binary you built:
 
 ```sh
-pnpm exec node apps/agent/dist/bin.mjs pair ffp1_…
-pnpm exec node apps/agent/dist/bin.mjs service install
+apps/agent-rs/dist/fleetfrog pair ffp1_…
+apps/agent-rs/dist/fleetfrog service install
 ```
 
-The agent is also available as a native binary that needs no Node and uses a fraction of the memory. It needs a Rust toolchain to build, and [`apps/agent-rs`](apps/agent-rs/README.md) explains how to install it.
+The original TypeScript agent in [`apps/agent-ts`](apps/agent-ts) runs on Node and does the same job. It is kept for now, but new machines should use the Rust agent.
 
 Pairing checks the hub's certificate against the fingerprint in the pairing string before sending anything. `service install` keeps the agent running as a systemd user service on Linux or a launchd agent on macOS. On Linux, run `loginctl enable-linger` to keep it running while you are logged out. `fleetfrog run` runs the agent in the foreground and `fleetfrog status` shows how it is paired.
 

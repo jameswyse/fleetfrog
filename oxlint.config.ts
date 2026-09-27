@@ -26,7 +26,7 @@ const testFiles = filesWithExtensions("**/*.test", typeScriptExtensions);
 const testAndSpecFiles = [...testFiles, ...filesWithExtensions("**/*.spec", typeScriptExtensions)];
 const webSourceFiles = filesWithExtensions("apps/web/src/**/*", typeScriptExtensions);
 const nodeSourceFiles = [
-  ...filesWithExtensions("apps/agent/**/*", typeScriptExtensions),
+  ...filesWithExtensions("apps/agent-ts/**/*", typeScriptExtensions),
   ...filesWithExtensions("apps/hub/**/*", typeScriptExtensions),
   ...filesWithExtensions("packages/**/*", typeScriptExtensions),
 ];

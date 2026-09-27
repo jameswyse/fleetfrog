@@ -87,7 +87,7 @@ export const SystemUsage = Schema.Struct({
 export type SystemUsage = typeof SystemUsage.Type;
 
 /**
- * Which agent reports a machine: the TypeScript agent in `apps/agent`, which runs on Node, or the
+ * Which agent reports a machine: the TypeScript agent in `apps/agent-ts`, which runs on Node, or the
  * native one in `apps/agent-rs`. Both speak the same protocol and share their files on the machine.
  */
 export const AgentRuntime = Schema.Literals(["node", "rust"]);

@@ -11,7 +11,7 @@ import { isDeepStrictEqual } from "node:util";
 const repository = path.resolve(import.meta.dirname, "../..");
 const fixtureScript = path.join(import.meta.dirname, "fixtures.sh");
 const rustAgent = path.join(repository, "apps/agent-rs/target/debug/fleetfrog");
-const typeScriptReadings = path.join(repository, "apps/agent/src/parity/readings.ts");
+const typeScriptReadings = path.join(repository, "apps/agent-ts/src/parity/readings.ts");
 // Git run by either agent ignores the developer's own configuration.
 const environment = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1" };
 

@@ -6,7 +6,7 @@
   "changelog": "@changesets/cli/changelog",
   "commit": false,
   "ignore": [],
-  "fixed": [["fleetfrog", "@fleetfrog/*"]],
+  "fixed": [["@fleetfrog/*"]],
   "linked": [],
   "updateInternalDependencies": "patch",
   "privatePackages": { "version": true, "tag": false }

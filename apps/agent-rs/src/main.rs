@@ -1,6 +1,6 @@
 //! The FleetFrog agent as a native binary: reports a development machine's repositories to a
 //! FleetFrog hub and runs the actions its owner allows. It reads and writes the same files as the
-//! TypeScript agent in `apps/agent`, so either can run on a machine.
+//! TypeScript agent in `apps/agent-ts`, so either can run on a machine.
 
 mod actions;
 mod agent;
