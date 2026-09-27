@@ -124,25 +124,27 @@ export function ArchivePage() {
 
   return (
     <SidebarPage title="Archive">
-      <p className="max-w-prose text-sm text-ink-muted">
-        {(fleet?.archiveFolder ?? null) === null ? (
-          <>
-            Archiving is off.{" "}
-            <Link
-              to="/settings/archive"
-              className="text-accent-text underline-offset-2 hover:underline"
-            >
-              Set an Archive folder
-            </Link>{" "}
-            to move checkouts you no longer work on out of your project folders.
-          </>
-        ) : (
-          <>
-            Checkouts in <span className="font-mono">{fleet?.archiveFolder}</span> on each machine.
-            They stay on disk but leave the Projects page. Archive one from its checkout panel.
-          </>
-        )}
-      </p>
+      {fleet !== null && (
+        <p className="max-w-prose text-sm text-ink-muted">
+          {fleet.archiveFolder === null ? (
+            <>
+              Archiving is off.{" "}
+              <Link
+                to="/settings/archive"
+                className="text-accent-text underline-offset-2 hover:underline"
+              >
+                Set an Archive folder
+              </Link>{" "}
+              to move checkouts you no longer work on out of your project folders.
+            </>
+          ) : (
+            <>
+              Checkouts in <span className="font-mono">{fleet.archiveFolder}</span> on each machine.
+              They stay on disk but leave the Projects page. Archive one from its checkout panel.
+            </>
+          )}
+        </p>
+      )}
       {fleet === null && (
         <p className="py-16 text-center text-sm text-ink-muted">Waiting for the hub…</p>
       )}

@@ -1,5 +1,7 @@
 import { useId } from "react";
 
+import { Link } from "@tanstack/react-router";
+
 import { selectionKey } from "../ProjectGrid.tsx";
 import { CellPanel } from "./CellPanel.tsx";
 import { FleetOverview } from "./FleetOverview.tsx";
@@ -57,6 +59,7 @@ export function ProjectPanel({
 
   const repository = fleet.repositories.find(({ key }) => key === selection.repository);
   const machine = fleet.machines.find(({ id }) => id === selection.machine);
+  const archived = fleet.archive.some(({ key }) => key === selection.repository);
   const key = selectionKey(selection);
 
   return (
@@ -69,9 +72,25 @@ export function ProjectPanel({
       <FocusHeading key={`focus:${key}`} targetId={headingId} />
       {repository === undefined && (
         <>
-          <PanelHeader headingId={headingId} title="Repository not found" onClose={onClose} />
+          <PanelHeader
+            headingId={headingId}
+            title={archived ? "Repository archived" : "Repository not found"}
+            onClose={onClose}
+          />
           <p className="px-5 text-sm text-ink-muted">
-            No machine has it any more, or it was matched with another repository.
+            {archived ? (
+              <>
+                Every checkout of it is in the Archive folder.{" "}
+                <Link
+                  to="/cleanup/archive"
+                  className="text-accent-text underline-offset-2 hover:underline"
+                >
+                  See the archive
+                </Link>
+              </>
+            ) : (
+              "No machine has it any more, or it was matched with another repository."
+            )}
           </p>
         </>
       )}

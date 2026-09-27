@@ -143,6 +143,20 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
       };
     });
 
+  /**
+   * The checkouts a targeted request may act on. Only an archived checkout can be unarchived, and
+   * the trash covers both kinds. Every other action works on active checkouts.
+   */
+  const candidatesFor = (targeted: TargetedRequest): ReadonlyArray<Target> => {
+    if (targeted._tag === "Unarchive") {
+      return archivedTargets;
+    }
+
+    return targeted._tag === "Restore" || targeted._tag === "Purge"
+      ? [...allTargets, ...archivedTargets]
+      : allTargets;
+  };
+
   /** The repository and path a targeted request acts on, as the fleet knows them now. */
   const locate = (
     machineId: MachineId,
@@ -152,8 +166,7 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
       targeted._tag === "Restore" || targeted._tag === "Purge"
         ? targeted.target.path
         : targeted.path;
-    // Only an archived checkout can be unarchived, and only an active one acted on otherwise.
-    const found = (targeted._tag === "Unarchive" ? archivedTargets : allTargets).find(
+    const found = candidatesFor(targeted).find(
       ({ entry }) => entry.machineId === machineId && entry.checkout.path === path,
     );
 

@@ -18,7 +18,8 @@ export interface TrashEntry {
 export function trashEntries(fleet: Fleet): ReadonlyArray<TrashEntry> {
   const machines = new Map(fleet.machines.map((machine) => [machine.id, machine]));
 
-  return fleet.repositories
+  // Archived checkouts keep their deleted branches too.
+  return [...fleet.repositories, ...fleet.archive]
     .flatMap((repository) =>
       repository.checkouts.flatMap(({ machineId, checkout }) => {
         const machine = machines.get(machineId);
