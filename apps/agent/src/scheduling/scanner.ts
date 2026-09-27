@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { stat } from "node:fs/promises";
 
-import { DateTime, Duration, Effect, Option, Schema, Semaphore } from "effect";
+import { DateTime, Deferred, Duration, Effect, Option, Schema, Semaphore } from "effect";
 
 import { ScanReport } from "@fleetfrog/protocol/agent/rpcs";
 import { Checkout, CheckoutStatus } from "@fleetfrog/protocol/domain/checkout";
@@ -79,6 +79,8 @@ export function makeScanner<ReportError>(options: {
   let sequence = 0;
   /** The number each kind of pass last started at. */
   const started = { discovery: 0, status: 0 };
+  /** Done once the first discovery walk has found the checkouts, so they can be located. */
+  const firstWalk = Deferred.makeUnsafe<void>();
 
   /**
    * Runs passes one at a time. A pass that started after this one was requested has already
@@ -185,6 +187,11 @@ export function makeScanner<ReportError>(options: {
         "discovery",
         Effect.gen(function* () {
           const found = yield* discoverCheckouts(discovery);
+
+          // Actions can find the checkouts at once, while their status is still being read.
+          locations = found;
+          yield* Deferred.succeed(firstWalk, undefined);
+
           const checkouts = yield* readAll(found, discovery.githubMaximumAge);
           const roots = yield* inspectRoots(
             discovery.archiveFolder === null
@@ -196,7 +203,6 @@ export function makeScanner<ReportError>(options: {
             ScanReport.cases.Discovery.make({ checkouts, roots, completedAt: yield* DateTime.now }),
           );
           yield* reportTrash;
-          locations = found;
           sent.clear();
 
           for (const checkout of checkouts) {
@@ -241,6 +247,9 @@ export function makeScanner<ReportError>(options: {
           }
         }),
       ),
+
+    /** Waits until the first discovery walk has found the checkouts. */
+    discovered: Deferred.await(firstWalk),
 
     /** The checkout at `path` from the last discovery walk, if any. */
     locate: (path: string): CheckoutLocation | undefined =>

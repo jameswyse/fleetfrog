@@ -4,7 +4,8 @@ import { existsSync, mkdirSync, renameSync, rmSync, symlinkSync, writeFileSync }
 import path from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "@effect/vitest";
-import { Deferred, Effect, Fiber, Option } from "effect";
+import { Deferred, Duration, Effect, Fiber, Option } from "effect";
+import { TestClock } from "effect/testing";
 
 import { RunId } from "@fleetfrog/protocol/domain/activity";
 import { nothingUnique, TrashId } from "@fleetfrog/protocol/domain/trash";
@@ -77,6 +78,8 @@ const makeHarness = Effect.fn("makeHarness")(function* (options: {
   readonly archiveFolder: string | null;
   readonly trashDirectory: string;
   readonly policy: AgentPolicy;
+  /** Waits for the scanner's first discovery walk, which is done already unless given. */
+  readonly discovered?: Effect.Effect<void>;
 }) {
   const updates = new Map<RunId, Array<ActionUpdate>>();
   const known = new Map([[options.location.path, options.location]]);
@@ -104,6 +107,7 @@ const makeHarness = Effect.fn("makeHarness")(function* (options: {
 
   const runner = yield* makeActionRunner({
     catalogue: {
+      discovered: options.discovered ?? Effect.void,
       locate: (checkoutPath) => known.get(checkoutPath),
       rescanRepository: () =>
         Effect.sync(() => {
@@ -183,6 +187,7 @@ const withCleanup: AgentPolicy = { allowedTiers: ["git", "cleanup"] };
 const setUp = (
   policy: AgentPolicy = { allowedTiers: ["git"] },
   archiveFolder: string | null = null,
+  discovered: Effect.Effect<void> = Effect.void,
 ) =>
   Effect.gen(function* () {
     const fixture = createFixture(yield* temporaryDirectory("fleetfrog-actions-"));
@@ -198,12 +203,56 @@ const setUp = (
       archiveFolder: archiveFolder === null ? null : path.join(fixture.root, archiveFolder),
       trashDirectory: path.join(fixture.root, "trash"),
       policy,
+      discovered,
     });
 
     return { ...fixture, ...harness };
   });
 
 describe("action runner", () => {
+  it.effect("waits for the first discovery walk before looking for the checkout", () =>
+    Effect.gen(function* () {
+      const walk = yield* Deferred.make<void>();
+      const { runner, clone, known, updates, outcome } = yield* setUp(
+        undefined,
+        null,
+        Deferred.await(walk),
+      );
+      const location = known.get(clone);
+
+      // Like the scanner, the runner knows no checkouts until the walk finds them.
+      known.delete(clone);
+      yield* runner.run(runIds.first, { _tag: "Fetch", path: clone });
+      yield* Effect.yieldNow;
+      expect(updates(runIds.first)).toEqual([]);
+
+      if (location !== undefined) {
+        known.set(clone, location);
+      }
+
+      yield* Deferred.succeed(walk, undefined);
+      expect(yield* outcome(runIds.first)).toMatchObject({
+        outcome: { _tag: "Succeeded", result: { _tag: "Fetched" } },
+      });
+    }),
+  );
+
+  it.effect("says why when the first discovery walk takes too long", () =>
+    Effect.gen(function* () {
+      const { runner, clone, outcome } = yield* setUp(undefined, null, Effect.never);
+
+      yield* runner.run(runIds.first, { _tag: "Fetch", path: clone });
+      yield* TestClock.adjust(Duration.minutes(2));
+      const finished = yield* outcome(runIds.first);
+
+      expect(
+        finished._tag === "Finished" && finished.outcome._tag === "Failed"
+          ? finished.outcome.message
+          : null,
+      ).toContain("hasn't finished finding");
+    }),
+  );
+
   it.effect("pulls by fetching and fast-forwarding a clean checkout", () =>
     Effect.gen(function* () {
       const { run, updates, audit, rescannedBeforeFinishing, clone, upstream } = yield* setUp();

@@ -1,7 +1,7 @@
 import { homedir } from "node:os";
 import nodePath from "node:path";
 
-import { Duration, Effect, FiberMap, Semaphore } from "effect";
+import { Duration, Effect, FiberMap, Option, Semaphore } from "effect";
 
 import {
   ActionOutcome,
@@ -47,10 +47,19 @@ import type { Folders } from "./archiveActions.ts";
 
 /** Fetches and clones that may use the network at once. */
 const networkConcurrency = 4;
+/**
+ * How long a request waits for the agent's first discovery walk after it starts, which a slow or
+ * busy machine can take a while over. It stays under the hub's wait for an inspection.
+ */
+const discoveryWait = Duration.minutes(2);
+const notDiscovered =
+  "This machine's agent hasn't finished finding its checkouts since it started. Try again once it has.";
 const progressInterval = Duration.seconds(1);
 
 /** What an action needs from the scanner: the checkouts it knows and a way to report changes. */
 interface CheckoutCatalogue {
+  /** Waits until the first discovery walk has found the checkouts that `locate` looks in. */
+  readonly discovered: Effect.Effect<void>;
   readonly locate: (path: string) => CheckoutLocation | undefined;
   readonly rescanRepository: (commonDirectory: string) => Effect.Effect<void, unknown>;
   readonly track: (path: string) => Effect.Effect<void, unknown>;
@@ -218,6 +227,9 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
       },
     };
   };
+
+  /** Waits for the first discovery walk, returning none if it takes too long. */
+  const waitForDiscovery = options.catalogue.discovered.pipe(Effect.timeoutOption(discoveryWait));
 
   /** An inspection fetches only when the owner allows Git actions, which cover fetching. */
   const inspectionOptions = options.loadPolicy.pipe(
@@ -455,6 +467,10 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
         });
       }
 
+      if (Option.isNone(yield* waitForDiscovery)) {
+        return InspectionResult.cases.Failed.make({ message: notDiscovered });
+      }
+
       const noCheckout = InspectionResult.cases.Failed.make({
         message: `This machine has no checkout at ${path}.`,
       });
@@ -537,6 +553,18 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
 
       if (refusal !== null) {
         yield* refuse(runId, request, refusal);
+
+        return null;
+      }
+
+      // Only a clone needs no checkout the agent has found.
+      const found = request._tag === "Clone" ? Option.some(undefined) : yield* waitForDiscovery;
+
+      if (Option.isNone(found)) {
+        yield* refuse(runId, request, {
+          reason: notDiscovered,
+          outcome: ActionOutcome.cases.Failed.make({ message: notDiscovered }),
+        });
 
         return null;
       }
