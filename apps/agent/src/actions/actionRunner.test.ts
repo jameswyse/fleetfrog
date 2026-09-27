@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "@effect/vitest";
@@ -11,6 +11,7 @@ import { nothingUnique, TrashId } from "@fleetfrog/protocol/domain/trash";
 
 import { placeLocation } from "../discovery/discoverCheckouts.ts";
 import { locateCheckout } from "../git/readCheckout.ts";
+import { readLinkedWorktrees } from "../git/worktrees.ts";
 import { temporaryDirectory } from "../testing/temporaryDirectory.ts";
 import { listTrash } from "../trash/trashFolder.ts";
 import { makeActionOutput } from "./actionOutput.ts";
@@ -471,16 +472,104 @@ describe("action runner", () => {
     }),
   );
 
-  it.effect("won't archive a checkout whose linked worktrees would break", () =>
+  it.effect("archives a checkout with its linked worktrees, repairing their links", () =>
     Effect.gen(function* () {
-      const { run, clone, root } = yield* setUp({ allowedTiers: ["git", "cleanup"] }, "Archive");
+      const { run, clone, root } = yield* setUp(withCleanup, "Archive");
+      const worktree = path.join(root, "projects", "clone-feature");
 
-      git(clone, "worktree", "add", "-q", "-b", "feature", path.join(root, "feature"));
+      git(clone, "worktree", "add", "-q", "-b", "feature", worktree);
 
       expect(yield* run({ _tag: "Archive", path: clone })).toMatchObject({
-        outcome: { _tag: "Skipped", reason: { _tag: "HasWorktrees", count: 1 } },
+        outcome: {
+          _tag: "Succeeded",
+          result: {
+            _tag: "Archived",
+            path: path.join(root, "Archive", "clone"),
+            worktrees: [{ from: worktree, to: path.join(root, "Archive", "clone-feature") }],
+          },
+        },
       });
-      expect(existsSync(clone)).toBe(true);
+      expect(git(path.join(root, "Archive", "clone-feature"), "branch", "--show-current")).toBe(
+        "feature",
+      );
+      expect(git(path.join(root, "Archive", "clone"), "worktree", "list")).toContain(
+        path.join(root, "Archive", "clone-feature"),
+      );
+    }),
+  );
+
+  it.effect("removes worktrees left behind by a moved checkout, but not one with changes", () =>
+    Effect.gen(function* () {
+      const { root } = yield* setUp(withCleanup);
+      const main = path.join(root, "projects", "main");
+      const broken = path.join(root, "projects", "broken");
+      const dirty = path.join(root, "projects", "dirty");
+
+      git(root, "clone", "-q", path.join(root, "upstream"), path.join(root, "projects", "before"));
+      git(path.join(root, "projects", "before"), "worktree", "add", "-q", "-b", "broken", broken);
+      git(path.join(root, "projects", "before"), "worktree", "add", "-q", "-b", "dirty", dirty);
+      writeFileSync(path.join(dirty, "notes.txt"), "work in progress\n");
+      // Renaming the main checkout leaves both worktrees pointing at its old place.
+      renameSync(path.join(root, "projects", "before"), main);
+
+      const location = Option.getOrThrow(yield* locateCheckout(main));
+      const harness = yield* makeHarness({
+        location,
+        roots: [path.join(root, "projects")],
+        archiveFolder: null,
+        trashDirectory: path.join(root, "trash"),
+        policy: withCleanup,
+      });
+
+      expect(
+        (yield* readLinkedWorktrees(location)).map(({ path: worktree, state }) => [
+          worktree,
+          state,
+        ]),
+      ).toEqual([
+        [broken, "Broken"],
+        [dirty, "Broken"],
+      ]);
+      expect(
+        yield* harness.run({ _tag: "RemoveWorktree", path: main, worktree: broken }),
+      ).toMatchObject({ outcome: { _tag: "Succeeded", result: { _tag: "WorktreeRemoved" } } });
+      expect(
+        yield* harness.run({ _tag: "RemoveWorktree", path: main, worktree: dirty }, runIds.second),
+      ).toMatchObject({
+        outcome: { _tag: "Skipped", reason: { _tag: "UncommittedChanges", files: 1 } },
+      });
+      expect(existsSync(broken)).toBe(false);
+      expect(existsSync(dirty)).toBe(true);
+      expect(git(main, "branch", "--list", "broken")).toBe("broken");
+    }),
+  );
+
+  it.effect("drops stashes into the trash and restores them with their messages", () =>
+    Effect.gen(function* () {
+      const { run, clone } = yield* setUp(withCleanup);
+
+      for (const message of ["first idea", "second idea"]) {
+        writeFileSync(path.join(clone, "readme.md"), `${message}\n`);
+        git(clone, "stash", "push", "-q", "-m", message);
+      }
+
+      const sha = git(clone, "rev-parse", "stash@{1}");
+
+      expect(
+        yield* run({ _tag: "DropStashes", path: clone, stashes: [{ index: 1, sha }] }),
+      ).toMatchObject({
+        outcome: { _tag: "Succeeded", result: { _tag: "StashesDropped", stashes: 1 } },
+      });
+      expect(git(clone, "stash", "list", "--format=%s")).toBe("On main: second idea");
+
+      const ref = git(clone, "for-each-ref", "--format=%(refname)", "refs/fleetfrog/stashes");
+
+      expect(
+        yield* run({ _tag: "Restore", target: { _tag: "Stash", path: clone, ref } }, runIds.second),
+      ).toMatchObject({ outcome: { _tag: "Succeeded", result: { _tag: "Restored" } } });
+      expect(git(clone, "stash", "list", "--format=%s")).toBe(
+        "On main: first idea\nOn main: second idea",
+      );
     }),
   );
 

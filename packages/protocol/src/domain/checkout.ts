@@ -70,6 +70,8 @@ export type LocalBranch = typeof LocalBranch.Type;
 export const Stash = Schema.Struct({
   index: Count,
   message: Schema.String,
+  /** The stash's commit. Null from agents that predate reporting it. */
+  sha: Schema.NullOr(Schema.String).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(null))),
 });
 export type Stash = typeof Stash.Type;
 
@@ -90,6 +92,43 @@ export const DeletedBranch = Schema.Struct({
   deletedAt: Schema.DateTimeUtc,
 });
 export type DeletedBranch = typeof DeletedBranch.Type;
+
+/**
+ * A stash FleetFrog dropped, kept in `ref` so it can be restored until the trash is emptied. Only
+ * the main worktree reports them.
+ */
+export const DroppedStash = Schema.Struct({
+  /** `refs/fleetfrog/stashes/<epoch milliseconds>/<index>`. */
+  ref: Schema.String,
+  sha: Schema.String,
+  /** The stash's message, such as `On main: half-done refactor`. */
+  message: Schema.String,
+  droppedAt: Schema.DateTimeUtc,
+});
+export type DroppedStash = typeof DroppedStash.Type;
+
+/** Where FleetFrog keeps the stashes it drops. */
+export const droppedStashPrefix = "refs/fleetfrog/stashes/";
+
+const droppedStashPattern = /^refs\/fleetfrog\/stashes\/(\d+)\/\d+$/;
+
+/** When a dropped-stash ref was dropped, or null for any other ref. */
+export function parseDroppedStashRef(ref: string): { readonly droppedAtMillis: number } | null {
+  const match = droppedStashPattern.exec(ref);
+
+  return match?.[1] === undefined ? null : { droppedAtMillis: Number(match[1]) };
+}
+
+/**
+ * A linked worktree of a clone, as its main worktree lists it. `Missing` means its folder is gone,
+ * and `Broken` that its folder no longer links back to this clone, such as after the clone moved.
+ */
+export const LinkedWorktree = Schema.Struct({
+  path: Schema.String,
+  branch: Schema.NullOr(Schema.String),
+  state: Schema.Literals(["Present", "Missing", "Broken"]),
+});
+export type LinkedWorktree = typeof LinkedWorktree.Type;
 
 /** Where FleetFrog keeps the branches it deletes. */
 export const deletedBranchPrefix = "refs/fleetfrog/deleted/";
@@ -123,6 +162,11 @@ export const GitStatus = Schema.Struct({
     Schema.withDecodingDefaultTypeKey(Effect.succeed(null)),
   ),
   deletedBranches: Capped(DeletedBranch).pipe(Schema.withDecodingDefaultTypeKey(noneYet)),
+  droppedStashes: Capped(DroppedStash).pipe(Schema.withDecodingDefaultTypeKey(noneYet)),
+  /** The clone's linked worktrees, reported only by its main worktree. */
+  worktrees: Schema.Array(LinkedWorktree).pipe(
+    Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
+  ),
   /** When this checkout last fetched, from the modification time of `FETCH_HEAD`. */
   lastFetchedAt: Schema.NullOr(Schema.DateTimeUtc),
 });

@@ -138,7 +138,7 @@ export function TidyBranchesDialog({
               const allChosen = names.every((name) => chosen.has(name));
 
               return (
-                <fieldset key={group.title}>
+                <fieldset key={group.title} className="min-w-0">
                   <div className="mb-2 flex items-baseline gap-2">
                     <legend
                       className={`font-medium ${group.tone === "warning" ? "text-changes" : ""}`}

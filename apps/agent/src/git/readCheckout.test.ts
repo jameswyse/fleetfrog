@@ -82,7 +82,13 @@ describe("reading a checkout", () => {
       ]);
       expect(status.untracked).toEqual({ items: ["notes with spaces.txt"], total: 1 });
       expect(status.stashes).toEqual({
-        items: [{ index: 0, message: "On main: parked idea" }],
+        items: [
+          {
+            index: 0,
+            message: "On main: parked idea",
+            sha: git(fixture.clone, "rev-parse", "stash@{0}").trim(),
+          },
+        ],
         total: 1,
       });
       expect(status.branches.items.map(({ name }) => name)).toEqual(["feature", "main"]);

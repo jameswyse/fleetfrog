@@ -7,6 +7,7 @@ import { Duration, Effect } from "effect";
 import { RemoteCheck } from "@fleetfrog/protocol/domain/trash";
 
 import { readGitStatus } from "../git/readCheckout.ts";
+import { countLinkedWorktrees } from "../git/worktrees.ts";
 import { diskUsage } from "../process/diskUsage.ts";
 import { runGit, runGitAction } from "../process/runTool.ts";
 
@@ -210,17 +211,6 @@ const countSubmodules = (location: CheckoutLocation) =>
     readdir(path.join(location.commonDirectory, "modules")).then(
       (entries) => entries.length,
       () => 0,
-    ),
-  );
-
-/** Linked worktrees of the repository that still exist. */
-export const countLinkedWorktrees = (location: CheckoutLocation) =>
-  runGit(location.path, ["worktree", "list", "--porcelain"]).pipe(
-    Effect.map(
-      (output) =>
-        output
-          .split("\n\n")
-          .filter((record) => record.trim() !== "" && !record.includes("\nprunable")).length - 1,
     ),
   );
 

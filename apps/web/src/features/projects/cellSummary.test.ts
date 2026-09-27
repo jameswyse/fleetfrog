@@ -40,6 +40,8 @@ function entry(
         branches: none,
         defaultBranch: null,
         deletedBranches: { items: [], total: 0 },
+        droppedStashes: { items: [], total: 0 },
+        worktrees: [],
         lastFetchedAt: null,
         ...options.git,
       },
@@ -60,7 +62,7 @@ function entry(
 
 describe("summariseCell", () => {
   it("speaks for the main clone and counts changes in every worktree, but stashes once per clone", () => {
-    const stashes = { items: [{ index: 0, message: "WIP" }], total: 1 };
+    const stashes = { items: [{ index: 0, message: "WIP", sha: null }], total: 1 };
     const cell = summariseCell([
       entry("/p/shop-icons", {
         branch: "icons",

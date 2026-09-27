@@ -1,12 +1,13 @@
+import { plural } from "@/ui/plural.ts";
+
 import { machineBlocker } from "../actions/actionAvailability.ts";
-import { linkedWorktreeCount } from "../archive/archiveAvailability.ts";
+import { linkedWorktrees } from "../archive/archiveAvailability.ts";
 
 import type { Checkout } from "@fleetfrog/protocol/domain/checkout";
-import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
+import type { Machine } from "@fleetfrog/protocol/domain/fleet";
 
 /** Why the checkout can't go to the trash, as last scanned, or null when it can. */
 export function trashBlocker(options: {
-  readonly repository: Repository;
   readonly machine: Machine;
   readonly checkout: Checkout;
 }): string | null {
@@ -20,9 +21,9 @@ export function trashBlocker(options: {
     return "It's a linked worktree, which goes with its main checkout";
   }
 
-  const worktrees = linkedWorktreeCount(options);
+  const worktrees = linkedWorktrees(options.checkout).length;
 
   return worktrees > 0
-    ? `Remove its ${worktrees === 1 ? "linked worktree" : `${worktrees} linked worktrees`} first`
+    ? `Remove its ${plural(worktrees, "linked worktree")} first, under Linked worktrees`
     : null;
 }

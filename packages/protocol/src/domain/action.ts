@@ -21,6 +21,8 @@ export type BranchAtCommit = typeof BranchAtCommit.Type;
 export const TrashTarget = Schema.TaggedUnion({
   /** A deleted branch, kept as `ref` in the repository of the checkout at `path`. */
   Branch: { path: Schema.String, ref: Schema.String },
+  /** A dropped stash, kept as `ref` in the repository of the checkout at `path`. */
+  Stash: { path: Schema.String, ref: Schema.String },
   Checkout: { id: TrashId },
 });
 export type TrashTarget = typeof TrashTarget.Type;
@@ -46,7 +48,23 @@ export const ActionRequest = Schema.TaggedUnion({
    * commit the dashboard showed and nothing has it checked out. The rest are left alone.
    */
   DeleteBranches: { path: Schema.String, branches: Schema.NonEmptyArray(BranchAtCommit) },
-  /** Moves the checkout at `path` into the Archive folder, keeping its path below its project folder. */
+  /**
+   * Removes a linked worktree of the main checkout at `path`, keeping its branch. It must have no
+   * changes, and files Git ignores in it are deleted. One whose folder is gone is forgotten.
+   */
+  RemoveWorktree: { path: Schema.String, worktree: Schema.String },
+  /**
+   * Moves stashes of the checkout at `path` to the trash, each only if the stash at that index is
+   * still the commit the dashboard showed.
+   */
+  DropStashes: {
+    path: Schema.String,
+    stashes: Schema.NonEmptyArray(Schema.Struct({ index: Count, sha: Schema.String })),
+  },
+  /**
+   * Moves the checkout at `path` into the Archive folder, keeping its path below its project
+   * folder. Its linked worktrees move too, each the same way.
+   */
   Archive: { path: Schema.String },
   /** Moves the archived checkout at `path` back to where it was archived from. */
   Unarchive: { path: Schema.String },
@@ -74,6 +92,8 @@ export const ActionKind = Schema.Literals([
   "Switch",
   "Stash",
   "DeleteBranches",
+  "RemoveWorktree",
+  "DropStashes",
   "Archive",
   "Unarchive",
   "Trash",
@@ -90,6 +110,8 @@ export const actionTiers = {
   Switch: "git",
   Stash: "git",
   DeleteBranches: "cleanup",
+  RemoveWorktree: "cleanup",
+  DropStashes: "cleanup",
   Archive: "cleanup",
   Unarchive: "cleanup",
   Trash: "cleanup",
@@ -103,6 +125,8 @@ export const TargetedRequest = Schema.Union([
   ActionRequest.cases.Switch,
   ActionRequest.cases.Stash,
   ActionRequest.cases.DeleteBranches,
+  ActionRequest.cases.RemoveWorktree,
+  ActionRequest.cases.DropStashes,
   ActionRequest.cases.Archive,
   ActionRequest.cases.Unarchive,
   ActionRequest.cases.Trash,
@@ -172,6 +196,9 @@ export const SkipReason = Schema.TaggedUnion({
   /** The item is no longer in the trash. */
   NotInTrash: {},
   NoArchiveFolder: {},
+  NoSuchWorktree: {},
+  /** The stashes changed after the dashboard showed them, so none were dropped. */
+  StashesChanged: {},
   /** A checkout with linked worktrees can't move without breaking them. */
   HasWorktrees: { count: Count },
   /** A linked worktree moves with its main checkout, not on its own. */
@@ -203,9 +230,21 @@ export const ActionResult = Schema.TaggedUnion({
       Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
     ),
   },
-  /** `path` is where the checkout is now. */
-  Archived: { path: Schema.String },
-  Unarchived: { path: Schema.String },
+  /** `path` is where the checkout is now, and `worktrees` where each linked worktree went. */
+  Archived: {
+    path: Schema.String,
+    worktrees: Schema.Array(Schema.Struct({ from: Schema.String, to: Schema.String })).pipe(
+      Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
+    ),
+  },
+  Unarchived: {
+    path: Schema.String,
+    worktrees: Schema.Array(Schema.Struct({ from: Schema.String, to: Schema.String })).pipe(
+      Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
+    ),
+  },
+  WorktreeRemoved: {},
+  StashesDropped: { stashes: Count },
   /** `freedBytes` counts the caches removed before the move. */
   Trashed: { freedBytes: Count },
   Deleted: {},

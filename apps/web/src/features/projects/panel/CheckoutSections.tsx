@@ -1,5 +1,4 @@
 import {
-  ArchiveIcon,
   FilePenIcon,
   FolderOpenIcon,
   GitBranchIcon,
@@ -15,6 +14,8 @@ import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 import { BranchesSection } from "./BranchesSection.tsx";
 import { CheckoutActions } from "./CheckoutActions.tsx";
 import { Fact, Facts, PanelSection, ShortList } from "./PanelSection.tsx";
+import { StashesSection } from "./StashesSection.tsx";
+import { WorktreesSection } from "./WorktreesSection.tsx";
 
 import type {
   ChangedFile,
@@ -251,23 +252,10 @@ function GitSections({
         </PanelSection>
       )}
       <BranchesSection repository={repository} machine={machine} checkout={checkout} git={git} />
-      {git.stashes.total > 0 && (
-        <PanelSection title="Stashes" icon={ArchiveIcon} tone="neutral" count={git.stashes.total}>
-          <ShortList
-            items={git.stashes.items}
-            total={git.stashes.total}
-            noun="stashes"
-            render={(stash) => (
-              <li key={stash.index} className="flex gap-2 text-sm">
-                <span className="shrink-0 rounded bg-canvas px-1.5 font-mono text-xs text-ink-muted">
-                  {stash.index}
-                </span>
-                <span className="min-w-0">{stash.message}</span>
-              </li>
-            )}
-          />
-        </PanelSection>
+      {git.worktrees.length > 0 && (
+        <WorktreesSection machine={machine} checkout={checkout} git={git} />
       )}
+      {git.stashes.total > 0 && <StashesSection machine={machine} checkout={checkout} git={git} />}
     </>
   );
 }

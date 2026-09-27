@@ -27,7 +27,9 @@ import {
   stashChanges,
   switchBranch,
 } from "./gitActions.ts";
+import { dropStashes, purgeStash, restoreStash } from "./stashActions.ts";
 import { deleteCheckout, purgeCheckout, restoreCheckout, trashCheckout } from "./trashActions.ts";
+import { removeWorktree } from "./worktreeActions.ts";
 
 import type { Tier } from "@fleetfrog/protocol/domain/action";
 import type { RunId } from "@fleetfrog/protocol/domain/activity";
@@ -165,13 +167,25 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
       lockKey: location.commonDirectory,
       network: "Local",
       perform: (output) => move(location, { ...options.folders(), home }, output),
-      afterwards: (outcome) =>
-        outcome._tag === "Succeeded" &&
-        (outcome.result._tag === "Archived" || outcome.result._tag === "Unarchived")
-          ? options.catalogue
-              .forget(path)
-              .pipe(Effect.andThen(options.catalogue.track(outcome.result.path)))
-          : options.catalogue.rescanRepository(location.commonDirectory),
+      afterwards: (outcome) => {
+        if (
+          outcome._tag !== "Succeeded" ||
+          (outcome.result._tag !== "Archived" && outcome.result._tag !== "Unarchived")
+        ) {
+          return options.catalogue.rescanRepository(location.commonDirectory);
+        }
+
+        // The main checkout goes first, so its worktrees are read once it's in its new place.
+        const moves = [{ from: path, to: outcome.result.path }, ...outcome.result.worktrees];
+
+        return Effect.forEach(moves, (moved) => options.catalogue.forget(moved.from), {
+          discard: true,
+        }).pipe(
+          Effect.andThen(
+            Effect.forEach(moves, (moved) => options.catalogue.track(moved.to), { discard: true }),
+          ),
+        );
+      },
     };
   };
 
@@ -208,6 +222,27 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
         };
   };
 
+  /**
+   * Removing a linked worktree of the main checkout at `path`. Afterwards the agent forgets the
+   * worktree and reads the clone again, which lists its worktrees.
+   */
+  const worktreeRemovalPlan = (path: string, worktree: string): Plan => {
+    const location = options.catalogue.locate(path);
+
+    return location === undefined
+      ? { _tag: "Refused", message: `This machine has no checkout at ${path}.` }
+      : {
+          _tag: "Ready",
+          lockKey: location.commonDirectory,
+          network: "Local",
+          perform: (output) => removeWorktree(location, worktree, output),
+          afterwards: (outcome) =>
+            (outcome._tag === "Succeeded" ? options.catalogue.forget(worktree) : Effect.void).pipe(
+              Effect.andThen(options.catalogue.rescanRepository(location.commonDirectory)),
+            ),
+        };
+  };
+
   /** An action on a checkout in the trash, which reports the trash afterwards. */
   const trashItemPlan = (
     id: TrashId,
@@ -234,6 +269,9 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
       Switch: ({ path, branch }) =>
         checkoutPlan(path, "Local", (location, output) => switchBranch(location, branch, output)),
       Stash: ({ path }) => checkoutPlan(path, "Local", stashChanges),
+      RemoveWorktree: ({ path, worktree }) => worktreeRemovalPlan(path, worktree),
+      DropStashes: ({ path, stashes }) =>
+        checkoutPlan(path, "Local", (location, output) => dropStashes(location, stashes, output)),
       Archive: ({ path }) => movePlan(path, "Projects", archiveCheckout),
       Unarchive: ({ path }) => movePlan(path, "Archive", unarchiveCheckout),
       DeleteBranches: ({ path, branches }) =>
@@ -261,12 +299,16 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
         TrashTarget.match(target, {
           Branch: ({ path, ref }) =>
             checkoutPlan(path, "Local", (location, output) => restoreBranch(location, ref, output)),
+          Stash: ({ path, ref }) =>
+            checkoutPlan(path, "Local", (location, output) => restoreStash(location, ref, output)),
           Checkout: ({ id }) => trashItemPlan(id, restoreCheckout),
         }),
       Purge: ({ target }) =>
         TrashTarget.match(target, {
           Branch: ({ path, ref }) =>
             checkoutPlan(path, "Local", (location, output) => purgeBranch(location, ref, output)),
+          Stash: ({ path, ref }) =>
+            checkoutPlan(path, "Local", (location, output) => purgeStash(location, ref, output)),
           Checkout: ({ id }) => trashItemPlan(id, purgeCheckout),
         }),
       Clone: ({ url, destination }) => {

@@ -1,10 +1,15 @@
 import { DateTime, Effect } from "effect";
 
-import { deletedBranchPrefix, parseDeletedRef } from "@fleetfrog/protocol/domain/checkout";
+import {
+  deletedBranchPrefix,
+  droppedStashPrefix,
+  parseDeletedRef,
+  parseDroppedStashRef,
+} from "@fleetfrog/protocol/domain/checkout";
 
 import { runGit } from "../process/runTool.ts";
 
-import type { DeletedBranch, LocalBranch } from "@fleetfrog/protocol/domain/checkout";
+import type { DeletedBranch, DroppedStash, LocalBranch } from "@fleetfrog/protocol/domain/checkout";
 
 import type { ParsedBranch } from "./parseBranches.ts";
 
@@ -17,7 +22,11 @@ export const refFormat = [
   "%(contents:subject)",
 ].join("%00");
 
-export const refPatterns = ["refs/remotes", deletedBranchPrefix.replace(/\/$/, "")];
+export const refPatterns = [
+  "refs/remotes",
+  deletedBranchPrefix.replace(/\/$/, ""),
+  droppedStashPrefix.replace(/\/$/, ""),
+];
 
 export interface ParsedRefs {
   /**
@@ -29,12 +38,15 @@ export interface ParsedRefs {
   readonly defaultRef: string | null;
   /** Newest first. */
   readonly deleted: ReadonlyArray<DeletedBranch>;
+  /** Newest first. */
+  readonly droppedStashes: ReadonlyArray<DroppedStash>;
 }
 
 /** Parses `git for-each-ref <refPatterns> --format=<refFormat>`. */
 export function parseRefs(output: string): ParsedRefs {
   const remoteRefs: Array<string> = [];
   const deleted: Array<DeletedBranch> = [];
+  const droppedStashes: Array<DroppedStash> = [];
   let defaultRef: string | null = null;
 
   for (const line of output.split("\n")) {
@@ -46,8 +58,16 @@ export function parseRefs(output: string): ParsedRefs {
       remoteRefs.push(`${ref} ${sha}`);
     } else {
       const parsed = parseDeletedRef(ref);
+      const dropped = parseDroppedStashRef(ref);
 
-      if (parsed !== null) {
+      if (dropped !== null) {
+        droppedStashes.push({
+          ref,
+          sha,
+          message: subject,
+          droppedAt: DateTime.makeUnsafe(dropped.droppedAtMillis),
+        });
+      } else if (parsed !== null) {
         deleted.push({
           name: parsed.name,
           ref,
@@ -63,7 +83,11 @@ export function parseRefs(output: string): ParsedRefs {
     (left, right) => right.deletedAt.epochMilliseconds - left.deletedAt.epochMilliseconds,
   );
 
-  return { remoteRefs, defaultRef, deleted };
+  droppedStashes.sort(
+    (left, right) => right.droppedAt.epochMilliseconds - left.droppedAt.epochMilliseconds,
+  );
+
+  return { remoteRefs, defaultRef, deleted, droppedStashes };
 }
 
 /** The local branches whose tips are in `ref`, such as the default branch. */

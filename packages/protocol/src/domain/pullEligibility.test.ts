@@ -19,6 +19,8 @@ function status(options: {
     branches: { items: [], total: 0 },
     defaultBranch: null,
     deletedBranches: { items: [], total: 0 },
+    droppedStashes: { items: [], total: 0 },
+    worktrees: [],
     lastFetchedAt: null,
   };
 }

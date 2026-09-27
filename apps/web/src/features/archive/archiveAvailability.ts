@@ -1,13 +1,27 @@
 import { archiveDestination, unarchiveDestination } from "@fleetfrog/protocol/domain/archiveFolder";
-import { clonePath } from "@fleetfrog/protocol/domain/checkout";
-import { expandHome } from "@fleetfrog/protocol/domain/cloneDestination";
+import { expandHome, isWithin } from "@fleetfrog/protocol/domain/cloneDestination";
 
 import { machineBlocker } from "../actions/actionAvailability.ts";
 
-import type { Checkout } from "@fleetfrog/protocol/domain/checkout";
-import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
+import type { Checkout, LinkedWorktree } from "@fleetfrog/protocol/domain/checkout";
+import type { Machine } from "@fleetfrog/protocol/domain/fleet";
+
+/** A folder that moves, and where to. */
+export interface FolderMove {
+  readonly from: string;
+  readonly to: string;
+}
 
 export type ArchivePlan =
+  | {
+      readonly _tag: "Ready";
+      readonly destination: string;
+      /** Linked worktrees that move along, each the same way. */
+      readonly worktrees: ReadonlyArray<FolderMove>;
+    }
+  | { readonly _tag: "Blocked"; readonly reason: string };
+
+export type UnarchivePlan =
   | { readonly _tag: "Ready"; readonly destination: string }
   | { readonly _tag: "Blocked"; readonly reason: string };
 
@@ -15,23 +29,15 @@ function roots(machine: Machine): ReadonlyArray<string> {
   return machine.discoveryRoots.map(({ path }) => path);
 }
 
-/** How many linked worktrees on the machine belong to the checkout, which a move would break. */
-export function linkedWorktreeCount(options: {
-  readonly repository: Repository;
-  readonly machine: Machine;
-  readonly checkout: Checkout;
-}): number {
-  return options.repository.checkouts.filter(
-    (entry) =>
-      entry.machineId === options.machine.id &&
-      entry.checkout.worktree._tag === "Linked" &&
-      clonePath(entry.checkout) === options.checkout.path,
-  ).length;
+/** The linked worktrees whose folders still exist, as the checkout lists them. */
+export function linkedWorktrees(checkout: Checkout): ReadonlyArray<LinkedWorktree> {
+  return checkout.status._tag === "Read"
+    ? checkout.status.git.worktrees.filter(({ state }) => state !== "Missing")
+    : [];
 }
 
 /** Where archiving the checkout would move it, or why it can't be archived, as last scanned. */
 export function planArchive(options: {
-  readonly repository: Repository;
   readonly machine: Machine;
   readonly checkout: Checkout;
 }): ArchivePlan {
@@ -49,27 +55,26 @@ export function planArchive(options: {
   if (checkout.worktree._tag === "Linked") {
     return {
       _tag: "Blocked",
-      reason: "It's a linked worktree. Archive its main checkout once its worktrees are removed",
+      reason: "It's a linked worktree. Archiving its main checkout takes it along",
     };
   }
 
-  const worktrees = linkedWorktreeCount(options);
-
-  if (worktrees > 0) {
-    return {
-      _tag: "Blocked",
-      reason: `Remove its ${worktrees === 1 ? "linked worktree" : `${worktrees} linked worktrees`} first, since moving it would break them`,
-    };
-  }
+  const archive = expandHome(machine.archiveFolder, machine.info.homeDirectory);
+  const destinationOf = (path: string) =>
+    archiveDestination({
+      path,
+      archive,
+      home: machine.info.homeDirectory,
+      roots: roots(machine),
+    });
 
   return {
     _tag: "Ready",
-    destination: archiveDestination({
-      path: checkout.path,
-      archive: expandHome(machine.archiveFolder, machine.info.homeDirectory),
-      home: machine.info.homeDirectory,
-      roots: roots(machine),
-    }),
+    destination: destinationOf(checkout.path),
+    // A worktree inside the checkout's own folder moves with it.
+    worktrees: linkedWorktrees(checkout)
+      .filter(({ path }) => !isWithin(path, checkout.path))
+      .map(({ path }) => ({ from: path, to: destinationOf(path) })),
   };
 }
 
@@ -77,7 +82,7 @@ export function planArchive(options: {
 export function planUnarchive(options: {
   readonly machine: Machine;
   readonly checkout: Checkout;
-}): ArchivePlan {
+}): UnarchivePlan {
   const { machine, checkout } = options;
   const blocked = machineBlocker(machine, "Unarchive");
 

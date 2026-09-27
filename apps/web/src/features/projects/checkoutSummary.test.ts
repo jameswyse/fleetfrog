@@ -36,6 +36,8 @@ function checkout(git: Partial<GitStatus>, github: Checkout["github"] = null): C
         branches: none,
         defaultBranch: null,
         deletedBranches: { items: [], total: 0 },
+        droppedStashes: { items: [], total: 0 },
+        worktrees: [],
         lastFetchedAt: null,
         ...git,
       },
@@ -89,7 +91,7 @@ describe("summariseCheckout", () => {
           items: [{ path: "a.ts", originalPath: null, staged: "U", unstaged: "U" }],
           total: 1,
         },
-        stashes: { items: [{ index: 0, message: "wip" }], total: 1 },
+        stashes: { items: [{ index: 0, message: "wip", sha: null }], total: 1 },
       }),
     );
 

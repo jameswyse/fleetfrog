@@ -1,5 +1,6 @@
 import { Button } from "@/ui/Button.tsx";
 import { Dialog } from "@/ui/Dialog.tsx";
+import { plural } from "@/ui/plural.ts";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { useStartBatch } from "../actions/useStartBatch.ts";
@@ -7,18 +8,23 @@ import { useStartBatch } from "../actions/useStartBatch.ts";
 import type { Checkout } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
+import type { FolderMove } from "./archiveAvailability.ts";
+
 /** Confirms moving a checkout into the Archive folder, showing where it will go. */
 export function ArchiveDialog({
   repository,
   machine,
   checkout,
   destination,
+  worktrees,
   onClose,
 }: {
   readonly repository: Repository;
   readonly machine: Machine;
   readonly checkout: Checkout;
   readonly destination: string;
+  /** Linked worktrees that move along. */
+  readonly worktrees: ReadonlyArray<FolderMove>;
   readonly onClose: () => void;
 }) {
   const { start, pending, failure } = useStartBatch();
@@ -33,6 +39,22 @@ export function ArchiveDialog({
           <dt className="text-ink-muted">To</dt>
           <dd className="font-mono text-[13px] break-all">{destination}</dd>
         </dl>
+        {worktrees.length > 0 && (
+          <div>
+            <p>
+              Its {plural(worktrees.length, "linked worktree")}{" "}
+              {worktrees.length === 1 ? "moves" : "move"} too, and Git repairs{" "}
+              {worktrees.length === 1 ? "its link" : "their links"}:
+            </p>
+            <ul className="mt-2 space-y-1 rounded-md border border-line bg-canvas px-3 py-2">
+              {worktrees.map(({ from, to }) => (
+                <li key={from} className="font-mono text-[13px] break-all">
+                  {from} <span className="text-ink-muted">→</span> {to}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <p className="text-ink-muted">
           It leaves the Projects page and is listed under Cleanup, where you can move it back. Close
           it in any editor or terminal on {machineLabel(machine)} first.

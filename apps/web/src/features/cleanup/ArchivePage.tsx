@@ -6,6 +6,7 @@ import { ArchiveIcon } from "lucide-react";
 import { knownFleet, useHub, useRuns } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
+import { plural } from "@/ui/plural.ts";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { SidebarPage } from "@/ui/SidebarLayout.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
@@ -33,7 +34,10 @@ function archivedEntries(fleet: Fleet): ReadonlyArray<ArchivedEntry> {
     repository.checkouts.flatMap(({ machineId, checkout }) => {
       const machine = machines.get(machineId);
 
-      return machine === undefined ? [] : [{ repository, machine, checkout }];
+      // A linked worktree is listed with its main checkout, which it moves with.
+      return machine === undefined || checkout.worktree._tag === "Linked"
+        ? []
+        : [{ repository, machine, checkout }];
     }),
   );
 }
@@ -49,7 +53,7 @@ function ArchivedRow({
   const [trashing, setTrashing] = useState(false);
   const { repository, machine, checkout } = entry;
   const plan = planUnarchive({ machine, checkout });
-  const trashBlocked = trashBlocker(entry);
+  const trashBlocked = trashBlocker({ machine, checkout });
   const git = checkout.status._tag === "Read" ? checkout.status.git : null;
   const lastCommit = git?.lastCommit ?? null;
   const { placement } = checkout;
@@ -65,6 +69,11 @@ function ArchivedRow({
           <span>{machineLabel(machine)}</span>
         </p>
         <p className="font-mono text-xs break-all text-ink-muted">{checkout.path}</p>
+        {git !== null && git.worktrees.length > 0 && (
+          <p className="text-xs text-ink-muted">
+            With {plural(git.worktrees.length, "linked worktree")}
+          </p>
+        )}
         <p className="text-xs text-ink-muted">
           {placement._tag === "Archive" && placement.archivedAt !== null && (
             <>

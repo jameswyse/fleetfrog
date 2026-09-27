@@ -9,7 +9,7 @@ import { expandHome, isWithin } from "@fleetfrog/protocol/domain/cloneDestinatio
 
 import { archivedPlacement } from "../archive/archiveRecord.ts";
 import { locateCheckout } from "../git/readCheckout.ts";
-import { runGit } from "../process/runTool.ts";
+import { listWorktrees } from "../git/worktrees.ts";
 
 import type { CheckoutLocation } from "../git/readCheckout.ts";
 
@@ -73,19 +73,16 @@ async function findRepositoryDirectories(
 }
 
 /** Linked worktrees of the repository at `directory`, wherever they live. */
-const listWorktrees = Effect.fn("listWorktrees")(function* (directory: string) {
-  const output = yield* runGit(directory, ["worktree", "list", "--porcelain"]).pipe(
-    Effect.orElseSucceed(() => ""),
+const linkedWorktreePaths = (directory: string) =>
+  listWorktrees(directory).pipe(
+    // Bare and prunable entries have no usable working tree.
+    Effect.map((records) =>
+      records
+        .filter(({ bare, prunable }) => !bare && !prunable)
+        .map(({ path: worktree }) => worktree),
+    ),
+    Effect.orElseSucceed((): ReadonlyArray<string> => []),
   );
-
-  // Records are blank-line separated; bare and prunable entries have no usable working tree.
-  return output
-    .split("\n\n")
-    .map((record) => record.split("\n"))
-    .filter((lines) => !lines.some((line) => line === "bare" || line.startsWith("prunable")))
-    .flatMap((lines) => lines.filter((line) => line.startsWith("worktree ")))
-    .map((line) => line.slice("worktree ".length));
-});
 
 /**
  * The Archive folder as a path on this machine, or null when none is set or it can't be one here
@@ -128,7 +125,7 @@ export const discoverCheckouts = Effect.fn("discoverCheckouts")(function* (optio
   );
   const archived =
     archive === null ? [] : yield* Effect.promise(() => findRepositoryDirectories(archive, null));
-  const worktrees = yield* Effect.forEach(directories.flat(), listWorktrees, {
+  const worktrees = yield* Effect.forEach(directories.flat(), linkedWorktreePaths, {
     concurrency: gitConcurrency,
   });
   const candidates = [...new Set([...directories.flat(), ...worktrees.flat(), ...archived])];

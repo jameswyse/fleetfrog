@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { DateTime, Effect, Option } from "effect";
 
-import { ActionOutcome, ActionResult, SkipReason } from "@fleetfrog/protocol/domain/action";
+import { ActionResult, SkipReason } from "@fleetfrog/protocol/domain/action";
 import { isWithin } from "@fleetfrog/protocol/domain/cloneDestination";
 import { nothingUnique, TrashId } from "@fleetfrog/protocol/domain/trash";
 
@@ -17,17 +17,14 @@ import {
   removeTrashItem,
   writeTrashItem,
 } from "../trash/trashFolder.ts";
-import { movableProblem, moveFolder, unmoved } from "./movableCheckout.ts";
+import { movableProblem, moveFolder, unmoved, worktreesProblem } from "./movableCheckout.ts";
+import { failed, skipped, succeeded } from "./outcomes.ts";
 
 import type { TrashedCheckout } from "@fleetfrog/protocol/domain/trash";
 
 import type { CheckoutLocation } from "../git/readCheckout.ts";
 import type { InspectionOptions } from "../inspect/inspectCheckout.ts";
 import type { ActionOutput } from "./actionOutput.ts";
-
-const failed = (message: string) => ActionOutcome.cases.Failed.make({ message });
-const skipped = (reason: SkipReason) => ActionOutcome.cases.Skipped.make({ reason });
-const succeeded = (result: ActionResult) => ActionOutcome.cases.Succeeded.make({ result });
 
 /** What a folder takes up on disk. */
 const sizeOf = (folder: string) =>
@@ -73,7 +70,7 @@ export const trashCheckout = Effect.fn("trashCheckout")(
     },
     output: ActionOutput,
   ) {
-    const problem = yield* movableProblem(location);
+    const problem = movableProblem(location) ?? (yield* worktreesProblem(location));
 
     if (problem !== null) {
       return problem;
@@ -142,7 +139,7 @@ export const deleteCheckout = Effect.fn("deleteCheckout")(
     options: InspectionOptions & { readonly fingerprint: string },
     output: ActionOutput,
   ) {
-    const problem = yield* movableProblem(location);
+    const problem = movableProblem(location) ?? (yield* worktreesProblem(location));
 
     if (problem !== null) {
       return problem;

@@ -25,6 +25,8 @@ const batchVerbs = {
   Switch: "Switch branch in",
   Stash: "Stash changes in",
   DeleteBranches: "Delete branches in",
+  RemoveWorktree: "Remove a worktree of",
+  DropStashes: "Drop stashes in",
   Archive: "Archive",
   Unarchive: "Unarchive",
   Trash: "Trash",
@@ -80,6 +82,8 @@ export function describeSkip(reason: SkipReason): string {
     BranchExists: ({ branch }) => `A branch called ${branch} exists now`,
     NotInTrash: () => "It's no longer in the trash",
     NoArchiveFolder: () => "No Archive folder is set",
+    NoSuchWorktree: () => "The worktree is no longer there",
+    StashesChanged: () => "The stashes changed since the last scan",
     HasWorktrees: ({ count }) =>
       `It has ${plural(count, "linked worktree")}, which moving it would break`,
     IsWorktree: () => "It's a linked worktree, which moves with its main checkout",
@@ -106,8 +110,12 @@ function describeResult(result: ActionResult): string {
         ? moved
         : `${moved}. Kept ${skipped.length}: ${skipped.map(({ reason }) => describeSkip(reason)).join("; ")}`;
     },
-    Archived: ({ path }) => `Archived to ${path}`,
-    Unarchived: ({ path }) => `Moved back to ${path}`,
+    Archived: ({ path, worktrees }) =>
+      `Archived to ${path}${worktrees.length > 0 ? `, with ${plural(worktrees.length, "worktree")}` : ""}`,
+    Unarchived: ({ path, worktrees }) =>
+      `Moved back to ${path}${worktrees.length > 0 ? `, with ${plural(worktrees.length, "worktree")}` : ""}`,
+    WorktreeRemoved: () => "Removed the worktree",
+    StashesDropped: ({ stashes }) => `Moved ${plural(stashes, "stash", "stashes")} to the trash`,
     Trashed: ({ freedBytes }) =>
       freedBytes > 0
         ? `Moved to the trash, after removing ${formatBytes(freedBytes)} of caches`
@@ -186,6 +194,8 @@ const activeVerbs = {
   Switch: "Switching branch",
   Stash: "Stashing",
   DeleteBranches: "Deleting branches",
+  RemoveWorktree: "Removing a worktree",
+  DropStashes: "Dropping stashes",
   Archive: "Archiving",
   Unarchive: "Unarchiving",
   Trash: "Moving to the trash",
@@ -201,6 +211,8 @@ const waitingVerbs = {
   Switch: "switch branch",
   Stash: "stash",
   DeleteBranches: "delete branches",
+  RemoveWorktree: "remove a worktree",
+  DropStashes: "drop stashes",
   Archive: "archive",
   Unarchive: "unarchive",
   Trash: "move to the trash",

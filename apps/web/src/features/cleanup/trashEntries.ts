@@ -3,7 +3,7 @@ import { repositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 import type { DateTime } from "effect";
 
 import type { TrashTarget } from "@fleetfrog/protocol/domain/action";
-import type { DeletedBranch } from "@fleetfrog/protocol/domain/checkout";
+import type { DeletedBranch, DroppedStash } from "@fleetfrog/protocol/domain/checkout";
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 import type { TrashedCheckout } from "@fleetfrog/protocol/domain/trash";
 
@@ -17,6 +17,7 @@ export interface TrashEntry {
   readonly deletedAt: DateTime.Utc;
   readonly item:
     | { readonly _tag: "Branch"; readonly branch: DeletedBranch }
+    | { readonly _tag: "Stash"; readonly stash: DroppedStash }
     | { readonly _tag: "Checkout"; readonly checkout: TrashedCheckout };
 }
 
@@ -27,7 +28,7 @@ export function trashEntries(fleet: Fleet): ReadonlyArray<TrashEntry> {
   const repositories = [...fleet.repositories, ...fleet.archive];
   const labels = new Map(repositories.map(({ key, label }) => [key, label]));
 
-  const branches = repositories.flatMap((repository) =>
+  const refs = repositories.flatMap((repository) =>
     repository.checkouts.flatMap(({ machineId, checkout }) => {
       const machine = machines.get(machineId);
 
@@ -56,7 +57,7 @@ export function trashEntries(fleet: Fleet): ReadonlyArray<TrashEntry> {
     })),
   );
 
-  return [...branches, ...checkouts].toSorted(
+  return [...refs, ...checkouts].toSorted(
     (left, right) => right.deletedAt.epochMilliseconds - left.deletedAt.epochMilliseconds,
   );
 }
@@ -67,5 +68,5 @@ export function sameTarget(left: TrashTarget, right: TrashTarget): boolean {
     return right._tag === "Checkout" && right.id === left.id;
   }
 
-  return right._tag === "Branch" && right.path === left.path && right.ref === left.ref;
+  return right._tag === left._tag && right.path === left.path && right.ref === left.ref;
 }

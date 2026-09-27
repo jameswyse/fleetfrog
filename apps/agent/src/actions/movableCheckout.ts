@@ -3,33 +3,36 @@ import path from "node:path";
 
 import { Effect } from "effect";
 
-import { ActionOutcome, SkipReason } from "@fleetfrog/protocol/domain/action";
+import { SkipReason } from "@fleetfrog/protocol/domain/action";
 
-import { countLinkedWorktrees } from "../inspect/inspectCheckout.ts";
+import { countLinkedWorktrees } from "../git/worktrees.ts";
+import { failed, skipped } from "./outcomes.ts";
+
+import type { ActionOutcome } from "@fleetfrog/protocol/domain/action";
 
 import type { CheckoutLocation } from "../git/readCheckout.ts";
 
-const failed = (message: string) => ActionOutcome.cases.Failed.make({ message });
-const skipped = (reason: SkipReason) => ActionOutcome.cases.Skipped.make({ reason });
-
 /**
  * Why the checkout can't leave its place as a whole, or null when it can: only a main checkout
- * whose Git directory is inside it, without linked worktrees that the move would break.
+ * whose Git directory is inside it.
  */
-export const movableProblem = (location: CheckoutLocation) =>
-  Effect.gen(function* () {
-    if (location.worktree._tag === "Linked") {
-      return skipped(SkipReason.cases.IsWorktree.make({}));
-    }
+export function movableProblem(location: CheckoutLocation): ActionOutcome | null {
+  if (location.worktree._tag === "Linked") {
+    return skipped(SkipReason.cases.IsWorktree.make({}));
+  }
 
-    if (location.commonDirectory !== path.join(location.path, ".git")) {
-      return failed("This checkout keeps its Git directory elsewhere, so it can't move safely.");
-    }
+  return location.commonDirectory === path.join(location.path, ".git")
+    ? null
+    : failed("This checkout keeps its Git directory elsewhere, so it can't move safely.");
+}
 
-    const worktrees = yield* countLinkedWorktrees(location);
-
-    return worktrees > 0 ? skipped(SkipReason.cases.HasWorktrees.make({ count: worktrees })) : null;
-  });
+/** Why the checkout can't go without its linked worktrees, which would be left broken. */
+export const worktreesProblem = (location: CheckoutLocation) =>
+  countLinkedWorktrees(location).pipe(
+    Effect.map((count) =>
+      count > 0 ? skipped(SkipReason.cases.HasWorktrees.make({ count })) : null,
+    ),
+  );
 
 /** Whether a rename failed because its two paths are on different disks. */
 function isCrossDevice(error: unknown): boolean {

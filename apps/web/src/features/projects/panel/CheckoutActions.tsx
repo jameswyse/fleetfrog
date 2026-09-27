@@ -48,8 +48,8 @@ export function CheckoutActions({
   const git = checkout.status._tag === "Read" ? checkout.status.git : null;
   const hasChanges = git !== null && git.changed.total + git.untracked.total > 0;
   const stashBlocked = stashSkipReason(machine, checkout);
-  const archive = planArchive({ repository, machine, checkout });
-  const trashBlocked = trashBlocker({ repository, machine, checkout });
+  const archive = planArchive({ machine, checkout });
+  const trashBlocked = trashBlocker({ machine, checkout });
   const scope = { _tag: "Checkout", machineId: machine.id, path: checkout.path } as const;
   const shown = active ?? latest;
 
@@ -183,6 +183,7 @@ export function CheckoutActions({
           machine={machine}
           checkout={checkout}
           destination={archive.destination}
+          worktrees={archive.worktrees}
           onClose={() => setDialog(null)}
         />
       )}

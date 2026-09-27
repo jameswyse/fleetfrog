@@ -231,7 +231,7 @@ export function TrashCheckoutDialog({
                 them.
               </p>
             ) : (
-              <fieldset className="space-y-3">
+              <fieldset className="min-w-0 space-y-3">
                 <legend className="sr-only">Options</legend>
                 {inspection.caches.length > 0 && (
                   <label className="flex items-start gap-2.5">

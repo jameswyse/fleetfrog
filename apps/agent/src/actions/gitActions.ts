@@ -13,18 +13,15 @@ import { switchBlocker } from "@fleetfrog/protocol/domain/switchEligibility";
 import { isMissingFile } from "../config/agentConfig.ts";
 import { readGitStatus } from "../git/readCheckout.ts";
 import { cloneableUrl } from "../git/remoteIdentity.ts";
+import { listWorktrees } from "../git/worktrees.ts";
 import { runGit, runGitAction } from "../process/runTool.ts";
+import { failed, failedWith, skipped, succeeded } from "./outcomes.ts";
 
 import type { BranchAtCommit } from "@fleetfrog/protocol/domain/action";
 import type { DestinationCheck } from "@fleetfrog/protocol/domain/cloneDestination";
 
 import type { CheckoutLocation } from "../git/readCheckout.ts";
-import type { CommandFailed } from "../process/runTool.ts";
 import type { ActionOutput } from "./actionOutput.ts";
-
-const failed = (message: string) => ActionOutcome.cases.Failed.make({ message });
-const succeeded = (result: ActionResult) => ActionOutcome.cases.Succeeded.make({ result });
-const failedWith = ({ message }: CommandFailed) => Effect.succeed(failed(message));
 
 const fetchAll = (location: CheckoutLocation, output: ActionOutput) =>
   runGitAction({
@@ -80,10 +77,8 @@ export const pullCheckout = Effect.fn("pullCheckout")(
   Effect.catchTag("CommandFailed", failedWith),
 );
 
-const skipped = (reason: SkipReason) => ActionOutcome.cases.Skipped.make({ reason });
-
 /** The commit a ref points at, or null when there is no such ref. */
-const refCommit = (location: CheckoutLocation, ref: string) =>
+export const refCommit = (location: CheckoutLocation, ref: string) =>
   runGit(location.path, ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]).pipe(
     Effect.map((output): string | null => output.trim()),
     Effect.orElseSucceed(() => null),
@@ -109,11 +104,9 @@ const operationBranchFiles = [
  */
 const branchesInUse = (location: CheckoutLocation) =>
   Effect.gen(function* () {
-    const listing = yield* runGit(location.path, ["worktree", "list", "--porcelain"]);
-    const checkedOut = listing
-      .split("\n")
-      .filter((line) => line.startsWith("branch refs/heads/"))
-      .map((line) => line.slice("branch refs/heads/".length));
+    const checkedOut = (yield* listWorktrees(location.path)).flatMap(({ branch }) =>
+      branch === null ? [] : [branch],
+    );
     const linked = yield* Effect.promise(() =>
       readdir(path.join(location.commonDirectory, "worktrees")).catch(() => []),
     );

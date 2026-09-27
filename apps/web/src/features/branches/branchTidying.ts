@@ -26,26 +26,34 @@ export interface TidyCandidate {
   readonly standing: BranchStanding;
 }
 
-/** The branches the clone's other worktrees on this machine have checked out. */
+/**
+ * The branches the clone's other worktrees on this machine have checked out: those FleetFrog reads
+ * and every one its main checkout lists, including worktrees whose links broke.
+ */
 export function branchesInOtherWorktrees(
   repository: Repository,
   machine: Machine,
   checkout: Checkout,
 ): ReadonlySet<string> {
-  return new Set(
-    repository.checkouts
-      .filter(
-        (entry) =>
-          entry.machineId === machine.id &&
-          entry.checkout.path !== checkout.path &&
-          clonePath(entry.checkout) === clonePath(checkout),
-      )
-      .flatMap(({ checkout: other }) =>
-        other.status._tag === "Read" && other.status.git.head._tag === "Branch"
-          ? [other.status.git.head.name]
-          : [],
-      ),
+  const clone = repository.checkouts.filter(
+    (entry) => entry.machineId === machine.id && clonePath(entry.checkout) === clonePath(checkout),
   );
+  const read = clone
+    .filter((entry) => entry.checkout.path !== checkout.path)
+    .flatMap(({ checkout: other }) =>
+      other.status._tag === "Read" && other.status.git.head._tag === "Branch"
+        ? [other.status.git.head.name]
+        : [],
+    );
+  const listed = clone.flatMap(({ checkout: other }) =>
+    other.status._tag === "Read"
+      ? other.status.git.worktrees
+          .filter(({ path }) => path !== checkout.path)
+          .flatMap(({ branch }) => (branch === null ? [] : [branch]))
+      : [],
+  );
+
+  return new Set([...read, ...listed]);
 }
 
 function standingOf(

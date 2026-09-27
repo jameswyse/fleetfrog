@@ -11,6 +11,7 @@ import { parseRefs, readBranchTips, refFormat, refPatterns } from "./branchReach
 import { branchFormat, parseBranches } from "./parseBranches.ts";
 import { listLimit, parseStatus } from "./parseStatus.ts";
 import { cloneableUrl, remoteIdentity } from "./remoteIdentity.ts";
+import { readLinkedWorktrees } from "./worktrees.ts";
 
 import type {
   Commit,
@@ -63,13 +64,17 @@ const readStashes = Effect.fn("readStashes")(function* (directory: string) {
     "stash",
     "list",
     `--max-count=${stashLimit}`,
-    "--format=%gs",
+    "--format=%H%x00%gs",
   ]);
 
   return output
     .split("\n")
     .filter((line) => line !== "")
-    .map((message, index): Stash => ({ index, message }));
+    .map((line, index): Stash => {
+      const [sha = "", message = ""] = line.split("\0");
+
+      return { index, message, sha };
+    });
 });
 
 const readCommit = Effect.fn("readCommit")(function* (directory: string) {
@@ -197,8 +202,12 @@ export const readGitStatus = Effect.fn("readGitStatus")(function* (location: Che
     branches: branches.items,
     refs,
   });
-  // Every worktree shares the clone's refs, so only the main worktree reports deleted branches.
-  const deleted = location.worktree._tag === "Main" ? refs.deleted : [];
+  // Every worktree shares the clone's refs and worktree list, so only the main worktree reports
+  // them.
+  const main = location.worktree._tag === "Main";
+  const deleted = main ? refs.deleted : [];
+  const dropped = main ? refs.droppedStashes : [];
+  const worktrees = main ? yield* readLinkedWorktrees(location) : [];
   const stashes = status.stashCount > 0 ? yield* readStashes(location.path) : [];
   const lastCommit =
     status.head._tag === "Detached" && status.commit !== null
@@ -215,6 +224,8 @@ export const readGitStatus = Effect.fn("readGitStatus")(function* (location: Che
     branches: { items: branchItems, total: branches.total },
     defaultBranch: refs.defaultRef?.replace(/^refs\/remotes\/origin\//, "") ?? null,
     deletedBranches: { items: deleted.slice(0, listLimit), total: deleted.length },
+    droppedStashes: { items: dropped.slice(0, listLimit), total: dropped.length },
+    worktrees,
     lastFetchedAt,
   } satisfies GitStatus;
 });

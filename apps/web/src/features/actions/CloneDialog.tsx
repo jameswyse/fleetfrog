@@ -125,7 +125,7 @@ export function CloneDialog({
             Clones the default branch into a new folder. The folder must be inside one of the
             machine's project folders.
           </p>
-          <fieldset className="space-y-3">
+          <fieldset className="min-w-0 space-y-3">
             <legend className="mb-2 font-medium">Machines without {repository.label}</legend>
             {candidates.map(({ machine, blocked, warning }) => {
               const checked = chosen.has(machine.id);

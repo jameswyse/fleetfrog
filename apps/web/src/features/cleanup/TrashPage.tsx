@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { FolderGit2Icon, GitBranchIcon } from "lucide-react";
+import { ArchiveIcon, FolderGit2Icon, GitBranchIcon } from "lucide-react";
 
 import { knownFleet, useHub, useRuns } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
@@ -39,8 +39,12 @@ function purgeRuns(entries: ReadonlyArray<TrashEntry>): ReadonlyArray<TargetedRu
 }
 
 /** What an entry is called in sentences, such as the branch or folder name. */
-function entryName(entry: TrashEntry): string {
-  return entry.item._tag === "Branch" ? entry.item.branch.name : entry.item.checkout.directoryName;
+function entryName({ item }: TrashEntry): string {
+  if (item._tag === "Stash") {
+    return "this stash";
+  }
+
+  return item._tag === "Branch" ? item.branch.name : item.checkout.directoryName;
 }
 
 /** Confirms permanently deleting entries, which can't be undone. */
@@ -59,7 +63,7 @@ function PurgeDialog({
     (total, { item }) => total + (item._tag === "Checkout" ? item.checkout.sizeBytes : 0),
     0,
   );
-  const hasBranches = entries.some(({ item }) => item._tag === "Branch");
+  const hasRefs = entries.some(({ item }) => item._tag !== "Checkout");
 
   return (
     <Dialog
@@ -70,10 +74,10 @@ function PurgeDialog({
         <p>
           {only === undefined
             ? `${plural(entries.length, "item")} will be deleted permanently.`
-            : `${entryName(only)} will be deleted permanently from ${machineLabel(only.machine)}.`}{" "}
+            : `It will be deleted permanently from ${machineLabel(only.machine)}.`}{" "}
           {checkoutBytes > 0 && `That frees ${formatBytes(checkoutBytes)} of checkouts. `}
-          {hasBranches &&
-            "Commits that no other branch holds are removed when Git next cleans up the repository. "}
+          {hasRefs &&
+            "Commits nothing else holds are removed when Git next cleans up the repository. "}
           This can't be undone.
         </p>
         <p role="status" className="text-danger">
@@ -111,6 +115,18 @@ function EntryDetails({ entry }: { readonly entry: TrashEntry }) {
       </span>
     </>
   );
+
+  if (item._tag === "Stash") {
+    return (
+      <>
+        <p className="text-sm break-words">{item.stash.message}</p>
+        <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-ink-muted">
+          <span>Stash in {entry.repositoryLabel} on</span>
+          {where}
+        </p>
+      </>
+    );
+  }
 
   if (item._tag === "Branch") {
     return (
@@ -160,7 +176,9 @@ function TrashRow({
 }) {
   const { start, pending, failure } = useStartBatch();
   const blocked = machineBlocker(entry.machine, "Restore");
-  const Icon = entry.item._tag === "Branch" ? GitBranchIcon : FolderGit2Icon;
+  const Icon = { Branch: GitBranchIcon, Stash: ArchiveIcon, Checkout: FolderGit2Icon }[
+    entry.item._tag
+  ];
 
   return (
     <li className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
@@ -236,7 +254,7 @@ export function TrashPage() {
         <div className="rounded-xl border border-dashed border-line px-6 py-10 text-center text-sm">
           <p className="font-medium">The trash is empty</p>
           <p className="mt-1 text-ink-muted">
-            Checkouts you move to the trash and branches you tidy away appear here.
+            Checkouts you move to the trash, and branches and stashes you delete, appear here.
           </p>
         </div>
       )}

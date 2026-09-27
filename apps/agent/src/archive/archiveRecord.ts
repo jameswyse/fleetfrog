@@ -14,6 +14,10 @@ import type { CheckoutLocation } from "../git/readCheckout.ts";
 const ArchiveRecord = Schema.Struct({
   originalPath: Schema.String,
   archivedAt: Schema.DateTimeUtcFromString,
+  /** The linked worktrees that moved with it. Absent from records that predate them. */
+  worktrees: Schema.Array(
+    Schema.Struct({ originalPath: Schema.String, archivedPath: Schema.String }),
+  ).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed([]))),
 });
 type ArchiveRecord = typeof ArchiveRecord.Type;
 
@@ -38,13 +42,20 @@ export const writeArchiveRecord = (commonDirectory: string, record: ArchiveRecor
 export const removeArchiveRecord = (commonDirectory: string) =>
   Effect.promise(() => rm(recordPath(commonDirectory), { force: true }).catch(() => undefined));
 
+/** The checkout's record, or none for one put in the archive by hand. */
+export const readArchiveRecord = (commonDirectory: string) =>
+  Effect.promise(() => readFile(recordPath(commonDirectory), "utf8").catch(() => "")).pipe(
+    Effect.map(decodeRecord),
+  );
+
 /** How an archived checkout came to be there. One put in the archive by hand has no record. */
 export const archivedPlacement = (location: Pick<CheckoutLocation, "commonDirectory">) =>
-  Effect.promise(() => readFile(recordPath(location.commonDirectory), "utf8").catch(() => "")).pipe(
-    Effect.map((text) =>
-      Option.match(decodeRecord(text), {
+  readArchiveRecord(location.commonDirectory).pipe(
+    Effect.map((record) =>
+      Option.match(record, {
         onNone: () => Placement.cases.Archive.make({ originalPath: null, archivedAt: null }),
-        onSome: (record) => Placement.cases.Archive.make(record),
+        onSome: ({ originalPath, archivedAt }) =>
+          Placement.cases.Archive.make({ originalPath, archivedAt }),
       }),
     ),
   );

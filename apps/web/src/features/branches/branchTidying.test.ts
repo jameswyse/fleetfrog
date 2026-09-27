@@ -46,6 +46,8 @@ const git: GitStatus = {
   branches: { items: branches, total: branches.length },
   defaultBranch: "main",
   deletedBranches: { items: [], total: 0 },
+  droppedStashes: { items: [], total: 0 },
+  worktrees: [],
   lastFetchedAt: null,
 };
 
