@@ -33,7 +33,10 @@ function stateFrom(result: HubResult<InspectionResult>): InspectionState {
     : { _tag: "Ready", inspection: result.value.inspection };
 }
 
-/** The things only this checkout has, each as a short line. */
+/**
+ * The things only this checkout has, each as a short line. It covers every condition
+ * `nothingUnique` checks, so the dialog never offers permanent deletion beside a warning.
+ */
 function uniqueWork(inspection: Inspection): ReadonlyArray<string> {
   const lines: Array<string> = [];
 
@@ -52,6 +55,20 @@ function uniqueWork(inspection: Inspection): ReadonlyArray<string> {
 
     lines.push(
       `${plural(inspection.unpushedCommits, "commit")} on no remote${branches === "" ? "" : `: ${branches}`}`,
+    );
+  }
+
+  if (inspection.unpushedTags > 0) {
+    lines.push(`${plural(inspection.unpushedTags, "tag")} no remote has`);
+  }
+
+  if (inspection.operation !== null) {
+    lines.push(`A ${inspection.operation} that isn't finished`);
+  }
+
+  if (inspection.submodules > 0) {
+    lines.push(
+      `${plural(inspection.submodules, "submodule")}, whose own branches and changes aren't checked`,
     );
   }
 

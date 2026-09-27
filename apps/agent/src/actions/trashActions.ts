@@ -9,12 +9,7 @@ import { isWithin } from "@fleetfrog/protocol/domain/cloneDestination";
 import { nothingUnique, TrashId } from "@fleetfrog/protocol/domain/trash";
 
 import { readGitStatus } from "../git/readCheckout.ts";
-import {
-  countLinkedWorktrees,
-  fingerprintCheckout,
-  inspectCheckout,
-  readIgnored,
-} from "../inspect/inspectCheckout.ts";
+import { fingerprintCheckout, inspectCheckout, readIgnored } from "../inspect/inspectCheckout.ts";
 import { diskUsage } from "../process/diskUsage.ts";
 import {
   itemCheckoutPath,
@@ -22,58 +17,51 @@ import {
   removeTrashItem,
   writeTrashItem,
 } from "../trash/trashFolder.ts";
-import { moveFolder, unmoved } from "./archiveActions.ts";
+import { movableProblem, moveFolder, unmoved } from "./movableCheckout.ts";
+
+import type { TrashedCheckout } from "@fleetfrog/protocol/domain/trash";
 
 import type { CheckoutLocation } from "../git/readCheckout.ts";
+import type { InspectionOptions } from "../inspect/inspectCheckout.ts";
 import type { ActionOutput } from "./actionOutput.ts";
 
 const failed = (message: string) => ActionOutcome.cases.Failed.make({ message });
 const skipped = (reason: SkipReason) => ActionOutcome.cases.Skipped.make({ reason });
 const succeeded = (result: ActionResult) => ActionOutcome.cases.Succeeded.make({ result });
 
+/** What a folder takes up on disk. */
+const sizeOf = (folder: string) =>
+  diskUsage(path.dirname(folder), [path.basename(folder)]).pipe(Effect.map(([bytes = 0]) => bytes));
+
 /**
- * Why the checkout can't leave its place as a whole, or null when it can: only a main checkout
- * whose Git directory is inside it, without linked worktrees that would be left broken.
+ * Deletes cache folders inside `folder`, returning the bytes they took up and any that couldn't be
+ * deleted. `rm` removes a symbolic link itself, never what it points at.
  */
-const movableProblem = (location: CheckoutLocation) =>
+const removeCaches = (folder: string, caches: ReadonlyArray<string>) =>
   Effect.gen(function* () {
-    if (location.worktree._tag === "Linked") {
-      return skipped(SkipReason.cases.IsWorktree.make({}));
-    }
-
-    if (location.commonDirectory !== path.join(location.path, ".git")) {
-      return failed("This checkout keeps its Git directory elsewhere, so it can't move safely.");
-    }
-
-    const worktrees = yield* countLinkedWorktrees(location);
-
-    return worktrees > 0 ? skipped(SkipReason.cases.HasWorktrees.make({ count: worktrees })) : null;
-  });
-
-/** Deletes cache folders inside the checkout, returning the bytes they took up. */
-const removeCaches = (location: CheckoutLocation, caches: ReadonlyArray<string>) =>
-  Effect.gen(function* () {
-    const inside = caches.filter((entry) =>
-      isWithin(path.resolve(location.path, entry), location.path),
-    );
-    const sizes = yield* diskUsage(location.path, inside);
-
-    // `rm` removes a symbolic link itself, never what it points at.
-    yield* Effect.promise(() =>
-      Promise.all(
-        inside.map((entry) =>
-          rm(path.resolve(location.path, entry), { recursive: true, force: true }),
+    const inside = caches.filter((entry) => isWithin(path.resolve(folder, entry), folder));
+    const sizes = yield* diskUsage(folder, inside);
+    const results = yield* Effect.forEach(inside, (entry, index) =>
+      Effect.promise(() =>
+        rm(path.resolve(folder, entry), { recursive: true, force: true }).then(
+          () => ({ entry, freed: sizes[index] ?? 0, problem: null }),
+          (error: unknown) => ({ entry, freed: 0, problem: String(error) }),
         ),
       ),
     );
 
-    return sizes.reduce((total, size) => total + size, 0);
+    return {
+      freedBytes: results.reduce((total, { freed }) => total + freed, 0),
+      problems: results.flatMap(({ entry, problem }) =>
+        problem === null ? [] : [`${entry}: ${problem}`],
+      ),
+    };
   });
 
 /**
  * Moves a checkout into the machine's trash, with a record of where it came from, if it still
- * matches the inspection the dashboard showed. Caches are deleted first when asked, since they can
- * be rebuilt.
+ * matches the inspection the dashboard showed. Caches are deleted from the trashed copy when asked,
+ * so a move that fails leaves everything where it was.
  */
 export const trashCheckout = Effect.fn("trashCheckout")(
   function* (
@@ -93,22 +81,13 @@ export const trashCheckout = Effect.fn("trashCheckout")(
 
     const ignored = yield* readIgnored(location);
 
-    if ((yield* fingerprintCheckout(location, ignored.other)) !== options.fingerprint) {
+    if ((yield* fingerprintCheckout(location, ignored)) !== options.fingerprint) {
       return skipped(SkipReason.cases.ChangedSinceInspection.make({}));
     }
 
     const git = yield* readGitStatus(location);
-    const freedBytes = options.removeCaches ? yield* removeCaches(location, ignored.caches) : 0;
-
-    if (freedBytes > 0) {
-      output.write(`Removed ${ignored.caches.length} cache folders\n`);
-    }
-
-    const [sizeBytes = 0] = yield* diskUsage(path.dirname(location.path), [
-      path.basename(location.path),
-    ]);
     const id = TrashId.make(randomUUID());
-    const unprepared = yield* writeTrashItem(options.trash, {
+    const item: TrashedCheckout = {
       id,
       originalPath: location.path,
       identity: location.identity,
@@ -116,15 +95,16 @@ export const trashCheckout = Effect.fn("trashCheckout")(
       branch: git.head._tag === "Detached" ? null : git.head.name,
       lastCommit: git.lastCommit,
       trashedAt: yield* DateTime.now,
-      sizeBytes,
-    });
+      sizeBytes: yield* sizeOf(location.path),
+    };
+    const unprepared = yield* writeTrashItem(options.trash, item);
 
     if (unprepared !== null) {
       return failed(unprepared);
     }
 
-    const destination = itemCheckoutPath(options.trash, id);
-    const notMoved = unmoved(yield* moveFolder(location.path, destination), destination);
+    const trashed = itemCheckoutPath(options.trash, id);
+    const notMoved = unmoved(yield* moveFolder({ from: location.path, to: trashed }), trashed);
 
     if (notMoved !== null) {
       yield* removeTrashItem(options.trash, id);
@@ -134,7 +114,20 @@ export const trashCheckout = Effect.fn("trashCheckout")(
 
     output.write(`Moved ${location.path} to the trash\n`);
 
-    return succeeded(ActionResult.cases.Trashed.make({ freedBytes }));
+    if (!options.removeCaches || ignored.caches.length === 0) {
+      return succeeded(ActionResult.cases.Trashed.make({ freedBytes: 0 }));
+    }
+
+    const removal = yield* removeCaches(trashed, ignored.caches);
+
+    for (const line of removal.problems) {
+      output.write(`Couldn't delete a cache folder, ${line}\n`);
+    }
+
+    // The record is already saved, so a failure here only leaves its size out of date.
+    yield* writeTrashItem(options.trash, { ...item, sizeBytes: yield* sizeOf(trashed) });
+
+    return succeeded(ActionResult.cases.Trashed.make({ freedBytes: removal.freedBytes }));
   },
   Effect.catchTag("CommandFailed", ({ message }) => Effect.succeed(failed(message))),
 );
@@ -144,16 +137,20 @@ export const trashCheckout = Effect.fn("trashCheckout")(
  * fresh inspection, after fetching, finds nothing that exists only here.
  */
 export const deleteCheckout = Effect.fn("deleteCheckout")(
-  function* (location: CheckoutLocation, fingerprint: string, output: ActionOutput) {
+  function* (
+    location: CheckoutLocation,
+    options: InspectionOptions & { readonly fingerprint: string },
+    output: ActionOutput,
+  ) {
     const problem = yield* movableProblem(location);
 
     if (problem !== null) {
       return problem;
     }
 
-    const inspection = yield* inspectCheckout(location);
+    const inspection = yield* inspectCheckout(location, options);
 
-    if (inspection.fingerprint !== fingerprint) {
+    if (inspection.fingerprint !== options.fingerprint) {
       return skipped(SkipReason.cases.ChangedSinceInspection.make({}));
     }
 
@@ -193,7 +190,7 @@ export const restoreCheckout = Effect.fn("restoreCheckout")(function* (
 
   const destination = item.value.originalPath;
   const notMoved = unmoved(
-    yield* moveFolder(itemCheckoutPath(trash, id), destination),
+    yield* moveFolder({ from: itemCheckoutPath(trash, id), to: destination }),
     destination,
   );
 

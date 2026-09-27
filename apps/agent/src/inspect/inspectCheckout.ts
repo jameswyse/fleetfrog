@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { readdir } from "node:fs/promises";
 import path from "node:path";
 
 import { Duration, Effect } from "effect";
@@ -12,6 +13,7 @@ import { runGit, runGitAction } from "../process/runTool.ts";
 import type { Inspection, SizedPath } from "@fleetfrog/protocol/domain/trash";
 
 import type { CheckoutLocation } from "../git/readCheckout.ts";
+import type { CommandFailed } from "../process/runTool.ts";
 
 /**
  * Ignored folders and files that tools rebuild or recreate, such as dependencies, build output and
@@ -71,8 +73,20 @@ const listIgnored = (location: CheckoutLocation) =>
     "-z",
   ]).pipe(Effect.map((output) => output.split("\0").filter((entry) => entry !== "")));
 
+export interface IgnoredEntries {
+  readonly caches: ReadonlyArray<string>;
+  readonly other: ReadonlyArray<string>;
+}
+
+/** Whether the inspection may fetch, which the owner allows with the `git` tier. */
+export interface InspectionOptions {
+  readonly fetch: "Allowed" | "NotAllowed";
+}
+
 /** The ignored entries that are caches, and those that are anything else. */
-export const readIgnored = (location: CheckoutLocation) =>
+export const readIgnored = (
+  location: CheckoutLocation,
+): Effect.Effect<IgnoredEntries, CommandFailed> =>
   listIgnored(location).pipe(
     Effect.map((entries) => ({
       caches: entries.filter(isCache),
@@ -81,13 +95,14 @@ export const readIgnored = (location: CheckoutLocation) =>
   );
 
 /**
- * A digest of everything deleting the checkout could lose: HEAD, every branch, tag, stash and
- * deleted branch, each change and untracked file, and each ignored entry that isn't a cache.
- * Remote-tracking branches are left out, so fetching doesn't change it.
+ * A digest of what the checkout holds: HEAD, every branch, tag, stash and deleted branch, each
+ * changed or untracked path, and each ignored entry, caches included, so a cache that appears after
+ * the inspection isn't deleted unseen. Remote-tracking branches are left out, so fetching doesn't
+ * change it.
  */
 export const fingerprintCheckout = Effect.fn("fingerprintCheckout")(function* (
   location: CheckoutLocation,
-  ignored: ReadonlyArray<string>,
+  ignored: IgnoredEntries,
 ) {
   const [head, refs, status] = yield* Effect.all(
     [
@@ -111,17 +126,23 @@ export const fingerprintCheckout = Effect.fn("fingerprintCheckout")(function* (
   );
 
   return createHash("sha256")
-    .update([head, commit, refs, status, ...ignored].join("\0"))
+    .update([head, commit, refs, status, ...ignored.other, "", ...ignored.caches].join("\0"))
     .digest("hex");
 });
 
 /** Fetches every remote so the inspection compares against what they have now. */
-const checkRemotes = (location: CheckoutLocation) =>
+const checkRemotes = (location: CheckoutLocation, options: InspectionOptions) =>
   Effect.gen(function* () {
     const remotes = (yield* runGit(location.path, ["remote"])).trim();
 
     if (remotes === "") {
       return RemoteCheck.cases.NoRemote.make({});
+    }
+
+    if (options.fetch === "NotAllowed") {
+      return RemoteCheck.cases.Unreachable.make({
+        message: "Git actions are turned off on this machine, so its remotes weren't fetched",
+      });
     }
 
     return yield* runGitAction({
@@ -143,6 +164,55 @@ const checkRemotes = (location: CheckoutLocation) =>
     );
   });
 
+/** Tags no remote has, found by asking each remote for its tags. */
+const countUnpushedTags = (location: CheckoutLocation) =>
+  Effect.gen(function* () {
+    const local = (yield* runGit(location.path, [
+      "for-each-ref",
+      "--format=%(refname)",
+      "refs/tags",
+    ]))
+      .split("\n")
+      .filter((ref) => ref !== "");
+
+    if (local.length === 0) {
+      return 0;
+    }
+
+    const remotes = (yield* runGit(location.path, ["remote"])).split("\n").filter(Boolean);
+    const onRemotes = new Set<string>();
+
+    for (const remote of remotes) {
+      let listing = "";
+
+      yield* runGitAction({
+        cwd: location.path,
+        args: ["ls-remote", "--tags", "--refs", remote],
+        onOutput: (text) => {
+          listing += text;
+        },
+      });
+
+      // Only lines in `ls-remote`'s own format count, so a warning on stderr is never a tag.
+      for (const match of listing.matchAll(/^[0-9a-f]{40,64}\t(refs\/tags\/\S+)$/gm)) {
+        if (match[1] !== undefined) {
+          onRemotes.add(match[1]);
+        }
+      }
+    }
+
+    return local.filter((ref) => !onRemotes.has(ref)).length;
+  });
+
+/** Submodules whose Git directories are inside the checkout, holding work of their own. */
+const countSubmodules = (location: CheckoutLocation) =>
+  Effect.promise(() =>
+    readdir(path.join(location.commonDirectory, "modules")).then(
+      (entries) => entries.length,
+      () => 0,
+    ),
+  );
+
 /** Linked worktrees of the repository that still exist. */
 export const countLinkedWorktrees = (location: CheckoutLocation) =>
   runGit(location.path, ["worktree", "list", "--porcelain"]).pipe(
@@ -161,16 +231,21 @@ function sized(paths: ReadonlyArray<string>, sizes: ReadonlyArray<number>): Arra
 }
 
 /**
- * Finds what deleting the checkout would lose. It fetches every remote first, so commits count as
- * safe only if a remote has them now.
+ * Finds what deleting the checkout would lose. It fetches every remote first, when allowed, so
+ * commits count as safe only if a remote has them now.
  */
-export const inspectCheckout = Effect.fn("inspectCheckout")(function* (location: CheckoutLocation) {
-  const remote = yield* checkRemotes(location);
+export const inspectCheckout = Effect.fn("inspectCheckout")(function* (
+  location: CheckoutLocation,
+  options: InspectionOptions,
+) {
+  const remote = yield* checkRemotes(location, options);
   const git = yield* readGitStatus(location);
+  // HEAD counts too, since a detached HEAD can hold commits no branch has.
   const unpushedCommits = Number(
     (yield* runGit(location.path, [
       "rev-list",
       "--count",
+      ...(git.head._tag === "Unborn" ? [] : ["HEAD"]),
       "--branches",
       "--tags",
       "--glob=refs/fleetfrog/*",
@@ -178,6 +253,10 @@ export const inspectCheckout = Effect.fn("inspectCheckout")(function* (location:
       "--remotes",
     ])).trim(),
   );
+  const unpushedTags =
+    remote._tag === "Fetched"
+      ? yield* countUnpushedTags(location).pipe(Effect.orElseSucceed(() => 0))
+      : 0;
   const ignored = yield* readIgnored(location);
   const [[total = 0], cacheSizes, otherSizes] = yield* Effect.all([
     diskUsage(path.dirname(location.path), [path.basename(location.path)]),
@@ -187,13 +266,16 @@ export const inspectCheckout = Effect.fn("inspectCheckout")(function* (location:
   const other = sized(ignored.other, otherSizes);
 
   return {
-    fingerprint: yield* fingerprintCheckout(location, ignored.other),
+    fingerprint: yield* fingerprintCheckout(location, ignored),
     sizeBytes: total,
     remote,
     unpushedBranches: git.branches.items.flatMap(({ name, tip }) =>
       tip.localCommits > 0 ? [{ name, commits: tip.localCommits }] : [],
     ),
     unpushedCommits,
+    unpushedTags,
+    operation: git.operation,
+    submodules: yield* countSubmodules(location),
     stashes: git.stashes.total,
     changedFiles: git.changed.total,
     untrackedFiles: git.untracked.total,

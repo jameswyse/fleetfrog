@@ -212,7 +212,7 @@ const failureMessages = {
     "No machine has an HTTPS or SSH origin for this repository, so there's nothing to clone from.",
   BatchNotFound: "That action is no longer in the history.",
   InvalidArchiveFolder:
-    "That folder can't be the Archive folder on every machine. It may hold a project folder.",
+    "That folder can't be this machine's Archive folder. It may hold one of its project folders.",
   RpcClientError: "The hub did not respond. Check that it is still running.",
 } satisfies Record<DashboardError["_tag"], string>;
 

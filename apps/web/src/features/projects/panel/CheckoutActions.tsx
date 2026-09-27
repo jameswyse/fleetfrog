@@ -25,8 +25,8 @@ import type { Checkout } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
 /**
- * Fetch, pull and stash for one checkout, with what is running on it now or how its last action
- * ended.
+ * Actions for one checkout, from fetching to archiving or trashing it, with what is running on it
+ * now or how its last action ended.
  */
 export function CheckoutActions({
   repository,

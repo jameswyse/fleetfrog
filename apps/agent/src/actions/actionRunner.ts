@@ -11,7 +11,9 @@ import {
   actionTiers,
 } from "@fleetfrog/protocol/domain/action";
 import { checkCloneDestination } from "@fleetfrog/protocol/domain/cloneDestination";
+import { InspectionResult } from "@fleetfrog/protocol/domain/trash";
 
+import { inspectCheckout } from "../inspect/inspectCheckout.ts";
 import { makeActionOutput } from "./actionOutput.ts";
 import { archiveCheckout, unarchiveCheckout } from "./archiveActions.ts";
 import {
@@ -35,6 +37,7 @@ import type { AuditEntry } from "../audit/auditLog.ts";
 import type { ConfigUnavailable } from "../config/agentConfig.ts";
 import type { AgentPolicy } from "../config/agentPolicy.ts";
 import type { CheckoutLocation } from "../git/readCheckout.ts";
+import type { InspectionOptions } from "../inspect/inspectCheckout.ts";
 import type { ActionOutput } from "./actionOutput.ts";
 import type { Folders } from "./archiveActions.ts";
 
@@ -52,6 +55,8 @@ interface CheckoutCatalogue {
   readonly reportTrash: Effect.Effect<void, unknown>;
 }
 
+type Network = "Network" | "Local";
+
 /** An action resolved against this machine: what it locks, how it runs and what to rescan after. */
 type Plan =
   /** Nothing on this machine matches the request, so it can't run at all. */
@@ -59,8 +64,8 @@ type Plan =
   | {
       readonly _tag: "Ready";
       readonly lockKey: string;
-      /** Whether it waits for one of the slots that limit network use. */
-      readonly usesNetwork: boolean;
+      /** Network actions wait for one of the slots that limit network use. */
+      readonly network: Network;
       readonly perform: (output: ActionOutput) => Effect.Effect<ActionOutcome>;
       readonly afterwards: (outcome: ActionOutcome) => Effect.Effect<void, unknown>;
     };
@@ -85,7 +90,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
   readonly audit: (entry: AuditEntry) => Effect.Effect<void>;
 }) {
   const fibers = yield* FiberMap.make<RunId>();
-  const network = yield* Semaphore.make(networkConcurrency);
+  const slots = yield* Semaphore.make(networkConcurrency);
   const repositoryLocks = new Map<string, Semaphore.Semaphore>();
   const cancelled = new Set<RunId>();
   const home = homedir();
@@ -116,7 +121,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
 
   const checkoutPlan = (
     path: string,
-    usesNetwork: boolean,
+    network: Network,
     perform: (location: CheckoutLocation, output: ActionOutput) => Effect.Effect<ActionOutcome>,
   ): Plan => {
     const location = options.catalogue.locate(path);
@@ -127,7 +132,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
           _tag: "Ready",
           // Worktrees share one repository, and Git locks it while fetching or merging.
           lockKey: location.commonDirectory,
-          usesNetwork,
+          network,
           perform: (output) => perform(location, output),
           afterwards: () => options.catalogue.rescanRepository(location.commonDirectory),
         };
@@ -158,7 +163,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
     return {
       _tag: "Ready",
       lockKey: location.commonDirectory,
-      usesNetwork: false,
+      network: "Local",
       perform: (output) => move(location, { ...options.folders(), home }, output),
       afterwards: (outcome) =>
         outcome._tag === "Succeeded" &&
@@ -170,12 +175,21 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
     };
   };
 
+  /** An inspection fetches only when the owner allows Git actions, which cover fetching. */
+  const inspectionOptions = options.loadPolicy.pipe(
+    Effect.map(({ allowedTiers }): InspectionOptions => ({
+      fetch: allowedTiers.includes("git") ? "Allowed" : "NotAllowed",
+    })),
+    Effect.orElseSucceed((): InspectionOptions => ({ fetch: "NotAllowed" })),
+  );
+
   /**
    * An action that removes a checkout from where it is, archived or not. Afterwards the agent
    * forgets its path and reports the trash, which may have gained it.
    */
   const removalPlan = (
     path: string,
+    network: Network,
     remove: (location: CheckoutLocation, output: ActionOutput) => Effect.Effect<ActionOutcome>,
   ): Plan => {
     const location = options.catalogue.locate(path);
@@ -185,7 +199,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
       : {
           _tag: "Ready",
           lockKey: location.commonDirectory,
-          usesNetwork: false,
+          network,
           perform: (output) => remove(location, output),
           afterwards: (outcome) =>
             outcome._tag === "Succeeded"
@@ -201,7 +215,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
   ): Plan => ({
     _tag: "Ready",
     lockKey: `trash:${id}`,
-    usesNetwork: false,
+    network: "Local",
     perform: (output) => act(options.trashDirectory, id, output),
     afterwards: (outcome) =>
       outcome._tag === "Succeeded" &&
@@ -215,17 +229,19 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
 
   const plan = (request: ActionRequest): Plan =>
     ActionRequest.match(request, {
-      Fetch: ({ path }) => checkoutPlan(path, true, fetchRepository),
-      Pull: ({ path }) => checkoutPlan(path, true, pullCheckout),
+      Fetch: ({ path }) => checkoutPlan(path, "Network", fetchRepository),
+      Pull: ({ path }) => checkoutPlan(path, "Network", pullCheckout),
       Switch: ({ path, branch }) =>
-        checkoutPlan(path, false, (location, output) => switchBranch(location, branch, output)),
-      Stash: ({ path }) => checkoutPlan(path, false, stashChanges),
+        checkoutPlan(path, "Local", (location, output) => switchBranch(location, branch, output)),
+      Stash: ({ path }) => checkoutPlan(path, "Local", stashChanges),
       Archive: ({ path }) => movePlan(path, "Projects", archiveCheckout),
       Unarchive: ({ path }) => movePlan(path, "Archive", unarchiveCheckout),
       DeleteBranches: ({ path, branches }) =>
-        checkoutPlan(path, false, (location, output) => deleteBranches(location, branches, output)),
+        checkoutPlan(path, "Local", (location, output) =>
+          deleteBranches(location, branches, output),
+        ),
       Trash: ({ path, fingerprint, removeCaches }) =>
-        removalPlan(path, (location, output) =>
+        removalPlan(path, "Local", (location, output) =>
           trashCheckout(
             location,
             { fingerprint, removeCaches, trash: options.trashDirectory },
@@ -233,17 +249,24 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
           ),
         ),
       Delete: ({ path, fingerprint }) =>
-        removalPlan(path, (location, output) => deleteCheckout(location, fingerprint, output)),
+        // Deleting inspects the checkout again, fetching first.
+        removalPlan(path, "Network", (location, output) =>
+          inspectionOptions.pipe(
+            Effect.flatMap((inspection) =>
+              deleteCheckout(location, { ...inspection, fingerprint }, output),
+            ),
+          ),
+        ),
       Restore: ({ target }) =>
         TrashTarget.match(target, {
           Branch: ({ path, ref }) =>
-            checkoutPlan(path, false, (location, output) => restoreBranch(location, ref, output)),
+            checkoutPlan(path, "Local", (location, output) => restoreBranch(location, ref, output)),
           Checkout: ({ id }) => trashItemPlan(id, restoreCheckout),
         }),
       Purge: ({ target }) =>
         TrashTarget.match(target, {
           Branch: ({ path, ref }) =>
-            checkoutPlan(path, false, (location, output) => purgeBranch(location, ref, output)),
+            checkoutPlan(path, "Local", (location, output) => purgeBranch(location, ref, output)),
           Checkout: ({ id }) => trashItemPlan(id, purgeCheckout),
         }),
       Clone: ({ url, destination }) => {
@@ -262,7 +285,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
         return {
           _tag: "Ready",
           lockKey: `clone:${checked.path}`,
-          usesNetwork: true,
+          network: "Network",
           perform: (output) =>
             cloneRepository(
               { url, destination: checked, home, archive: folders.archiveFolder },
@@ -314,6 +337,48 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
           outcome: ActionOutcome.cases.Failed.make({ message }),
         });
       }),
+    );
+
+  /**
+   * Inspects a checkout for the hub, if the owner allows cleanup actions. It waits for the
+   * repository like an action, and for a network slot when it fetches. Every problem becomes a
+   * failed result the dashboard can show.
+   */
+  const inspect = (path: string): Effect.Effect<InspectionResult> =>
+    Effect.gen(function* () {
+      if ((yield* policyRefusal("cleanup")) !== null) {
+        return InspectionResult.cases.Failed.make({
+          message: "Cleanup actions are turned off on this machine.",
+        });
+      }
+
+      const location = options.catalogue.locate(path);
+
+      if (location === undefined) {
+        return InspectionResult.cases.Failed.make({
+          message: `This machine has no checkout at ${path}.`,
+        });
+      }
+
+      const inspection = yield* inspectionOptions;
+
+      return yield* inspectCheckout(location, inspection).pipe(
+        Effect.map((found) => InspectionResult.cases.Inspected.make({ inspection: found })),
+        Effect.catchTag("CommandFailed", ({ message }) =>
+          Effect.succeed(InspectionResult.cases.Failed.make({ message })),
+        ),
+        (inspecting) =>
+          inspection.fetch === "Allowed" ? slots.withPermits(1)(inspecting) : inspecting,
+        lockFor(location.commonDirectory).withPermits(1),
+      );
+    }).pipe(
+      Effect.catchDefect((defect) =>
+        Effect.succeed(
+          InspectionResult.cases.Failed.make({
+            message: `The agent hit an unexpected error: ${String(defect)}`,
+          }),
+        ),
+      ),
     );
 
   /** Reports a request the agent won't run. Nothing has changed, so no outcome is logged twice. */
@@ -375,7 +440,8 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
         return { outcome, afterwards: planned.afterwards(outcome) };
       }).pipe(
         Effect.scoped,
-        (performing) => (planned.usesNetwork ? network.withPermits(1)(performing) : performing),
+        (performing) =>
+          planned.network === "Network" ? slots.withPermits(1)(performing) : performing,
         // The repository lock is taken first, so a queued action never holds a network slot.
         lockFor(planned.lockKey).withPermits(1),
       );
@@ -421,6 +487,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
   };
 
   return {
+    inspect,
     run: (runId: RunId, request: ActionRequest) =>
       FiberMap.run(fibers, runId, execute(runId, request), { onlyIfMissing: true }).pipe(
         Effect.asVoid,

@@ -9,7 +9,7 @@ import { TrashId } from "./trash.ts";
  * `fleetfrog allow` and `fleetfrog deny`. The hub can see the policy but never change it. `git`
  * covers fetching, pulling, cloning, switching branches and stashing, and creating the project
  * folders that clones go into. `cleanup` covers actions that remove things from where the
- * developer works, even though each can be undone until the trash is emptied.
+ * developer works: archiving, the trash and permanent deletion.
  */
 export const Tier = Schema.Literals(["git", "cleanup"]);
 export type Tier = typeof Tier.Type;

@@ -1,6 +1,6 @@
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 
-import { Commit } from "./checkout.ts";
+import { Commit, Operation } from "./checkout.ts";
 import { Count } from "./count.ts";
 import { RepositoryIdentity } from "./repositoryIdentity.ts";
 
@@ -36,8 +36,9 @@ export type RemoteCheck = typeof RemoteCheck.Type;
 
 /**
  * What deleting a checkout would lose, found by fetching its remotes and then reading it. The
- * fingerprint changes with any commit, branch, stash, change or ignored file, so a request made
- * from this inspection is refused if the checkout has changed since.
+ * fingerprint changes when a commit, branch, tag, stash, changed or untracked path, or ignored
+ * entry is added or removed, so a request made from this inspection is refused if the checkout
+ * has changed that way since.
  */
 export const Inspection = Schema.Struct({
   fingerprint: Schema.String,
@@ -45,8 +46,14 @@ export const Inspection = Schema.Struct({
   remote: RemoteCheck,
   /** Local branches with commits no remote-tracking branch has. */
   unpushedBranches: Schema.Array(Schema.Struct({ name: Schema.String, commits: Count })),
-  /** Commits on branches, tags or deleted branches that no remote-tracking branch has. */
+  /** Commits on HEAD, branches, tags or deleted branches that no remote-tracking branch has. */
   unpushedCommits: Count,
+  /** Tags no remote has, even when their commits are pushed. */
+  unpushedTags: Count.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(0))),
+  /** A merge, rebase or similar part-way through, whose state lives only in this checkout. */
+  operation: Schema.NullOr(Operation).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(null))),
+  /** Submodules with Git directories inside this checkout, whose work isn't inspected. */
+  submodules: Count.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(0))),
   stashes: Count,
   changedFiles: Count,
   untrackedFiles: Count,
@@ -73,6 +80,9 @@ export function nothingUnique(inspection: Inspection): boolean {
   return (
     inspection.remote._tag === "Fetched" &&
     inspection.unpushedCommits === 0 &&
+    inspection.unpushedTags === 0 &&
+    inspection.operation === null &&
+    inspection.submodules === 0 &&
     inspection.stashes === 0 &&
     inspection.changedFiles === 0 &&
     inspection.untrackedFiles === 0 &&

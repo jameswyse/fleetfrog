@@ -74,10 +74,13 @@ function labelsFor(
   );
 }
 
-/** Groups checkouts by repository, named and labelled against every repository the fleet has. */
+/**
+ * Groups checkouts by repository, labelled from `labels`, which tells apart every repository the
+ * fleet has. A repository without a label goes by its name.
+ */
 function groupRepositories(
   checkouts: ReadonlyArray<MachineCheckout>,
-  labels: ReadonlyMap<RepositoryKey, string> | null,
+  labels: ReadonlyMap<RepositoryKey, string>,
 ): ReadonlyArray<Repository> {
   const groups = new Map<RepositoryKey, CheckoutGroup>();
 
@@ -98,12 +101,11 @@ function groupRepositories(
     name: repositoryName(members),
     checkouts: members,
   }));
-  const own = labels ?? labelsFor(named);
 
   return named
     .map((repository): Repository => ({
       ...repository,
-      label: own.get(repository.key) ?? repository.name,
+      label: labels.get(repository.key) ?? repository.name,
     }))
     .toSorted(
       (left, right) =>

@@ -1,10 +1,10 @@
-import { lstat, realpath, stat } from "node:fs/promises";
+import { lstat, readdir, readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 
 import { DateTime, Effect, Option } from "effect";
 
 import { ActionOutcome, ActionResult, SkipReason } from "@fleetfrog/protocol/domain/action";
-import { deletedBranchPrefix } from "@fleetfrog/protocol/domain/checkout";
+import { deletedBranchPrefix, parseDeletedRef } from "@fleetfrog/protocol/domain/checkout";
 import { checkCloneDestination, expandHome } from "@fleetfrog/protocol/domain/cloneDestination";
 import { pullBlocker } from "@fleetfrog/protocol/domain/pullEligibility";
 import { stashBlocker } from "@fleetfrog/protocol/domain/stashEligibility";
@@ -82,18 +82,66 @@ export const pullCheckout = Effect.fn("pullCheckout")(
 
 const skipped = (reason: SkipReason) => ActionOutcome.cases.Skipped.make({ reason });
 
-/** The branches checked out in any worktree of the repository, this one included. */
-const checkedOutBranches = (location: CheckoutLocation) =>
-  runGit(location.path, ["worktree", "list", "--porcelain"]).pipe(
-    Effect.map(
-      (output) =>
-        new Set(
-          output
-            .split("\n")
-            .filter((line) => line.startsWith("branch refs/heads/"))
-            .map((line) => line.slice("branch refs/heads/".length)),
+/** The commit a ref points at, or null when there is no such ref. */
+const refCommit = (location: CheckoutLocation, ref: string) =>
+  runGit(location.path, ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]).pipe(
+    Effect.map((output): string | null => output.trim()),
+    Effect.orElseSucceed(() => null),
+  );
+
+/** The branch `origin/HEAD` points at, which is never deleted. */
+const defaultBranchOf = (location: CheckoutLocation) =>
+  runGit(location.path, ["symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"]).pipe(
+    Effect.map((ref): string | null => ref.trim().replace(/^refs\/remotes\/origin\//, "")),
+    Effect.orElseSucceed(() => null),
+  );
+
+/** Files in a worktree's Git directory naming a branch an operation is part-way through. */
+const operationBranchFiles = [
+  path.join("rebase-merge", "head-name"),
+  path.join("rebase-apply", "head-name"),
+  "BISECT_START",
+];
+
+/**
+ * The branches any worktree of the repository has checked out, this one included, or is part-way
+ * through rebasing or bisecting, when HEAD is detached but the branch is still in use.
+ */
+const branchesInUse = (location: CheckoutLocation) =>
+  Effect.gen(function* () {
+    const listing = yield* runGit(location.path, ["worktree", "list", "--porcelain"]);
+    const checkedOut = listing
+      .split("\n")
+      .filter((line) => line.startsWith("branch refs/heads/"))
+      .map((line) => line.slice("branch refs/heads/".length));
+    const linked = yield* Effect.promise(() =>
+      readdir(path.join(location.commonDirectory, "worktrees")).catch(() => []),
+    );
+    const gitDirectories = [
+      location.commonDirectory,
+      ...linked.map((name) => path.join(location.commonDirectory, "worktrees", name)),
+    ];
+    const operating = yield* Effect.promise(() =>
+      Promise.all(
+        gitDirectories.flatMap((directory) =>
+          operationBranchFiles.map((file) =>
+            readFile(path.join(directory, file), "utf8").then(
+              (text) => text.trim().replace(/^refs\/heads\//, ""),
+              () => "",
+            ),
+          ),
         ),
-    ),
+      ),
+    );
+
+    return new Set([...checkedOut, ...operating.filter((name) => name !== "")]);
+  });
+
+/** Whether Git accepts `name` as a branch name, so it can't be read as anything else. */
+const isBranchName = (location: CheckoutLocation, name: string) =>
+  runGit(location.path, ["check-ref-format", `refs/heads/${name}`]).pipe(
+    Effect.as(!name.startsWith("-")),
+    Effect.orElseSucceed(() => false),
   );
 
 /**
@@ -108,22 +156,15 @@ export const switchBranch = Effect.fn("switchBranch")(
       return skipped(blocker);
     }
 
-    const exists = yield* runGit(location.path, [
-      "rev-parse",
-      "--verify",
-      "--quiet",
-      `refs/heads/${branch}`,
-    ]).pipe(
-      Effect.as(true),
-      Effect.orElseSucceed(() => false),
-    );
+    const exists =
+      (yield* isBranchName(location, branch)) &&
+      (yield* refCommit(location, `refs/heads/${branch}`)) !== null;
 
-    // Git forbids branch names starting with a dash, so a verified name can't be read as an option.
-    if (!exists || branch.startsWith("-")) {
+    if (!exists) {
       return skipped(SkipReason.cases.NoSuchBranch.make({}));
     }
 
-    if ((yield* checkedOutBranches(location)).has(branch)) {
+    if ((yield* branchesInUse(location)).has(branch)) {
       return skipped(SkipReason.cases.BranchInUse.make({}));
     }
 
@@ -289,22 +330,6 @@ export const cloneRepository = Effect.fn("cloneRepository")(
   Effect.catchTag("CommandFailed", failedWith),
 );
 
-const deletedRefPattern = /^refs\/fleetfrog\/deleted\/\d+\/(.+)$/;
-
-/** The commit a ref points at, or null when there is no such ref. */
-const refCommit = (location: CheckoutLocation, ref: string) =>
-  runGit(location.path, ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]).pipe(
-    Effect.map((output): string | null => output.trim()),
-    Effect.orElseSucceed(() => null),
-  );
-
-/** The branch `origin/HEAD` points at, which is never deleted. */
-const defaultBranchOf = (location: CheckoutLocation) =>
-  runGit(location.path, ["symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"]).pipe(
-    Effect.map((ref): string | null => ref.trim().replace(/^refs\/remotes\/origin\//, "")),
-    Effect.orElseSucceed(() => null),
-  );
-
 /**
  * Moves branches to the trash: each is kept as `refs/fleetfrog/deleted/<time>/<name>` and removed
  * from `refs/heads` in one transaction, which Git applies only if every branch still points at the
@@ -317,15 +342,19 @@ export const deleteBranches = Effect.fn("deleteBranches")(
     branches: ReadonlyArray<BranchAtCommit>,
     output: ActionOutput,
   ) {
-    const checkedOut = yield* checkedOutBranches(location);
+    const inUse = yield* branchesInUse(location);
     const defaultBranch = yield* defaultBranchOf(location);
 
     for (const { name, sha } of branches) {
+      if (!(yield* isBranchName(location, name))) {
+        return skipped(SkipReason.cases.NoSuchBranch.make({}));
+      }
+
       if (name === defaultBranch) {
         return skipped(SkipReason.cases.DefaultBranch.make({ branch: name }));
       }
 
-      if (checkedOut.has(name)) {
+      if (inUse.has(name)) {
         return skipped(SkipReason.cases.BranchCheckedOut.make({ branch: name }));
       }
 
@@ -364,7 +393,7 @@ export const deleteBranches = Effect.fn("deleteBranches")(
 
 /** The branch a deleted-branch ref keeps, or null for any other ref. */
 function deletedBranchName(ref: string): string | null {
-  return deletedRefPattern.exec(ref)?.[1] ?? null;
+  return parseDeletedRef(ref)?.name ?? null;
 }
 
 /** Recreates a deleted branch at its commit, unless a branch with its name exists now. */
@@ -373,7 +402,7 @@ export const restoreBranch = Effect.fn("restoreBranch")(
     const name = deletedBranchName(ref);
     const sha = name === null ? null : yield* refCommit(location, ref);
 
-    if (name === null || sha === null) {
+    if (name === null || sha === null || !(yield* isBranchName(location, name))) {
       return skipped(SkipReason.cases.NotInTrash.make({}));
     }
 

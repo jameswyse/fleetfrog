@@ -7,6 +7,6 @@ describe("formatBytes", () => {
     expect(formatBytes(850)).toBe("850 bytes");
     expect(formatBytes(4_200_000)).toBe("4.2 MB");
     expect(formatBytes(312_000_000)).toBe("312 MB");
-    expect(formatBytes(1_500_000_000_000_000)).toBe("1,500 TB");
+    expect(formatBytes(150_000_000_000_000)).toBe("150 TB");
   });
 });

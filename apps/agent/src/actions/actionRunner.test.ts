@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { describe, expect, it } from "@effect/vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "@effect/vitest";
 import { Deferred, Effect, Fiber, Option } from "effect";
 
 import { RunId } from "@fleetfrog/protocol/domain/activity";
@@ -11,7 +11,6 @@ import { nothingUnique, TrashId } from "@fleetfrog/protocol/domain/trash";
 
 import { placeLocation } from "../discovery/discoverCheckouts.ts";
 import { locateCheckout } from "../git/readCheckout.ts";
-import { inspectCheckout } from "../inspect/inspectCheckout.ts";
 import { temporaryDirectory } from "../testing/temporaryDirectory.ts";
 import { listTrash } from "../trash/trashFolder.ts";
 import { makeActionOutput } from "./actionOutput.ts";
@@ -25,10 +24,16 @@ import type { AgentPolicy } from "../config/agentPolicy.ts";
 import type { CheckoutLocation } from "../git/readCheckout.ts";
 
 // The agent's own Git commands, such as the commit a stash makes, need an identity too.
-process.env.GIT_AUTHOR_NAME = "Test";
-process.env.GIT_AUTHOR_EMAIL = "test@example.com";
-process.env.GIT_COMMITTER_NAME = "Test";
-process.env.GIT_COMMITTER_EMAIL = "test@example.com";
+beforeAll(() => {
+  vi.stubEnv("GIT_AUTHOR_NAME", "Test");
+  vi.stubEnv("GIT_AUTHOR_EMAIL", "test@example.com");
+  vi.stubEnv("GIT_COMMITTER_NAME", "Test");
+  vi.stubEnv("GIT_COMMITTER_EMAIL", "test@example.com");
+});
+
+afterAll(() => {
+  vi.unstubAllEnvs();
+});
 
 function git(cwd: string, ...args: Array<string>): string {
   return execFileSync("git", args, {
@@ -136,10 +141,23 @@ const makeHarness = Effect.fn("makeHarness")(function* (options: {
     /** Starts an action and waits for its outcome. */
     run: (request: ActionRequest, runId: RunId = runIds.first) =>
       runner.run(runId, request).pipe(Effect.andThen(Deferred.await(signalFor(runId, "Finished")))),
+    /** Inspects a checkout through the runner, as the hub asks for it. */
+    inspect: (checkoutPath: string) =>
+      runner
+        .inspect(checkoutPath)
+        .pipe(
+          Effect.flatMap((result) =>
+            result._tag === "Inspected"
+              ? Effect.succeed(result.inspection)
+              : Effect.die(new Error(`Inspection failed: ${result.message}`)),
+          ),
+        ),
     started: (runId: RunId) => Deferred.await(signalFor(runId, "Started")),
     outcome: (runId: RunId) => Deferred.await(signalFor(runId, "Finished")),
   };
 });
+
+const withCleanup: AgentPolicy = { allowedTiers: ["git", "cleanup"] };
 
 const setUp = (
   policy: AgentPolicy = { allowedTiers: ["git"] },
@@ -459,10 +477,9 @@ describe("action runner", () => {
     }),
   );
 
-  it.effect("finds unpushed commits, stashes and ignored files, telling caches apart", () =>
+  it.effect("finds unpushed commits and ignored files, telling caches apart", () =>
     Effect.gen(function* () {
-      const { clone } = yield* setUp();
-      const location = Option.getOrThrow(yield* locateCheckout(clone));
+      const { inspect, clone } = yield* setUp(withCleanup);
 
       writeFileSync(path.join(clone, ".gitignore"), ".env\nnode_modules/\n");
       git(clone, "add", ".gitignore");
@@ -471,7 +488,7 @@ describe("action runner", () => {
       mkdirSync(path.join(clone, "node_modules", "left-pad"), { recursive: true });
       writeFileSync(path.join(clone, "node_modules", "left-pad", "index.js"), "\n");
 
-      const inspection = yield* inspectCheckout(location);
+      const inspection = yield* inspect(clone);
 
       expect(inspection.remote._tag).toBe("Fetched");
       expect(inspection.unpushedCommits).toBe(1);
@@ -482,16 +499,31 @@ describe("action runner", () => {
     }),
   );
 
+  it.effect("counts commits only a detached HEAD holds, and tags no remote has", () =>
+    Effect.gen(function* () {
+      const { inspect, clone } = yield* setUp(withCleanup);
+
+      git(clone, "tag", "local-only");
+      git(clone, "switch", "-q", "--detach");
+      git(clone, "commit", "-q", "--allow-empty", "-m", "Experiment");
+
+      const inspection = yield* inspect(clone);
+
+      expect(inspection.unpushedCommits).toBe(1);
+      expect(inspection.unpushedTags).toBe(1);
+      expect(nothingUnique(inspection)).toBe(false);
+    }),
+  );
+
   it.effect("moves a checkout to the trash without its caches and restores it", () =>
     Effect.gen(function* () {
-      const { run, clone, root } = yield* setUp({ allowedTiers: ["git", "cleanup"] });
-      const location = Option.getOrThrow(yield* locateCheckout(clone));
+      const { run, inspect, clone, root } = yield* setUp(withCleanup);
 
       writeFileSync(path.join(clone, ".git", "info", "exclude"), "node_modules/\n");
       mkdirSync(path.join(clone, "node_modules", "left-pad"), { recursive: true });
       writeFileSync(path.join(clone, "node_modules", "left-pad", "index.js"), "\n");
 
-      const { fingerprint } = yield* inspectCheckout(location);
+      const { fingerprint } = yield* inspect(clone);
 
       expect(
         yield* run({ _tag: "Trash", path: clone, fingerprint, removeCaches: true }),
@@ -522,10 +554,8 @@ describe("action runner", () => {
 
   it.effect("leaves a checkout alone when it changed after it was inspected", () =>
     Effect.gen(function* () {
-      const { run, clone } = yield* setUp({ allowedTiers: ["git", "cleanup"] });
-      const { fingerprint } = yield* inspectCheckout(
-        Option.getOrThrow(yield* locateCheckout(clone)),
-      );
+      const { run, inspect, clone } = yield* setUp(withCleanup);
+      const { fingerprint } = yield* inspect(clone);
 
       writeFileSync(path.join(clone, "notes.txt"), "new work\n");
 
@@ -540,13 +570,12 @@ describe("action runner", () => {
 
   it.effect("deletes for good only a checkout whose work is all on its remote", () =>
     Effect.gen(function* () {
-      const { run, clone } = yield* setUp({ allowedTiers: ["git", "cleanup"] });
-      const location = Option.getOrThrow(yield* locateCheckout(clone));
+      const { run, inspect, clone } = yield* setUp(withCleanup);
 
       writeFileSync(path.join(clone, ".git", "info", "exclude"), ".env\n");
       writeFileSync(path.join(clone, ".env"), "SECRET=1\n");
 
-      const withSecret = yield* inspectCheckout(location);
+      const withSecret = yield* inspect(clone);
 
       expect(
         yield* run({ _tag: "Delete", path: clone, fingerprint: withSecret.fingerprint }),
@@ -555,13 +584,36 @@ describe("action runner", () => {
 
       rmSync(path.join(clone, ".env"));
 
-      const clean = yield* inspectCheckout(location);
+      const clean = yield* inspect(clone);
 
       expect(nothingUnique(clean)).toBe(true);
       expect(
         yield* run({ _tag: "Delete", path: clone, fingerprint: clean.fingerprint }, runIds.second),
       ).toMatchObject({ outcome: { _tag: "Succeeded", result: { _tag: "Deleted" } } });
       expect(existsSync(clone)).toBe(false);
+    }),
+  );
+
+  it.effect("won't delete a branch that is part-way through a rebase", () =>
+    Effect.gen(function* () {
+      const { run, clone } = yield* setUp(withCleanup);
+
+      writeFileSync(path.join(clone, "readme.md"), "main\n");
+      git(clone, "commit", "-q", "-am", "Main");
+      git(clone, "switch", "-q", "-c", "topic", "HEAD~1");
+      writeFileSync(path.join(clone, "readme.md"), "topic\n");
+      git(clone, "commit", "-q", "-am", "Topic");
+
+      const sha = git(clone, "rev-parse", "topic");
+
+      // Both branches changed readme.md, so the rebase stops on a conflict.
+      expect(() => git(clone, "rebase", "-q", "main")).toThrow(/could not apply/);
+      expect(
+        yield* run({ _tag: "DeleteBranches", path: clone, branches: [{ name: "topic", sha }] }),
+      ).toMatchObject({
+        outcome: { _tag: "Skipped", reason: { _tag: "BranchCheckedOut", branch: "topic" } },
+      });
+      expect(git(clone, "rev-parse", "topic")).toBe(sha);
     }),
   );
 });

@@ -1,10 +1,10 @@
 import { DateTime, Effect } from "effect";
 
-import { deletedBranchPrefix } from "@fleetfrog/protocol/domain/checkout";
+import { deletedBranchPrefix, parseDeletedRef } from "@fleetfrog/protocol/domain/checkout";
 
 import { runGit } from "../process/runTool.ts";
 
-import type { BranchTip, DeletedBranch, LocalBranch } from "@fleetfrog/protocol/domain/checkout";
+import type { DeletedBranch, LocalBranch } from "@fleetfrog/protocol/domain/checkout";
 
 import type { ParsedBranch } from "./parseBranches.ts";
 
@@ -20,15 +20,16 @@ export const refFormat = [
 export const refPatterns = ["refs/remotes", deletedBranchPrefix.replace(/\/$/, "")];
 
 export interface ParsedRefs {
-  /** Every remote-tracking branch, leaving out symbolic refs such as `origin/HEAD`. */
+  /**
+   * Every remote-tracking branch with its commit, as `<ref> <sha>`, leaving out symbolic refs
+   * such as `origin/HEAD`.
+   */
   readonly remoteRefs: ReadonlyArray<string>;
   /** The ref `origin/HEAD` points at, such as `refs/remotes/origin/main`. */
   readonly defaultRef: string | null;
   /** Newest first. */
   readonly deleted: ReadonlyArray<DeletedBranch>;
 }
-
-const deletedRef = /^refs\/fleetfrog\/deleted\/(\d+)\/(.+)$/;
 
 /** Parses `git for-each-ref <refPatterns> --format=<refFormat>`. */
 export function parseRefs(output: string): ParsedRefs {
@@ -42,17 +43,17 @@ export function parseRefs(output: string): ParsedRefs {
     if (ref === "refs/remotes/origin/HEAD") {
       defaultRef = symref === "" ? null : symref;
     } else if (ref.startsWith("refs/remotes/") && symref === "") {
-      remoteRefs.push(ref);
+      remoteRefs.push(`${ref} ${sha}`);
     } else {
-      const match = deletedRef.exec(ref);
+      const parsed = parseDeletedRef(ref);
 
-      if (match?.[1] !== undefined && match[2] !== undefined) {
+      if (parsed !== null) {
         deleted.push({
-          name: match[2],
+          name: parsed.name,
           ref,
           sha,
           subject,
-          deletedAt: DateTime.makeUnsafe(Number(match[1])),
+          deletedAt: DateTime.makeUnsafe(parsed.deletedAtMillis),
         });
       }
     }
@@ -65,15 +66,15 @@ export function parseRefs(output: string): ParsedRefs {
   return { remoteRefs, defaultRef, deleted };
 }
 
-/** The local branches whose tips are in any of `refs`. */
-const branchesIn = (directory: string, refs: ReadonlyArray<string>) =>
-  refs.length === 0
+/** The local branches whose tips are in `ref`, such as the default branch. */
+const branchesIn = (directory: string, ref: string | null) =>
+  ref === null
     ? Effect.succeed(new Set<string>())
     : runGit(directory, [
         "for-each-ref",
         "refs/heads",
         "--format=%(refname:lstrip=2)",
-        ...refs.map((ref) => `--merged=${ref}`),
+        `--merged=${ref}`,
       ]).pipe(Effect.map((output) => new Set(output.split("\n").filter((name) => name !== ""))));
 
 /**
@@ -88,6 +89,7 @@ const localCommitCache = new Map<
 const countLocalCommits = Effect.fn("countLocalCommits")(function* (options: {
   readonly directory: string;
   readonly commonDirectory: string;
+  /** The remote-tracking branches and their commits, which the counts depend on. */
   readonly remotes: string;
   readonly sha: string;
 }) {
@@ -116,49 +118,37 @@ const countLocalCommits = Effect.fn("countLocalCommits")(function* (options: {
   return count;
 });
 
-/** Adds to each branch where its tip is: in the default branch, on a remote, or only here. */
+/**
+ * Adds to each branch where its tip is: in the default branch, on a remote, or only here. A tip is
+ * on a remote exactly when no commit before it is only here.
+ */
 export const readBranchTips = Effect.fn("readBranchTips")(function* (options: {
   readonly directory: string;
   readonly commonDirectory: string;
   readonly branches: ReadonlyArray<ParsedBranch>;
   readonly refs: ParsedRefs;
-  /** The raw ref listing, which changes whenever a remote-tracking branch does. */
-  readonly refOutput: string;
 }) {
-  const { refs } = options;
-  const [merged, pushed] = yield* Effect.all(
-    [
-      branchesIn(options.directory, refs.defaultRef === null ? [] : [refs.defaultRef]),
-      branchesIn(options.directory, refs.remoteRefs),
-    ],
-    { concurrency: 2 },
-  );
+  const merged = yield* branchesIn(options.directory, options.refs.defaultRef);
+  const remotes = options.refs.remoteRefs.join("\n");
 
   return yield* Effect.forEach(
     options.branches,
     ({ name, upstream, tip }) =>
-      Effect.gen(function* () {
-        const isPushed = pushed.has(name);
-        const localCommits = isPushed
-          ? 0
-          : yield* countLocalCommits({
-              directory: options.directory,
-              commonDirectory: options.commonDirectory,
-              remotes: options.refOutput,
-              sha: tip.sha,
-            });
-
-        return {
-          name,
-          upstream,
-          tip: {
-            ...tip,
-            merged: merged.has(name),
-            pushed: isPushed,
-            localCommits,
-          } satisfies BranchTip,
-        } satisfies LocalBranch;
-      }),
+      countLocalCommits({
+        directory: options.directory,
+        commonDirectory: options.commonDirectory,
+        remotes,
+        sha: tip.sha,
+      }).pipe(
+        Effect.map(
+          (localCommits) =>
+            ({
+              name,
+              upstream,
+              tip: { ...tip, merged: merged.has(name), pushed: localCommits === 0, localCommits },
+            }) satisfies LocalBranch,
+        ),
+      ),
     { concurrency: 4 },
   );
 });

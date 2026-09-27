@@ -94,6 +94,19 @@ export type DeletedBranch = typeof DeletedBranch.Type;
 /** Where FleetFrog keeps the branches it deletes. */
 export const deletedBranchPrefix = "refs/fleetfrog/deleted/";
 
+const deletedRefPattern = /^refs\/fleetfrog\/deleted\/(\d+)\/(.+)$/;
+
+/** The branch a deleted-branch ref keeps and when it was deleted, or null for any other ref. */
+export function parseDeletedRef(
+  ref: string,
+): { readonly name: string; readonly deletedAtMillis: number } | null {
+  const match = deletedRefPattern.exec(ref);
+
+  return match?.[1] === undefined || match[2] === undefined
+    ? null
+    : { name: match[2], deletedAtMillis: Number(match[1]) };
+}
+
 const noneYet = Effect.succeed({ items: [], total: 0 });
 
 export const GitStatus = Schema.Struct({

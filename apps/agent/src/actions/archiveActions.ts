@@ -1,4 +1,3 @@
-import { lstat, mkdir, rename } from "node:fs/promises";
 import path from "node:path";
 
 import { DateTime, Effect } from "effect";
@@ -9,7 +8,7 @@ import { isWithin } from "@fleetfrog/protocol/domain/cloneDestination";
 
 import { removeArchiveRecord, writeArchiveRecord } from "../archive/archiveRecord.ts";
 import { archivePath } from "../discovery/discoverCheckouts.ts";
-import { countLinkedWorktrees } from "../inspect/inspectCheckout.ts";
+import { movableProblem, moveFolder, unmoved } from "./movableCheckout.ts";
 
 import type { CheckoutLocation } from "../git/readCheckout.ts";
 import type { ActionOutput } from "./actionOutput.ts";
@@ -22,56 +21,6 @@ export interface Folders {
   readonly roots: ReadonlyArray<string>;
   readonly archiveFolder: string | null;
   readonly home: string;
-}
-
-/** Whether a rename failed because its two paths are on different disks. */
-function isCrossDevice(error: unknown): boolean {
-  return error instanceof Error && "code" in error && error.code === "EXDEV";
-}
-
-type MoveResult =
-  | { readonly _tag: "Moved" }
-  /** Something is already at the destination, so nothing moved. */
-  | { readonly _tag: "Taken" }
-  | { readonly _tag: "Failed"; readonly message: string };
-
-/**
- * Moves a checkout's folder, creating the folders above its new place. The move is a rename, so it
- * happens at once or not at all, and only within one disk.
- */
-export const moveFolder = (from: string, to: string) =>
-  Effect.promise(async (): Promise<MoveResult> => {
-    const taken = await lstat(to).then(
-      () => true,
-      () => false,
-    );
-
-    if (taken) {
-      return { _tag: "Taken" };
-    }
-
-    try {
-      await mkdir(path.dirname(to), { recursive: true });
-      await rename(from, to);
-
-      return { _tag: "Moved" };
-    } catch (error) {
-      return {
-        _tag: "Failed",
-        message: isCrossDevice(error)
-          ? `${to} is on a different disk from ${from}, and FleetFrog only moves checkouts within one disk.`
-          : `Couldn't move ${from} to ${to}: ${String(error)}`,
-      };
-    }
-  });
-
-/** The outcome of a move that didn't happen, or null when it did. */
-export function unmoved(result: MoveResult, destination: string): ActionOutcome | null {
-  if (result._tag === "Taken") {
-    return skipped(SkipReason.cases.DestinationTaken.make({ path: destination }));
-  }
-
-  return result._tag === "Failed" ? failed(result.message) : null;
 }
 
 /**
@@ -87,18 +36,10 @@ export const archiveCheckout = Effect.fn("archiveCheckout")(
       return skipped(SkipReason.cases.NoArchiveFolder.make({}));
     }
 
-    if (location.worktree._tag === "Linked") {
-      return skipped(SkipReason.cases.IsWorktree.make({}));
-    }
+    const problem = yield* movableProblem(location);
 
-    if (location.commonDirectory !== path.join(location.path, ".git")) {
-      return failed("This checkout keeps its Git directory elsewhere, so it can't move safely.");
-    }
-
-    const worktrees = yield* countLinkedWorktrees(location);
-
-    if (worktrees > 0) {
-      return skipped(SkipReason.cases.HasWorktrees.make({ count: worktrees }));
+    if (problem !== null) {
+      return problem;
     }
 
     const destination = archiveDestination({ path: location.path, archive, ...folders });
@@ -116,7 +57,10 @@ export const archiveCheckout = Effect.fn("archiveCheckout")(
       return failed(unrecorded);
     }
 
-    const notMoved = unmoved(yield* moveFolder(location.path, destination), destination);
+    const notMoved = unmoved(
+      yield* moveFolder({ from: location.path, to: destination }),
+      destination,
+    );
 
     if (notMoved !== null) {
       yield* removeArchiveRecord(location.commonDirectory);
@@ -159,7 +103,10 @@ export const unarchiveCheckout = Effect.fn("unarchiveCheckout")(function* (
     return failed("This machine has no project folders to move the checkout back into.");
   }
 
-  const notMoved = unmoved(yield* moveFolder(location.path, destination), destination);
+  const notMoved = unmoved(
+    yield* moveFolder({ from: location.path, to: destination }),
+    destination,
+  );
 
   if (notMoved !== null) {
     return notMoved;

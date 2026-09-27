@@ -196,7 +196,6 @@ export const readGitStatus = Effect.fn("readGitStatus")(function* (location: Che
     commonDirectory: location.commonDirectory,
     branches: branches.items,
     refs,
-    refOutput,
   });
   // Every worktree shares the clone's refs, so only the main worktree reports deleted branches.
   const deleted = location.worktree._tag === "Main" ? refs.deleted : [];
