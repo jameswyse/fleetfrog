@@ -25,7 +25,7 @@ export function CleanupLayout() {
                 {archived > 0 && (
                   <span className="text-xs text-ink-muted tabular-nums">
                     {archived}
-                    <span className="sr-only"> checkouts</span>
+                    <span className="sr-only"> archived</span>
                   </span>
                 )}
               </Link>
@@ -37,7 +37,7 @@ export function CleanupLayout() {
                 {inTrash > 0 && (
                   <span className="text-xs text-ink-muted tabular-nums">
                     {inTrash}
-                    <span className="sr-only"> items</span>
+                    <span className="sr-only"> in the trash</span>
                   </span>
                 )}
               </Link>

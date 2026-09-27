@@ -1,6 +1,16 @@
 import { useSyncExternalStore } from "react";
 
-import { Cause, DateTime, Deferred, Duration, Effect, Layer, Result, Stream } from "effect";
+import {
+  Cause,
+  DateTime,
+  Deferred,
+  Duration,
+  Effect,
+  Layer,
+  Predicate,
+  Result,
+  Stream,
+} from "effect";
 import { RpcClient, RpcSerialization } from "effect/unstable/rpc";
 import { Socket } from "effect/unstable/socket";
 
@@ -52,6 +62,11 @@ let client: DashboardClient | null = null;
 /** Active runs and each checkout's latest result, kept through a reconnect. */
 let runs: RunsSnapshot = noRuns;
 const listeners = new Set<() => void>();
+/**
+ * Set once the hub sends something this page can't read, which happens when the hub was updated
+ * after the page loaded. Only reloading the page fixes it.
+ */
+let outdated = false;
 
 function notify(): void {
   for (const listener of listeners) {
@@ -81,6 +96,22 @@ export function useHub(): HubState {
 
 export function useRuns(): RunsSnapshot {
   return useSyncExternalStore(subscribe, () => runs);
+}
+
+/** Whether the hub was updated since this page loaded, so the page needs reloading. */
+export function useDashboardOutdated(): boolean {
+  return useSyncExternalStore(subscribe, () => outdated);
+}
+
+/** Whether the connection failed on data this version of the dashboard can't decode. */
+function isSchemaMismatch(cause: Cause.Cause<unknown>): boolean {
+  return cause.reasons.some((reason) => {
+    if (Cause.isFailReason(reason)) {
+      return Predicate.isTagged(reason.error, "SchemaError");
+    }
+
+    return Cause.isDieReason(reason) && Predicate.isTagged(reason.defect, "SchemaError");
+  });
 }
 
 /** The connected client, or null while connecting. Changes on every reconnect. */
@@ -153,7 +184,14 @@ const session = Effect.gen(function* () {
 export function startHubConnection(): void {
   Effect.runFork(
     session.pipe(
-      Effect.catchCause((cause) => Effect.logWarning("Hub connection lost", cause)),
+      Effect.catchCause((cause) =>
+        Effect.sync(() => {
+          if (isSchemaMismatch(cause) && !outdated) {
+            outdated = true;
+            notify();
+          }
+        }).pipe(Effect.andThen(Effect.logWarning("Hub connection lost", cause))),
+      ),
       Effect.andThen(Effect.sleep(retryDelay)),
       Effect.forever,
     ),
