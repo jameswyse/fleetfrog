@@ -71,4 +71,4 @@ Agents have the `git` and `cleanup` tiers.
 ## Distribution
 
 - **Agent self-update.** `fleetfrog update`, or an update the hub offers, instead of running the install script again on each machine.
-- **Rust agent.** A rewrite once the idea is validated.
+- **npm packages.** The agent through npm, as a wrapper package with one package per platform, and `@fleetfrog/protocol` built to JavaScript for other clients. The service must not run a binary from inside a Node.js installation, because nvm and similar tools remove it when Node.js changes.
