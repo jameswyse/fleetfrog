@@ -28,6 +28,7 @@ function machine(options: {
       platform: "linux",
       homeDirectory: options.home,
       agentVersion: "0.0.0",
+      agentRuntime: "node",
       githubCli: { _tag: "Unavailable", reason: "" },
       system: null,
     },

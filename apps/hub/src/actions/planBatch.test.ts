@@ -34,6 +34,7 @@ function machine(
       platform: "linux",
       homeDirectory: "/home/dev",
       agentVersion: "0.0.0",
+      agentRuntime: "node",
       githubCli: { _tag: "Unavailable", reason: "" },
       system: null,
     },

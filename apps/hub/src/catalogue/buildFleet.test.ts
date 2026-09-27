@@ -26,6 +26,7 @@ function machine(id: MachineId, hostname: string): MachineRecord {
       platform: "linux",
       homeDirectory: "/home/dev",
       agentVersion: "0.0.0",
+      agentRuntime: "node",
       githubCli: { _tag: "Unavailable", reason: "not installed" },
       system: null,
     },

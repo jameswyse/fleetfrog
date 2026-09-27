@@ -110,7 +110,9 @@ export function SystemPanel({ machine }: { readonly machine: Machine }) {
         <Uptime machine={machine} bootedAt={system.bootedAt} />
       </SideDetail>
       <SideDetail term="Versions">
-        Agent {machine.info.agentVersion} · Node {system.versions.node}
+        Agent {machine.info.agentVersion}
+        {machine.info.agentRuntime === "rust" && " (Rust)"}
+        {system.versions.node !== null && ` · Node ${system.versions.node}`}
         {system.versions.git !== null && ` · Git ${system.versions.git}`}
       </SideDetail>
       {usage !== null && (

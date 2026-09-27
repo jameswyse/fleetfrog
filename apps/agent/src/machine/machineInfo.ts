@@ -59,6 +59,7 @@ export const readMachineInfo = Effect.gen(function* () {
     platform,
     homeDirectory: homedir(),
     agentVersion,
+    agentRuntime: "node",
     githubCli: yield* readGithubCli,
     system: yield* readSystemInfo(platform),
   } satisfies MachineInfo;

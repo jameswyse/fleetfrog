@@ -22,6 +22,7 @@ const machine: Machine = {
     platform: "darwin",
     homeDirectory: "/Users/dev",
     agentVersion: "0.0.0",
+    agentRuntime: "node",
     githubCli: { _tag: "Unavailable", reason: "" },
     system: null,
   },

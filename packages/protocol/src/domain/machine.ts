@@ -61,7 +61,11 @@ export const SystemInfo = Schema.Struct({
   cpu: Schema.Struct({ model: Schema.String, cores: Count }),
   memoryBytes: Bytes,
   bootedAt: Schema.DateTimeUtc,
-  versions: Schema.Struct({ node: Schema.String, git: Schema.NullOr(Schema.String) }),
+  /** The Node that runs the agent, or null for the Rust agent, which needs none. */
+  versions: Schema.Struct({
+    node: Schema.NullOr(Schema.String),
+    git: Schema.NullOr(Schema.String),
+  }),
 });
 export type SystemInfo = typeof SystemInfo.Type;
 
@@ -82,6 +86,13 @@ export const SystemUsage = Schema.Struct({
 });
 export type SystemUsage = typeof SystemUsage.Type;
 
+/**
+ * Which agent reports a machine: the TypeScript agent in `apps/agent`, which runs on Node, or the
+ * native one in `apps/agent-rs`. Both speak the same protocol and share their files on the machine.
+ */
+export const AgentRuntime = Schema.Literals(["node", "rust"]);
+export type AgentRuntime = typeof AgentRuntime.Type;
+
 /** What an agent reports about the machine it runs on. */
 export const MachineInfo = Schema.Struct({
   hostname: Schema.String,
@@ -89,6 +100,10 @@ export const MachineInfo = Schema.Struct({
   platform: Platform,
   homeDirectory: Schema.String,
   agentVersion: Schema.String,
+  /** The TypeScript agent for agents that predate it. */
+  agentRuntime: AgentRuntime.pipe(
+    Schema.withDecodingDefaultTypeKey(Effect.succeed("node" as const)),
+  ),
   githubCli: GithubCli,
   /** Null from agents that predate it. */
   system: Schema.NullOr(SystemInfo).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(null))),
