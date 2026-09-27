@@ -166,7 +166,7 @@ fn civil_from_days(days: i64) -> (i64, i64, i64) {
 
 /// A time such as 27/09/2026 14:05 in the machine's own time zone, for a stash message.
 pub fn stash_date(now: Utc) -> String {
-    let seconds = now.millis().div_euclid(1000) as libc::time_t;
+    let seconds = now.millis().div_euclid(1000) as _;
     // SAFETY: `localtime_r` writes only into the zeroed struct it is given.
     let parts = unsafe {
         let mut parts: libc::tm = std::mem::zeroed();
