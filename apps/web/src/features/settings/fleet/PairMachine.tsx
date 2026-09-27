@@ -42,7 +42,16 @@ export function PairMachine() {
   const hub = useHub();
   const now = useNow();
   const fleet = knownFleet(hub);
-  const [knownMachines] = useState(() => new Set(fleet?.machines.map(({ id }) => id) ?? []));
+  // The machines paired before this page opened. Opened directly, the page renders before the
+  // fleet arrives, so they come from the first fleet it sees rather than an empty list.
+  const [knownMachines, setKnownMachines] = useState<ReadonlySet<string> | null>(() =>
+    fleet === null ? null : new Set(fleet.machines.map(({ id }) => id)),
+  );
+
+  if (knownMachines === null && fleet !== null) {
+    setKnownMachines(new Set(fleet.machines.map(({ id }) => id)));
+  }
+
   const [copyOutcome, setCopyOutcome] = useState<CopyOutcome | null>(null);
   const [state, createOffer, creating] = useActionState(
     async (): Promise<OfferState> => {
@@ -62,7 +71,8 @@ export function PairMachine() {
     },
     { _tag: "Idle" },
   );
-  const paired = fleet?.machines.find(({ id }) => !knownMachines.has(id));
+  const paired =
+    knownMachines === null ? undefined : fleet?.machines.find(({ id }) => !knownMachines.has(id));
   const offer = state._tag === "Ready" ? state : null;
   const expired = offer !== null && DateTime.toEpochMillis(offer.offer.expiresAt) <= now;
   const copy = copyOutcome !== null && copyOutcome.command === offer?.command ? copyOutcome : null;
