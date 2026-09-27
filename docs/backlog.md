@@ -26,6 +26,23 @@ Ideas for after phase 2. They're captured, not planned: an entry doesn't mean it
 - **Fast-forwarding other branches.** Pull updates only checked-out branches. Branches not checked out anywhere could be fast-forwarded too.
 - **Open in editor.** Open a checkout in VS Code, Cursor, Zed or T3 Code, which registers `t3code://`. Dropped from phase 2 because links open on the viewing device, Remote-SSH needs an SSH host for each machine, and T3 Code's link format is unknown.
 
+## Tidying with Jev
+
+[Jev](https://typesafe.ai/) from TypeSafe AI answers typed questions about a given state with a choice and a calibrated confidence. It would run on the hub, which holds the single API key. One rule applies to every use: Jev can add caution or suggest actions, but it never removes a check. The agent's Git checks still decide whether an action is safe, because commit messages, branch names and file names come from repositories and could be written to steer the model. Requests send repository names, paths, branch names and commit subjects to TypeSafe, never file contents or environment values.
+
+- **Tidy-up screen.** A dedicated screen listing proposed actions for repositories (delete, archive or leave) and for branches (delete or keep), already filled in from Jev's answers and ordered by its confidence. Each proposal shows the facts it rests on, such as the last commit, whether the remote is reachable and any work found only on that machine. Nothing runs until the user reviews the list and confirms it, and the agent still refuses anything its own checks don't allow.
+- **Classifying ignored files.** Before a delete, decide whether each ignored file or folder that isn't a known cache, such as `data/`, `local.db` or `.cache-old`, can be rebuilt or should be kept. Anything Jev isn't confident about is shown as work that would be lost.
+- **Branch triage.** Sort branches whose commits exist only on one machine, recognising names like `wip-test` or `scratch`, so likely throwaway branches are easier to review.
+- **Automatic permission mode.** Decide whether to allow an action without asking, like the automatic modes in AI coding agents. It matters once FleetFrog runs actions nobody clicked, such as automatic pulls or scheduled tidying.
+
+## Archive and trash
+
+- **Hiding repositories.** A hub-side flag that hides a repository from the Projects page without touching any machine.
+- **Archives on another disk.** Moving a checkout to an Archive folder on another filesystem needs a copy, a check and then removal of the original, instead of a rename.
+- **Archives off the machine.** Move an archived checkout to TrueNAS as a tarball and a `git bundle`, stored once for the whole fleet. It needs file transfer, like the `files` tier.
+- **Preserving on GitHub.** Push every branch of a checkout whose remote is gone to a new private repository, so it can be cloned again.
+- **Emptying the trash automatically.** Purge trashed checkouts after a set time, such as 30 days.
+
 ## Agent capabilities
 
 Phase 2 ships only the `git` tier.
@@ -33,7 +50,6 @@ Phase 2 ships only the `git` tier.
 - **`scripts` tier.** Install dependencies and run repository scripts, tests and dev servers. Commands come from the repository, such as `package.json` scripts, never from the hub.
 - **`files` tier.** Detect missing environment files and required keys, allowing deliberate differences between machines. Later, transfer selected environment and config files on request. Routine reports carry key names only, never values.
 - **`machine` tier.** Install and update tooling such as T3 Code, Cursor, Codex, Claude, Node.js, pnpm and Rust, through agent recipes with pinned sources and verified checksums. The hub states the outcome it wants. Eventually, provision a new machine from scratch.
-- **Automatic permission mode.** Use jev to decide whether to allow an action, like the automatic modes in AI coding agents.
 - **Signed high-risk actions.** Machine-tier actions are signed with a passkey on the user's device and checked against a key pinned at pairing, so a compromised hub can't run them.
 - **End-to-end encrypted file sync.** Agents encrypt synced secrets for each other, so the hub relays values it can't read.
 
