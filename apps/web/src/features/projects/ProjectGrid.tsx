@@ -328,9 +328,7 @@ export function ProjectGrid({
                       ) : (
                         // T3 Code's name leads, with the repository it stands for beneath it.
                         <>
-                          <span className="self-start pt-0.5">
-                            <ProjectIcon icon={repository.icon} />
-                          </span>
+                          <ProjectIcon icon={repository.icon} />
                           <span className={shrinkableName}>
                             <span className="truncate group-hover:underline">
                               {repository.label}
