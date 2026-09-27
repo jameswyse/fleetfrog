@@ -7,6 +7,7 @@ use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
 use serde::{Deserialize, Serialize};
 
 use crate::audit::{self, AuditEntry};
+use crate::instance;
 use crate::paths;
 use crate::protocol::Tier;
 
@@ -32,7 +33,7 @@ pub fn config_directory() -> String {
         paths::join(
             &paths::env("XDG_CONFIG_HOME")
                 .unwrap_or_else(|| paths::join(&paths::home(), ".config")),
-            "fleetfrog",
+            &instance::named("fleetfrog"),
         )
     })
 }

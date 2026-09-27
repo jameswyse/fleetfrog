@@ -6,6 +6,7 @@ import path from "node:path";
 import { Effect, Schema } from "effect";
 
 import { isMissingFile } from "../config/agentConfig.ts";
+import { currentInstance, instanceNamed, instanceVariable } from "../config/agentInstance.ts";
 import { runTool } from "../process/runTool.ts";
 
 export class ServiceFileFailed extends Schema.TaggedError<ServiceFileFailed>()(
@@ -20,8 +21,8 @@ function serviceFile(file: string, write: () => Promise<void>) {
   });
 }
 
-const systemdUnitName = "fleetfrog.service";
-const launchdLabel = "net.fleetfrog.agent";
+const systemdUnitName = () => `${instanceNamed("fleetfrog")}.service`;
+const launchdLabel = () => instanceNamed("net.fleetfrog.agent");
 
 /**
  * The Node binary the service starts. pnpm links the Node a checkout's `devEngines` names at
@@ -62,12 +63,12 @@ function systemdUnitPath(): string {
     process.env.XDG_CONFIG_HOME ?? path.join(homedir(), ".config"),
     "systemd",
     "user",
-    systemdUnitName,
+    systemdUnitName(),
   );
 }
 
 function launchdPlistPath(): string {
-  return path.join(homedir(), "Library", "LaunchAgents", `${launchdLabel}.plist`);
+  return path.join(homedir(), "Library", "LaunchAgents", `${launchdLabel()}.plist`);
 }
 
 function quoteSystemdArgument(argument: string): string {
@@ -82,15 +83,33 @@ function escapeXml(text: string): string {
     .replaceAll('"', "&quot;");
 }
 
+/**
+ * The variables the service starts the agent with: the `PATH` it was installed from, so it finds
+ * the same Git, and the instance's name, so it reads that instance's files.
+ */
+function serviceEnvironment(): ReadonlyArray<readonly [string, string]> {
+  const instance = currentInstance();
+
+  return [
+    ["PATH", process.env.PATH ?? ""],
+    ...(instance === undefined ? [] : [[instanceVariable, instance] as const]),
+  ];
+}
+
 function systemdUnit(): string {
+  const instance = currentInstance();
+  const environment = serviceEnvironment()
+    .map(([name, value]) => `Environment=${quoteSystemdArgument(`${name}=${value}`)}`)
+    .join("\n");
+
   return `[Unit]
-Description=FleetFrog agent
+Description=${instance === undefined ? "FleetFrog agent" : `FleetFrog agent (${instance})`}
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 ExecStart=${agentCommand().map(quoteSystemdArgument).join(" ")}
-Environment=${quoteSystemdArgument(`PATH=${process.env.PATH ?? ""}`)}
+${environment}
 Restart=on-failure
 RestartSec=10
 # Stopping with SIGTERM interrupts the agent, which then exits with 130.
@@ -102,9 +121,17 @@ WantedBy=default.target
 }
 
 function launchdPlist(): string {
-  const logPath = path.join(homedir(), "Library", "Logs", "fleetfrog-agent.log");
+  const logPath = path.join(
+    homedir(),
+    "Library",
+    "Logs",
+    `${instanceNamed("fleetfrog-agent")}.log`,
+  );
   const argumentsXml = agentCommand()
     .map((argument) => `    <string>${escapeXml(argument)}</string>`)
+    .join("\n");
+  const environmentXml = serviceEnvironment()
+    .map(([name, value]) => `    <key>${name}</key>\n    <string>${escapeXml(value)}</string>`)
     .join("\n");
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -112,15 +139,14 @@ function launchdPlist(): string {
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>${launchdLabel}</string>
+  <string>${launchdLabel()}</string>
   <key>ProgramArguments</key>
   <array>
 ${argumentsXml}
   </array>
   <key>EnvironmentVariables</key>
   <dict>
-    <key>PATH</key>
-    <string>${escapeXml(process.env.PATH ?? "")}</string>
+${environmentXml}
   </dict>
   <key>RunAtLoad</key>
   <true/>
@@ -171,9 +197,9 @@ export const installService = Effect.gen(function* () {
     await writeFile(unitPath, systemdUnit());
   });
   yield* runTool("systemctl", home, ["--user", "daemon-reload"]);
-  yield* runTool("systemctl", home, ["--user", "enable", "--now", systemdUnitName]);
+  yield* runTool("systemctl", home, ["--user", "enable", "--now", systemdUnitName()]);
   // Picks up a changed unit when the service was already running.
-  yield* runTool("systemctl", home, ["--user", "restart", systemdUnitName]);
+  yield* runTool("systemctl", home, ["--user", "restart", systemdUnitName()]);
 
   return unitPath;
 });
@@ -192,7 +218,7 @@ export const uninstallService = Effect.gen(function* () {
 
   const unitPath = systemdUnitPath();
 
-  yield* runTool("systemctl", home, ["--user", "disable", "--now", systemdUnitName]).pipe(
+  yield* runTool("systemctl", home, ["--user", "disable", "--now", systemdUnitName()]).pipe(
     Effect.ignore,
   );
   yield* serviceFile(unitPath, () => unlink(unitPath).catch(ignoreMissing));

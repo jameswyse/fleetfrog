@@ -116,6 +116,16 @@ pnpm dev
 
 `pnpm dev` starts the hub on port 7420 with its data in `./data` and the dashboard on Vite's port 5173, which forwards RPC to the hub. `pnpm verify` runs formatting, lint, typecheck, build and unit tests across the repository.
 
+To test an agent you built on a machine that already runs a released one, give it an instance name with `FLEETFROG_INSTANCE`. A named instance has its own pairing, policy, action log and service, so it can pair with a development hub while the released agent stays paired with yours:
+
+```sh
+export FLEETFROG_INSTANCE=dev
+apps/agent-rs/dist/fleetfrog pair <pairing-string>
+apps/agent-rs/dist/fleetfrog service install
+```
+
+The `dev` instance keeps its pairing and policy in `~/.config/fleetfrog-dev`, and its action log in a `fleetfrog-dev` folder beside the released agent's. Its service is `fleetfrog-dev.service` on Linux and `net.fleetfrog.agent-dev` on macOS. Both agents act on the same checkouts and share the machine's trash.
+
 Describe each change people will notice in a changeset with `pnpm changeset`. [Releasing](docs/releasing.md) explains how changesets become a release.
 
 ## Licence

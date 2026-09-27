@@ -7,6 +7,7 @@ use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
 use serde::Serialize;
 
 use crate::git::remote::without_credentials;
+use crate::instance;
 use crate::paths;
 use crate::protocol::{ActionOutcome, ActionRequest, Tier};
 use crate::time::Utc;
@@ -50,12 +51,15 @@ const ROTATE_AT_BYTES: u64 = 1024 * 1024;
 
 pub fn audit_log_path() -> String {
     let directory = if cfg!(target_os = "macos") {
-        paths::join(&paths::home(), "Library/Logs/FleetFrog")
+        paths::join(
+            &paths::home(),
+            &format!("Library/Logs/{}", instance::named("FleetFrog")),
+        )
     } else {
         paths::join(
             &paths::env("XDG_STATE_HOME")
                 .unwrap_or_else(|| paths::join(&paths::home(), ".local/state")),
-            "fleetfrog",
+            &instance::named("fleetfrog"),
         )
     };
 

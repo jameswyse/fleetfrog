@@ -1,7 +1,8 @@
 //! Installing the agent as a per-user background service: a systemd user unit on Linux and a
 //! launchd agent on macOS. Both use the TypeScript agent's names, so installing either agent
-//! replaces the other's service and reuses its pairing.
+//! replaces the other's service and reuses its pairing. A named instance gets its own service.
 
+use crate::instance;
 use crate::paths;
 use crate::process::run_tool;
 
@@ -10,8 +11,13 @@ pub enum ServiceError {
     FileFailed { path: String, message: String },
 }
 
-const SYSTEMD_UNIT_NAME: &str = "fleetfrog.service";
-const LAUNCHD_LABEL: &str = "net.fleetfrog.agent";
+fn systemd_unit_name() -> String {
+    format!("{}.service", instance::named("fleetfrog"))
+}
+
+fn launchd_label() -> String {
+    instance::named("net.fleetfrog.agent")
+}
 
 /// The command that starts this agent: this binary, with symbolic links resolved.
 fn agent_command() -> Result<Vec<String>, ServiceError> {
@@ -32,14 +38,14 @@ fn agent_command() -> Result<Vec<String>, ServiceError> {
 fn systemd_unit_path() -> String {
     paths::join(
         &paths::env("XDG_CONFIG_HOME").unwrap_or_else(|| paths::join(&paths::home(), ".config")),
-        &format!("systemd/user/{SYSTEMD_UNIT_NAME}"),
+        &format!("systemd/user/{}", systemd_unit_name()),
     )
 }
 
 fn launchd_plist_path() -> String {
     paths::join(
         &paths::home(),
-        &format!("Library/LaunchAgents/{LAUNCHD_LABEL}.plist"),
+        &format!("Library/LaunchAgents/{}.plist", launchd_label()),
     )
 }
 
@@ -57,8 +63,16 @@ fn escape_xml(text: &str) -> String {
         .replace('"', "&quot;")
 }
 
-fn path_variable() -> String {
-    std::env::var("PATH").unwrap_or_default()
+/// The variables the service starts the agent with: the `PATH` it was installed from, so it finds
+/// the same Git, and the instance's name, so it reads that instance's files.
+fn service_environment() -> Vec<(&'static str, String)> {
+    let mut environment = vec![("PATH", std::env::var("PATH").unwrap_or_default())];
+
+    if let Some(name) = instance::current() {
+        environment.push((instance::VARIABLE, name));
+    }
+
+    environment
 }
 
 fn systemd_unit(command: &[String]) -> String {
@@ -66,16 +80,29 @@ fn systemd_unit(command: &[String]) -> String {
         .iter()
         .map(|argument| quote_systemd_argument(argument))
         .collect();
+    let environment: Vec<String> = service_environment()
+        .iter()
+        .map(|(name, value)| {
+            format!(
+                "Environment={}",
+                quote_systemd_argument(&format!("{name}={value}"))
+            )
+        })
+        .collect();
+    let description = match instance::current() {
+        Some(name) => format!("FleetFrog agent ({name})"),
+        None => "FleetFrog agent".to_string(),
+    };
 
     format!(
         "[Unit]
-Description=FleetFrog agent
+Description={description}
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 ExecStart={}
-Environment={}
+{}
 Restart=on-failure
 RestartSec=10
 # Stopping with SIGTERM lets running actions finish, after which the agent exits with 130.
@@ -85,18 +112,28 @@ SuccessExitStatus=130
 WantedBy=default.target
 ",
         exec_start.join(" "),
-        quote_systemd_argument(&format!("PATH={}", path_variable()))
+        environment.join("\n")
     )
 }
 
 fn launchd_plist(command: &[String]) -> String {
     let log_path = escape_xml(&paths::join(
         &paths::home(),
-        "Library/Logs/fleetfrog-agent.log",
+        &format!("Library/Logs/{}.log", instance::named("fleetfrog-agent")),
     ));
+    let label = launchd_label();
     let arguments: Vec<String> = command
         .iter()
         .map(|argument| format!("    <string>{}</string>", escape_xml(argument)))
+        .collect();
+    let environment: Vec<String> = service_environment()
+        .iter()
+        .map(|(name, value)| {
+            format!(
+                "    <key>{name}</key>\n    <string>{}</string>",
+                escape_xml(value)
+            )
+        })
         .collect();
 
     format!(
@@ -105,15 +142,14 @@ fn launchd_plist(command: &[String]) -> String {
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>{LAUNCHD_LABEL}</string>
+  <string>{label}</string>
   <key>ProgramArguments</key>
   <array>
 {}
   </array>
   <key>EnvironmentVariables</key>
   <dict>
-    <key>PATH</key>
-    <string>{}</string>
+{}
   </dict>
   <key>RunAtLoad</key>
   <true/>
@@ -130,7 +166,7 @@ fn launchd_plist(command: &[String]) -> String {
 </plist>
 "#,
         arguments.join("\n"),
-        escape_xml(&path_variable())
+        environment.join("\n")
     )
 }
 
@@ -187,11 +223,11 @@ pub async fn install() -> Result<String, ServiceError> {
     run("systemctl", &["--user", "daemon-reload"]).await?;
     run(
         "systemctl",
-        &["--user", "enable", "--now", SYSTEMD_UNIT_NAME],
+        &["--user", "enable", "--now", &systemd_unit_name()],
     )
     .await?;
     // Picks up a changed unit when the service was already running.
-    run("systemctl", &["--user", "restart", SYSTEMD_UNIT_NAME]).await?;
+    run("systemctl", &["--user", "restart", &systemd_unit_name()]).await?;
 
     Ok(unit)
 }
@@ -210,7 +246,7 @@ pub async fn uninstall() -> Result<String, ServiceError> {
 
     let _ = run(
         "systemctl",
-        &["--user", "disable", "--now", SYSTEMD_UNIT_NAME],
+        &["--user", "disable", "--now", &systemd_unit_name()],
     )
     .await;
     remove_file(&unit)?;

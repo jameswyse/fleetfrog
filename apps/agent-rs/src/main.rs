@@ -12,6 +12,7 @@ mod git;
 mod github;
 mod hub;
 mod inspect;
+mod instance;
 mod log;
 mod machine;
 mod output;
@@ -43,6 +44,10 @@ Commands:
   service uninstall       Stop the background agent and remove its service
   allow <tier>            Let the hub run a tier of actions here
   deny <tier>             Stop the hub from running a tier of actions here
+
+Environment:
+  FLEETFROG_INSTANCE  Run a second agent beside the default one, such as dev, with its own pairing,
+                      policy, action log and service. Use lowercase letters, digits and hyphens.
 
 Tiers:
   git      Git actions: fetch, pull (fast-forward only), clone into a project folder, switch branches and stash changes
@@ -453,6 +458,13 @@ fn github(arguments: &[String]) -> ExitCode {
 fn main() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     let rest = arguments.get(1..).unwrap_or_default();
+
+    if let Some(name) = instance::current().filter(|name| !instance::is_valid(name)) {
+        return report_failure(&format!(
+            "{} is \"{name}\", but an instance name can only use lowercase letters, digits and single hyphens, such as dev.",
+            instance::VARIABLE
+        ));
+    }
 
     match arguments.first().map(String::as_str) {
         Some("pair") => pair(rest),

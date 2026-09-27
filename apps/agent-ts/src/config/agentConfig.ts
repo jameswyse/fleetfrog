@@ -7,6 +7,8 @@ import { Effect, Option, Schema } from "effect";
 
 import { MachineId } from "@fleetfrog/protocol/domain/machine";
 
+import { instanceNamed } from "./agentInstance.ts";
+
 /** What pairing leaves behind: where the hub is, how to recognise it and how to prove who we are. */
 export const AgentConfig = Schema.Struct({
   agentUrl: Schema.String,
@@ -24,7 +26,10 @@ const encodeConfig = Schema.encodeSync(AgentConfigJson);
 export function configDirectory(): string {
   return (
     process.env.FLEETFROG_CONFIG_DIR ??
-    path.join(process.env.XDG_CONFIG_HOME ?? path.join(homedir(), ".config"), "fleetfrog")
+    path.join(
+      process.env.XDG_CONFIG_HOME ?? path.join(homedir(), ".config"),
+      instanceNamed("fleetfrog"),
+    )
   );
 }
 
