@@ -20,6 +20,9 @@ const loopbackHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
 // over plain HTTP on a LAN address.
 const clipboardAvailable = window.isSecureContext && "clipboard" in navigator;
 
+const installCommand =
+  "curl -fsSL https://github.com/jameswyse/fleetfrog/releases/latest/download/install.sh | sh";
+
 function agentUrl(offer: PairingOffer): string {
   return offer.endpoint._tag === "Url"
     ? offer.endpoint.url
@@ -35,6 +38,22 @@ type OfferState =
 type CopyOutcome =
   | { readonly _tag: "Copied"; readonly command: string }
   | { readonly _tag: "Failed"; readonly command: string };
+
+function CommandBox({ command }: { readonly command: string }) {
+  return (
+    <div className="rounded-md border border-line bg-canvas p-3">
+      <code className="block font-mono text-xs break-all select-all">{command}</code>
+    </div>
+  );
+}
+
+function CopyFailed() {
+  return (
+    <p role="alert" className="text-danger">
+      Couldn't copy the command. Select it and copy it yourself.
+    </p>
+  );
+}
 
 /** Creates a one-time pairing code and watches for the new machine to connect. */
 export function PairMachine() {
@@ -75,7 +94,18 @@ export function PairMachine() {
     knownMachines === null ? undefined : fleet?.machines.find(({ id }) => !knownMachines.has(id));
   const offer = state._tag === "Ready" ? state : null;
   const expired = offer !== null && DateTime.toEpochMillis(offer.offer.expiresAt) <= now;
-  const copy = copyOutcome !== null && copyOutcome.command === offer?.command ? copyOutcome : null;
+
+  const copyCommand = (command: string) => {
+    navigator.clipboard.writeText(command).then(
+      () => setCopyOutcome({ _tag: "Copied", command }),
+      () => setCopyOutcome({ _tag: "Failed", command }),
+    );
+  };
+
+  const copied = (command: string) =>
+    copyOutcome?._tag === "Copied" && copyOutcome.command === command;
+  const copyFailed = (command: string) =>
+    copyOutcome?._tag === "Failed" && copyOutcome.command === command;
 
   return (
     <SidebarPage title="Pair a machine" parents={[{ label: "Fleet", to: "/settings/fleet" }]}>
@@ -83,10 +113,21 @@ export function PairMachine() {
         <div className="space-y-4 px-5 py-5 text-sm">
           {paired === undefined && (
             <>
+              <p>Install the FleetFrog agent on the machine you want to add:</p>
+              <CommandBox command={installCommand} />
+              {clipboardAvailable && (
+                <Button onClick={() => copyCommand(installCommand)}>
+                  {copied(installCommand) ? "Copied" : "Copy install command"}
+                </Button>
+              )}
+              {copyFailed(installCommand) && <CopyFailed />}
               <p>
-                Install the FleetFrog agent on the machine you want to add, then run the command
-                below there. The code works once and expires after 10 minutes.
+                Then create a pairing code and run the command it shows on that machine. The code
+                works once and expires after 10 minutes.
               </p>
+              {!clipboardAvailable && (
+                <p className="text-ink-muted">Select a command to copy it.</p>
+              )}
               {offer === null && (
                 <form action={createOffer} className="space-y-3">
                   {state._tag === "Failed" && (
@@ -101,27 +142,11 @@ export function PairMachine() {
               )}
               {offer !== null && (
                 <>
-                  {!expired && (
-                    <div className="rounded-md border border-line bg-canvas p-3">
-                      <code className="block font-mono text-xs break-all select-all">
-                        {offer.command}
-                      </code>
-                    </div>
-                  )}
+                  {!expired && <CommandBox command={offer.command} />}
                   <div className="flex flex-wrap items-center gap-3">
                     {!expired && clipboardAvailable && (
-                      <Button
-                        tone="primary"
-                        onClick={() => {
-                          const { command } = offer;
-
-                          navigator.clipboard.writeText(command).then(
-                            () => setCopyOutcome({ _tag: "Copied", command }),
-                            () => setCopyOutcome({ _tag: "Failed", command }),
-                          );
-                        }}
-                      >
-                        {copy?._tag === "Copied" ? "Copied" : "Copy command"}
+                      <Button tone="primary" onClick={() => copyCommand(offer.command)}>
+                        {copied(offer.command) ? "Copied" : "Copy pairing command"}
                       </Button>
                     )}
                     <form action={createOffer}>
@@ -143,14 +168,7 @@ export function PairMachine() {
                       )}
                     </span>
                   </div>
-                  {!expired && !clipboardAvailable && (
-                    <p className="text-ink-muted">Select the command to copy it.</p>
-                  )}
-                  {copy?._tag === "Failed" && (
-                    <p role="alert" className="text-danger">
-                      Couldn't copy the command. Select it and copy it yourself.
-                    </p>
-                  )}
+                  {copyFailed(offer.command) && <CopyFailed />}
                   {offer.offer.endpoint._tag === "DashboardHost" &&
                     loopbackHosts.has(window.location.hostname) && (
                       <p className="rounded-md border border-changes/30 bg-changes-soft p-3 text-changes">

@@ -97,7 +97,7 @@
         "$TURBO_ROOT$/docs/**",
         "$TURBO_ROOT$/tools/**",
         "$TURBO_ROOT$/scripts/**",
-        "$TURBO_ROOT$/compose.yaml",
+        "$TURBO_ROOT$/compose*.yaml",
         "$TURBO_ROOT$/.github/**",
         "$TURBO_ROOT$/package.json",
         "$TURBO_ROOT$/pnpm-workspace.yaml",

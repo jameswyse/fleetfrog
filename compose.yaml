@@ -1,9 +1,9 @@
+# Runs the FleetFrog hub from its published image. Set FLEETFROG_VERSION to stay on a release line,
+# such as 0.1, and see README.md for the other settings. compose.build.yaml builds the image from
+# this checkout instead.
 services:
   hub:
-    build:
-      context: .
-      dockerfile: apps/hub/Dockerfile
-    image: fleetfrog-hub
+    image: ghcr.io/jameswyse/fleetfrog-hub:${FLEETFROG_VERSION:-latest}
     restart: unless-stopped
     ports:
       # The dashboard.

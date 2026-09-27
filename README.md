@@ -9,7 +9,7 @@ From the dashboard you can also fetch, pull and clone repositories on any machin
 The hub runs in Docker and serves the dashboard.
 
 ```sh
-docker compose up -d --build
+docker compose up -d
 ```
 
 Open `http://<hub-address>:7420`. Agents connect on port `7421` over TLS using a certificate the hub generates on first start. The database and certificate live in the `fleetfrog-data` volume.

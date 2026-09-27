@@ -1,0 +1,10 @@
+# Builds the hub image from this checkout instead of pulling the published one:
+#
+#   docker compose -f compose.yaml -f compose.build.yaml up -d --build
+services:
+  hub:
+    # Named apart from the published image, so a local build is never mistaken for a release.
+    image: fleetfrog-hub:local
+    build:
+      context: .
+      dockerfile: apps/hub/Dockerfile
