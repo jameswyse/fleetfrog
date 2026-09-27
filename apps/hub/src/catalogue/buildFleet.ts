@@ -138,6 +138,8 @@ export function buildFleet(sources: {
         status: statuses.get(path) ?? null,
       })),
       archiveFolder: record.archiveFolder,
+      archiveFolderStatus:
+        record.archiveFolder === null ? null : (statuses.get(record.archiveFolder) ?? null),
       lastDiscoveryAt: record.lastDiscoveryAt,
       lastStatusAt: record.lastStatusAt,
       pairedAt: record.pairedAt,

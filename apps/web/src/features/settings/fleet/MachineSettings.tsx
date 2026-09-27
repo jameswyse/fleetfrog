@@ -241,6 +241,17 @@ function ConfigurationSection({
               requestHub((client) => client.SetArchiveFolder({ machineId: machine.id, folder })),
             )
           }
+          createFolder={
+            // An agent that can't create folders, or isn't allowed to, gets no button to try.
+            machine.connection._tag === "Online" &&
+            machine.connection.capabilities.createsFolders &&
+            machine.connection.capabilities.allowedTiers.includes("cleanup")
+              ? (path) =>
+                  requestHub((client) =>
+                    client.CreateProjectFolder({ machineId: machine.id, path }),
+                  )
+              : null
+          }
         />
       </SettingsRow>
     </SettingsSection>

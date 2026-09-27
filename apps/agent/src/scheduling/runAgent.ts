@@ -223,6 +223,7 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
           createProjectFolder({
             path,
             roots: configuration?.discoveryRoots ?? [],
+            archiveFolder: configuration?.archiveFolder ?? null,
             home: info.homeDirectory,
             loadPolicy,
             audit: writeAuditEntry,

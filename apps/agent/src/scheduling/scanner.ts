@@ -25,7 +25,10 @@ const encodeCheckout = Schema.encodeSync(Schema.toCodecJson(Checkout));
 
 const epoch = DateTime.makeUnsafe(0);
 
-/** What is at each discovery folder, so the dashboard can point out a mistyped one. */
+/**
+ * What is at each discovery folder and the Archive folder, so the dashboard can point out a
+ * mistyped or missing one.
+ */
 function inspectRoots(roots: ReadonlyArray<string>) {
   return Effect.promise(() =>
     Promise.all(
@@ -180,7 +183,11 @@ export function makeScanner<ReportError>(options: {
         Effect.gen(function* () {
           const found = yield* discoverCheckouts(discovery);
           const checkouts = yield* readAll(found, discovery.githubMaximumAge);
-          const roots = yield* inspectRoots(discovery.roots);
+          const roots = yield* inspectRoots(
+            discovery.archiveFolder === null
+              ? discovery.roots
+              : [...discovery.roots, discovery.archiveFolder],
+          );
 
           yield* options.report(
             ScanReport.cases.Discovery.make({ checkouts, roots, completedAt: yield* DateTime.now }),

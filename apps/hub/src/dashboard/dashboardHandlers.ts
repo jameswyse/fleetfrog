@@ -72,10 +72,11 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
         Effect.gen(function* () {
           const machine = yield* machines.find(machineId);
 
-          // Only a folder the machine is set to search, which its agent also checks.
-          if (!machine.discoveryRoots.includes(path)) {
+          // Only a folder the machine is set to search, or its Archive folder, which its agent
+          // also checks.
+          if (!machine.discoveryRoots.includes(path) && machine.archiveFolder !== path) {
             return FolderOutcome.cases.Failed.make({
-              message: `${path} isn't one of ${machineLabel(machine)}'s project folders.`,
+              message: `${path} isn't one of ${machineLabel(machine)}'s project folders or its Archive folder.`,
             });
           }
 

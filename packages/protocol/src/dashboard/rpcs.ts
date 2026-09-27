@@ -94,7 +94,7 @@ export class DashboardRpcs extends RpcGroup.make(
     error: MachineNotFound,
   }),
   /**
-   * Asks the machine to create one of its project folders, for one it lacks. Any problem on the way,
+   * Asks the machine to create one of its project folders, or its Archive folder, for one it lacks. Any problem on the way,
    * such as the machine being offline, comes back as a failed outcome with its reason.
    */
   Rpc.make("CreateProjectFolder", {

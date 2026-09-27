@@ -10,7 +10,11 @@ import { createProjectFolder } from "./createProjectFolder.ts";
 import type { AuditEntry } from "../audit/auditLog.ts";
 import type { AgentPolicy } from "../config/agentPolicy.ts";
 
-const setUp = (options: { readonly roots: ReadonlyArray<string>; readonly policy?: AgentPolicy }) =>
+const setUp = (options: {
+  readonly roots: ReadonlyArray<string>;
+  readonly archiveFolder?: string;
+  readonly policy?: AgentPolicy;
+}) =>
   Effect.gen(function* () {
     const home = yield* temporaryDirectory("fleetfrog-folders-");
     const audit: Array<AuditEntry> = [];
@@ -18,6 +22,7 @@ const setUp = (options: { readonly roots: ReadonlyArray<string>; readonly policy
       createProjectFolder({
         path: folder,
         roots: options.roots,
+        archiveFolder: options.archiveFolder ?? null,
         home,
         loadPolicy: Effect.succeed(options.policy ?? { allowedTiers: ["git"] }),
         audit: (entry) => Effect.sync(() => audit.push(entry)),
@@ -73,6 +78,24 @@ describe("createProjectFolder", () => {
       writeFileSync(path.join(home, "Code"), "not a folder");
 
       expect(yield* create("~/Code")).toMatchObject({ _tag: "Failed" });
+    }),
+  );
+
+  it.effect("creates the Archive folder only when cleanup actions are allowed", () =>
+    Effect.gen(function* () {
+      const allowed = yield* setUp({
+        roots: ["~/Projects"],
+        archiveFolder: "~/Projects/Archive",
+        policy: { allowedTiers: ["git", "cleanup"] },
+      });
+
+      expect(yield* allowed.create("~/Projects/Archive")).toMatchObject({ _tag: "Created" });
+      expect(statSync(path.join(allowed.home, "Projects", "Archive")).isDirectory()).toBe(true);
+
+      const denied = yield* setUp({ roots: ["~/Projects"], archiveFolder: "~/Projects/Archive" });
+
+      expect(yield* denied.create("~/Projects/Archive")).toMatchObject({ _tag: "Failed" });
+      expect(existsSync(path.join(denied.home, "Projects", "Archive"))).toBe(false);
     }),
   );
 });

@@ -46,6 +46,7 @@ function machine(
     pairedAt: now,
     usage: null,
     archiveFolder: null,
+    archiveFolderStatus: null,
     trash: [],
   };
 }

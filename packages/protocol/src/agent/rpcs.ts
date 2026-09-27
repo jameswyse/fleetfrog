@@ -52,8 +52,9 @@ export const HubCommand = Schema.TaggedUnion({
   RunAction: { runId: RunId, request: ActionRequest },
   CancelAction: { runId: RunId },
   /**
-   * Creates one of the agent's project folders, answered by `ReportFolder` with the same request
-   * id. Sent only to agents that advertise `createsFolders`. The agent checks the path itself.
+   * Creates one of the agent's project folders or its Archive folder, answered by `ReportFolder`
+   * with the same request id. Sent only to agents that advertise `createsFolders`. The agent checks
+   * the path itself.
    */
   CreateFolder: { requestId: Schema.String, path: Schema.String },
   /**
@@ -77,7 +78,10 @@ export const ScanReport = Schema.TaggedUnion({
   /** A completed discovery walk. Replaces every checkout the hub holds for the machine. */
   Discovery: {
     checkouts: Schema.Array(Checkout),
-    /** What the walk found at each discovery folder. Absent from agents that predate it. */
+    /**
+     * What the walk found at each discovery folder and at the Archive folder. Absent from agents
+     * that predate it.
+     */
     roots: Schema.Array(ReportedRoot).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed([]))),
     completedAt: Schema.DateTimeUtc,
   },

@@ -22,7 +22,7 @@ export const FolderOutcome = Schema.TaggedUnion({
 });
 export type FolderOutcome = typeof FolderOutcome.Type;
 
-/** What the agent found at a discovery folder on its last walk. */
+/** What the agent found at a discovery folder, or the Archive folder, on its last walk. */
 export const FolderStatus = Schema.Literals(["Folder", "Missing", "NotFolder"]);
 export type FolderStatus = typeof FolderStatus.Type;
 
@@ -45,6 +45,8 @@ export const Machine = Schema.Struct({
   discoveryRoots: Schema.Array(DiscoveryRoot),
   /** Where archived checkouts go, which may start with `~`. Null while archiving is off. */
   archiveFolder: Schema.NullOr(Schema.String),
+  /** What the agent found at the Archive folder, or null before it looks or while none is set. */
+  archiveFolderStatus: Schema.NullOr(FolderStatus),
   /** Completion of the last discovery walk. Until then, absent repositories are unknown, not missing. */
   lastDiscoveryAt: Schema.NullOr(Schema.DateTimeUtc),
   lastStatusAt: Schema.NullOr(Schema.DateTimeUtc),
