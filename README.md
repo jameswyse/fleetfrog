@@ -24,18 +24,18 @@ Open `http://<hub-address>:7420`. Agents connect on port `7421` over TLS using a
 
 ## Add a machine
 
-The agent is not published to npm yet, so build it from this repository on each machine. It needs Node 26 and Git, and it uses the GitHub CLI for pull requests when `gh` is signed in.
+The agent is not published to npm yet, so build it from this repository on each machine. It needs Git and pnpm, which downloads the Node version the repository pins, and it uses the GitHub CLI for pull requests when `gh` is signed in. Install pnpm's standalone build rather than using Corepack, whose older releases can't start pnpm 12.
 
 ```sh
 pnpm install
 pnpm --filter fleetfrog build
 ```
 
-In the dashboard, open **Machines**, choose **Pair a machine** and create a pairing code. Run the command it shows on the new machine, replacing `fleetfrog` with `node apps/agent/dist/bin.mjs`:
+In the dashboard, open **Machines**, choose **Pair a machine** and create a pairing code. Run the command it shows on the new machine, replacing `fleetfrog` with `pnpm exec node apps/agent/dist/bin.mjs` so that it runs on the repository's Node:
 
 ```sh
-node apps/agent/dist/bin.mjs pair ffp1_…
-node apps/agent/dist/bin.mjs service install
+pnpm exec node apps/agent/dist/bin.mjs pair ffp1_…
+pnpm exec node apps/agent/dist/bin.mjs service install
 ```
 
 Pairing checks the hub's certificate against the fingerprint in the pairing string before sending anything. `service install` keeps the agent running as a systemd user service on Linux or a launchd agent on macOS. On Linux, run `loginctl enable-linger` to keep it running while you are logged out. `fleetfrog run` runs the agent in the foreground and `fleetfrog status` shows how it is paired.
