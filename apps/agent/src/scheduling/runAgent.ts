@@ -2,6 +2,7 @@ import { Clock, Duration, Effect, Fiber, FiberHandle, Option, Schema, Stream } f
 
 import { HubCommand, heartbeatSeconds } from "@fleetfrog/protocol/agent/rpcs";
 import { ActionKind } from "@fleetfrog/protocol/domain/action";
+import { InspectionResult } from "@fleetfrog/protocol/domain/trash";
 
 import { makeActionRunner } from "../actions/actionRunner.ts";
 import { writeAuditEntry } from "../audit/auditLog.ts";
@@ -9,13 +10,16 @@ import { loadAgentConfig } from "../config/agentConfig.ts";
 import { loadPolicy, policyPath } from "../config/agentPolicy.ts";
 import { makeHubClient } from "../connection/hubClient.ts";
 import { createProjectFolder } from "../folders/createProjectFolder.ts";
+import { inspectCheckout } from "../inspect/inspectCheckout.ts";
 import { readMachineInfo } from "../machine/machineInfo.ts";
 import { readSystemUsage } from "../machine/systemInfo.ts";
+import { defaultTrashDirectory } from "../trash/trashFolder.ts";
 import { makeScanner } from "./scanner.ts";
 
 import type { AgentCapabilities } from "@fleetfrog/protocol/domain/action";
 
 import type { AgentConfig } from "../config/agentConfig.ts";
+import type { CheckoutLocation } from "../git/readCheckout.ts";
 
 export class NotPaired extends Schema.TaggedError<NotPaired>()("NotPaired", {}) {}
 
@@ -59,12 +63,54 @@ const warnIfUnreadable = (capabilities: AgentCapabilities) =>
     ? Effect.void
     : Effect.logWarning(`The policy at ${policyPath()} can't be read, so no actions are allowed`);
 
+/**
+ * Inspects a checkout for the hub, if the owner allows cleanup actions, turning every problem into
+ * a failed result the dashboard can show.
+ */
+const inspectForHub = (path: string, locate: (path: string) => CheckoutLocation | undefined) =>
+  Effect.gen(function* () {
+    const allowed = yield* loadPolicy.pipe(
+      Effect.map(({ allowedTiers }) => allowedTiers.includes("cleanup")),
+      Effect.orElseSucceed(() => false),
+    );
+
+    if (!allowed) {
+      return InspectionResult.cases.Failed.make({
+        message: "Cleanup actions are turned off on this machine.",
+      });
+    }
+
+    const location = locate(path);
+
+    if (location === undefined) {
+      return InspectionResult.cases.Failed.make({
+        message: `This machine has no checkout at ${path}.`,
+      });
+    }
+
+    return yield* inspectCheckout(location).pipe(
+      Effect.map((inspection) => InspectionResult.cases.Inspected.make({ inspection })),
+      Effect.catchTag("CommandFailed", ({ message }) =>
+        Effect.succeed(InspectionResult.cases.Failed.make({ message })),
+      ),
+      Effect.catchDefect((defect) =>
+        Effect.succeed(
+          InspectionResult.cases.Failed.make({
+            message: `The agent hit an unexpected error: ${String(defect)}`,
+          }),
+        ),
+      ),
+    );
+  });
+
 /** One connection to the hub: follows its commands until the connection ends. */
 const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
   const { client, disconnected } = yield* makeHubClient(config);
   const info = yield* readMachineInfo;
+  const trashDirectory = defaultTrashDirectory();
   const scanner = makeScanner({
     githubLogin: info.githubCli._tag === "Available" ? info.githubCli.login : null,
+    trashDirectory,
     report: (report) => client.Report({ report }),
   });
   const timers = yield* FiberHandle.make();
@@ -79,6 +125,7 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
       roots: configuration?.discoveryRoots ?? [],
       archiveFolder: configuration?.archiveFolder ?? null,
     }),
+    trashDirectory,
     loadPolicy,
     report: (runId, update) => client.ReportAction({ runId, update }),
     audit: writeAuditEntry,
@@ -233,6 +280,16 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
             Effect.catchCause((cause) =>
               Effect.logWarning("Could not answer a folder request", cause),
             ),
+          ),
+        // An inspection fetches and measures, so it runs beside the commands that follow it.
+        Inspect: ({ requestId, path }) =>
+          inspectForHub(path, scanner.locate).pipe(
+            Effect.flatMap((result) => client.ReportInspection({ requestId, result })),
+            Effect.catchCause((cause) =>
+              Effect.logWarning("Could not answer an inspection", cause),
+            ),
+            Effect.forkIn(sessionScope),
+            Effect.asVoid,
           ),
       });
     }),

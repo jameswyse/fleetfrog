@@ -9,6 +9,7 @@ import {
   MachineKind,
   SystemUsage,
 } from "@fleetfrog/protocol/domain/machine";
+import { TrashedCheckout } from "@fleetfrog/protocol/domain/trash";
 
 import { JsonColumn } from "../persistence/database.ts";
 
@@ -25,6 +26,7 @@ const MachineRow = Schema.Struct({
   archive_folder: Schema.NullOr(Schema.String),
   root_statuses_json: JsonColumn(Schema.Array(ReportedRoot)),
   usage_json: Schema.NullOr(JsonColumn(SystemUsage)),
+  trash_json: JsonColumn(Schema.Array(TrashedCheckout)),
   paired_at: Timestamp,
   last_seen_at: Schema.NullOr(Timestamp),
   last_discovery_at: Schema.NullOr(Timestamp),
@@ -42,6 +44,8 @@ export interface MachineRecord {
   /** What the agent found at each folder on its last walk, which may predate the current list. */
   readonly rootStatuses: ReadonlyArray<ReportedRoot>;
   readonly usage: SystemUsage | null;
+  /** The checkouts in the machine's trash, as it last reported them. */
+  readonly trash: ReadonlyArray<TrashedCheckout>;
   readonly pairedAt: DateTime.Utc;
   readonly lastSeenAt: DateTime.Utc | null;
   readonly lastDiscoveryAt: DateTime.Utc | null;
@@ -53,6 +57,7 @@ const encodeInfo = Schema.encodeSync(JsonColumn(MachineInfo));
 const encodeRoots = Schema.encodeSync(JsonColumn(Schema.Array(Schema.String)));
 const encodeRootStatuses = Schema.encodeSync(JsonColumn(Schema.Array(ReportedRoot)));
 const encodeUsage = Schema.encodeSync(JsonColumn(SystemUsage));
+const encodeTrash = Schema.encodeSync(JsonColumn(Schema.Array(TrashedCheckout)));
 
 export class MachineStore extends Context.Service<
   MachineStore,
@@ -96,6 +101,10 @@ export class MachineStore extends Context.Service<
       readonly machineId: MachineId;
       readonly roots: ReadonlyArray<string>;
     }) => Effect.Effect<void, MachineNotFound>;
+    readonly recordTrash: (report: {
+      readonly machineId: MachineId;
+      readonly items: ReadonlyArray<TrashedCheckout>;
+    }) => Effect.Effect<void>;
     readonly setArchiveFolder: (update: {
       readonly machineId: MachineId;
       readonly folder: string | null;
@@ -120,6 +129,7 @@ export class MachineStore extends Context.Service<
               archiveFolder: row.archive_folder,
               rootStatuses: row.root_statuses_json,
               usage: row.usage_json,
+              trash: row.trash_json,
               pairedAt: row.paired_at,
               lastSeenAt: row.last_seen_at,
               lastDiscoveryAt: row.last_discovery_at,
@@ -216,6 +226,11 @@ export class MachineStore extends Context.Service<
           updateOne(
             machineId,
             sql`update machines set discovery_roots_json = ${encodeRoots(roots)} where id = ${machineId} returning id`,
+          ),
+        recordTrash: ({ machineId, items }) =>
+          sql`update machines set trash_json = ${encodeTrash(items)} where id = ${machineId}`.pipe(
+            Effect.orDie,
+            Effect.asVoid,
           ),
         setArchiveFolder: ({ machineId, folder }) =>
           updateOne(

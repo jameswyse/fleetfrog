@@ -11,6 +11,7 @@ import { ActionScope, BatchRequest } from "@fleetfrog/protocol/domain/activity";
 import { clonePath } from "@fleetfrog/protocol/domain/checkout";
 import { cloneSource, expandHome } from "@fleetfrog/protocol/domain/cloneDestination";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
+import { repositoryKey as keyOfRepository } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
 import type {
   ActionKind,
@@ -21,6 +22,7 @@ import type {
 import type { BatchScope, TargetedRun } from "@fleetfrog/protocol/domain/activity";
 import type { Fleet, Machine, MachineCheckout, Repository } from "@fleetfrog/protocol/domain/fleet";
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
+import type { TrashedCheckout } from "@fleetfrog/protocol/domain/trash";
 
 export interface PlannedRun {
   readonly machine: Machine;
@@ -41,6 +43,23 @@ export interface BatchPlan {
 type Target = { readonly repository: Repository; readonly entry: MachineCheckout };
 
 type PlanError = MachineNotFound | RepositoryNotFound | NothingToRun | NoCloneSource;
+
+/** What a targeted request names: a checkout by its path, or a checkout in the trash. */
+function targetOf(
+  targeted: TargetedRequest,
+):
+  | { readonly _tag: "Path"; readonly path: string }
+  | { readonly _tag: "Trashed"; readonly id: TrashedCheckout["id"] } {
+  if (targeted._tag !== "Restore" && targeted._tag !== "Purge") {
+    return { _tag: "Path", path: targeted.path };
+  }
+
+  const { target } = targeted;
+
+  return target._tag === "Checkout"
+    ? { _tag: "Trashed", id: target.id }
+    : { _tag: "Path", path: target.path };
+}
 
 /**
  * Expands a dashboard request into one run per target against the fleet as it is now. A fetch
@@ -145,35 +164,66 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
 
   /**
    * The checkouts a targeted request may act on. Only an archived checkout can be unarchived, and
-   * the trash covers both kinds. Every other action works on active checkouts.
+   * removing a checkout or acting on the trash covers both kinds. Every other action works on
+   * active checkouts.
    */
   const candidatesFor = (targeted: TargetedRequest): ReadonlyArray<Target> => {
     if (targeted._tag === "Unarchive") {
       return archivedTargets;
     }
 
-    return targeted._tag === "Restore" || targeted._tag === "Purge"
+    return ["Trash", "Delete", "Restore", "Purge"].includes(targeted._tag)
       ? [...allTargets, ...archivedTargets]
       : allTargets;
+  };
+
+  /**
+   * The repository a trashed checkout belongs to. One no longer anywhere else in the fleet stands
+   * alone, named after its folder.
+   */
+  const trashedRepository = (item: TrashedCheckout): Repository => {
+    const key = keyOfRepository(item.identity);
+
+    return (
+      [...fleet.repositories, ...fleet.archive].find((repository) => repository.key === key) ?? {
+        key,
+        identity: item.identity,
+        name: item.directoryName,
+        label: item.directoryName,
+        checkouts: [],
+      }
+    );
   };
 
   /** The repository and path a targeted request acts on, as the fleet knows them now. */
   const locate = (
     machineId: MachineId,
     targeted: TargetedRequest,
-  ): Effect.Effect<Pick<PlannedRun, "repository" | "path">, NothingToRun> => {
-    const path =
-      targeted._tag === "Restore" || targeted._tag === "Purge"
-        ? targeted.target.path
-        : targeted.path;
-    const found = candidatesFor(targeted).find(
-      ({ entry }) => entry.machineId === machineId && entry.checkout.path === path,
-    );
+  ): Effect.Effect<Pick<PlannedRun, "repository" | "path">, PlanError> =>
+    Effect.gen(function* () {
+      const target = targetOf(targeted);
 
-    return found === undefined
-      ? Effect.fail(new NothingToRun())
-      : Effect.succeed({ repository: found.repository, path: found.entry.checkout.path });
-  };
+      if (target._tag === "Trashed") {
+        const item = (yield* findMachine(machineId)).trash.find(({ id }) => id === target.id);
+
+        if (item === undefined) {
+          return yield* new NothingToRun();
+        }
+
+        return { repository: trashedRepository(item), path: item.originalPath };
+      }
+
+      const { path } = target;
+      const found = candidatesFor(targeted).find(
+        ({ entry }) => entry.machineId === machineId && entry.checkout.path === path,
+      );
+
+      if (found === undefined) {
+        return yield* new NothingToRun();
+      }
+
+      return { repository: found.repository, path: found.entry.checkout.path };
+    });
 
   /** One checkout's name when the batch has a single run, or the machine, or the whole fleet. */
   const targetedScope = (runs: ReadonlyArray<PlannedRun>): BatchScope => {

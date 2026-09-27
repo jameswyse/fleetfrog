@@ -5,6 +5,7 @@ import { Checkout } from "./checkout.ts";
 import { MachineId, MachineInfo, MachineKind, SystemUsage } from "./machine.ts";
 import { PollingSettings } from "./polling.ts";
 import { RepositoryIdentity, RepositoryKey } from "./repositoryIdentity.ts";
+import { TrashedCheckout } from "./trash.ts";
 
 export const Connection = Schema.TaggedUnion({
   Online: { since: Schema.DateTimeUtc, capabilities: AgentCapabilities },
@@ -50,6 +51,8 @@ export const Machine = Schema.Struct({
   pairedAt: Schema.DateTimeUtc,
   /** The latest disk and load readings, kept while the machine is offline. */
   usage: Schema.NullOr(SystemUsage),
+  /** Checkouts in the machine's trash, as it last reported them. */
+  trash: Schema.Array(TrashedCheckout),
 });
 export type Machine = typeof Machine.Type;
 

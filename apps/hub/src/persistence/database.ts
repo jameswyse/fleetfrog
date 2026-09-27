@@ -11,6 +11,7 @@ import machineUsage from "./migrations/0003_machine_usage.ts";
 import machineKind from "./migrations/0004_machine_kind.ts";
 import archiveFolder from "./migrations/0005_archive_folder.ts";
 import machineArchiveFolder from "./migrations/0006_machine_archive_folder.ts";
+import machineTrash from "./migrations/0007_machine_trash.ts";
 
 const client = Layer.unwrap(
   Effect.gen(function* () {
@@ -30,6 +31,7 @@ export const Migrations = SqliteMigrator.layer({
     "0004_machine_kind": machineKind,
     "0005_archive_folder": archiveFolder,
     "0006_machine_archive_folder": machineArchiveFolder,
+    "0007_machine_trash": machineTrash,
   }),
 });
 

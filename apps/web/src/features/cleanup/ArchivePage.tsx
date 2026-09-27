@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { Link } from "@tanstack/react-router";
 import { ArchiveIcon } from "lucide-react";
 
@@ -11,6 +13,8 @@ import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 import { describeActiveRunBriefly } from "../actions/actionCopy.ts";
 import { useStartBatch } from "../actions/useStartBatch.ts";
 import { planUnarchive } from "../archive/archiveAvailability.ts";
+import { trashBlocker } from "./trashAvailability.ts";
+import { TrashCheckoutDialog } from "./TrashCheckoutDialog.tsx";
 
 import type { ActionRun } from "@fleetfrog/protocol/domain/activity";
 import type { Checkout } from "@fleetfrog/protocol/domain/checkout";
@@ -42,8 +46,10 @@ function ArchivedRow({
   readonly run: ActionRun | undefined;
 }) {
   const { start, pending, failure } = useStartBatch();
+  const [trashing, setTrashing] = useState(false);
   const { repository, machine, checkout } = entry;
   const plan = planUnarchive({ machine, checkout });
+  const trashBlocked = trashBlocker(entry);
   const git = checkout.status._tag === "Read" ? checkout.status.git : null;
   const lastCommit = git?.lastCommit ?? null;
   const { placement } = checkout;
@@ -95,20 +101,37 @@ function ArchivedRow({
       {run === undefined && plan._tag === "Blocked" && (
         <span className="text-sm text-ink-muted">{plan.reason}</span>
       )}
-      {run === undefined && plan._tag === "Ready" && (
-        <Button
-          disabled={pending}
-          onClick={() =>
-            start({
-              _tag: "Targeted",
-              runs: [
-                { machineId: machine.id, request: { _tag: "Unarchive", path: checkout.path } },
-              ],
-            })
-          }
-        >
-          Unarchive
-        </Button>
+      {run === undefined && (
+        <div className="flex gap-2">
+          {plan._tag === "Ready" && (
+            <Button
+              disabled={pending}
+              onClick={() =>
+                start({
+                  _tag: "Targeted",
+                  runs: [
+                    { machineId: machine.id, request: { _tag: "Unarchive", path: checkout.path } },
+                  ],
+                })
+              }
+            >
+              Unarchive
+            </Button>
+          )}
+          {trashBlocked === null && (
+            <Button tone="quiet" onClick={() => setTrashing(true)}>
+              Move to the trash…
+            </Button>
+          )}
+        </div>
+      )}
+      {trashing && (
+        <TrashCheckoutDialog
+          label={repository.label}
+          machine={machine}
+          checkout={checkout}
+          onClose={() => setTrashing(false)}
+        />
       )}
     </li>
   );

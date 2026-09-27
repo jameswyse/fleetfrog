@@ -25,9 +25,11 @@ import {
   stashChanges,
   switchBranch,
 } from "./gitActions.ts";
+import { deleteCheckout, purgeCheckout, restoreCheckout, trashCheckout } from "./trashActions.ts";
 
 import type { Tier } from "@fleetfrog/protocol/domain/action";
 import type { RunId } from "@fleetfrog/protocol/domain/activity";
+import type { TrashId } from "@fleetfrog/protocol/domain/trash";
 
 import type { AuditEntry } from "../audit/auditLog.ts";
 import type { ConfigUnavailable } from "../config/agentConfig.ts";
@@ -46,6 +48,8 @@ interface CheckoutCatalogue {
   readonly rescanRepository: (commonDirectory: string) => Effect.Effect<void, unknown>;
   readonly track: (path: string) => Effect.Effect<void, unknown>;
   readonly forget: (path: string) => Effect.Effect<void, unknown>;
+  /** Sends the hub everything in the trash. */
+  readonly reportTrash: Effect.Effect<void, unknown>;
 }
 
 /** An action resolved against this machine: what it locks, how it runs and what to rescan after. */
@@ -74,6 +78,8 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
    * discovery folder and outside the Archive folder.
    */
   readonly folders: () => Omit<Folders, "home">;
+  /** Where trashed checkouts are kept. */
+  readonly trashDirectory: string;
   readonly loadPolicy: Effect.Effect<AgentPolicy, ConfigUnavailable>;
   readonly report: (runId: RunId, update: ActionUpdate) => Effect.Effect<void, unknown>;
   readonly audit: (entry: AuditEntry) => Effect.Effect<void>;
@@ -164,6 +170,49 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
     };
   };
 
+  /**
+   * An action that removes a checkout from where it is, archived or not. Afterwards the agent
+   * forgets its path and reports the trash, which may have gained it.
+   */
+  const removalPlan = (
+    path: string,
+    remove: (location: CheckoutLocation, output: ActionOutput) => Effect.Effect<ActionOutcome>,
+  ): Plan => {
+    const location = options.catalogue.locate(path);
+
+    return location === undefined
+      ? { _tag: "Refused", message: `This machine has no checkout at ${path}.` }
+      : {
+          _tag: "Ready",
+          lockKey: location.commonDirectory,
+          usesNetwork: false,
+          perform: (output) => remove(location, output),
+          afterwards: (outcome) =>
+            outcome._tag === "Succeeded"
+              ? options.catalogue.forget(path).pipe(Effect.andThen(options.catalogue.reportTrash))
+              : options.catalogue.rescanRepository(location.commonDirectory),
+        };
+  };
+
+  /** An action on a checkout in the trash, which reports the trash afterwards. */
+  const trashItemPlan = (
+    id: TrashId,
+    act: (trash: string, id: TrashId, output: ActionOutput) => Effect.Effect<ActionOutcome>,
+  ): Plan => ({
+    _tag: "Ready",
+    lockKey: `trash:${id}`,
+    usesNetwork: false,
+    perform: (output) => act(options.trashDirectory, id, output),
+    afterwards: (outcome) =>
+      outcome._tag === "Succeeded" &&
+      outcome.result._tag === "Restored" &&
+      outcome.result.path !== null
+        ? options.catalogue
+            .track(outcome.result.path)
+            .pipe(Effect.andThen(options.catalogue.reportTrash))
+        : options.catalogue.reportTrash,
+  });
+
   const plan = (request: ActionRequest): Plan =>
     ActionRequest.match(request, {
       Fetch: ({ path }) => checkoutPlan(path, true, fetchRepository),
@@ -175,15 +224,27 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
       Unarchive: ({ path }) => movePlan(path, "Archive", unarchiveCheckout),
       DeleteBranches: ({ path, branches }) =>
         checkoutPlan(path, false, (location, output) => deleteBranches(location, branches, output)),
+      Trash: ({ path, fingerprint, removeCaches }) =>
+        removalPlan(path, (location, output) =>
+          trashCheckout(
+            location,
+            { fingerprint, removeCaches, trash: options.trashDirectory },
+            output,
+          ),
+        ),
+      Delete: ({ path, fingerprint }) =>
+        removalPlan(path, (location, output) => deleteCheckout(location, fingerprint, output)),
       Restore: ({ target }) =>
         TrashTarget.match(target, {
           Branch: ({ path, ref }) =>
             checkoutPlan(path, false, (location, output) => restoreBranch(location, ref, output)),
+          Checkout: ({ id }) => trashItemPlan(id, restoreCheckout),
         }),
       Purge: ({ target }) =>
         TrashTarget.match(target, {
           Branch: ({ path, ref }) =>
             checkoutPlan(path, false, (location, output) => purgeBranch(location, ref, output)),
+          Checkout: ({ id }) => trashItemPlan(id, purgeCheckout),
         }),
       Clone: ({ url, destination }) => {
         const folders = options.folders();

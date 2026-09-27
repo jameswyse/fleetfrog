@@ -140,6 +140,7 @@ export function buildFleet(sources: {
       lastStatusAt: record.lastStatusAt,
       pairedAt: record.pairedAt,
       usage: record.usage,
+      trash: record.trash,
     };
   });
   // Labels tell apart every repository the fleet has, archived or not, so both lists agree.

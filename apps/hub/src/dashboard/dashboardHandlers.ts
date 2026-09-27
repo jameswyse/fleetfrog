@@ -12,6 +12,7 @@ import { ActionDispatcher } from "../actions/actionDispatcher.ts";
 import { ActivityFeed } from "../activity/activityFeed.ts";
 import { AgentSessions } from "../agents/agentSessions.ts";
 import { FolderRequests } from "../agents/folderRequests.ts";
+import { InspectionRequests } from "../agents/inspectionRequests.ts";
 import { FleetFeed } from "../catalogue/fleetFeed.ts";
 import { MachineStore } from "../machines/machineStore.ts";
 import { PairingOffers } from "../pairing/pairingOffers.ts";
@@ -29,6 +30,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
     const dispatcher = yield* ActionDispatcher;
     const activity = yield* ActivityFeed;
     const folders = yield* FolderRequests;
+    const inspections = yield* InspectionRequests;
 
     return {
       WatchFleet: () => Stream.unwrap(presence.watch.pipe(Effect.as(feed.watch))),
@@ -90,6 +92,8 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
 
           return outcome;
         }),
+      InspectCheckout: ({ machineId, path }) =>
+        machines.find(machineId).pipe(Effect.andThen(inspections.inspect(machineId, path))),
       RemoveMachine: ({ machineId }) =>
         Effect.gen(function* () {
           const machine = yield* machines.find(machineId);

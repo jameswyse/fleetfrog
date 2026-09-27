@@ -388,7 +388,7 @@ export const restoreBranch = Effect.fn("restoreBranch")(
       onOutput: output.write,
     });
 
-    return succeeded(ActionResult.cases.Restored.make({}));
+    return succeeded(ActionResult.cases.Restored.make({ path: null }));
   },
   Effect.catchTag("CommandFailed", failedWith),
 );

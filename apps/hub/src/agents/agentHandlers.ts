@@ -8,6 +8,7 @@ import { FleetFeed } from "../catalogue/fleetFeed.ts";
 import { MachineStore } from "../machines/machineStore.ts";
 import { AgentSessions } from "./agentSessions.ts";
 import { FolderRequests } from "./folderRequests.ts";
+import { InspectionRequests } from "./inspectionRequests.ts";
 
 export const AgentHandlers = AgentRpcs.toLayer(
   Effect.gen(function* () {
@@ -17,6 +18,7 @@ export const AgentHandlers = AgentRpcs.toLayer(
     const feed = yield* FleetFeed;
     const dispatcher = yield* ActionDispatcher;
     const folders = yield* FolderRequests;
+    const inspections = yield* InspectionRequests;
 
     return {
       Connect: ({ info, capabilities }) =>
@@ -44,6 +46,7 @@ export const AgentHandlers = AgentRpcs.toLayer(
                     machines.recordScan({ machineId: id, kind: "discovery", completedAt }),
                   ),
                 ),
+            Trash: ({ items }) => machines.recordTrash({ machineId: id, items }),
             Status: ({ changed, removedPaths, completedAt }) =>
               checkouts
                 .apply({ machineId: id, changed, removedPaths })
@@ -66,6 +69,8 @@ export const AgentHandlers = AgentRpcs.toLayer(
         CurrentMachine.use(({ id }) => dispatcher.receive({ machineId: id, runId, update })),
       ReportFolder: ({ requestId, outcome }) =>
         CurrentMachine.use(({ id }) => folders.answer({ machineId: id, requestId, outcome })),
+      ReportInspection: ({ requestId, result }) =>
+        CurrentMachine.use(({ id }) => inspections.answer({ machineId: id, requestId, result })),
     };
   }),
 );

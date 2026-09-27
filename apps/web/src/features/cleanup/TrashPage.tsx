@@ -1,10 +1,11 @@
 import { useState } from "react";
 
-import { GitBranchIcon } from "lucide-react";
+import { FolderGit2Icon, GitBranchIcon } from "lucide-react";
 
 import { knownFleet, useHub, useRuns } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
 import { Dialog } from "@/ui/Dialog.tsx";
+import { formatBytes } from "@/ui/formatBytes.ts";
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
 import { plural } from "@/ui/plural.ts";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
@@ -14,16 +15,11 @@ import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 import { machineBlocker } from "../actions/actionAvailability.ts";
 import { describeActiveRunBriefly } from "../actions/actionCopy.ts";
 import { useStartBatch } from "../actions/useStartBatch.ts";
-import { trashEntries } from "./trashEntries.ts";
+import { sameTarget, trashEntries } from "./trashEntries.ts";
 
-import type { TrashTarget } from "@fleetfrog/protocol/domain/action";
 import type { ActionRun, TargetedRun } from "@fleetfrog/protocol/domain/activity";
 
 import type { TrashEntry } from "./trashEntries.ts";
-
-function sameTarget(left: TrashTarget, right: TrashTarget): boolean {
-  return left.path === right.path && left.ref === right.ref;
-}
 
 /** The queued or running restore or purge of an entry. */
 function activeRunOn(active: ReadonlyArray<ActionRun>, entry: TrashEntry): ActionRun | undefined {
@@ -42,6 +38,11 @@ function purgeRuns(entries: ReadonlyArray<TrashEntry>): ReadonlyArray<TargetedRu
   }));
 }
 
+/** What an entry is called in sentences, such as the branch or folder name. */
+function entryName(entry: TrashEntry): string {
+  return entry.item._tag === "Branch" ? entry.item.branch.name : entry.item.checkout.directoryName;
+}
+
 /** Confirms permanently deleting entries, which can't be undone. */
 function PurgeDialog({
   entries,
@@ -54,21 +55,26 @@ function PurgeDialog({
   const [first, ...rest] = purgeRuns(entries);
   const only = entries.length === 1 ? entries[0] : undefined;
   const confirmLabel = only === undefined ? "Empty the trash" : "Delete permanently";
+  const checkoutBytes = entries.reduce(
+    (total, { item }) => total + (item._tag === "Checkout" ? item.checkout.sizeBytes : 0),
+    0,
+  );
+  const hasBranches = entries.some(({ item }) => item._tag === "Branch");
 
   return (
     <Dialog
-      title={
-        only === undefined ? `Empty the trash?` : `Permanently delete ${only.item.branch.name}?`
-      }
+      title={only === undefined ? "Empty the trash?" : `Permanently delete ${entryName(only)}?`}
       onClose={onClose}
     >
       <div className="space-y-4 text-sm">
         <p>
           {only === undefined
             ? `${plural(entries.length, "item")} will be deleted permanently.`
-            : `${only.item.branch.name} will be deleted permanently from ${only.repository.label} on ${machineLabel(only.machine)}.`}{" "}
-          Commits that no other branch holds are then removed when Git next cleans up the
-          repository. This can't be undone.
+            : `${entryName(only)} will be deleted permanently from ${machineLabel(only.machine)}.`}{" "}
+          {checkoutBytes > 0 && `That frees ${formatBytes(checkoutBytes)} of checkouts. `}
+          {hasBranches &&
+            "Commits that no other branch holds are removed when Git next cleans up the repository. "}
+          This can't be undone.
         </p>
         <p role="status" className="text-danger">
           {failure}
@@ -92,6 +98,57 @@ function PurgeDialog({
   );
 }
 
+/** What the row says about the entry under its name. */
+function EntryDetails({ entry }: { readonly entry: TrashEntry }) {
+  const { item } = entry;
+  const where = (
+    <>
+      <MachineKindIcon kind={machineKind(entry.machine)} />
+      <span>{machineLabel(entry.machine)}</span>
+      <span aria-hidden="true">·</span>
+      <span>
+        deleted <RelativeTime at={entry.deletedAt} />
+      </span>
+    </>
+  );
+
+  if (item._tag === "Branch") {
+    return (
+      <>
+        <p className="font-mono text-[13px] break-all">{item.branch.name}</p>
+        <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-ink-muted">
+          <span>Branch in {entry.repositoryLabel} on</span>
+          {where}
+        </p>
+        <p className="truncate text-xs text-ink-muted">
+          {item.branch.sha.slice(0, 7)} {item.branch.subject}
+        </p>
+      </>
+    );
+  }
+
+  const { checkout } = item;
+
+  return (
+    <>
+      <p className="text-sm font-medium">{entry.repositoryLabel}</p>
+      <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-ink-muted">
+        <span>Checkout on</span>
+        {where}
+        <span aria-hidden="true">·</span>
+        <span>{formatBytes(checkout.sizeBytes)}</span>
+      </p>
+      <p className="font-mono text-xs break-all text-ink-muted">{checkout.originalPath}</p>
+      {checkout.lastCommit !== null && (
+        <p className="truncate text-xs text-ink-muted">
+          {checkout.branch !== null && <span className="font-mono">{checkout.branch}</span>}{" "}
+          {checkout.lastCommit.subject}
+        </p>
+      )}
+    </>
+  );
+}
+
 function TrashRow({
   entry,
   run,
@@ -103,25 +160,13 @@ function TrashRow({
 }) {
   const { start, pending, failure } = useStartBatch();
   const blocked = machineBlocker(entry.machine, "Restore");
-  const { branch } = entry.item;
+  const Icon = entry.item._tag === "Branch" ? GitBranchIcon : FolderGit2Icon;
 
   return (
     <li className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-      <GitBranchIcon className="shrink-0 text-ink-muted" />
+      <Icon className="shrink-0 text-ink-muted" />
       <div className="min-w-0 flex-1">
-        <p className="font-mono text-[13px] break-all">{branch.name}</p>
-        <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-ink-muted">
-          <span>Branch in {entry.repository.label} on</span>
-          <MachineKindIcon kind={machineKind(entry.machine)} />
-          <span>{machineLabel(entry.machine)}</span>
-          <span aria-hidden="true">·</span>
-          <span>
-            deleted <RelativeTime at={entry.deletedAt} />
-          </span>
-        </p>
-        <p className="truncate text-xs text-ink-muted">
-          {branch.sha.slice(0, 7)} {branch.subject}
-        </p>
+        <EntryDetails entry={entry} />
         {failure !== null && (
           <p role="status" className="text-xs text-danger">
             {failure}
@@ -181,8 +226,8 @@ export function TrashPage() {
       }
     >
       <p className="max-w-prose text-sm text-ink-muted">
-        Branches FleetFrog deleted stay here until you empty the trash. Restoring one puts it back
-        where it was.
+        Checkouts and branches FleetFrog deleted stay here until you empty the trash. Restoring one
+        puts it back where it was.
       </p>
       {fleet === null && (
         <p className="py-16 text-center text-sm text-ink-muted">Waiting for the hub…</p>
@@ -190,7 +235,9 @@ export function TrashPage() {
       {fleet !== null && entries.length === 0 && (
         <div className="rounded-xl border border-dashed border-line px-6 py-10 text-center text-sm">
           <p className="font-medium">The trash is empty</p>
-          <p className="mt-1 text-ink-muted">Branches you delete with Tidy branches appear here.</p>
+          <p className="mt-1 text-ink-muted">
+            Checkouts you move to the trash and branches you tidy away appear here.
+          </p>
         </div>
       )}
       {entries.length > 0 && (

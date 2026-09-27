@@ -33,6 +33,7 @@ function machine(id: MachineId, hostname: string): MachineRecord {
     rootStatuses: [{ path: "~/Projects", status: "Folder" }],
     usage: null,
     archiveFolder: null,
+    trash: [],
     pairedAt,
     lastSeenAt: null,
     lastDiscoveryAt: null,

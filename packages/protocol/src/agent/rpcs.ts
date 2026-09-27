@@ -11,6 +11,7 @@ import { RunId } from "../domain/activity.ts";
 import { Checkout } from "../domain/checkout.ts";
 import { FolderOutcome, FolderStatus } from "../domain/fleet.ts";
 import { MachineInfo, SystemUsage } from "../domain/machine.ts";
+import { InspectionResult, TrashedCheckout } from "../domain/trash.ts";
 
 import type { MachineId } from "../domain/machine.ts";
 
@@ -55,6 +56,11 @@ export const HubCommand = Schema.TaggedUnion({
    * id. Sent only to agents that advertise `createsFolders`. The agent checks the path itself.
    */
   CreateFolder: { requestId: Schema.String, path: Schema.String },
+  /**
+   * Inspects a checkout before it is trashed or deleted, answered by `ReportInspection` with the
+   * same request id. Sent only to agents that advertise the `Trash` action.
+   */
+  Inspect: { requestId: Schema.String, path: Schema.String },
 });
 export type HubCommand = typeof HubCommand.Type;
 
@@ -75,6 +81,8 @@ export const ScanReport = Schema.TaggedUnion({
     roots: Schema.Array(ReportedRoot).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed([]))),
     completedAt: Schema.DateTimeUtc,
   },
+  /** Everything in the machine's trash. Replaces what the hub holds. */
+  Trash: { items: Schema.Array(TrashedCheckout) },
   /** A status pass. Carries only checkouts that changed or disappeared since the last report. */
   Status: {
     changed: Schema.Array(Checkout),
@@ -99,6 +107,10 @@ export class AgentRpcs extends RpcGroup.make(
   /** Answers a `CreateFolder` command. */
   Rpc.make("ReportFolder", { payload: { requestId: Schema.String, outcome: FolderOutcome } }),
   Rpc.make("ReportUsage", { payload: { usage: SystemUsage } }),
+  /** Answers an `Inspect` command. */
+  Rpc.make("ReportInspection", {
+    payload: { requestId: Schema.String, result: InspectionResult },
+  }),
   /**
    * Sent every `heartbeatSeconds`. The hub ends a connection that goes quiet, because a sleeping or
    * disconnected machine never closes its socket.

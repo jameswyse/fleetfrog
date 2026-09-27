@@ -14,6 +14,7 @@ import { Fleet, FolderOutcome } from "../domain/fleet.ts";
 import { MachineId, MachineKind } from "../domain/machine.ts";
 import { PollingSettings } from "../domain/polling.ts";
 import { RepositoryKey } from "../domain/repositoryIdentity.ts";
+import { InspectionResult } from "../domain/trash.ts";
 
 export class MachineNotFound extends Schema.TaggedError<MachineNotFound>()("MachineNotFound", {
   machineId: MachineId,
@@ -102,6 +103,15 @@ export class DashboardRpcs extends RpcGroup.make(
     error: MachineNotFound,
   }),
   Rpc.make("RemoveMachine", { payload: { machineId: MachineId }, error: MachineNotFound }),
+  /**
+   * Asks the machine what deleting one of its checkouts would lose. It fetches first, so it can
+   * take a while. Any problem on the way comes back as a failed result with its reason.
+   */
+  Rpc.make("InspectCheckout", {
+    payload: { machineId: MachineId, path: Schema.String },
+    success: InspectionResult,
+    error: MachineNotFound,
+  }),
   Rpc.make("UpdatePolling", { payload: { polling: PollingSettings } }),
   /** A null folder turns archiving off. Checkouts already in the old folder stay where they are. */
   Rpc.make("SetArchiveFolder", {

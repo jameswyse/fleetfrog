@@ -9,7 +9,7 @@ import { isWithin } from "@fleetfrog/protocol/domain/cloneDestination";
 
 import { removeArchiveRecord, writeArchiveRecord } from "../archive/archiveRecord.ts";
 import { archivePath } from "../discovery/discoverCheckouts.ts";
-import { runGit } from "../process/runTool.ts";
+import { countLinkedWorktrees } from "../inspect/inspectCheckout.ts";
 
 import type { CheckoutLocation } from "../git/readCheckout.ts";
 import type { ActionOutput } from "./actionOutput.ts";
@@ -39,7 +39,7 @@ type MoveResult =
  * Moves a checkout's folder, creating the folders above its new place. The move is a rename, so it
  * happens at once or not at all, and only within one disk.
  */
-const moveFolder = (from: string, to: string) =>
+export const moveFolder = (from: string, to: string) =>
   Effect.promise(async (): Promise<MoveResult> => {
     const taken = await lstat(to).then(
       () => true,
@@ -66,24 +66,13 @@ const moveFolder = (from: string, to: string) =>
   });
 
 /** The outcome of a move that didn't happen, or null when it did. */
-function unmoved(result: MoveResult, destination: string): ActionOutcome | null {
+export function unmoved(result: MoveResult, destination: string): ActionOutcome | null {
   if (result._tag === "Taken") {
     return skipped(SkipReason.cases.DestinationTaken.make({ path: destination }));
   }
 
   return result._tag === "Failed" ? failed(result.message) : null;
 }
-
-/** Linked worktrees of the repository that still exist, which a move would break. */
-const linkedWorktrees = (location: CheckoutLocation) =>
-  runGit(location.path, ["worktree", "list", "--porcelain"]).pipe(
-    Effect.map(
-      (output) =>
-        output
-          .split("\n\n")
-          .filter((record) => record.trim() !== "" && !record.includes("\nprunable")).length - 1,
-    ),
-  );
 
 /**
  * Moves a checkout into the Archive folder, at the same path below it as it had below its project
@@ -106,7 +95,7 @@ export const archiveCheckout = Effect.fn("archiveCheckout")(
       return failed("This checkout keeps its Git directory elsewhere, so it can't move safely.");
     }
 
-    const worktrees = yield* linkedWorktrees(location);
+    const worktrees = yield* countLinkedWorktrees(location);
 
     if (worktrees > 0) {
       return skipped(SkipReason.cases.HasWorktrees.make({ count: worktrees }));

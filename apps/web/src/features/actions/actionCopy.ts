@@ -1,3 +1,4 @@
+import { formatBytes } from "@/ui/formatBytes.ts";
 import { plural } from "@/ui/plural.ts";
 import {
   ActionOutcome,
@@ -26,6 +27,8 @@ const batchVerbs = {
   DeleteBranches: "Delete branches in",
   Archive: "Archive",
   Unarchive: "Unarchive",
+  Trash: "Trash",
+  Delete: "Permanently delete",
   Restore: "Restore from the trash in",
   Purge: "Permanently delete from",
 } satisfies Record<ActionKind, string>;
@@ -81,6 +84,8 @@ export function describeSkip(reason: SkipReason): string {
       `It has ${plural(count, "linked worktree")}, which moving it would break`,
     IsWorktree: () => "It's a linked worktree, which moves with its main checkout",
     DestinationTaken: ({ path }) => `Something is already at ${path}`,
+    ChangedSinceInspection: () => "It changed after it was checked, so it was left alone",
+    UniqueWork: () => "It has work that exists only on this machine",
     NotAllowed: ({ tier }) => `${tierNames[tier]} actions are turned off on this machine`,
     AgentOutdated: () => "The agent needs updating",
   });
@@ -98,7 +103,12 @@ function describeResult(result: ActionResult): string {
       `Moved ${plural(branches, "branch", "branches")} to the trash`,
     Archived: ({ path }) => `Archived to ${path}`,
     Unarchived: ({ path }) => `Moved back to ${path}`,
-    Restored: () => "Restored",
+    Trashed: ({ freedBytes }) =>
+      freedBytes > 0
+        ? `Moved to the trash, after removing ${formatBytes(freedBytes)} of caches`
+        : "Moved to the trash",
+    Deleted: () => "Permanently deleted",
+    Restored: ({ path }) => (path === null ? "Restored" : `Restored to ${path}`),
     Purged: () => "Permanently deleted",
   });
 }
@@ -173,6 +183,8 @@ const activeVerbs = {
   DeleteBranches: "Deleting branches",
   Archive: "Archiving",
   Unarchive: "Unarchiving",
+  Trash: "Moving to the trash",
+  Delete: "Deleting",
   Restore: "Restoring",
   Purge: "Deleting permanently",
 } satisfies Record<ActionKind, string>;
@@ -186,6 +198,8 @@ const waitingVerbs = {
   DeleteBranches: "delete branches",
   Archive: "archive",
   Unarchive: "unarchive",
+  Trash: "move to the trash",
+  Delete: "delete",
   Restore: "restore",
   Purge: "delete permanently",
 } satisfies Record<ActionKind, string>;

@@ -1,7 +1,7 @@
 import { useState, useTransition } from "react";
 
 import { Link } from "@tanstack/react-router";
-import { ArchiveIcon } from "lucide-react";
+import { ArchiveIcon, Trash2Icon } from "lucide-react";
 
 import { requestHub, useRuns } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
@@ -18,6 +18,8 @@ import { StashDialog } from "../../actions/StashDialog.tsx";
 import { useStartBatch } from "../../actions/useStartBatch.ts";
 import { planArchive } from "../../archive/archiveAvailability.ts";
 import { ArchiveDialog } from "../../archive/ArchiveDialog.tsx";
+import { trashBlocker } from "../../cleanup/trashAvailability.ts";
+import { TrashCheckoutDialog } from "../../cleanup/TrashCheckoutDialog.tsx";
 
 import type { Checkout } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
@@ -35,7 +37,7 @@ export function CheckoutActions({
   readonly machine: Machine;
   readonly checkout: Checkout;
 }) {
-  const [dialog, setDialog] = useState<"stash" | "archive" | null>(null);
+  const [dialog, setDialog] = useState<"stash" | "archive" | "trash" | null>(null);
   const runs = useRuns();
   const { start, pending, failure } = useStartBatch();
   const [cancelling, startCancel] = useTransition();
@@ -47,6 +49,7 @@ export function CheckoutActions({
   const hasChanges = git !== null && git.changed.total + git.untracked.total > 0;
   const stashBlocked = stashSkipReason(machine, checkout);
   const archive = planArchive({ repository, machine, checkout });
+  const trashBlocked = trashBlocker({ repository, machine, checkout });
   const scope = { _tag: "Checkout", machineId: machine.id, path: checkout.path } as const;
   const shown = active ?? latest;
 
@@ -99,6 +102,19 @@ export function CheckoutActions({
               {archive._tag === "Blocked" && (
                 <p className="px-3 pb-2 text-xs text-ink-muted">{archive.reason}.</p>
               )}
+              <MenuItem
+                icon={<Trash2Icon />}
+                disabled={trashBlocked !== null || active !== undefined}
+                onClick={() => {
+                  close();
+                  setDialog("trash");
+                }}
+              >
+                Move to the trash…
+              </MenuItem>
+              {trashBlocked !== null && (
+                <p className="px-3 pb-2 text-xs text-ink-muted">{trashBlocked}.</p>
+              )}
             </>
           )}
         </Menu>
@@ -150,6 +166,14 @@ export function CheckoutActions({
           machine={machine}
           checkout={checkout}
           git={git}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog === "trash" && (
+        <TrashCheckoutDialog
+          label={repository.label}
+          machine={machine}
+          checkout={checkout}
           onClose={() => setDialog(null)}
         />
       )}

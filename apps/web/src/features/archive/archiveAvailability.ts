@@ -15,6 +15,20 @@ function roots(machine: Machine): ReadonlyArray<string> {
   return machine.discoveryRoots.map(({ path }) => path);
 }
 
+/** How many linked worktrees on the machine belong to the checkout, which a move would break. */
+export function linkedWorktreeCount(options: {
+  readonly repository: Repository;
+  readonly machine: Machine;
+  readonly checkout: Checkout;
+}): number {
+  return options.repository.checkouts.filter(
+    (entry) =>
+      entry.machineId === options.machine.id &&
+      entry.checkout.worktree._tag === "Linked" &&
+      clonePath(entry.checkout) === options.checkout.path,
+  ).length;
+}
+
 /** Where archiving the checkout would move it, or why it can't be archived, as last scanned. */
 export function planArchive(options: {
   readonly repository: Repository;
@@ -39,12 +53,7 @@ export function planArchive(options: {
     };
   }
 
-  const worktrees = options.repository.checkouts.filter(
-    (entry) =>
-      entry.machineId === machine.id &&
-      entry.checkout.worktree._tag === "Linked" &&
-      clonePath(entry.checkout) === checkout.path,
-  ).length;
+  const worktrees = linkedWorktreeCount(options);
 
   if (worktrees > 0) {
     return {

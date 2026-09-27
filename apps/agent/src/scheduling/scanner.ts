@@ -14,6 +14,7 @@ import {
 } from "../discovery/discoverCheckouts.ts";
 import { locateCheckout, readGitStatus } from "../git/readCheckout.ts";
 import { makeGithubReader } from "../github/githubReader.ts";
+import { listTrash } from "../trash/trashFolder.ts";
 
 import type { ReportedRoot } from "@fleetfrog/protocol/agent/rpcs";
 
@@ -59,6 +60,8 @@ function contentKey(checkout: Checkout): string {
 export function makeScanner<ReportError>(options: {
   /** The GitHub CLI's signed-in user, or `null` when GitHub state is unavailable. */
   readonly githubLogin: string | null;
+  /** Where trashed checkouts are kept. */
+  readonly trashDirectory: string;
   readonly report: (report: ScanReport) => Effect.Effect<void, ReportError>;
 }) {
   const readGithub =
@@ -156,7 +159,13 @@ export function makeScanner<ReportError>(options: {
       }
     });
 
+  const reportTrash = listTrash(options.trashDirectory).pipe(
+    Effect.flatMap((items) => options.report(ScanReport.cases.Trash.make({ items }))),
+  );
+
   return {
+    reportTrash,
+
     /**
      * Walks the roots and the Archive folder, reads every checkout found and replaces the hub's
      * inventory.
@@ -176,6 +185,7 @@ export function makeScanner<ReportError>(options: {
           yield* options.report(
             ScanReport.cases.Discovery.make({ checkouts, roots, completedAt: yield* DateTime.now }),
           );
+          yield* reportTrash;
           locations = found;
           archive = archivePath(discovery);
           sent.clear();

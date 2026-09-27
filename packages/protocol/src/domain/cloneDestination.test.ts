@@ -40,6 +40,7 @@ function machine(options: {
     pairedAt: now,
     usage: null,
     archiveFolder: null,
+    trash: [],
   };
 }
 

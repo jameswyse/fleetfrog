@@ -1,15 +1,19 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { existsSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it } from "@effect/vitest";
 import { Deferred, Effect, Fiber, Option } from "effect";
 
 import { RunId } from "@fleetfrog/protocol/domain/activity";
+import { nothingUnique, TrashId } from "@fleetfrog/protocol/domain/trash";
 
 import { placeLocation } from "../discovery/discoverCheckouts.ts";
 import { locateCheckout } from "../git/readCheckout.ts";
+import { inspectCheckout } from "../inspect/inspectCheckout.ts";
 import { temporaryDirectory } from "../testing/temporaryDirectory.ts";
+import { listTrash } from "../trash/trashFolder.ts";
 import { makeActionOutput } from "./actionOutput.ts";
 import { makeActionRunner } from "./actionRunner.ts";
 import { unarchiveCheckout } from "./archiveActions.ts";
@@ -67,6 +71,7 @@ const makeHarness = Effect.fn("makeHarness")(function* (options: {
   readonly location: CheckoutLocation;
   readonly roots: ReadonlyArray<string>;
   readonly archiveFolder: string | null;
+  readonly trashDirectory: string;
   readonly policy: AgentPolicy;
 }) {
   const updates = new Map<RunId, Array<ActionUpdate>>();
@@ -104,8 +109,10 @@ const makeHarness = Effect.fn("makeHarness")(function* (options: {
         }),
       track: (trackedPath) => Effect.sync(() => tracked.push(trackedPath)),
       forget: () => Effect.void,
+      reportTrash: Effect.void,
     },
     folders: () => ({ roots: options.roots, archiveFolder: options.archiveFolder }),
+    trashDirectory: options.trashDirectory,
     loadPolicy: Effect.succeed(options.policy),
     report: (runId, update) =>
       Effect.sync(() => {
@@ -150,6 +157,7 @@ const setUp = (
       location: location.value,
       roots: [path.join(fixture.root, "projects")],
       archiveFolder: archiveFolder === null ? null : path.join(fixture.root, archiveFolder),
+      trashDirectory: path.join(fixture.root, "trash"),
       policy,
     });
 
@@ -448,6 +456,112 @@ describe("action runner", () => {
         outcome: { _tag: "Skipped", reason: { _tag: "HasWorktrees", count: 1 } },
       });
       expect(existsSync(clone)).toBe(true);
+    }),
+  );
+
+  it.effect("finds unpushed commits, stashes and ignored files, telling caches apart", () =>
+    Effect.gen(function* () {
+      const { clone } = yield* setUp();
+      const location = Option.getOrThrow(yield* locateCheckout(clone));
+
+      writeFileSync(path.join(clone, ".gitignore"), ".env\nnode_modules/\n");
+      git(clone, "add", ".gitignore");
+      git(clone, "commit", "-q", "-m", "Ignore things");
+      writeFileSync(path.join(clone, ".env"), "SECRET=1\n");
+      mkdirSync(path.join(clone, "node_modules", "left-pad"), { recursive: true });
+      writeFileSync(path.join(clone, "node_modules", "left-pad", "index.js"), "\n");
+
+      const inspection = yield* inspectCheckout(location);
+
+      expect(inspection.remote._tag).toBe("Fetched");
+      expect(inspection.unpushedCommits).toBe(1);
+      expect(inspection.unpushedBranches).toEqual([{ name: "main", commits: 1 }]);
+      expect(inspection.ignored.items.map(({ path: entry }) => entry)).toEqual([".env"]);
+      expect(inspection.caches.map(({ path: entry }) => entry)).toEqual(["node_modules/"]);
+      expect(nothingUnique(inspection)).toBe(false);
+    }),
+  );
+
+  it.effect("moves a checkout to the trash without its caches and restores it", () =>
+    Effect.gen(function* () {
+      const { run, clone, root } = yield* setUp({ allowedTiers: ["git", "cleanup"] });
+      const location = Option.getOrThrow(yield* locateCheckout(clone));
+
+      writeFileSync(path.join(clone, ".git", "info", "exclude"), "node_modules/\n");
+      mkdirSync(path.join(clone, "node_modules", "left-pad"), { recursive: true });
+      writeFileSync(path.join(clone, "node_modules", "left-pad", "index.js"), "\n");
+
+      const { fingerprint } = yield* inspectCheckout(location);
+
+      expect(
+        yield* run({ _tag: "Trash", path: clone, fingerprint, removeCaches: true }),
+      ).toMatchObject({ outcome: { _tag: "Succeeded", result: { _tag: "Trashed" } } });
+      expect(existsSync(clone)).toBe(false);
+
+      const [item] = yield* listTrash(path.join(root, "trash"));
+
+      expect(item?.originalPath).toBe(clone);
+      expect(existsSync(path.join(root, "trash", item?.id ?? "", "checkout", "node_modules"))).toBe(
+        false,
+      );
+      expect(
+        yield* run(
+          {
+            _tag: "Restore",
+            target: { _tag: "Checkout", id: item?.id ?? TrashId.make(randomUUID()) },
+          },
+          runIds.second,
+        ),
+      ).toMatchObject({
+        outcome: { _tag: "Succeeded", result: { _tag: "Restored", path: clone } },
+      });
+      expect(git(clone, "status", "--porcelain")).toBe("");
+      expect(yield* listTrash(path.join(root, "trash"))).toEqual([]);
+    }),
+  );
+
+  it.effect("leaves a checkout alone when it changed after it was inspected", () =>
+    Effect.gen(function* () {
+      const { run, clone } = yield* setUp({ allowedTiers: ["git", "cleanup"] });
+      const { fingerprint } = yield* inspectCheckout(
+        Option.getOrThrow(yield* locateCheckout(clone)),
+      );
+
+      writeFileSync(path.join(clone, "notes.txt"), "new work\n");
+
+      expect(
+        yield* run({ _tag: "Trash", path: clone, fingerprint, removeCaches: false }),
+      ).toMatchObject({
+        outcome: { _tag: "Skipped", reason: { _tag: "ChangedSinceInspection" } },
+      });
+      expect(existsSync(clone)).toBe(true);
+    }),
+  );
+
+  it.effect("deletes for good only a checkout whose work is all on its remote", () =>
+    Effect.gen(function* () {
+      const { run, clone } = yield* setUp({ allowedTiers: ["git", "cleanup"] });
+      const location = Option.getOrThrow(yield* locateCheckout(clone));
+
+      writeFileSync(path.join(clone, ".git", "info", "exclude"), ".env\n");
+      writeFileSync(path.join(clone, ".env"), "SECRET=1\n");
+
+      const withSecret = yield* inspectCheckout(location);
+
+      expect(
+        yield* run({ _tag: "Delete", path: clone, fingerprint: withSecret.fingerprint }),
+      ).toMatchObject({ outcome: { _tag: "Skipped", reason: { _tag: "UniqueWork" } } });
+      expect(existsSync(clone)).toBe(true);
+
+      rmSync(path.join(clone, ".env"));
+
+      const clean = yield* inspectCheckout(location);
+
+      expect(nothingUnique(clean)).toBe(true);
+      expect(
+        yield* run({ _tag: "Delete", path: clone, fingerprint: clean.fingerprint }, runIds.second),
+      ).toMatchObject({ outcome: { _tag: "Succeeded", result: { _tag: "Deleted" } } });
+      expect(existsSync(clone)).toBe(false);
     }),
   );
 });

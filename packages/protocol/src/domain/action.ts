@@ -2,6 +2,7 @@ import { Effect, Schema, SchemaGetter } from "effect";
 
 import { Operation } from "./checkout.ts";
 import { Count } from "./count.ts";
+import { TrashId } from "./trash.ts";
 
 /**
  * A group of actions that a machine's owner allows or denies on that machine, with
@@ -20,6 +21,7 @@ export type BranchAtCommit = typeof BranchAtCommit.Type;
 export const TrashTarget = Schema.TaggedUnion({
   /** A deleted branch, kept as `ref` in the repository of the checkout at `path`. */
   Branch: { path: Schema.String, ref: Schema.String },
+  Checkout: { id: TrashId },
 });
 export type TrashTarget = typeof TrashTarget.Type;
 
@@ -48,6 +50,16 @@ export const ActionRequest = Schema.TaggedUnion({
   Archive: { path: Schema.String },
   /** Moves the archived checkout at `path` back to where it was archived from. */
   Unarchive: { path: Schema.String },
+  /**
+   * Moves the checkout at `path` to the machine's trash, if it still matches the inspection that
+   * produced `fingerprint`. With `removeCaches`, dependency and build folders are deleted first.
+   */
+  Trash: { path: Schema.String, fingerprint: Schema.String, removeCaches: Schema.Boolean },
+  /**
+   * Deletes the checkout at `path` for good, only if it still matches `fingerprint` and a fresh
+   * inspection finds nothing that exists only here.
+   */
+  Delete: { path: Schema.String, fingerprint: Schema.String },
   /** Puts something back from the trash. */
   Restore: { target: TrashTarget },
   /** Deletes something in the trash for good. */
@@ -64,6 +76,8 @@ export const ActionKind = Schema.Literals([
   "DeleteBranches",
   "Archive",
   "Unarchive",
+  "Trash",
+  "Delete",
   "Restore",
   "Purge",
 ]);
@@ -78,6 +92,8 @@ export const actionTiers = {
   DeleteBranches: "cleanup",
   Archive: "cleanup",
   Unarchive: "cleanup",
+  Trash: "cleanup",
+  Delete: "cleanup",
   Restore: "cleanup",
   Purge: "cleanup",
 } as const satisfies Record<ActionRequest["_tag"], Tier>;
@@ -89,6 +105,8 @@ export const TargetedRequest = Schema.Union([
   ActionRequest.cases.DeleteBranches,
   ActionRequest.cases.Archive,
   ActionRequest.cases.Unarchive,
+  ActionRequest.cases.Trash,
+  ActionRequest.cases.Delete,
   ActionRequest.cases.Restore,
   ActionRequest.cases.Purge,
 ]);
@@ -160,6 +178,10 @@ export const SkipReason = Schema.TaggedUnion({
   IsWorktree: {},
   /** Something is already where the checkout would move to. */
   DestinationTaken: { path: Schema.String },
+  /** The checkout changed after it was inspected, so it was left alone. */
+  ChangedSinceInspection: {},
+  /** Deleting for good would lose work that exists only on this machine. */
+  UniqueWork: {},
   /** The machine's owner has not allowed the action's tier. */
   NotAllowed: { tier: Tier },
   /** The agent is too old to know the action. */
@@ -178,7 +200,15 @@ export const ActionResult = Schema.TaggedUnion({
   /** `path` is where the checkout is now. */
   Archived: { path: Schema.String },
   Unarchived: { path: Schema.String },
-  Restored: {},
+  /** `freedBytes` counts the caches removed before the move. */
+  Trashed: { freedBytes: Count },
+  Deleted: {},
+  /** `path` is where a restored checkout is now, and null for a restored branch. */
+  Restored: {
+    path: Schema.NullOr(Schema.String).pipe(
+      Schema.withDecodingDefaultTypeKey(Effect.succeed(null)),
+    ),
+  },
   Purged: {},
 });
 export type ActionResult = typeof ActionResult.Type;
