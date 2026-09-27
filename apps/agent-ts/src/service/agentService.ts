@@ -1,9 +1,16 @@
-import { existsSync, realpathSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  fstatSync,
+  ftruncateSync,
+  realpathSync,
+  statSync,
+} from "node:fs";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { homedir, userInfo } from "node:os";
 import path from "node:path";
 
-import { Effect, Schema } from "effect";
+import { Effect, Logger, Schema } from "effect";
 
 import { isMissingFile } from "../config/agentConfig.ts";
 import { currentInstance, instanceNamed, instanceVariable } from "../config/agentInstance.ts";
@@ -120,13 +127,44 @@ WantedBy=default.target
 `;
 }
 
+/** Where launchd writes the agent's output on macOS. On Linux the journal keeps it. */
+function launchdLogPath(): string {
+  return path.join(homedir(), "Library", "Logs", `${instanceNamed("fleetfrog-agent")}.log`);
+}
+
+/** At this size the launchd log moves to `<log>.1`, replacing the previous one. */
+const rotateLogAtBytes = 1024 * 1024;
+
+/**
+ * Rotates the launchd log once it is too big, when this process's output goes there. launchd has
+ * no rotation of its own and opens the log once, in append mode, so the agent keeps a copy and
+ * empties the file in place, and later lines start again at its beginning.
+ */
+function rotateLog(): void {
+  if (process.platform !== "darwin") {
+    return;
+  }
+
+  const logPath = launchdLogPath();
+
+  try {
+    const open = fstatSync(process.stdout.fd);
+    const stored = statSync(logPath);
+
+    if (open.dev === stored.dev && open.ino === stored.ino && stored.size >= rotateLogAtBytes) {
+      copyFileSync(logPath, `${logPath}.1`);
+      ftruncateSync(process.stdout.fd, 0);
+    }
+  } catch {
+    // Losing a rotation only leaves the log longer, which the next line retries.
+  }
+}
+
+/** Adds a logger that rotates the launchd log after each line the other loggers write. */
+export const logRotation = Logger.layer([Logger.make(rotateLog)], { mergeWithExisting: true });
+
 function launchdPlist(): string {
-  const logPath = path.join(
-    homedir(),
-    "Library",
-    "Logs",
-    `${instanceNamed("fleetfrog-agent")}.log`,
-  );
+  const logPath = launchdLogPath();
   const argumentsXml = agentCommand()
     .map((argument) => `    <string>${escapeXml(argument)}</string>`)
     .join("\n");

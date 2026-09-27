@@ -2,6 +2,7 @@ import { Console, Effect } from "effect";
 import { Command } from "effect/unstable/cli";
 
 import { runAgent } from "../scheduling/runAgent.ts";
+import { logRotation } from "../service/agentService.ts";
 import { reportFailure } from "./reportFailure.ts";
 
 /*
@@ -23,5 +24,6 @@ export const runCommand = Command.make("run", {}, () =>
           "The hub no longer recognises this machine. Pair it again from the dashboard.",
         ),
     }),
+    Effect.provide(logRotation),
   ),
 ).pipe(Command.withDescription("Connect to the hub and report this machine's repositories"));

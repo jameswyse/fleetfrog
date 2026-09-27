@@ -2,6 +2,9 @@
 //! launchd agent on macOS. Both use the TypeScript agent's names, so installing either agent
 //! replaces the other's service and reuses its pairing. A named instance gets its own service.
 
+use std::os::fd::AsFd;
+use std::os::unix::fs::MetadataExt;
+
 use crate::instance;
 use crate::paths;
 use crate::process::run_tool;
@@ -116,11 +119,49 @@ WantedBy=default.target
     )
 }
 
-fn launchd_plist(command: &[String]) -> String {
-    let log_path = escape_xml(&paths::join(
+/// Where launchd writes the agent's output on macOS. On Linux the journal keeps it.
+fn launchd_log_path() -> String {
+    paths::join(
         &paths::home(),
         &format!("Library/Logs/{}.log", instance::named("fleetfrog-agent")),
-    ));
+    )
+}
+
+/// At this size the launchd log moves to `<log>.1`, replacing the previous one.
+const ROTATE_LOG_AT_BYTES: u64 = 1024 * 1024;
+
+/// Rotates the launchd log once it is too big, when this process's output goes there. launchd has
+/// no rotation of its own and opens the log once, in append mode, so the agent keeps a copy and
+/// empties the file in place, and later lines start again at its beginning.
+pub fn rotate_log() {
+    if !cfg!(target_os = "macos") {
+        return;
+    }
+
+    let path = launchd_log_path();
+    let Ok(output) = std::io::stderr().as_fd().try_clone_to_owned() else {
+        return;
+    };
+    let output = std::fs::File::from(output);
+    let (Ok(open), Ok(stored)) = (output.metadata(), std::fs::metadata(&path)) else {
+        return;
+    };
+
+    if open.dev() != stored.dev()
+        || open.ino() != stored.ino()
+        || stored.len() < ROTATE_LOG_AT_BYTES
+    {
+        return;
+    }
+
+    // Losing a rotation only leaves the log longer, which the next line retries.
+    if std::fs::copy(&path, format!("{path}.1")).is_ok() {
+        let _ = output.set_len(0);
+    }
+}
+
+fn launchd_plist(command: &[String]) -> String {
+    let log_path = escape_xml(&launchd_log_path());
     let label = launchd_label();
     let arguments: Vec<String> = command
         .iter()

@@ -1,5 +1,6 @@
 //! Default-branch and pull request state from GitHub, read through `gh` at most once per
-//! repository per interval, however many checkouts share it.
+//! repository per interval, however many checkouts share it. A repository GitHub won't return is
+//! retried less and less often, and logged only when its error changes.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
@@ -97,10 +98,46 @@ struct RemoteState {
     checked_at: Utc,
 }
 
+/// The first retry after GitHub fails to return a repository. Each failure in a row doubles it, up
+/// to the GitHub interval, so a brief outage clears quickly and a repository we can't see is asked
+/// about rarely.
+const FIRST_RETRY: Duration = Duration::from_secs(60);
+
+fn retry_delay(failures: u32, maximum_age: Duration) -> Duration {
+    FIRST_RETRY
+        .saturating_mul(2u32.saturating_pow(failures.saturating_sub(1)))
+        .min(maximum_age)
+}
+
+#[derive(Clone)]
+enum Reading {
+    Read(RemoteState),
+    Unavailable {
+        error: String,
+        failures: u32,
+        checked_at: Utc,
+    },
+}
+
+impl Reading {
+    fn is_fresh(&self, now: Utc, maximum_age: Duration) -> bool {
+        let (checked_at, lifetime) = match self {
+            Reading::Read(state) => (state.checked_at, maximum_age),
+            Reading::Unavailable {
+                failures,
+                checked_at,
+                ..
+            } => (*checked_at, retry_delay(*failures, maximum_age)),
+        };
+
+        ((now.millis() - checked_at.millis()).max(0) as u128) < lifetime.as_millis()
+    }
+}
+
 pub struct GithubReader {
     /// The signed-in GitHub user, whose fork's pull requests also count as this repository's.
     login: String,
-    cache: Mutex<HashMap<String, RemoteState>>,
+    cache: Mutex<HashMap<String, Reading>>,
 }
 
 impl GithubReader {
@@ -184,22 +221,51 @@ impl GithubReader {
         }
 
         let key = location.identity.key();
-        let now = Utc::now();
-        let cached = self.cache.lock().unwrap().get(&key).cloned();
-        let remote = match cached.filter(|cached| {
-            ((now.millis() - cached.checked_at.millis()).max(0) as u128) < maximum_age.as_millis()
-        }) {
-            Some(cached) => cached,
-            None => match self.fetch(parts[0], parts[1]).await {
-                Ok(state) => {
-                    self.cache.lock().unwrap().insert(key, state.clone());
-                    state
-                }
-                Err(error) => {
-                    crate::log::warning("GitHub state unavailable", error);
-                    return None;
-                }
-            },
+        let previous = self.cache.lock().unwrap().get(&key).cloned();
+        let reading = match previous {
+            Some(reading) if reading.is_fresh(Utc::now(), maximum_age) => reading,
+            _ => {
+                let reading = match self.fetch(parts[0], parts[1]).await {
+                    Ok(state) => {
+                        if let Some(Reading::Unavailable { .. }) = previous {
+                            crate::log::info(&format!(
+                                "GitHub state for {path} is available again"
+                            ));
+                        }
+
+                        Reading::Read(state)
+                    }
+                    Err(error) => {
+                        let (failures, repeated) = match &previous {
+                            Some(Reading::Unavailable {
+                                error: last,
+                                failures,
+                                ..
+                            }) => (failures + 1, *last == error),
+                            _ => (1, false),
+                        };
+
+                        if !repeated {
+                            crate::log::warning(
+                                &format!("GitHub state unavailable for {path}"),
+                                &error,
+                            );
+                        }
+
+                        Reading::Unavailable {
+                            error,
+                            failures,
+                            checked_at: Utc::now(),
+                        }
+                    }
+                };
+
+                self.cache.lock().unwrap().insert(key, reading.clone());
+                reading
+            }
+        };
+        let Reading::Read(remote) = reading else {
+            return None;
         };
         let tracking = format!("refs/remotes/origin/{}", remote.default_branch);
         let tracking_sha = run_git(
@@ -227,5 +293,22 @@ impl GithubReader {
                 .collect(),
             checked_at: remote.checked_at,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn retries_less_often_after_each_failure_up_to_the_interval() {
+        let interval = Duration::from_secs(900);
+        let delays: Vec<u64> = (1..=6)
+            .map(|failures| retry_delay(failures, interval).as_secs())
+            .collect();
+
+        assert_eq!(delays, [60, 120, 240, 480, 900, 900]);
+        assert_eq!(retry_delay(40, interval), interval);
+        assert_eq!(retry_delay(1, Duration::ZERO), Duration::ZERO);
     }
 }

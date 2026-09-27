@@ -78,14 +78,35 @@ interface RemoteState {
 }
 
 /**
+ * The first retry after GitHub fails to return a repository. Each failure in a row doubles it, up
+ * to the GitHub interval, so a brief outage clears quickly and a repository we can't see is asked
+ * about rarely.
+ */
+const firstRetry = Duration.minutes(1);
+
+export function retryDelay(failures: number, maximumAge: Duration.Duration): Duration.Duration {
+  return Duration.min(Duration.times(firstRetry, 2 ** Math.max(failures - 1, 0)), maximumAge);
+}
+
+type Reading =
+  | { readonly _tag: "Read"; readonly state: RemoteState }
+  | {
+      readonly _tag: "Unavailable";
+      readonly error: string;
+      readonly failures: number;
+      readonly checkedAt: DateTime.Utc;
+    };
+
+/**
  * Reads default-branch and pull request state from GitHub through `gh`, at most once per
- * repository per interval, however many checkouts share it.
+ * repository per interval, however many checkouts share it. A repository GitHub won't return is
+ * retried less and less often, and logged only when its error changes.
  */
 export function makeGithubReader(reader: {
   /** The signed-in GitHub user, whose fork's pull requests also count as this repository's. */
   readonly login: string;
 }) {
-  const cache = new Map<RepositoryKey, RemoteState>();
+  const cache = new Map<RepositoryKey, Reading>();
 
   const fetchRemote = Effect.fn("fetchGithubRepository")(function* (owner: string, name: string) {
     const output = yield* runTool("gh", homedir(), [
@@ -147,27 +168,57 @@ export function makeGithubReader(reader: {
 
     const key = repositoryKey(identity);
     const now = yield* DateTime.now;
-    const cached = cache.get(key);
+    const previous = cache.get(key);
     const fresh =
-      cached !== undefined &&
-      Duration.isLessThan(DateTime.distance(cached.checkedAt, now), options.maximumAge);
-    const remote = fresh
-      ? Option.some(cached)
+      previous !== undefined &&
+      Duration.isLessThan(
+        DateTime.distance(
+          previous._tag === "Read" ? previous.state.checkedAt : previous.checkedAt,
+          now,
+        ),
+        previous._tag === "Read"
+          ? options.maximumAge
+          : retryDelay(previous.failures, options.maximumAge),
+      );
+    const reading: Reading = fresh
+      ? previous
       : yield* fetchRemote(owner, name).pipe(
-          Effect.tap((state) => Effect.sync(() => cache.set(key, state))),
-          Effect.tapError((error) => Effect.logWarning("GitHub state unavailable", error)),
-          Effect.option,
+          Effect.map((state): Reading => ({ _tag: "Read", state })),
+          Effect.tap(() =>
+            previous?._tag === "Unavailable"
+              ? Effect.logInfo(`GitHub state for ${identity.path} is available again`)
+              : Effect.void,
+          ),
+          Effect.catch(({ message }) =>
+            Effect.gen(function* () {
+              const repeated = previous?._tag === "Unavailable" && previous.error === message;
+
+              if (!repeated) {
+                yield* Effect.logWarning(`GitHub state unavailable for ${identity.path}`, message);
+              }
+
+              return {
+                _tag: "Unavailable",
+                error: message,
+                failures: previous?._tag === "Unavailable" ? previous.failures + 1 : 1,
+                checkedAt: yield* DateTime.now,
+              } satisfies Reading;
+            }),
+          ),
+          Effect.tap((fetched) => Effect.sync(() => cache.set(key, fetched))),
         );
 
-    if (Option.isNone(remote)) {
+    if (reading._tag === "Unavailable") {
       return Option.none<GithubState>();
     }
+
+    const remote = reading.state;
 
     const trackingSha = yield* runGit(options.location.path, [
       "rev-parse",
       "--verify",
       "--quiet",
-      `refs/remotes/origin/${remote.value.defaultBranch}`,
+      `refs/remotes/origin/${remote.defaultBranch}`,
     ]).pipe(
       Effect.map((sha) => sha.trim()),
       Effect.orElseSucceed(() => null),
@@ -175,14 +226,12 @@ export function makeGithubReader(reader: {
     const branches = new Set(options.localBranches);
 
     return Option.some<GithubState>({
-      defaultBranch: remote.value.defaultBranch,
-      remoteSha: remote.value.remoteSha,
+      defaultBranch: remote.defaultBranch,
+      remoteSha: remote.remoteSha,
       trackingSha,
-      pullRequests: remote.value.pullRequests.filter(({ branch }) => branches.has(branch)),
-      mergedPullRequests: remote.value.mergedPullRequests.filter(({ branch }) =>
-        branches.has(branch),
-      ),
-      checkedAt: remote.value.checkedAt,
+      pullRequests: remote.pullRequests.filter(({ branch }) => branches.has(branch)),
+      mergedPullRequests: remote.mergedPullRequests.filter(({ branch }) => branches.has(branch)),
+      checkedAt: remote.checkedAt,
     });
   });
 }

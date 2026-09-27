@@ -15,6 +15,7 @@ fn write(level: &str, message: &str, cause: Option<&str>) {
     }
 
     eprintln!("{line}");
+    crate::service::rotate_log();
 }
 
 pub fn info(message: &str) {
