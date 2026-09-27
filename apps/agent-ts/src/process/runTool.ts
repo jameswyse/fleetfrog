@@ -107,7 +107,9 @@ export function runGitAction(options: {
       stdio: ["pipe", "pipe", "pipe"],
     });
 
-    // Git sees the input, or else an immediate end of input, never a terminal.
+    // Git sees the input, or else an immediate end of input, never a terminal. Git may exit
+    // without reading it, which fails the write with EPIPE; its exit status still decides the result.
+    child.stdin.on("error", () => {});
     child.stdin.end(options.input ?? "");
     const closed = new Promise<void>((settle) => {
       child.once("close", () => {
