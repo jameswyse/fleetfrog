@@ -75,7 +75,10 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
   yield* warnIfUnreadable(capabilities);
   const actions = yield* makeActionRunner({
     catalogue: scanner,
-    discoveryRoots: () => configuration?.discoveryRoots ?? [],
+    folders: () => ({
+      roots: configuration?.discoveryRoots ?? [],
+      archiveFolder: configuration?.archiveFolder ?? null,
+    }),
     loadPolicy,
     report: (runId, update) => client.ReportAction({ runId, update }),
     audit: writeAuditEntry,
@@ -105,6 +108,7 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
     scanner
       .discover({
         roots: current.discoveryRoots,
+        archiveFolder: current.archiveFolder,
         githubMaximumAge: Duration.seconds(current.schedule.githubSeconds),
       })
       .pipe(
@@ -195,8 +199,11 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
 
       return HubCommand.match(received, {
         Configure: (next) => {
+          // Either change moves where checkouts are found, so discovery runs again at once.
           const rootsChanged =
-            configuration === null || !sameList(configuration.discoveryRoots, next.discoveryRoots);
+            configuration === null ||
+            !sameList(configuration.discoveryRoots, next.discoveryRoots) ||
+            configuration.archiveFolder !== next.archiveFolder;
 
           configuration = next;
 

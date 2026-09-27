@@ -44,6 +44,10 @@ export const ActionRequest = Schema.TaggedUnion({
    * commit the dashboard showed. Nothing is deleted unless every branch can be.
    */
   DeleteBranches: { path: Schema.String, branches: Schema.NonEmptyArray(BranchAtCommit) },
+  /** Moves the checkout at `path` into the Archive folder, keeping its path below its project folder. */
+  Archive: { path: Schema.String },
+  /** Moves the archived checkout at `path` back to where it was archived from. */
+  Unarchive: { path: Schema.String },
   /** Puts something back from the trash. */
   Restore: { target: TrashTarget },
   /** Deletes something in the trash for good. */
@@ -58,6 +62,8 @@ export const ActionKind = Schema.Literals([
   "Switch",
   "Stash",
   "DeleteBranches",
+  "Archive",
+  "Unarchive",
   "Restore",
   "Purge",
 ]);
@@ -70,6 +76,8 @@ export const actionTiers = {
   Switch: "git",
   Stash: "git",
   DeleteBranches: "cleanup",
+  Archive: "cleanup",
+  Unarchive: "cleanup",
   Restore: "cleanup",
   Purge: "cleanup",
 } as const satisfies Record<ActionRequest["_tag"], Tier>;
@@ -79,6 +87,8 @@ export const TargetedRequest = Schema.Union([
   ActionRequest.cases.Switch,
   ActionRequest.cases.Stash,
   ActionRequest.cases.DeleteBranches,
+  ActionRequest.cases.Archive,
+  ActionRequest.cases.Unarchive,
   ActionRequest.cases.Restore,
   ActionRequest.cases.Purge,
 ]);
@@ -143,6 +153,13 @@ export const SkipReason = Schema.TaggedUnion({
   BranchExists: { branch: Schema.String },
   /** The item is no longer in the trash. */
   NotInTrash: {},
+  NoArchiveFolder: {},
+  /** A checkout with linked worktrees can't move without breaking them. */
+  HasWorktrees: { count: Count },
+  /** A linked worktree moves with its main checkout, not on its own. */
+  IsWorktree: {},
+  /** Something is already where the checkout would move to. */
+  DestinationTaken: { path: Schema.String },
   /** The machine's owner has not allowed the action's tier. */
   NotAllowed: { tier: Tier },
   /** The agent is too old to know the action. */
@@ -158,6 +175,9 @@ export const ActionResult = Schema.TaggedUnion({
   Switched: { branch: Schema.String },
   Stashed: { files: Count },
   BranchesDeleted: { branches: Count },
+  /** `path` is where the checkout is now. */
+  Archived: { path: Schema.String },
+  Unarchived: { path: Schema.String },
   Restored: {},
   Purged: {},
 });

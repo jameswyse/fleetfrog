@@ -21,6 +21,7 @@ function entry(
     identity: { _tag: "Remote", host: "github.com", path: "acme/shop" },
     originUrl: null,
     directoryName: "shop",
+    placement: { _tag: "Projects" },
     worktree:
       options.main === undefined ? { _tag: "Main" } : { _tag: "Linked", mainPath: options.main },
     status: {

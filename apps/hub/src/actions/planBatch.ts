@@ -71,6 +71,9 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
   const allTargets = fleet.repositories.flatMap((repository) =>
     repository.checkouts.map((entry) => ({ repository, entry })),
   );
+  const archivedTargets = fleet.archive.flatMap((repository) =>
+    repository.checkouts.map((entry) => ({ repository, entry })),
+  );
 
   type Resolved = { readonly targets: ReadonlyArray<Target>; readonly scope: BatchScope };
 
@@ -149,7 +152,8 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
       targeted._tag === "Restore" || targeted._tag === "Purge"
         ? targeted.target.path
         : targeted.path;
-    const found = allTargets.find(
+    // Only an archived checkout can be unarchived, and only an active one acted on otherwise.
+    const found = (targeted._tag === "Unarchive" ? archivedTargets : allTargets).find(
       ({ entry }) => entry.machineId === machineId && entry.checkout.path === path,
     );
 

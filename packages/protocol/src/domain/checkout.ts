@@ -161,6 +161,17 @@ export const Worktree = Schema.TaggedUnion({
 });
 export type Worktree = typeof Worktree.Type;
 
+/** Where a checkout is kept: with the projects the agent watches, or in the Archive folder. */
+export const Placement = Schema.TaggedUnion({
+  Projects: {},
+  Archive: {
+    /** Where FleetFrog moved it from, or null for a checkout put in the archive by hand. */
+    originalPath: Schema.NullOr(Schema.String),
+    archivedAt: Schema.NullOr(Schema.DateTimeUtc),
+  },
+});
+export type Placement = typeof Placement.Type;
+
 /** One working tree on one machine, as last observed by its agent. */
 export const Checkout = Schema.Struct({
   path: Schema.String,
@@ -175,6 +186,9 @@ export const Checkout = Schema.Struct({
   /** The main worktree's directory name, used when the identity has no readable name. */
   directoryName: Schema.String,
   worktree: Worktree,
+  placement: Placement.pipe(
+    Schema.withDecodingDefaultTypeKey(Effect.succeed(Placement.cases.Projects.make({}))),
+  ),
   status: CheckoutStatus,
   github: Schema.NullOr(GithubState),
   scannedAt: Schema.DateTimeUtc,

@@ -2,7 +2,7 @@ import { expandHome } from "@fleetfrog/protocol/domain/cloneDestination";
 
 import { cloneDestinationProblem } from "./actionAvailability.ts";
 
-import type { DiscoveryRoot, Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
+import type { DiscoveryRoot, Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 
 /** A clone destination as it is edited: one of the machine's project folders, and a path inside it. */
 export interface DestinationDraft {
@@ -54,7 +54,7 @@ export function draftPath(draft: DestinationDraft): string {
 export function draftProblem(options: {
   readonly draft: DestinationDraft;
   readonly machine: Machine;
-  readonly repositories: ReadonlyArray<Repository>;
+  readonly fleet: Pick<Fleet, "repositories" | "archiveFolder">;
 }): string | null {
   if (options.draft.name.trim().replace(leadingSlashes, "") === "") {
     return "Enter a name for the new folder.";
@@ -63,6 +63,6 @@ export function draftProblem(options: {
   return cloneDestinationProblem({
     destination: draftPath(options.draft),
     machine: options.machine,
-    repositories: options.repositories,
+    fleet: options.fleet,
   });
 }

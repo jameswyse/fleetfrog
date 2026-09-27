@@ -20,6 +20,7 @@ import {
 
 import { DashboardPresence } from "../dashboard/dashboardPresence.ts";
 import { MachineStore } from "../machines/machineStore.ts";
+import { ArchiveFolderStore } from "../settings/archiveFolderStore.ts";
 import { PollingStore } from "../settings/pollingStore.ts";
 
 import type { Cause, Scope } from "effect";
@@ -75,6 +76,7 @@ export class AgentSessions extends Context.Service<
     Effect.gen(function* () {
       const machines = yield* MachineStore;
       const polling = yield* PollingStore;
+      const archive = yield* ArchiveFolderStore;
       const presence = yield* DashboardPresence;
       const sessions = new Map<MachineId, Session>();
       const online = yield* SubscriptionRef.make<ReadonlyMap<MachineId, OnlineAgent>>(new Map());
@@ -105,6 +107,7 @@ export class AgentSessions extends Context.Service<
             discoverySeconds: settings.discoverySeconds,
             githubSeconds: settings.githubSeconds,
           },
+          archiveFolder: yield* SubscriptionRef.get(archive.folder),
         });
       });
 
@@ -134,14 +137,20 @@ export class AgentSessions extends Context.Service<
             );
       };
 
-      // Polling changes and dashboards opening or closing change every agent's schedule.
-      // The initial values arrive before any agent connects, so they reconfigure nobody.
-      yield* Stream.merge(
-        SubscriptionRef.changes(polling.settings),
-        SubscriptionRef.changes(presence.watchers).pipe(
-          Stream.map((count) => count > 0),
-          Stream.changes,
-        ),
+      // Polling, the Archive folder and dashboards opening or closing change every agent's
+      // configuration. The initial values arrive before any agent connects, so they reconfigure
+      // nobody.
+      yield* Stream.mergeAll(
+        [
+          SubscriptionRef.changes(polling.settings).pipe(Stream.as(undefined)),
+          SubscriptionRef.changes(archive.folder).pipe(Stream.as(undefined)),
+          SubscriptionRef.changes(presence.watchers).pipe(
+            Stream.map((count) => count > 0),
+            Stream.changes,
+            Stream.as(undefined),
+          ),
+        ],
+        { concurrency: "unbounded" },
       ).pipe(
         Stream.runForEach(() =>
           Effect.forEach([...sessions.keys()], reconfigure, { discard: true }),

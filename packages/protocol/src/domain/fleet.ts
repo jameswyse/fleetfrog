@@ -71,8 +71,13 @@ export type Repository = typeof Repository.Type;
 /** Everything the dashboard shows, sent whole whenever something changes. */
 export const Fleet = Schema.Struct({
   machines: Schema.Array(Machine),
+  /** Repositories with checkouts in the machines' project folders. */
   repositories: Schema.Array(Repository),
+  /** Repositories with checkouts in the Archive folder, grouped the same way. */
+  archive: Schema.Array(Repository),
   polling: PollingSettings,
+  /** Where archived checkouts go on every machine, which may start with `~`. */
+  archiveFolder: Schema.NullOr(Schema.String),
 });
 export type Fleet = typeof Fleet.Type;
 

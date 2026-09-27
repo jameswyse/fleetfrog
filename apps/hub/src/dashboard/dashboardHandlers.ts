@@ -1,6 +1,11 @@
 import { Effect, Stream } from "effect";
 
-import { DashboardRpcs, RefreshTarget } from "@fleetfrog/protocol/dashboard/rpcs";
+import {
+  DashboardRpcs,
+  InvalidArchiveFolder,
+  RefreshTarget,
+} from "@fleetfrog/protocol/dashboard/rpcs";
+import { checkArchiveFolder } from "@fleetfrog/protocol/domain/archiveFolder";
 import { FolderOutcome, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { ActionDispatcher } from "../actions/actionDispatcher.ts";
@@ -10,6 +15,7 @@ import { FolderRequests } from "../agents/folderRequests.ts";
 import { FleetFeed } from "../catalogue/fleetFeed.ts";
 import { MachineStore } from "../machines/machineStore.ts";
 import { PairingOffers } from "../pairing/pairingOffers.ts";
+import { ArchiveFolderStore } from "../settings/archiveFolderStore.ts";
 import { PollingStore } from "../settings/pollingStore.ts";
 import { DashboardPresence } from "./dashboardPresence.ts";
 
@@ -20,6 +26,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
     const sessions = yield* AgentSessions;
     const machines = yield* MachineStore;
     const polling = yield* PollingStore;
+    const archive = yield* ArchiveFolderStore;
     const offers = yield* PairingOffers;
     const dispatcher = yield* ActionDispatcher;
     const activity = yield* ActivityFeed;
@@ -104,6 +111,30 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
           .pipe(
             Effect.andThen(activity.recordEvent({ _tag: "PollingChanged", polling: settings })),
           ),
+      SetArchiveFolder: ({ folder }) =>
+        Effect.gen(function* () {
+          const trimmed = folder?.trim() ?? null;
+
+          // The folder must work on every machine, each with its own home and project folders.
+          const refused =
+            trimmed !== null &&
+            (yield* machines.all).some(
+              (machine) =>
+                checkArchiveFolder({
+                  folder: trimmed,
+                  home: machine.info.homeDirectory,
+                  roots: machine.discoveryRoots,
+                })._tag !== "Valid",
+            );
+
+          if (refused) {
+            return yield* new InvalidArchiveFolder();
+          }
+
+          yield* archive.update(trimmed);
+
+          return yield* activity.recordEvent({ _tag: "ArchiveFolderChanged", folder: trimmed });
+        }),
       CreatePairingOffer: () => offers.create,
       StartBatch: ({ request }) =>
         dispatcher.start(request).pipe(Effect.map((batchId) => ({ batchId }))),

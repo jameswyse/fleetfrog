@@ -49,6 +49,7 @@ function checkout(path: string, worktree: Checkout["worktree"] = { _tag: "Main" 
     originUrl: "git@github.com:acme/shop.git",
     directoryName: "shop",
     worktree,
+    placement: { _tag: "Projects" },
     status: { _tag: "Failed", message: "" },
     github: null,
     scannedAt: now,
@@ -79,6 +80,7 @@ function repositoryAt(...checkouts: ReadonlyArray<Checkout>): Repository {
 describe("suggestCloneDestination", () => {
   it("mirrors another machine's path relative to home when a discovery folder holds it", () => {
     const suggestion = suggestCloneDestination({
+      archive: null,
       repository: repositoryAt(checkout("/Users/james/Projects/shop")),
       target: laptop,
       machines: [studio, laptop],
@@ -91,6 +93,7 @@ describe("suggestCloneDestination", () => {
 
   it("falls back to the default folder when the mirrored path is outside every folder", () => {
     const suggestion = suggestCloneDestination({
+      archive: null,
       repository: repositoryAt(checkout("/Users/james/work/shop")),
       target: laptop,
       machines: [studio, laptop],
@@ -102,6 +105,7 @@ describe("suggestCloneDestination", () => {
 
   it("falls back to the default folder when something already occupies the mirrored path", () => {
     const suggestion = suggestCloneDestination({
+      archive: null,
       repository: repositoryAt(checkout("/Users/james/Projects/shop")),
       target: laptop,
       machines: [studio, laptop],
@@ -113,6 +117,7 @@ describe("suggestCloneDestination", () => {
 
   it("ignores linked worktrees, which are not where the repository lives", () => {
     const suggestion = suggestCloneDestination({
+      archive: null,
       repository: repositoryAt(
         checkout("/Users/james/Projects/shop-feature", {
           _tag: "Linked",
@@ -130,6 +135,7 @@ describe("suggestCloneDestination", () => {
   it("has no suggestion for a machine without discovery folders", () => {
     expect(
       suggestCloneDestination({
+        archive: null,
         repository: repositoryAt(checkout("/Users/james/Projects/shop")),
         target: { ...laptop, discoveryRoots: [] },
         machines: [studio, laptop],
@@ -141,12 +147,17 @@ describe("suggestCloneDestination", () => {
 
 describe("checkCloneDestination", () => {
   const check = (destination: string) =>
-    checkCloneDestination({ destination, home: "/home/james", roots: ["~/Code", "/srv/git/"] })
-      ._tag;
+    checkCloneDestination({
+      destination,
+      home: "/home/james",
+      roots: ["~/Code", "/srv/git/"],
+      archive: "~/Code/Archive",
+    })._tag;
 
   it("accepts paths strictly inside a discovery folder", () => {
     expect(
       checkCloneDestination({
+        archive: null,
         destination: "~/Code/shop/",
         home: "/home/james",
         roots: ["~/Code"],
@@ -166,6 +177,11 @@ describe("checkCloneDestination", () => {
     expect(check("~/Code/../.ssh/shop")).toBe("Hidden");
     expect(check("~/Code//shop")).toBe("Hidden");
     expect(check("Code/shop")).toBe("NotAbsolute");
+  });
+
+  it("rejects the Archive folder inside a discovery folder", () => {
+    expect(check("~/Code/Archive/shop")).toBe("InArchive");
+    expect(check("~/Code/Archived/shop")).toBe("Valid");
   });
 });
 

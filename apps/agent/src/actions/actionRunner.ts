@@ -13,6 +13,7 @@ import {
 import { checkCloneDestination } from "@fleetfrog/protocol/domain/cloneDestination";
 
 import { makeActionOutput } from "./actionOutput.ts";
+import { archiveCheckout, unarchiveCheckout } from "./archiveActions.ts";
 import {
   cloneRepository,
   destinationProblems,
@@ -33,6 +34,7 @@ import type { ConfigUnavailable } from "../config/agentConfig.ts";
 import type { AgentPolicy } from "../config/agentPolicy.ts";
 import type { CheckoutLocation } from "../git/readCheckout.ts";
 import type { ActionOutput } from "./actionOutput.ts";
+import type { Folders } from "./archiveActions.ts";
 
 /** Fetches and clones that may use the network at once. */
 const networkConcurrency = 4;
@@ -43,6 +45,7 @@ interface CheckoutCatalogue {
   readonly locate: (path: string) => CheckoutLocation | undefined;
   readonly rescanRepository: (commonDirectory: string) => Effect.Effect<void, unknown>;
   readonly track: (path: string) => Effect.Effect<void, unknown>;
+  readonly forget: (path: string) => Effect.Effect<void, unknown>;
 }
 
 /** An action resolved against this machine: what it locks, how it runs and what to rescan after. */
@@ -66,8 +69,11 @@ type Plan =
  */
 export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options: {
   readonly catalogue: CheckoutCatalogue;
-  /** The discovery folders the hub last configured. Clones must land inside one. */
-  readonly discoveryRoots: () => ReadonlyArray<string>;
+  /**
+   * The discovery folders and Archive folder the hub last configured. Clones must land inside a
+   * discovery folder and outside the Archive folder.
+   */
+  readonly folders: () => Omit<Folders, "home">;
   readonly loadPolicy: Effect.Effect<AgentPolicy, ConfigUnavailable>;
   readonly report: (runId: RunId, update: ActionUpdate) => Effect.Effect<void, unknown>;
   readonly audit: (entry: AuditEntry) => Effect.Effect<void>;
@@ -121,6 +127,43 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
         };
   };
 
+  /**
+   * An action that moves a checkout in or out of the archive. Afterwards the agent forgets the old
+   * path and reads the checkout at its new one.
+   */
+  const movePlan = (
+    path: string,
+    from: CheckoutLocation["placement"]["_tag"],
+    move: (
+      location: CheckoutLocation,
+      folders: Folders,
+      output: ActionOutput,
+    ) => Effect.Effect<ActionOutcome>,
+  ): Plan => {
+    const location = options.catalogue.locate(path);
+
+    if (location === undefined || location.placement._tag !== from) {
+      return {
+        _tag: "Refused",
+        message: `This machine has no ${from === "Archive" ? "archived " : ""}checkout at ${path}.`,
+      };
+    }
+
+    return {
+      _tag: "Ready",
+      lockKey: location.commonDirectory,
+      usesNetwork: false,
+      perform: (output) => move(location, { ...options.folders(), home }, output),
+      afterwards: (outcome) =>
+        outcome._tag === "Succeeded" &&
+        (outcome.result._tag === "Archived" || outcome.result._tag === "Unarchived")
+          ? options.catalogue
+              .forget(path)
+              .pipe(Effect.andThen(options.catalogue.track(outcome.result.path)))
+          : options.catalogue.rescanRepository(location.commonDirectory),
+    };
+  };
+
   const plan = (request: ActionRequest): Plan =>
     ActionRequest.match(request, {
       Fetch: ({ path }) => checkoutPlan(path, true, fetchRepository),
@@ -128,6 +171,8 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
       Switch: ({ path, branch }) =>
         checkoutPlan(path, false, (location, output) => switchBranch(location, branch, output)),
       Stash: ({ path }) => checkoutPlan(path, false, stashChanges),
+      Archive: ({ path }) => movePlan(path, "Projects", archiveCheckout),
+      Unarchive: ({ path }) => movePlan(path, "Archive", unarchiveCheckout),
       DeleteBranches: ({ path, branches }) =>
         checkoutPlan(path, false, (location, output) => deleteBranches(location, branches, output)),
       Restore: ({ target }) =>
@@ -141,10 +186,12 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
             checkoutPlan(path, false, (location, output) => purgeBranch(location, ref, output)),
         }),
       Clone: ({ url, destination }) => {
+        const folders = options.folders();
         const checked = checkCloneDestination({
           destination,
           home,
-          roots: options.discoveryRoots(),
+          roots: folders.roots,
+          archive: folders.archiveFolder,
         });
 
         if (checked._tag !== "Valid") {
@@ -155,7 +202,11 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
           _tag: "Ready",
           lockKey: `clone:${checked.path}`,
           usesNetwork: true,
-          perform: (output) => cloneRepository({ url, destination: checked, home }, output),
+          perform: (output) =>
+            cloneRepository(
+              { url, destination: checked, home, archive: folders.archiveFolder },
+              output,
+            ),
           // Only a clone this agent made is added, so a refused one can't point it elsewhere.
           afterwards: (outcome) =>
             outcome._tag === "Succeeded" ? options.catalogue.track(checked.path) : Effect.void,

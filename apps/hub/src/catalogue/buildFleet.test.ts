@@ -46,6 +46,7 @@ function checkout(path: string, identity: RepositoryIdentity): Checkout {
     originUrl: null,
     directoryName: path.split("/").at(-1) ?? path,
     worktree: { _tag: "Main" },
+    placement: { _tag: "Projects" },
     status: { _tag: "Failed", message: "not read in this test" },
     github: null,
     scannedAt: pairedAt,
@@ -77,6 +78,7 @@ describe("buildFleet", () => {
         ],
       ]),
       polling: defaultPollingSettings,
+      archiveFolder: null,
     });
 
     expect(fleet.repositories).toHaveLength(1);
@@ -94,6 +96,7 @@ describe("buildFleet", () => {
       checkouts: [],
       online: new Map(),
       polling: defaultPollingSettings,
+      archiveFolder: null,
     });
 
     expect(fleet.machines[0]?.discoveryRoots).toEqual([
@@ -115,6 +118,7 @@ describe("buildFleet", () => {
       ],
       online: new Map(),
       polling: defaultPollingSettings,
+      archiveFolder: null,
     });
 
     expect(fleet.repositories.map(({ name }) => name)).toEqual(["API", "notes"]);
@@ -152,6 +156,7 @@ describe("buildFleet", () => {
       ],
       online: new Map(),
       polling: defaultPollingSettings,
+      archiveFolder: null,
     });
 
     expect(fleet.repositories.map(({ name, label }) => [name, label])).toEqual([

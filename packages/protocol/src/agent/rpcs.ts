@@ -36,8 +36,15 @@ export type AgentSchedule = typeof AgentSchedule.Type;
 
 /** Instructions the hub streams down to a connected agent. */
 export const HubCommand = Schema.TaggedUnion({
-  /** Sent on connect and whenever the roots or schedule change. */
-  Configure: { discoveryRoots: Schema.Array(Schema.String), schedule: AgentSchedule },
+  /** Sent on connect and whenever the roots, schedule or Archive folder change. */
+  Configure: {
+    discoveryRoots: Schema.Array(Schema.String),
+    schedule: AgentSchedule,
+    /** Null when none is set, and from hubs that predate archiving. */
+    archiveFolder: Schema.NullOr(Schema.String).pipe(
+      Schema.withDecodingDefaultTypeKey(Effect.succeed(null)),
+    ),
+  },
   /** Rediscover and rescan now. */
   Refresh: {},
   /** Sent only for actions the agent advertised. The agent checks its own policy again. */

@@ -30,6 +30,12 @@ export class NothingToRun extends Schema.TaggedError<NothingToRun>()("NothingToR
 /** No checkout of the repository has an HTTPS or SSH origin to clone from. */
 export class NoCloneSource extends Schema.TaggedError<NoCloneSource>()("NoCloneSource", {}) {}
 
+/** The folder can't hold archived checkouts on some machine. */
+export class InvalidArchiveFolder extends Schema.TaggedError<InvalidArchiveFolder>()(
+  "InvalidArchiveFolder",
+  {},
+) {}
+
 export class BatchNotFound extends Schema.TaggedError<BatchNotFound>()("BatchNotFound", {
   batchId: BatchId,
 }) {}
@@ -97,6 +103,11 @@ export class DashboardRpcs extends RpcGroup.make(
   }),
   Rpc.make("RemoveMachine", { payload: { machineId: MachineId }, error: MachineNotFound }),
   Rpc.make("UpdatePolling", { payload: { polling: PollingSettings } }),
+  /** A null folder turns archiving off. Checkouts already in the old folder stay where they are. */
+  Rpc.make("SetArchiveFolder", {
+    payload: { folder: Schema.NullOr(Schema.NonEmptyString) },
+    error: InvalidArchiveFolder,
+  }),
   Rpc.make("CreatePairingOffer", { success: PairingOffer }),
   Rpc.make("StartBatch", {
     payload: { request: BatchRequest },

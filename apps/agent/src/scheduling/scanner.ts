@@ -6,7 +6,12 @@ import { DateTime, Duration, Effect, Option, Schema, Semaphore } from "effect";
 import { ScanReport } from "@fleetfrog/protocol/agent/rpcs";
 import { Checkout, CheckoutStatus } from "@fleetfrog/protocol/domain/checkout";
 
-import { discoverCheckouts, rootPath } from "../discovery/discoverCheckouts.ts";
+import {
+  archivePath,
+  discoverCheckouts,
+  placeLocation,
+  rootPath,
+} from "../discovery/discoverCheckouts.ts";
 import { locateCheckout, readGitStatus } from "../git/readCheckout.ts";
 import { makeGithubReader } from "../github/githubReader.ts";
 
@@ -86,6 +91,8 @@ export function makeScanner<ReportError>(options: {
       }).pipe(lock.withPermits(1));
     });
   let locations: ReadonlyArray<CheckoutLocation> = [];
+  /** The Archive folder on this machine as of the last discovery walk. */
+  let archive: string | null = null;
   const sent = new Map<string, string>();
 
   const readCheckout = Effect.fn("readCheckout")(function* (
@@ -97,8 +104,9 @@ export function makeScanner<ReportError>(options: {
       git._tag === "Success"
         ? CheckoutStatus.cases.Read.make({ git: git.success })
         : CheckoutStatus.cases.Failed.make({ message: git.failure.message });
+    // Archived checkouts don't need GitHub's view, which costs a request per repository.
     const github =
-      readGithub !== null && git._tag === "Success"
+      readGithub !== null && git._tag === "Success" && location.placement._tag === "Projects"
         ? yield* readGithub({
             location,
             localBranches: git.success.branches.items.map(({ name }) => name),
@@ -112,6 +120,7 @@ export function makeScanner<ReportError>(options: {
       originUrl: location.originUrl,
       directoryName: location.directoryName,
       worktree: location.worktree,
+      placement: location.placement,
       status,
       github: Option.getOrNull(github),
       scannedAt: yield* DateTime.now,
@@ -148,15 +157,19 @@ export function makeScanner<ReportError>(options: {
     });
 
   return {
-    /** Walks the roots, reads every checkout found and replaces the hub's inventory. */
+    /**
+     * Walks the roots and the Archive folder, reads every checkout found and replaces the hub's
+     * inventory.
+     */
     discover: (discovery: {
       readonly roots: ReadonlyArray<string>;
+      readonly archiveFolder: string | null;
       readonly githubMaximumAge: Duration.Duration;
     }) =>
       serialise(
         "discovery",
         Effect.gen(function* () {
-          const found = yield* discoverCheckouts(discovery.roots);
+          const found = yield* discoverCheckouts(discovery);
           const checkouts = yield* readAll(found, discovery.githubMaximumAge);
           const roots = yield* inspectRoots(discovery.roots);
 
@@ -164,6 +177,7 @@ export function makeScanner<ReportError>(options: {
             ScanReport.cases.Discovery.make({ checkouts, roots, completedAt: yield* DateTime.now }),
           );
           locations = found;
+          archive = archivePath(discovery);
           sent.clear();
 
           for (const checkout of checkouts) {
@@ -172,7 +186,10 @@ export function makeScanner<ReportError>(options: {
         }),
       ),
 
-    /** Rereads known checkouts and reports only those that changed or disappeared. */
+    /**
+     * Rereads known checkouts and reports only those that changed or disappeared. Archived
+     * checkouts are only checked for, since nothing works on them.
+     */
     status: (githubMaximumAge: Duration.Duration) =>
       serialise(
         "status",
@@ -181,7 +198,8 @@ export function makeScanner<ReportError>(options: {
           const removedPaths = locations
             .filter((location) => !present.includes(location))
             .map(({ path }) => path);
-          const changed = (yield* readAll(present, githubMaximumAge)).filter(
+          const active = present.filter(({ placement }) => placement._tag === "Projects");
+          const changed = (yield* readAll(active, githubMaximumAge)).filter(
             (checkout) => sent.get(checkout.path) !== contentKey(checkout),
           );
 
@@ -222,17 +240,37 @@ export function makeScanner<ReportError>(options: {
         yield* reportChanged(yield* readAll(targets, Duration.zero));
       }).pipe(lock.withPermits(1)),
 
-    /** Adds a checkout created outside a discovery walk, such as a fresh clone. */
+    /** Adds a checkout created outside a discovery walk, such as a fresh clone or a moved one. */
     track: (path: string) =>
       Effect.gen(function* () {
-        const location = yield* locateCheckout(path);
+        const found = yield* locateCheckout(path);
 
-        if (Option.isNone(location) || locations.some((known) => known.path === path)) {
+        if (Option.isNone(found) || locations.some((known) => known.path === path)) {
           return;
         }
 
-        locations = [...locations, location.value];
-        yield* reportChanged(yield* readAll([location.value], Duration.zero));
+        const location = yield* placeLocation(found.value, archive);
+
+        locations = [...locations, location];
+        yield* reportChanged(yield* readAll([location], Duration.zero));
+      }).pipe(lock.withPermits(1)),
+
+    /** Drops a checkout that moved away, such as into the archive or the trash. */
+    forget: (path: string) =>
+      Effect.gen(function* () {
+        if (!locations.some((known) => known.path === path)) {
+          return;
+        }
+
+        yield* options.report(
+          ScanReport.cases.Status.make({
+            changed: [],
+            removedPaths: [path],
+            completedAt: yield* DateTime.now,
+          }),
+        );
+        locations = locations.filter((known) => known.path !== path);
+        sent.delete(path);
       }).pipe(lock.withPermits(1)),
   };
 }

@@ -75,6 +75,7 @@ function checkout(
       options.linked === true
         ? { _tag: "Linked", mainPath: "/home/dev/Projects/shop" }
         : { _tag: "Main" },
+    placement: { _tag: "Projects" },
     status: { _tag: "Failed", message: "" },
     github: null,
     scannedAt: now,
@@ -95,7 +96,9 @@ function fleetWith(checkouts: Repository["checkouts"]): Fleet {
         checkouts,
       },
     ],
+    archive: [],
     polling: defaultPollingSettings,
+    archiveFolder: null,
   };
 }
 

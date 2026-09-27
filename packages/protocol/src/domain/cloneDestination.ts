@@ -73,17 +73,22 @@ export type DestinationCheck =
   | { readonly _tag: "NotAbsolute" }
   /** A hidden folder such as `~/.config`, where a clone could plant configuration. */
   | { readonly _tag: "Hidden" }
-  | { readonly _tag: "OutsideRoots" };
+  | { readonly _tag: "OutsideRoots" }
+  /** Inside the Archive folder, which discovery doesn't treat as projects. */
+  | { readonly _tag: "InArchive" };
 
 /**
  * Checks the parts of a clone destination that need no file system. The destination must be an
  * absolute or `~` path, with no hidden, `.` or `..` segments anywhere, strictly inside one of the
- * machine's discovery folders. The agent repeats this and also checks the disk.
+ * machine's discovery folders and outside the Archive folder. The agent repeats this and also
+ * checks the disk.
  */
 export function checkCloneDestination(options: {
   readonly destination: string;
   readonly home: string;
   readonly roots: ReadonlyArray<string>;
+  /** The Archive folder, which may start with `~`. */
+  readonly archive: string | null;
 }): DestinationCheck {
   const folder = checkFolderPath({ path: options.destination, home: options.home });
 
@@ -96,7 +101,13 @@ export function checkCloneDestination(options: {
     isBelow(path, withoutTrailingSlashes(expandHome(candidate, options.home))),
   );
 
-  return root === undefined ? { _tag: "OutsideRoots" } : { _tag: "Valid", path, root };
+  if (root === undefined) {
+    return { _tag: "OutsideRoots" };
+  }
+
+  return options.archive !== null && isWithin(path, expandHome(options.archive, options.home))
+    ? { _tag: "InArchive" }
+    : { _tag: "Valid", path, root };
 }
 
 function mostCommon(values: ReadonlyArray<string>): string | undefined {
@@ -129,6 +140,7 @@ export function suggestCloneDestination(options: {
   readonly machines: ReadonlyArray<Machine>;
   /** Absolute paths of checkouts already on the target. */
   readonly occupied: ReadonlySet<string>;
+  readonly archive: string | null;
 }): { readonly destination: string; readonly root: DiscoveryRoot } | null {
   const { repository, target } = options;
   const roots = target.discoveryRoots;
@@ -150,6 +162,7 @@ export function suggestCloneDestination(options: {
       destination,
       home: target.info.homeDirectory,
       roots: roots.map(({ path }) => path),
+      archive: options.archive,
     });
 
     return check._tag === "Valid" && !options.occupied.has(check.path)

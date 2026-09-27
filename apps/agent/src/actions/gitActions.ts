@@ -183,6 +183,7 @@ export const destinationProblems = {
   NotAbsolute: "The destination must be an absolute path or start with ~.",
   Hidden: "The destination can't be in a hidden folder or contain . or .. segments.",
   OutsideRoots: "The destination must be inside one of this machine's project folders.",
+  InArchive: "The destination can't be in the Archive folder.",
 } satisfies Record<Exclude<DestinationCheck["_tag"], "Valid">, string>;
 
 /** The path with every existing ancestor's symbolic links resolved. */
@@ -213,6 +214,7 @@ async function destinationProblem(options: {
   readonly target: string;
   readonly root: string;
   readonly home: string;
+  readonly archive: string | null;
 }): Promise<string | null> {
   const rootStat = await stat(options.root).catch(() => null);
 
@@ -233,6 +235,7 @@ async function destinationProblem(options: {
     destination: await resolveExisting(options.target),
     home: options.home,
     roots: [await realpath(options.root)],
+    archive: options.archive,
   });
 
   return resolved._tag === "Valid" ? null : destinationProblems[resolved._tag];
@@ -248,6 +251,7 @@ export const cloneRepository = Effect.fn("cloneRepository")(
       readonly url: string;
       readonly destination: Extract<DestinationCheck, { _tag: "Valid" }>;
       readonly home: string;
+      readonly archive: string | null;
     },
     output: ActionOutput,
   ) {
@@ -264,6 +268,7 @@ export const cloneRepository = Effect.fn("cloneRepository")(
         target,
         root: expandHome(root, options.home),
         home: options.home,
+        archive: options.archive,
       }).catch((error: unknown) => `Couldn't check the destination: ${String(error)}`),
     );
 

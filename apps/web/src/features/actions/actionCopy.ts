@@ -24,6 +24,8 @@ const batchVerbs = {
   Switch: "Switch branch in",
   Stash: "Stash changes in",
   DeleteBranches: "Delete branches in",
+  Archive: "Archive",
+  Unarchive: "Unarchive",
   Restore: "Restore from the trash in",
   Purge: "Permanently delete from",
 } satisfies Record<ActionKind, string>;
@@ -74,6 +76,11 @@ export function describeSkip(reason: SkipReason): string {
     DefaultBranch: ({ branch }) => `${branch} is the default branch`,
     BranchExists: ({ branch }) => `A branch called ${branch} exists now`,
     NotInTrash: () => "It's no longer in the trash",
+    NoArchiveFolder: () => "No Archive folder is set",
+    HasWorktrees: ({ count }) =>
+      `It has ${plural(count, "linked worktree")}, which moving it would break`,
+    IsWorktree: () => "It's a linked worktree, which moves with its main checkout",
+    DestinationTaken: ({ path }) => `Something is already at ${path}`,
     NotAllowed: ({ tier }) => `${tierNames[tier]} actions are turned off on this machine`,
     AgentOutdated: () => "The agent needs updating",
   });
@@ -89,6 +96,8 @@ function describeResult(result: ActionResult): string {
     Stashed: ({ files }) => `Stashed ${plural(files, "file")}`,
     BranchesDeleted: ({ branches }) =>
       `Moved ${plural(branches, "branch", "branches")} to the trash`,
+    Archived: ({ path }) => `Archived to ${path}`,
+    Unarchived: ({ path }) => `Moved back to ${path}`,
     Restored: () => "Restored",
     Purged: () => "Permanently deleted",
   });
@@ -162,6 +171,8 @@ const activeVerbs = {
   Switch: "Switching branch",
   Stash: "Stashing",
   DeleteBranches: "Deleting branches",
+  Archive: "Archiving",
+  Unarchive: "Unarchiving",
   Restore: "Restoring",
   Purge: "Deleting permanently",
 } satisfies Record<ActionKind, string>;
@@ -173,6 +184,8 @@ const waitingVerbs = {
   Switch: "switch branch",
   Stash: "stash",
   DeleteBranches: "delete branches",
+  Archive: "archive",
+  Unarchive: "unarchive",
   Restore: "restore",
   Purge: "delete permanently",
 } satisfies Record<ActionKind, string>;
@@ -205,6 +218,8 @@ export function describeEvent(event: HubEvent): string {
         ? `Removed every project folder on ${machineName}`
         : `Set the project folders on ${machineName} to ${roots.join(", ")}`,
     PollingChanged: () => "Changed the polling intervals",
+    ArchiveFolderChanged: ({ folder }) =>
+      folder === null ? "Turned off archiving" : `Set the Archive folder to ${folder}`,
     ProjectFolderCreated: ({ machineName, path }) => `Created ${path} on ${machineName}`,
   });
 }

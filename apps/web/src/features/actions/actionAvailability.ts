@@ -50,19 +50,21 @@ const destinationHints = {
   NotAbsolute: "Enter a full path, or one starting with ~.",
   Hidden: "Choose a folder that isn't hidden and has no . or .. in its path.",
   OutsideRoots: "Choose a folder inside one of this machine's project folders.",
+  InArchive: "Choose a folder outside the Archive folder.",
 } as const;
 
 /** Why a clone destination won't work on this machine, or null when it looks fine. */
 export function cloneDestinationProblem(options: {
   readonly destination: string;
   readonly machine: Machine;
-  readonly repositories: ReadonlyArray<Repository>;
+  readonly fleet: Pick<Fleet, "repositories" | "archiveFolder">;
 }): string | null {
   const { machine } = options;
   const check = checkCloneDestination({
     destination: options.destination,
     home: machine.info.homeDirectory,
     roots: machine.discoveryRoots.map(({ path }) => path),
+    archive: options.fleet.archiveFolder,
   });
 
   if (check._tag !== "Valid") {
@@ -75,7 +77,7 @@ export function cloneDestinationProblem(options: {
     return `${check.root} doesn't exist on ${machineLabel(machine)}. Fix it on the Machines page.`;
   }
 
-  return checkoutPaths(options.repositories, machine.id).has(check.path)
+  return checkoutPaths(options.fleet.repositories, machine.id).has(check.path)
     ? "Another repository is already there. Choose a different folder."
     : null;
 }

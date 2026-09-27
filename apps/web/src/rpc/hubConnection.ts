@@ -10,6 +10,7 @@ import type { RpcClientError } from "effect/unstable/rpc";
 
 import type {
   BatchNotFound,
+  InvalidArchiveFolder,
   MachineNotFound,
   NoCloneSource,
   NothingToRun,
@@ -30,6 +31,7 @@ export type DashboardError =
   | NothingToRun
   | NoCloneSource
   | BatchNotFound
+  | InvalidArchiveFolder
   | RpcClientError.RpcClientError;
 
 /** The most recent fleet from the hub and when the dashboard received it. */
@@ -171,6 +173,8 @@ const failureMessages = {
   NoCloneSource:
     "No machine has an HTTPS or SSH origin for this repository, so there's nothing to clone from.",
   BatchNotFound: "That action is no longer in the history.",
+  InvalidArchiveFolder:
+    "That folder can't be the Archive folder on every machine. It may hold a project folder.",
   RpcClientError: "The hub did not respond. Check that it is still running.",
 } satisfies Record<DashboardError["_tag"], string>;
 

@@ -35,6 +35,7 @@ export function CloneDialog({
         target: machine,
         machines: fleet.machines,
         occupied: checkoutPaths(fleet.repositories, machine.id),
+        archive: fleet.archiveFolder,
       });
       const rootMissing =
         suggestion?.root.status === "Missing" || suggestion?.root.status === "NotFolder";
@@ -71,7 +72,7 @@ export function CloneDialog({
         const problem = draftProblem({
           draft: draftOf(machine.id),
           machine,
-          repositories: fleet.repositories,
+          fleet,
         });
 
         return problem === null ? [] : [[machine.id, problem] as const];

@@ -7,9 +7,12 @@ import { Deferred, Effect, Fiber, Option } from "effect";
 
 import { RunId } from "@fleetfrog/protocol/domain/activity";
 
+import { placeLocation } from "../discovery/discoverCheckouts.ts";
 import { locateCheckout } from "../git/readCheckout.ts";
 import { temporaryDirectory } from "../testing/temporaryDirectory.ts";
+import { makeActionOutput } from "./actionOutput.ts";
 import { makeActionRunner } from "./actionRunner.ts";
+import { unarchiveCheckout } from "./archiveActions.ts";
 
 import type { ActionRequest, ActionUpdate } from "@fleetfrog/protocol/domain/action";
 
@@ -63,6 +66,7 @@ const runIds = {
 const makeHarness = Effect.fn("makeHarness")(function* (options: {
   readonly location: CheckoutLocation;
   readonly roots: ReadonlyArray<string>;
+  readonly archiveFolder: string | null;
   readonly policy: AgentPolicy;
 }) {
   const updates = new Map<RunId, Array<ActionUpdate>>();
@@ -99,8 +103,9 @@ const makeHarness = Effect.fn("makeHarness")(function* (options: {
           );
         }),
       track: (trackedPath) => Effect.sync(() => tracked.push(trackedPath)),
+      forget: () => Effect.void,
     },
-    discoveryRoots: () => options.roots,
+    folders: () => ({ roots: options.roots, archiveFolder: options.archiveFolder }),
     loadPolicy: Effect.succeed(options.policy),
     report: (runId, update) =>
       Effect.sync(() => {
@@ -129,7 +134,10 @@ const makeHarness = Effect.fn("makeHarness")(function* (options: {
   };
 });
 
-const setUp = (policy: AgentPolicy = { allowedTiers: ["git"] }) =>
+const setUp = (
+  policy: AgentPolicy = { allowedTiers: ["git"] },
+  archiveFolder: string | null = null,
+) =>
   Effect.gen(function* () {
     const fixture = createFixture(yield* temporaryDirectory("fleetfrog-actions-"));
     const location = yield* locateCheckout(fixture.clone);
@@ -141,6 +149,7 @@ const setUp = (policy: AgentPolicy = { allowedTiers: ["git"] }) =>
     const harness = yield* makeHarness({
       location: location.value,
       roots: [path.join(fixture.root, "projects")],
+      archiveFolder: archiveFolder === null ? null : path.join(fixture.root, archiveFolder),
       policy,
     });
 
@@ -396,6 +405,49 @@ describe("action runner", () => {
       ).toMatchObject({
         outcome: { _tag: "Skipped", reason: { _tag: "BranchCheckedOut", branch: "current" } },
       });
+    }),
+  );
+
+  it.effect("archives a checkout below the Archive folder and brings it back", () =>
+    Effect.gen(function* () {
+      const cleanup: AgentPolicy = { allowedTiers: ["git", "cleanup"] };
+      const { run, clone, root } = yield* setUp(cleanup, "Archive");
+      const archived = path.join(root, "Archive", "clone");
+
+      expect(yield* run({ _tag: "Archive", path: clone })).toMatchObject({
+        outcome: { _tag: "Succeeded", result: { _tag: "Archived", path: archived } },
+      });
+      expect(existsSync(clone)).toBe(false);
+
+      const location = Option.getOrThrow(yield* locateCheckout(archived));
+      const placed = yield* placeLocation(location, path.join(root, "Archive"));
+
+      expect(placed.placement).toMatchObject({ _tag: "Archive", originalPath: clone });
+      expect(
+        yield* unarchiveCheckout(
+          placed,
+          {
+            roots: [path.join(root, "projects")],
+            archiveFolder: path.join(root, "Archive"),
+            home: root,
+          },
+          makeActionOutput(),
+        ),
+      ).toMatchObject({ _tag: "Succeeded", result: { _tag: "Unarchived", path: clone } });
+      expect(git(clone, "status", "--porcelain")).toBe("");
+    }),
+  );
+
+  it.effect("won't archive a checkout whose linked worktrees would break", () =>
+    Effect.gen(function* () {
+      const { run, clone, root } = yield* setUp({ allowedTiers: ["git", "cleanup"] }, "Archive");
+
+      git(clone, "worktree", "add", "-q", "-b", "feature", path.join(root, "feature"));
+
+      expect(yield* run({ _tag: "Archive", path: clone })).toMatchObject({
+        outcome: { _tag: "Skipped", reason: { _tag: "HasWorktrees", count: 1 } },
+      });
+      expect(existsSync(clone)).toBe(true);
     }),
   );
 });

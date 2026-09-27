@@ -1,5 +1,5 @@
 import { Link, Outlet } from "@tanstack/react-router";
-import { LayersIcon, PlusIcon, RefreshCwIcon } from "lucide-react";
+import { ArchiveIcon, LayersIcon, PlusIcon, RefreshCwIcon } from "lucide-react";
 
 import { knownFleet, useHub } from "@/rpc/hubConnection.ts";
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
@@ -70,6 +70,12 @@ export function SettingsLayout() {
                 Fleet
               </Link>
               <MachineLinks />
+            </li>
+            <li>
+              <Link to="/settings/archive" className={sidebarLinkClass}>
+                <ArchiveIcon />
+                Archive
+              </Link>
             </li>
           </ul>
         </nav>

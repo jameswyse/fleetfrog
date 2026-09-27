@@ -74,12 +74,50 @@ function labelsFor(
   );
 }
 
+/** Groups checkouts by repository, named and labelled against every repository the fleet has. */
+function groupRepositories(
+  checkouts: ReadonlyArray<MachineCheckout>,
+  labels: ReadonlyMap<RepositoryKey, string> | null,
+): ReadonlyArray<Repository> {
+  const groups = new Map<RepositoryKey, CheckoutGroup>();
+
+  for (const entry of checkouts) {
+    const key = repositoryKey(entry.checkout.identity);
+    const group = groups.get(key);
+
+    if (group === undefined) {
+      groups.set(key, [entry]);
+    } else {
+      group.push(entry);
+    }
+  }
+
+  const named = [...groups].map(([key, members]) => ({
+    key,
+    identity: members[0].checkout.identity,
+    name: repositoryName(members),
+    checkouts: members,
+  }));
+  const own = labels ?? labelsFor(named);
+
+  return named
+    .map((repository): Repository => ({
+      ...repository,
+      label: own.get(repository.key) ?? repository.name,
+    }))
+    .toSorted(
+      (left, right) =>
+        collator.compare(left.name, right.name) || collator.compare(left.label, right.label),
+    );
+}
+
 /** Groups every machine's checkouts into repositories and attaches live connection state. */
 export function buildFleet(sources: {
   readonly machines: ReadonlyArray<MachineRecord>;
   readonly checkouts: ReadonlyArray<MachineCheckout>;
   readonly online: ReadonlyMap<MachineId, OnlineAgent>;
   readonly polling: PollingSettings;
+  readonly archiveFolder: string | null;
 }): Fleet {
   const machines = sources.machines.map((record): Machine => {
     const agent = sources.online.get(record.id);
@@ -104,35 +142,22 @@ export function buildFleet(sources: {
       usage: record.usage,
     };
   });
-  const groups = new Map<RepositoryKey, CheckoutGroup>();
-
-  for (const entry of sources.checkouts) {
-    const key = repositoryKey(entry.checkout.identity);
-    const group = groups.get(key);
-
-    if (group === undefined) {
-      groups.set(key, [entry]);
-    } else {
-      group.push(entry);
-    }
-  }
-
-  const named = [...groups].map(([key, checkouts]) => ({
-    key,
-    identity: checkouts[0].checkout.identity,
-    name: repositoryName(checkouts),
-    checkouts,
-  }));
-  const labels = labelsFor(named);
-  const repositories = named.map((repository): Repository => ({
-    ...repository,
-    label: labels.get(repository.key) ?? repository.name,
-  }));
-
-  repositories.sort(
-    (left, right) =>
-      collator.compare(left.name, right.name) || collator.compare(left.label, right.label),
+  // Labels tell apart every repository the fleet has, archived or not, so both lists agree.
+  const labels = labelsFor(groupRepositories(sources.checkouts, new Map()));
+  const repositories = groupRepositories(
+    sources.checkouts.filter(({ checkout }) => checkout.placement._tag === "Projects"),
+    labels,
+  );
+  const archive = groupRepositories(
+    sources.checkouts.filter(({ checkout }) => checkout.placement._tag === "Archive"),
+    labels,
   );
 
-  return { machines, repositories, polling: sources.polling };
+  return {
+    machines,
+    repositories,
+    archive,
+    polling: sources.polling,
+    archiveFolder: sources.archiveFolder,
+  };
 }

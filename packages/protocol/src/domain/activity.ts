@@ -146,6 +146,7 @@ export const HubEvent = Schema.TaggedUnion({
     roots: Schema.Array(Schema.String),
   },
   PollingChanged: { polling: PollingSettings },
+  ArchiveFolderChanged: { folder: Schema.NullOr(Schema.String) },
   ProjectFolderCreated: { machineId: MachineId, machineName: Schema.String, path: Schema.String },
 });
 export type HubEvent = typeof HubEvent.Type;

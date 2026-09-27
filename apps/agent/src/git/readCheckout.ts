@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { DateTime, Effect, Option } from "effect";
 
+import { Placement } from "@fleetfrog/protocol/domain/checkout";
 import { RepositoryIdentity } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
 import { runGit } from "../process/runTool.ts";
@@ -29,6 +30,7 @@ export interface CheckoutLocation {
   readonly originUrl: string | null;
   readonly worktree: Worktree;
   readonly directoryName: string;
+  readonly placement: Placement;
   /** This worktree's own Git directory, which holds its HEAD and any operation in progress. */
   readonly gitDirectory: string;
   readonly commonDirectory: string;
@@ -138,6 +140,8 @@ export const locateCheckout = Effect.fn("locateCheckout")(function* (directory: 
     originUrl,
     worktree,
     directoryName: path.basename(mainPath),
+    // Discovery moves checkouts it finds in the Archive folder into the archive.
+    placement: Placement.cases.Projects.make({}),
     gitDirectory,
     commonDirectory,
   }));

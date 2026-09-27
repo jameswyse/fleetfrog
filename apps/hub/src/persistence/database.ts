@@ -9,6 +9,7 @@ import initial from "./migrations/0001_initial.ts";
 import actions from "./migrations/0002_actions.ts";
 import machineUsage from "./migrations/0003_machine_usage.ts";
 import machineKind from "./migrations/0004_machine_kind.ts";
+import archiveFolder from "./migrations/0005_archive_folder.ts";
 
 const client = Layer.unwrap(
   Effect.gen(function* () {
@@ -26,6 +27,7 @@ export const Migrations = SqliteMigrator.layer({
     "0002_actions": actions,
     "0003_machine_usage": machineUsage,
     "0004_machine_kind": machineKind,
+    "0005_archive_folder": archiveFolder,
   }),
 });
 

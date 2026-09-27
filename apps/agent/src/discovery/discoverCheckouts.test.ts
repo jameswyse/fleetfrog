@@ -55,10 +55,41 @@ describe("discoverCheckouts", () => {
           { env: gitEnvironment },
         );
 
-        const found = yield* discoverCheckouts([projects, path.join(home, "missing")]);
+        const found = yield* discoverCheckouts({
+          roots: [projects, path.join(home, "missing")],
+          archiveFolder: null,
+        });
 
         expect(found.map(({ path: checkoutPath }) => checkoutPath).toSorted()).toEqual(
           [shop, outsideWorktree].toSorted(),
+        );
+      }),
+  );
+
+  it.effect(
+    "reports checkouts in an Archive folder inside a root as archived, not as projects",
+    () =>
+      Effect.gen(function* () {
+        const home = yield* temporaryDirectory("fleetfrog-discovery-");
+        const projects = path.join(home, "Projects");
+        const shop = path.join(projects, "shop");
+        const archived = path.join(projects, "Archive", "old");
+
+        createRepository(shop);
+        createRepository(archived);
+
+        const found = yield* discoverCheckouts({
+          roots: [projects],
+          archiveFolder: path.join(projects, "Archive"),
+        });
+
+        expect(
+          new Map(found.map(({ path: checkoutPath, placement }) => [checkoutPath, placement._tag])),
+        ).toEqual(
+          new Map([
+            [archived, "Archive"],
+            [shop, "Projects"],
+          ]),
         );
       }),
   );

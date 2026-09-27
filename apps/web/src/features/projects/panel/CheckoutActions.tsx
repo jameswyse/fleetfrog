@@ -1,9 +1,11 @@
 import { useState, useTransition } from "react";
 
 import { Link } from "@tanstack/react-router";
+import { ArchiveIcon } from "lucide-react";
 
-import { requestHub, useRuns } from "@/rpc/hubConnection.ts";
+import { knownFleet, requestHub, useHub, useRuns } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
+import { Menu, MenuItem } from "@/ui/Menu.tsx";
 
 import {
   machineBlocker,
@@ -14,6 +16,8 @@ import { activeRunFor, latestRunFor } from "../../actions/runLookup.ts";
 import { RunStateText } from "../../actions/RunStateText.tsx";
 import { StashDialog } from "../../actions/StashDialog.tsx";
 import { useStartBatch } from "../../actions/useStartBatch.ts";
+import { planArchive } from "../../archive/archiveAvailability.ts";
+import { ArchiveDialog } from "../../archive/ArchiveDialog.tsx";
 
 import type { Checkout } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
@@ -31,7 +35,8 @@ export function CheckoutActions({
   readonly machine: Machine;
   readonly checkout: Checkout;
 }) {
-  const [stashing, setStashing] = useState(false);
+  const [dialog, setDialog] = useState<"stash" | "archive" | null>(null);
+  const fleet = knownFleet(useHub());
   const runs = useRuns();
   const { start, pending, failure } = useStartBatch();
   const [cancelling, startCancel] = useTransition();
@@ -42,6 +47,10 @@ export function CheckoutActions({
   const git = checkout.status._tag === "Read" ? checkout.status.git : null;
   const hasChanges = git !== null && git.changed.total + git.untracked.total > 0;
   const stashBlocked = stashSkipReason(machine, checkout);
+  const archive =
+    fleet === null
+      ? ({ _tag: "Blocked", reason: "Waiting for the hub" } as const)
+      : planArchive({ fleet, repository, machine, checkout });
   const scope = { _tag: "Checkout", machineId: machine.id, path: checkout.path } as const;
   const shown = active ?? latest;
 
@@ -66,11 +75,37 @@ export function CheckoutActions({
         {hasChanges && (
           <Button
             disabled={stashBlocked !== null || active !== undefined || pending}
-            onClick={() => setStashing(true)}
+            onClick={() => setDialog("stash")}
           >
             Stash changes
           </Button>
         )}
+        <Menu
+          label="More actions for this checkout"
+          trigger={{
+            content: "More…",
+            className:
+              "inline-flex min-h-9 items-center rounded-md px-3 text-sm font-medium text-ink-muted hover:bg-surface-raised hover:text-ink",
+          }}
+        >
+          {(close) => (
+            <>
+              <MenuItem
+                icon={<ArchiveIcon />}
+                disabled={archive._tag === "Blocked" || active !== undefined}
+                onClick={() => {
+                  close();
+                  setDialog("archive");
+                }}
+              >
+                Archive…
+              </MenuItem>
+              {archive._tag === "Blocked" && (
+                <p className="px-3 pb-2 text-xs text-ink-muted">{archive.reason}.</p>
+              )}
+            </>
+          )}
+        </Menu>
         {active !== undefined && (
           <Button
             tone="quiet"
@@ -113,13 +148,22 @@ export function CheckoutActions({
           </span>
         )}
       </p>
-      {stashing && git !== null && (
+      {dialog === "stash" && git !== null && (
         <StashDialog
           repository={repository}
           machine={machine}
           checkout={checkout}
           git={git}
-          onClose={() => setStashing(false)}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog === "archive" && archive._tag === "Ready" && (
+        <ArchiveDialog
+          repository={repository}
+          machine={machine}
+          checkout={checkout}
+          destination={archive.destination}
+          onClose={() => setDialog(null)}
         />
       )}
     </section>
