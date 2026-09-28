@@ -355,7 +355,13 @@ export function MachineSettings() {
       key={machine.id}
       title={machineLabel(machine)}
       parents={[{ label: "Fleet", to: "/settings/fleet" }]}
-      action={<span className="font-mono text-[13px] text-ink-muted">{machine.info.hostname}</span>}
+      action={
+        <p className="flex items-center gap-2 font-mono text-[13px] text-ink-muted">
+          <span>{machine.info.hostname}</span>
+          <span aria-hidden="true">·</span>
+          <span>agent {machine.info.agentVersion}</span>
+        </p>
+      }
       aside={
         <>
           <StatusPanel fleet={fleet} machine={machine} />

@@ -6,11 +6,7 @@ import { requestHub } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
 import { Chip } from "@/ui/Chip.tsx";
 import { plural } from "@/ui/plural.ts";
-import {
-  agentBehindHub,
-  canUpdateAgent,
-  compareVersions,
-} from "@fleetfrog/protocol/domain/agentUpdate";
+import { agentBehindHub, canUpdateAgent } from "@fleetfrog/protocol/domain/agentUpdate";
 
 import { SettingsRow } from "../SettingsSection.tsx";
 
@@ -22,18 +18,9 @@ function changelogUrl(hubVersion: string): string {
   return `https://github.com/jameswyse/fleetfrog/blob/v${hubVersion}/apps/agent-rs/CHANGELOG.md`;
 }
 
-/** Why the agent is on the version it runs, and what to do about it. */
+/** Why an agent behind the hub hasn't updated yet, and what to do about it. */
 function describeVersion(machine: Machine, hubVersion: string): string {
   const { agentVersion } = machine.info;
-  const order = compareVersions(agentVersion, hubVersion);
-
-  if (order === 0) {
-    return `Runs ${agentVersion}, the same version as the hub.`;
-  }
-
-  if (order > 0) {
-    return `Runs ${agentVersion}, newer than the hub's ${hubVersion}. Update the hub to match it.`;
-  }
 
   if (machine.update?._tag === "Updating") {
     return `Installing ${machine.update.version}. The agent restarts on it and reconnects.`;
@@ -70,7 +57,7 @@ function updateLabel({
   return failure === null ? `Update to ${hubVersion}` : "Try again";
 }
 
-/** The machine's agent version, with a button to update it to the hub's. */
+/** Offers to update the machine's agent while it runs an older version than the hub. */
 export function AgentUpdateRow({
   fleet,
   machine,
@@ -82,8 +69,7 @@ export function AgentUpdateRow({
   const [error, setError] = useState<string | null>(null);
   const { hubVersion } = fleet;
   const { update } = machine;
-  const behind = agentBehindHub(machine, hubVersion);
-  const failure = behind && update?._tag === "Failed" ? update : null;
+  const failure = update?._tag === "Failed" ? update : null;
   const message =
     error ??
     (failure === null ? null : `Couldn't update to ${failure.version}. ${failure.message}`);
@@ -95,36 +81,38 @@ export function AgentUpdateRow({
       setError(result._tag === "Failure" ? `Couldn't start the update. ${result.message}` : null);
     });
 
+  if (!agentBehindHub(machine, hubVersion)) {
+    return null;
+  }
+
   return (
     <SettingsRow
-      title="Agent version"
+      title="Update agent"
       description={describeVersion(machine, hubVersion)}
       control={
-        behind && (
-          <div className="flex items-center gap-4">
-            <a
-              href={changelogUrl(hubVersion)}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-0.5 text-sm text-accent-text underline-offset-2 hover:underline"
-            >
-              What's new
-              <ArrowUpRightIcon className="size-3.5" />
-              <span className="sr-only"> (opens in a new tab)</span>
-            </a>
-            <Button
-              tone="primary"
-              disabled={requesting || !canUpdateAgent(machine, hubVersion)}
-              onClick={start}
-            >
-              {updateLabel({
-                updating: requesting || update?._tag === "Updating",
-                failure,
-                hubVersion,
-              })}
-            </Button>
-          </div>
-        )
+        <div className="flex items-center gap-4">
+          <a
+            href={changelogUrl(hubVersion)}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-0.5 text-sm text-accent-text underline-offset-2 hover:underline"
+          >
+            What's new
+            <ArrowUpRightIcon className="size-3.5" />
+            <span className="sr-only"> (opens in a new tab)</span>
+          </a>
+          <Button
+            tone="primary"
+            disabled={requesting || !canUpdateAgent(machine, hubVersion)}
+            onClick={start}
+          >
+            {updateLabel({
+              updating: requesting || update?._tag === "Updating",
+              failure,
+              hubVersion,
+            })}
+          </Button>
+        </div>
       }
     >
       {message !== null && (
