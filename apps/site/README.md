@@ -13,7 +13,7 @@ The download links point at the latest GitHub release, so they never need updati
 
 ## Deploying
 
-Cloudflare Workers serves the site as static assets, and Workers Builds builds it from GitHub. Pushes to `main` deploy fleetfrog.dev. A push to any other branch that changes the site builds a preview at a subdomain, such as `my-branch.fleetfrog.dev`, and Cloudflare's GitHub app comments its address on the pull request. [`wrangler.jsonc`](wrangler.jsonc) configures the Worker, including its custom domain. The Worker's build settings are:
+Cloudflare Workers serves the site as static assets, and Workers Builds builds it from GitHub. Pushes to `main` deploy fleetfrog.dev and www.fleetfrog.dev. A push to any other branch that changes the site builds a preview at a subdomain, such as `my-branch.fleetfrog.dev`, and Cloudflare's GitHub app comments its address on the pull request. [`wrangler.jsonc`](wrangler.jsonc) configures the Worker, including its custom domains. The Worker's build settings are:
 
 | Setting           | Value                                             |
 | ----------------- | ------------------------------------------------- |

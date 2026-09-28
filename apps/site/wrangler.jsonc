@@ -7,11 +7,16 @@
     "directory": "./dist",
     "not_found_handling": "404-page",
   },
-  // Production is served only at fleetfrog.dev. Each branch's preview is served at a subdomain of
-  // it, such as my-branch.fleetfrog.dev, which Cloudflare's GitHub app comments on the pull request.
+  // Production is served at fleetfrog.dev and www.fleetfrog.dev. Each branch's preview is served
+  // at a subdomain of fleetfrog.dev, such as my-branch.fleetfrog.dev, which Cloudflare's GitHub app comments on the pull request.
   "workers_dev": false,
   "preview_urls": true,
   // `wrangler preview`, which Workers Builds runs for each branch, needs this block even when empty.
   "previews": {},
-  "routes": [{ "pattern": "fleetfrog.dev", "custom_domain": true, "previews_enabled": true }],
+  // Deploying makes the Worker's custom domains match this list, so a domain added only in the
+  // dashboard is removed by the next deploy.
+  "routes": [
+    { "pattern": "fleetfrog.dev", "custom_domain": true, "previews_enabled": true },
+    { "pattern": "www.fleetfrog.dev", "custom_domain": true },
+  ],
 }
