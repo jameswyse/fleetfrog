@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Schema, SubscriptionRef } from "effect";
+import { Context, Effect, Layer, Schema, Stream, Struct, SubscriptionRef } from "effect";
 import { SqlClient } from "effect/unstable/sql";
 
 import { defaultPollingSettings, PollingSettings } from "@fleetfrog/protocol/domain/polling";
@@ -7,7 +7,7 @@ import { AuthSettings, defaultAuthSettings } from "@fleetfrog/protocol/domain/us
 import { HubConfig } from "../hubConfig.ts";
 import { JsonColumn } from "../persistence/database.ts";
 
-import type { AuthMode } from "@fleetfrog/protocol/domain/user";
+import type { AuthMode, AuthSettingsView } from "@fleetfrog/protocol/domain/user";
 
 const AuthJson = JsonColumn(AuthSettings);
 const encodeAuth = Schema.encodeSync(AuthJson);
@@ -26,6 +26,8 @@ export class AuthSettingsStore extends Context.Service<
     /** Whether `FLEETFROG_AUTH_MODE` has turned sign-in off. */
     readonly overridden: boolean;
     readonly update: (auth: AuthSettings) => Effect.Effect<void>;
+    /** The settings as admins see them, on subscribe and after every change. */
+    readonly watch: Stream.Stream<AuthSettingsView>;
   }
 >()("fleetfrog/AuthSettingsStore") {
   static readonly layer = Layer.effect(this)(
@@ -54,6 +56,14 @@ export class AuthSettingsStore extends Context.Service<
             Effect.orDie,
             Effect.andThen(SubscriptionRef.set(settings, auth)),
           ),
+        watch: SubscriptionRef.changes(settings).pipe(
+          Stream.map(({ mode, gravatar, oidc }) => ({
+            mode,
+            overridden: authModeOverride !== null,
+            gravatar,
+            oidc: oidc === null ? null : Struct.omit(oidc, ["clientSecret"]),
+          })),
+        ),
       };
     }),
   );

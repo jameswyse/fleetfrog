@@ -17,6 +17,7 @@ import { RepositoryKey } from "../domain/repositoryIdentity.ts";
 import { IntegrationSettings } from "../domain/t3Code.ts";
 import { InspectionResult } from "../domain/trash.ts";
 import {
+  AuthSettingsView,
   AvatarMediaType,
   DisplayName,
   Email,
@@ -283,4 +284,7 @@ export class DashboardRpcs extends RpcGroup.make(
     payload: { userId: UserId },
     error: Schema.Union([UserNotFound, LastAdmin]),
   }),
+  /** Streams the sign-in settings on subscribe and after every change. Modes change over HTTP. */
+  Rpc.make("WatchAuthSettings", { success: AuthSettingsView, stream: true }),
+  Rpc.make("SetGravatar", { payload: { enabled: Schema.Boolean } }),
 ).middleware(DashboardAuthentication) {}

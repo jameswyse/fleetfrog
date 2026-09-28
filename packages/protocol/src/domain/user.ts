@@ -1,4 +1,4 @@
-import { Schema, SchemaTransformation } from "effect";
+import { Schema, SchemaTransformation, Struct } from "effect";
 
 import { actionTiers } from "./action.ts";
 
@@ -102,6 +102,10 @@ export const OidcSettings = Schema.Struct({
 });
 export type OidcSettings = typeof OidcSettings.Type;
 
+/** The provider's settings as admins see them. The client secret never leaves the hub. */
+export const OidcSummary = OidcSettings.mapFields(Struct.omit(["clientSecret"]));
+export type OidcSummary = typeof OidcSummary.Type;
+
 /** The hub's sign-in settings as stored. */
 export const AuthSettings = Schema.Struct({
   mode: AuthMode,
@@ -112,3 +116,13 @@ export const AuthSettings = Schema.Struct({
 export type AuthSettings = typeof AuthSettings.Type;
 
 export const defaultAuthSettings: AuthSettings = { mode: "none", gravatar: true, oidc: null };
+
+/** The sign-in settings as admins see them. */
+export const AuthSettingsView = Schema.Struct({
+  mode: AuthMode,
+  /** `FLEETFROG_AUTH_MODE` on the hub keeps sign-in off whatever the mode says. */
+  overridden: Schema.Boolean,
+  gravatar: Schema.Boolean,
+  oidc: Schema.NullOr(OidcSummary),
+});
+export type AuthSettingsView = typeof AuthSettingsView.Type;

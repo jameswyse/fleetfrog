@@ -1,4 +1,4 @@
-import { Effect, Stream } from "effect";
+import { Effect, Stream, SubscriptionRef } from "effect";
 
 import {
   CurrentViewer,
@@ -23,6 +23,7 @@ import { AgentSessions } from "../agents/agentSessions.ts";
 import { AgentUpdates } from "../agents/agentUpdates.ts";
 import { FolderRequests } from "../agents/folderRequests.ts";
 import { InspectionRequests } from "../agents/inspectionRequests.ts";
+import { AuthSettingsStore } from "../auth/authSettingsStore.ts";
 import { isAvatarImage } from "../auth/avatarImage.ts";
 import { DashboardSessions } from "../auth/dashboardSessions.ts";
 import { checkPassword, hashPassword } from "../auth/passwords.ts";
@@ -51,6 +52,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
     const inspections = yield* InspectionRequests;
     const updates = yield* AgentUpdates;
     const users = yield* UserStore;
+    const auth = yield* AuthSettingsStore;
     const dashboardSessions = yield* DashboardSessions;
     /** The signed-in user making the call. With sign-in off there's no one to act as. */
     const signedIn = Effect.gen(function* () {
@@ -267,6 +269,11 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
         }),
       DeleteUser: ({ userId }) =>
         users.remove(userId).pipe(Effect.andThen(dashboardSessions.endForUser(userId))),
+      WatchAuthSettings: () => auth.watch,
+      SetGravatar: ({ enabled }) =>
+        SubscriptionRef.get(auth.settings).pipe(
+          Effect.flatMap((settings) => auth.update({ ...settings, gravatar: enabled })),
+        ),
     };
   }),
 );

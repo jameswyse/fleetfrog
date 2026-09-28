@@ -1,5 +1,13 @@
 import { Link, Outlet } from "@tanstack/react-router";
-import { BlocksIcon, LayersIcon, PlusIcon, RefreshCwIcon, TriangleAlertIcon } from "lucide-react";
+import {
+  BlocksIcon,
+  KeyRoundIcon,
+  LayersIcon,
+  PlusIcon,
+  RefreshCwIcon,
+  TriangleAlertIcon,
+  UsersIcon,
+} from "lucide-react";
 
 import { knownFleet, useHub } from "@/rpc/hubConnection.ts";
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
@@ -107,6 +115,18 @@ export function SettingsLayout() {
                 Fleet
               </Link>
               <MachineLinks />
+            </li>
+            <li>
+              <Link to="/settings/users" className={sidebarLinkClass}>
+                <UsersIcon />
+                Users
+              </Link>
+            </li>
+            <li>
+              <Link to="/settings/authentication" className={sidebarLinkClass}>
+                <KeyRoundIcon />
+                Authentication
+              </Link>
             </li>
           </ul>
         </nav>

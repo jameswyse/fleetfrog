@@ -27,7 +27,10 @@ function pictureUrl(avatar: AvatarSource, size: number): string | null {
   });
 }
 
-/** A user's picture, or their initials when there's none or it fails to load. Decorative. */
+/**
+ * A user's picture over their initials, so the initials show while it loads and stay when there's
+ * none or it fails to load. Decorative, since the name always appears beside it.
+ */
 export function Avatar({
   user,
   size,
@@ -40,24 +43,23 @@ export function Avatar({
 }) {
   const url = pictureUrl(user.avatar, size);
   const [failed, setFailed] = useState<string | null>(null);
-  const style = { width: size, height: size, fontSize: size * 0.4 };
 
-  return url === null || failed === url ? (
+  return (
     <span
       aria-hidden="true"
-      style={style}
-      className={`inline-grid shrink-0 place-items-center rounded-full bg-accent-soft font-medium text-accent-text select-none ${className}`}
+      style={{ width: size, height: size, fontSize: size * 0.4 }}
+      className={`relative inline-grid shrink-0 place-items-center overflow-hidden rounded-full bg-accent-soft font-medium text-accent-text select-none ${className}`}
     >
       {initials(user.displayName)}
+      {url !== null && failed !== url && (
+        <img
+          src={url}
+          alt=""
+          referrerPolicy="no-referrer"
+          onError={() => setFailed(url)}
+          className="absolute inset-0 size-full rounded-full object-cover outline -outline-offset-1 outline-[oklch(0_0_0/0.1)] dark:outline-[oklch(1_0_0/0.1)]"
+        />
+      )}
     </span>
-  ) : (
-    <img
-      src={url}
-      alt=""
-      style={style}
-      referrerPolicy="no-referrer"
-      onError={() => setFailed(url)}
-      className={`shrink-0 rounded-full object-cover outline -outline-offset-1 outline-[oklch(0_0_0/0.1)] dark:outline-[oklch(1_0_0/0.1)] ${className}`}
-    />
   );
 }
