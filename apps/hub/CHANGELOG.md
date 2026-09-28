@@ -1,5 +1,13 @@
 # @fleetfrog/hub
 
+## 0.2.0
+
+### Minor Changes
+
+- 25bb9d5: Add dashboard sign-in with email and password, admin and user roles, and FLEETFROG_AUTH_MODE=none to turn sign-in off.
+- 45cdda0: Add dashboard sign-in through an OpenID Connect provider such as Authentik, with optional groups for admins and for who can sign in.
+- e0311c6: Record who started each action and made each change.
+
 ## 0.1.1
 
 ### Patch Changes
