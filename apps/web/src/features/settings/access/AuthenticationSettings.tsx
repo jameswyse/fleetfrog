@@ -177,7 +177,6 @@ function modeOptions(settings: AuthSettingsView): ReadonlyArray<{
   readonly mode: AuthMode;
   readonly title: string;
   readonly description: string;
-  readonly available: boolean;
 }> {
   return [
     {
@@ -185,65 +184,38 @@ function modeOptions(settings: AuthSettingsView): ReadonlyArray<{
       title: "Off",
       description:
         "Anyone who can reach the dashboard can use all of it. For a private network, or behind a proxy that signs people in, such as Pangolin.",
-      available: true,
     },
     {
       mode: "local",
       title: "Email and password",
       description: "People sign in with the accounts under Users.",
-      available: true,
     },
     {
       mode: "oidc",
       title: "Sign-in provider",
       description:
         settings.oidc === null
-          ? "People sign in through an OpenID Connect provider such as Authentik. Set one up below first."
+          ? "People sign in through an OpenID Connect provider such as Authentik."
           : `People sign in through ${settings.oidc.providerName}.`,
-      available: settings.oidc !== null,
     },
   ];
 }
 
-/** Turning the provider on starts with the admin signing in through it, which proves it works. */
-function TurnOnProviderDialog({
-  providerName,
-  onClose,
+function ModeChoice({
+  settings,
+  onChooseProvider,
 }: {
-  readonly providerName: string;
-  readonly onClose: () => void;
+  readonly settings: AuthSettingsView;
+  /** Choosing the provider opens its settings, where it's turned on once it works. */
+  readonly onChooseProvider: () => void;
 }) {
-  return (
-    <Dialog title={`Sign in through ${providerName}?`} onClose={onClose}>
-      <div className="space-y-4 text-sm">
-        <p>
-          You'll sign in at {providerName} to check it works. When you're back, people sign in
-          through {providerName}, everyone else is signed out and you stay an admin.
-        </p>
-        <p className="text-ink-muted">
-          Someone whose email matches an account here takes that account over when they first sign
-          in, keeping its role.
-        </p>
-        {/* A form post, which the hub accepts only from this page. */}
-        <form method="post" action="/auth/oidc/activate" className="flex justify-end gap-3">
-          <Button onClick={onClose}>Cancel</Button>
-          <Button tone="primary" type="submit">
-            Sign in with {providerName}
-          </Button>
-        </form>
-      </div>
-    </Dialog>
-  );
-}
-
-function ModeChoice({ settings }: { readonly settings: AuthSettingsView }) {
   const [changing, setChanging] = useState<AuthMode | null>(null);
 
   return (
     <SettingsSection title="How people sign in">
       <fieldset disabled={settings.overridden}>
         <legend className="sr-only">How people sign in</legend>
-        {modeOptions(settings).map(({ mode, title, description, available }) => (
+        {modeOptions(settings).map(({ mode, title, description }) => (
           <label
             key={mode}
             className="flex cursor-pointer items-start gap-3 border-line px-5 py-4 not-first-of-type:border-t hover:bg-surface-raised has-disabled:cursor-not-allowed has-disabled:opacity-60"
@@ -253,8 +225,7 @@ function ModeChoice({ settings }: { readonly settings: AuthSettingsView }) {
               name="mode"
               value={mode}
               checked={settings.mode === mode}
-              disabled={!available}
-              onChange={() => setChanging(mode)}
+              onChange={() => (mode === "oidc" ? onChooseProvider() : setChanging(mode))}
               className="mt-0.5 size-4 accent-accent"
             />
             <span>
@@ -266,12 +237,6 @@ function ModeChoice({ settings }: { readonly settings: AuthSettingsView }) {
       </fieldset>
       {changing === "none" && <TurnOffDialog onClose={() => setChanging(null)} />}
       {changing === "local" && <TurnOnPasswordsDialog onClose={() => setChanging(null)} />}
-      {changing === "oidc" && settings.oidc !== null && (
-        <TurnOnProviderDialog
-          providerName={settings.oidc.providerName}
-          onClose={() => setChanging(null)}
-        />
-      )}
     </SettingsSection>
   );
 }
@@ -286,8 +251,19 @@ const requiredProviderFields = [
   ["dashboardUrl", "Enter the dashboard's URL, starting with https://."],
 ] as const;
 
-function ProviderSection({ settings }: { readonly settings: AuthSettingsView }) {
+/**
+ * The provider's settings, shown once someone chooses the provider or while it's in use. Until
+ * it's in use, turning it on starts with the admin signing in through it, which proves it works.
+ */
+function ProviderSection({
+  settings,
+  onCancel,
+}: {
+  readonly settings: AuthSettingsView;
+  readonly onCancel: () => void;
+}) {
   const saved = settings.oidc;
+  const active = settings.mode === "oidc";
   const [dashboardUrl, setDashboardUrl] = useState(saved?.dashboardUrl ?? window.location.origin);
   const [errors, setErrors] = useState<ReadonlyArray<{ field: string; message: string }>>([]);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -449,11 +425,35 @@ function ProviderSection({ settings }: { readonly settings: AuthSettingsView }) 
               <span className={result.ok ? "text-clean" : "text-danger"}>{result.message}</span>
             )}
           </p>
-          <Button tone="primary" type="submit" disabled={pending} className="ms-auto">
-            {pending ? "Checking…" : "Save"}
-          </Button>
+          <div className="ms-auto flex gap-3">
+            {!active && <Button onClick={onCancel}>Cancel</Button>}
+            <Button
+              tone={saved === null || active ? "primary" : "secondary"}
+              type="submit"
+              disabled={pending}
+            >
+              {pending ? "Checking…" : "Save"}
+            </Button>
+          </div>
         </div>
       </form>
+      {saved !== null && !active && (
+        // A form post, which the hub accepts only from this page.
+        <form
+          method="post"
+          action="/auth/oidc/activate"
+          className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-5 py-4"
+        >
+          <p className="min-w-0 flex-1 basis-80 text-sm text-ink-muted">
+            To turn it on, sign in at {saved.providerName} to check it works. Everyone else is
+            signed out, and you stay an admin. People whose email matches an account here take it
+            over when they first sign in.
+          </p>
+          <Button tone="primary" type="submit">
+            Sign in with {saved.providerName}
+          </Button>
+        </form>
+      )}
     </SettingsSection>
   );
 }
@@ -485,8 +485,10 @@ function GravatarSection({ settings }: { readonly settings: AuthSettingsView }) 
 /** How people sign in to the dashboard, for admins. */
 export function AuthenticationSettings() {
   // Set by the hub when a test sign-in through the provider didn't work.
-  const { failure } = useSearch({ from: "/_app/settings/authentication" });
+  const { failure } = useSearch({ from: "/_app/settings/authentication/" });
   const settings = useHubStream({ key: "auth", open: (client) => client.WatchAuthSettings() });
+  // A failed test sign-in comes back here, where the provider's settings need fixing.
+  const [choosingProvider, setChoosingProvider] = useState(failure !== undefined);
 
   return (
     <SidebarPage title="Authentication">
@@ -512,8 +514,16 @@ export function AuthenticationSettings() {
               Sign-in through the provider is still off. {failure}
             </p>
           )}
-          <ModeChoice settings={settings.value} />
-          <ProviderSection settings={settings.value} />
+          <ModeChoice
+            settings={settings.value}
+            onChooseProvider={() => setChoosingProvider(true)}
+          />
+          {(settings.value.mode === "oidc" || choosingProvider) && (
+            <ProviderSection
+              settings={settings.value}
+              onCancel={() => setChoosingProvider(false)}
+            />
+          )}
           <GravatarSection settings={settings.value} />
         </>
       )}

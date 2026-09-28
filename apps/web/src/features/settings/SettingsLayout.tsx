@@ -96,6 +96,24 @@ export function SettingsLayout() {
             </li>
             <li>
               <Link
+                to="/settings/authentication"
+                activeOptions={{ exact: true }}
+                className={sidebarLinkClass}
+              >
+                <KeyRoundIcon />
+                Authentication
+              </Link>
+              <ul className={sidebarSubmenuClass}>
+                <li className={sidebarSubmenuItemClass}>
+                  <Link to="/settings/authentication/users" className={sidebarLinkClass}>
+                    <UsersIcon />
+                    Users
+                  </Link>
+                </li>
+              </ul>
+            </li>
+            <li>
+              <Link
                 to="/settings/integrations"
                 activeOptions={{ exact: true }}
                 className={sidebarLinkClass}
@@ -115,18 +133,6 @@ export function SettingsLayout() {
                 Fleet
               </Link>
               <MachineLinks />
-            </li>
-            <li>
-              <Link to="/settings/users" className={sidebarLinkClass}>
-                <UsersIcon />
-                Users
-              </Link>
-            </li>
-            <li>
-              <Link to="/settings/authentication" className={sidebarLinkClass}>
-                <KeyRoundIcon />
-                Authentication
-              </Link>
             </li>
           </ul>
         </nav>

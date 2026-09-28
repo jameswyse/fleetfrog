@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { LogOutIcon, UserRoundIcon } from "lucide-react";
+import { ChevronDownIcon, LogOutIcon, UserRoundIcon } from "lucide-react";
 
 import { signOut, useSession } from "@/rpc/session.ts";
 import { Avatar } from "@/ui/Avatar.tsx";
@@ -17,11 +17,17 @@ export function UserMenu() {
 
   return (
     <Menu
-      label={`Account: ${user.displayName}`}
+      label={`Account menu for ${user.displayName}`}
       trigger={{
-        content: <Avatar user={user} size={32} />,
+        content: (
+          <>
+            <Avatar user={user} size={28} />
+            <span className="hidden max-w-40 truncate sm:inline">{user.displayName}</span>
+            <ChevronDownIcon aria-hidden="true" className="text-ink-muted" />
+          </>
+        ),
         className:
-          "-me-1 grid size-10 shrink-0 place-items-center rounded-full hover:bg-surface-raised",
+          "-me-2 flex min-h-10 shrink-0 items-center gap-2 rounded-full py-1 ps-1 pe-2.5 text-sm hover:bg-surface-raised",
       }}
     >
       {(close) => (

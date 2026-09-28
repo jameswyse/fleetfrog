@@ -8,7 +8,7 @@ const AuthenticationSearch = Schema.Struct({
   failure: Schema.optionalKey(Schema.String),
 });
 
-export const Route = createFileRoute("/_app/settings/authentication")({
+export const Route = createFileRoute("/_app/settings/authentication/")({
   validateSearch: Schema.toStandardSchemaV1(AuthenticationSearch),
   component: AuthenticationSettings,
 });

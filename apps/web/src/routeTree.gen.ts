@@ -22,9 +22,9 @@ import { Route as AppCleanupIndexRouteImport } from './routes/_app/cleanup/index
 import { Route as AppCleanupArchiveRouteImport } from './routes/_app/cleanup/archive'
 import { Route as AppCleanupTrashRouteImport } from './routes/_app/cleanup/trash'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
-import { Route as AppSettingsAuthenticationRouteImport } from './routes/_app/settings/authentication'
 import { Route as AppSettingsScanningRouteImport } from './routes/_app/settings/scanning'
-import { Route as AppSettingsUsersRouteImport } from './routes/_app/settings/users'
+import { Route as AppSettingsAuthenticationIndexRouteImport } from './routes/_app/settings/authentication/index'
+import { Route as AppSettingsAuthenticationUsersRouteImport } from './routes/_app/settings/authentication/users'
 import { Route as AppSettingsFleetIndexRouteImport } from './routes/_app/settings/fleet/index'
 import { Route as AppSettingsFleetMachineIdRouteImport } from './routes/_app/settings/fleet/$machineId'
 import { Route as AppSettingsFleetPairRouteImport } from './routes/_app/settings/fleet/pair'
@@ -95,22 +95,23 @@ const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppSettingsRoute,
 } as any)
-const AppSettingsAuthenticationRoute =
-  AppSettingsAuthenticationRouteImport.update({
-    id: '/authentication',
-    path: '/authentication',
-    getParentRoute: () => AppSettingsRoute,
-  } as any)
 const AppSettingsScanningRoute = AppSettingsScanningRouteImport.update({
   id: '/scanning',
   path: '/scanning',
   getParentRoute: () => AppSettingsRoute,
 } as any)
-const AppSettingsUsersRoute = AppSettingsUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => AppSettingsRoute,
-} as any)
+const AppSettingsAuthenticationIndexRoute =
+  AppSettingsAuthenticationIndexRouteImport.update({
+    id: '/authentication/',
+    path: '/authentication/',
+    getParentRoute: () => AppSettingsRoute,
+  } as any)
+const AppSettingsAuthenticationUsersRoute =
+  AppSettingsAuthenticationUsersRouteImport.update({
+    id: '/authentication/users',
+    path: '/authentication/users',
+    getParentRoute: () => AppSettingsRoute,
+  } as any)
 const AppSettingsFleetIndexRoute = AppSettingsFleetIndexRouteImport.update({
   id: '/fleet/',
   path: '/fleet/',
@@ -150,15 +151,15 @@ export interface FileRoutesByFullPath {
   '/activity/running': typeof AppActivityRunningRoute
   '/cleanup/archive': typeof AppCleanupArchiveRoute
   '/cleanup/trash': typeof AppCleanupTrashRoute
-  '/settings/authentication': typeof AppSettingsAuthenticationRoute
   '/settings/scanning': typeof AppSettingsScanningRoute
-  '/settings/users': typeof AppSettingsUsersRoute
   '/activity/': typeof AppActivityIndexRoute
   '/cleanup/': typeof AppCleanupIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
+  '/settings/authentication/users': typeof AppSettingsAuthenticationUsersRoute
   '/settings/fleet/$machineId': typeof AppSettingsFleetMachineIdRoute
   '/settings/fleet/pair': typeof AppSettingsFleetPairRoute
   '/settings/integrations/t3-code': typeof AppSettingsIntegrationsT3CodeRoute
+  '/settings/authentication/': typeof AppSettingsAuthenticationIndexRoute
   '/settings/fleet/': typeof AppSettingsFleetIndexRoute
   '/settings/integrations/': typeof AppSettingsIntegrationsIndexRoute
 }
@@ -169,15 +170,15 @@ export interface FileRoutesByTo {
   '/activity/running': typeof AppActivityRunningRoute
   '/cleanup/archive': typeof AppCleanupArchiveRoute
   '/cleanup/trash': typeof AppCleanupTrashRoute
-  '/settings/authentication': typeof AppSettingsAuthenticationRoute
   '/settings/scanning': typeof AppSettingsScanningRoute
-  '/settings/users': typeof AppSettingsUsersRoute
   '/activity': typeof AppActivityIndexRoute
   '/cleanup': typeof AppCleanupIndexRoute
   '/settings': typeof AppSettingsIndexRoute
+  '/settings/authentication/users': typeof AppSettingsAuthenticationUsersRoute
   '/settings/fleet/$machineId': typeof AppSettingsFleetMachineIdRoute
   '/settings/fleet/pair': typeof AppSettingsFleetPairRoute
   '/settings/integrations/t3-code': typeof AppSettingsIntegrationsT3CodeRoute
+  '/settings/authentication': typeof AppSettingsAuthenticationIndexRoute
   '/settings/fleet': typeof AppSettingsFleetIndexRoute
   '/settings/integrations': typeof AppSettingsIntegrationsIndexRoute
 }
@@ -193,15 +194,15 @@ export interface FileRoutesById {
   '/_app/activity/running': typeof AppActivityRunningRoute
   '/_app/cleanup/archive': typeof AppCleanupArchiveRoute
   '/_app/cleanup/trash': typeof AppCleanupTrashRoute
-  '/_app/settings/authentication': typeof AppSettingsAuthenticationRoute
   '/_app/settings/scanning': typeof AppSettingsScanningRoute
-  '/_app/settings/users': typeof AppSettingsUsersRoute
   '/_app/activity/': typeof AppActivityIndexRoute
   '/_app/cleanup/': typeof AppCleanupIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
+  '/_app/settings/authentication/users': typeof AppSettingsAuthenticationUsersRoute
   '/_app/settings/fleet/$machineId': typeof AppSettingsFleetMachineIdRoute
   '/_app/settings/fleet/pair': typeof AppSettingsFleetPairRoute
   '/_app/settings/integrations/t3-code': typeof AppSettingsIntegrationsT3CodeRoute
+  '/_app/settings/authentication/': typeof AppSettingsAuthenticationIndexRoute
   '/_app/settings/fleet/': typeof AppSettingsFleetIndexRoute
   '/_app/settings/integrations/': typeof AppSettingsIntegrationsIndexRoute
 }
@@ -217,15 +218,15 @@ export interface FileRouteTypes {
     | '/activity/running'
     | '/cleanup/archive'
     | '/cleanup/trash'
-    | '/settings/authentication'
     | '/settings/scanning'
-    | '/settings/users'
     | '/activity/'
     | '/cleanup/'
     | '/settings/'
+    | '/settings/authentication/users'
     | '/settings/fleet/$machineId'
     | '/settings/fleet/pair'
     | '/settings/integrations/t3-code'
+    | '/settings/authentication/'
     | '/settings/fleet/'
     | '/settings/integrations/'
   fileRoutesByTo: FileRoutesByTo
@@ -236,15 +237,15 @@ export interface FileRouteTypes {
     | '/activity/running'
     | '/cleanup/archive'
     | '/cleanup/trash'
-    | '/settings/authentication'
     | '/settings/scanning'
-    | '/settings/users'
     | '/activity'
     | '/cleanup'
     | '/settings'
+    | '/settings/authentication/users'
     | '/settings/fleet/$machineId'
     | '/settings/fleet/pair'
     | '/settings/integrations/t3-code'
+    | '/settings/authentication'
     | '/settings/fleet'
     | '/settings/integrations'
   id:
@@ -259,15 +260,15 @@ export interface FileRouteTypes {
     | '/_app/activity/running'
     | '/_app/cleanup/archive'
     | '/_app/cleanup/trash'
-    | '/_app/settings/authentication'
     | '/_app/settings/scanning'
-    | '/_app/settings/users'
     | '/_app/activity/'
     | '/_app/cleanup/'
     | '/_app/settings/'
+    | '/_app/settings/authentication/users'
     | '/_app/settings/fleet/$machineId'
     | '/_app/settings/fleet/pair'
     | '/_app/settings/integrations/t3-code'
+    | '/_app/settings/authentication/'
     | '/_app/settings/fleet/'
     | '/_app/settings/integrations/'
   fileRoutesById: FileRoutesById
@@ -370,13 +371,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsIndexRouteImport
       parentRoute: typeof AppSettingsRoute
     }
-    '/_app/settings/authentication': {
-      id: '/_app/settings/authentication'
-      path: '/authentication'
-      fullPath: '/settings/authentication'
-      preLoaderRoute: typeof AppSettingsAuthenticationRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
     '/_app/settings/scanning': {
       id: '/_app/settings/scanning'
       path: '/scanning'
@@ -384,11 +378,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsScanningRouteImport
       parentRoute: typeof AppSettingsRoute
     }
-    '/_app/settings/users': {
-      id: '/_app/settings/users'
-      path: '/users'
-      fullPath: '/settings/users'
-      preLoaderRoute: typeof AppSettingsUsersRouteImport
+    '/_app/settings/authentication/': {
+      id: '/_app/settings/authentication/'
+      path: '/authentication'
+      fullPath: '/settings/authentication/'
+      preLoaderRoute: typeof AppSettingsAuthenticationIndexRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/authentication/users': {
+      id: '/_app/settings/authentication/users'
+      path: '/authentication/users'
+      fullPath: '/settings/authentication/users'
+      preLoaderRoute: typeof AppSettingsAuthenticationUsersRouteImport
       parentRoute: typeof AppSettingsRoute
     }
     '/_app/settings/fleet/': {
@@ -460,25 +461,25 @@ const AppCleanupRouteWithChildren = AppCleanupRoute._addFileChildren(
 )
 
 interface AppSettingsRouteChildren {
-  AppSettingsAuthenticationRoute: typeof AppSettingsAuthenticationRoute
   AppSettingsScanningRoute: typeof AppSettingsScanningRoute
-  AppSettingsUsersRoute: typeof AppSettingsUsersRoute
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
+  AppSettingsAuthenticationUsersRoute: typeof AppSettingsAuthenticationUsersRoute
   AppSettingsFleetMachineIdRoute: typeof AppSettingsFleetMachineIdRoute
   AppSettingsFleetPairRoute: typeof AppSettingsFleetPairRoute
   AppSettingsIntegrationsT3CodeRoute: typeof AppSettingsIntegrationsT3CodeRoute
+  AppSettingsAuthenticationIndexRoute: typeof AppSettingsAuthenticationIndexRoute
   AppSettingsFleetIndexRoute: typeof AppSettingsFleetIndexRoute
   AppSettingsIntegrationsIndexRoute: typeof AppSettingsIntegrationsIndexRoute
 }
 
 const AppSettingsRouteChildren: AppSettingsRouteChildren = {
-  AppSettingsAuthenticationRoute: AppSettingsAuthenticationRoute,
   AppSettingsScanningRoute: AppSettingsScanningRoute,
-  AppSettingsUsersRoute: AppSettingsUsersRoute,
   AppSettingsIndexRoute: AppSettingsIndexRoute,
+  AppSettingsAuthenticationUsersRoute: AppSettingsAuthenticationUsersRoute,
   AppSettingsFleetMachineIdRoute: AppSettingsFleetMachineIdRoute,
   AppSettingsFleetPairRoute: AppSettingsFleetPairRoute,
   AppSettingsIntegrationsT3CodeRoute: AppSettingsIntegrationsT3CodeRoute,
+  AppSettingsAuthenticationIndexRoute: AppSettingsAuthenticationIndexRoute,
   AppSettingsFleetIndexRoute: AppSettingsFleetIndexRoute,
   AppSettingsIntegrationsIndexRoute: AppSettingsIntegrationsIndexRoute,
 }

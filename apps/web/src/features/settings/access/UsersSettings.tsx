@@ -114,6 +114,7 @@ export function UsersSettings() {
   return (
     <SidebarPage
       title="Users"
+      parents={[{ label: "Authentication", to: "/settings/authentication" }]}
       action={
         <Button tone="primary" onClick={() => setAdding(true)}>
           <PlusIcon aria-hidden="true" />

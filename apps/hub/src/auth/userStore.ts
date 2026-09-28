@@ -18,7 +18,7 @@ import { AvatarMediaType, Role, UserId } from "@fleetfrog/protocol/domain/user";
 
 import { AuthSettingsStore } from "./authSettingsStore.ts";
 
-import type { Avatar, Email, User } from "@fleetfrog/protocol/domain/user";
+import type { AuthSettings, Avatar, Email, User } from "@fleetfrog/protocol/domain/user";
 
 const Timestamp = Schema.DateTimeUtcFromString;
 
@@ -94,9 +94,15 @@ function toRecord(row: typeof UserRow.Type): UserRecord {
   };
 }
 
-/** The provider's picture wins, then an uploaded one, then Gravatar when it's on. */
-function avatarOf(record: UserRecord, gravatar: boolean): Avatar {
-  if (record.providerPicture !== null) {
+interface Describing {
+  readonly gravatar: boolean;
+  /** Whether people sign in through the provider now, which makes its name and picture win. */
+  readonly providerInUse: boolean;
+}
+
+/** The provider's picture wins while it's in use, then an uploaded one, then Gravatar when it's on. */
+function avatarOf(record: UserRecord, { gravatar, providerInUse }: Describing): Avatar {
+  if (providerInUse && record.providerPicture !== null) {
     return { _tag: "Provider", url: record.providerPicture };
   }
 
@@ -109,14 +115,16 @@ function avatarOf(record: UserRecord, gravatar: boolean): Avatar {
     : { _tag: "None" };
 }
 
-export function describeUser(record: UserRecord, gravatar: boolean): User {
+export function describeUser(record: UserRecord, describing: Describing): User {
+  const providerName = describing.providerInUse ? record.providerName : null;
+
   return {
     id: record.id,
     email: record.email,
-    displayName: record.providerName ?? record.displayName,
+    displayName: providerName ?? record.displayName,
     role: record.role,
-    avatar: avatarOf(record, gravatar),
-    displayNameFromProvider: record.providerName !== null,
+    avatar: avatarOf(record, describing),
+    displayNameFromProvider: providerName !== null,
     hasPassword: record.passwordHash !== null,
     linkedToProvider: record.oidc !== null,
     createdAt: record.createdAt,
@@ -215,6 +223,10 @@ export class UserStore extends Context.Service<
           ),
         );
       const now = DateTime.now.pipe(Effect.map(DateTime.formatIso));
+      const describing = (settings: AuthSettings): Describing => ({
+        gravatar: settings.gravatar,
+        providerInUse: !auth.overridden && settings.mode === "oidc",
+      });
 
       return {
         records,
@@ -222,11 +234,13 @@ export class UserStore extends Context.Service<
           SubscriptionRef.changes(records),
           SubscriptionRef.changes(auth.settings),
         ).pipe(
-          Stream.map(([all, { gravatar }]) => all.map((record) => describeUser(record, gravatar))),
+          Stream.map(([all, settings]) =>
+            all.map((record) => describeUser(record, describing(settings))),
+          ),
         ),
         describe: (record) =>
           SubscriptionRef.get(auth.settings).pipe(
-            Effect.map(({ gravatar }) => describeUser(record, gravatar)),
+            Effect.map((settings) => describeUser(record, describing(settings))),
           ),
         find,
         findByEmail: (email) =>

@@ -2,7 +2,7 @@ import { SqliteClient } from "@effect/sql-sqlite-node";
 import { expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 
-import { Email } from "@fleetfrog/protocol/domain/user";
+import { defaultAuthSettings, Email } from "@fleetfrog/protocol/domain/user";
 
 import { HubConfig } from "../hubConfig.ts";
 import { Migrations } from "../persistence/database.ts";
@@ -181,5 +181,34 @@ it.effect("won't link an account by an email the provider hasn't verified", () =
     );
 
     expect(unverified._tag).toBe("EmailTaken");
+  }).pipe(Effect.provide(TestStore)),
+);
+
+it.effect("uses the provider's name only while people sign in through it", () =>
+  Effect.gen(function* () {
+    const users = yield* UserStore;
+    const auth = yield* AuthSettingsStore;
+    const { user } = yield* users.signInFromProvider({
+      issuer: "https://auth.example.com",
+      subject: "ada-at-provider",
+      email: Email.make("ada@example.com"),
+      name: "Ada from the provider",
+      picture: null,
+      emailVerified: true,
+      role: null,
+    });
+
+    yield* users.setDisplayName({ userId: user.id, displayName: "Ada" });
+
+    const current = yield* users.find(user.id);
+
+    expect((yield* users.describe(current)).displayName).toBe("Ada");
+
+    yield* auth.update({ ...defaultAuthSettings, mode: "oidc" });
+
+    const described = yield* users.describe(current);
+
+    expect(described.displayName).toBe("Ada from the provider");
+    expect(described.displayNameFromProvider).toBe(true);
   }).pipe(Effect.provide(TestStore)),
 );

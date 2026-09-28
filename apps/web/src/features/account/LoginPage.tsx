@@ -158,11 +158,6 @@ export function LoginPage() {
         <div className="mt-8">
           <SignInCard method={session.session.method} redirect={target} failure={failure} />
         </div>
-        <p className="rise-in mt-6 text-center text-sm text-balance text-ink-muted [animation-delay:300ms]">
-          {session.session.method._tag === "Password"
-            ? "Forgotten your password? An admin can set a new one."
-            : `Your account is managed in ${session.session.method.name}.`}
-        </p>
       </div>
     </main>
   );

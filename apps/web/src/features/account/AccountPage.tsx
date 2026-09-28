@@ -10,9 +10,9 @@ import { formText } from "@/ui/formText.ts";
 import { minimumPasswordLength } from "@fleetfrog/protocol/domain/user";
 
 import { SettingsRow, SettingsSection } from "../settings/SettingsSection.tsx";
+import { SaveStatus, useAutoSave } from "../settings/useAutoSave.tsx";
 import { resizeAvatar } from "./resizeAvatar.ts";
 
-import type { SignInMethod } from "@fleetfrog/protocol/dashboard/auth";
 import type { User } from "@fleetfrog/protocol/domain/user";
 
 const inputClass =
@@ -35,151 +35,116 @@ function Result({
   );
 }
 
-function PictureRow({ user, provider }: { readonly user: User; readonly provider: string }) {
-  const input = useRef<HTMLInputElement>(null);
-  const [pending, setPending] = useState(false);
-  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
-  const fromProvider = user.avatar._tag === "Provider";
+/** The user's picture, name, email and role. Picture and name save as soon as they change. */
+function ProfileSection({ user }: { readonly user: User }) {
+  const nameId = useId();
+  const picker = useRef<HTMLInputElement>(null);
+  const { state, save } = useAutoSave();
+  const saving = state._tag === "Saving";
 
-  const save = async (avatar: Parameters<typeof resizeAvatar>[0] | null) => {
-    setPending(true);
-    setResult(null);
+  const savePicture = async (file: File | null) => {
+    const result = await save(async () => {
+      const resized = file === null ? null : await resizeAvatar(file);
 
-    const resized = avatar === null ? null : await resizeAvatar(avatar);
+      if (file !== null && resized === null) {
+        return { _tag: "Failure", message: "That file isn't an image this browser can read." };
+      }
 
-    if (avatar !== null && resized === null) {
-      setPending(false);
-      setResult({ ok: false, message: "That file isn't an image this browser can read." });
+      return requestHub((client) => client.SetAvatar({ avatar: resized }));
+    });
+
+    if (result._tag === "Success") {
+      replaceUser(result.value);
+    }
+  };
+
+  const saveName = async (input: HTMLInputElement) => {
+    const displayName = input.value.trim();
+
+    // An empty name isn't allowed, so it goes back to the saved one.
+    if (displayName === "" || displayName === user.displayName) {
+      input.value = user.displayName;
 
       return;
     }
 
-    const outcome = await requestHub((client) => client.SetAvatar({ avatar: resized }));
+    const result = await save(() => requestHub((client) => client.UpdateProfile({ displayName })));
 
-    setPending(false);
-
-    if (outcome._tag === "Success") {
-      replaceUser(outcome.value);
-      setResult({ ok: true, message: avatar === null ? "Picture removed." : "Picture updated." });
-    } else {
-      setResult({ ok: false, message: outcome.message });
+    if (result._tag === "Success") {
+      replaceUser(result.value);
     }
   };
 
   return (
-    <SettingsRow
-      title="Picture"
-      description={
-        fromProvider
-          ? `Your picture comes from ${provider}. Change it there.`
-          : "Shown beside your name. Without one, FleetFrog uses your Gravatar or your initials."
-      }
-      control={
-        <div className="flex items-center gap-3">
-          <Avatar user={user} size={48} />
-          {!fromProvider && (
-            <>
-              <input
-                ref={input}
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                className="sr-only"
-                tabIndex={-1}
-                aria-hidden="true"
-                onChange={(event) => {
-                  const file = event.currentTarget.files?.[0];
+    <SettingsSection title="You" status={<SaveStatus state={state} />}>
+      <SettingsRow
+        title="Picture"
+        control={
+          <div className="flex items-center gap-3">
+            <Avatar user={user} size={48} />
+            {user.avatar._tag !== "Provider" && (
+              <>
+                <input
+                  ref={picker}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="sr-only"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0];
 
-                  event.currentTarget.value = "";
+                    event.currentTarget.value = "";
 
-                  if (file !== undefined) {
-                    void save(file);
-                  }
-                }}
-              />
-              <Button disabled={pending} onClick={() => input.current?.click()}>
-                {user.avatar._tag === "Uploaded" ? "Change…" : "Upload…"}
-              </Button>
-              {user.avatar._tag === "Uploaded" && (
-                <Button tone="quiet" disabled={pending} onClick={() => void save(null)}>
-                  Remove
+                    if (file !== undefined) {
+                      void savePicture(file);
+                    }
+                  }}
+                />
+                <Button disabled={saving} onClick={() => picker.current?.click()}>
+                  {user.avatar._tag === "Uploaded" ? "Change…" : "Upload…"}
                 </Button>
-              )}
-            </>
-          )}
-        </div>
-      }
-    >
-      <Result result={result} />
-    </SettingsRow>
-  );
-}
-
-function NameRow({ user, provider }: { readonly user: User; readonly provider: string }) {
-  const nameId = useId();
-  const [pending, setPending] = useState(false);
-  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
-
-  if (user.displayNameFromProvider) {
-    return (
+                {user.avatar._tag === "Uploaded" && (
+                  <Button tone="quiet" disabled={saving} onClick={() => void savePicture(null)}>
+                    Remove
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+        }
+      />
       <SettingsRow
         title="Name"
-        description={`Your name comes from ${provider}. Change it there.`}
-        control={<p className="text-sm">{user.displayName}</p>}
+        {...(!user.displayNameFromProvider && { htmlFor: nameId })}
+        control={
+          user.displayNameFromProvider ? (
+            <p className="text-sm">{user.displayName}</p>
+          ) : (
+            // Keyed on the saved name, so a change from elsewhere replaces what is shown.
+            <input
+              key={user.displayName}
+              id={nameId}
+              defaultValue={user.displayName}
+              autoComplete="name"
+              maxLength={80}
+              onBlur={(event) => void saveName(event.currentTarget)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.currentTarget.blur();
+                }
+              }}
+              className={inputClass}
+            />
+          )
+        }
       />
-    );
-  }
-
-  return (
-    <SettingsRow
-      title="Name"
-      description="How FleetFrog shows you to others."
-      htmlFor={nameId}
-      control={
-        <form
-          className="flex items-center gap-3"
-          onSubmit={async (event) => {
-            event.preventDefault();
-
-            const displayName = formText(new FormData(event.currentTarget), "name").trim();
-
-            if (displayName === "") {
-              setResult({ ok: false, message: "Enter a name." });
-
-              return;
-            }
-
-            setPending(true);
-
-            const outcome = await requestHub((client) => client.UpdateProfile({ displayName }));
-
-            setPending(false);
-
-            if (outcome._tag === "Success") {
-              replaceUser(outcome.value);
-              setResult({ ok: true, message: "Name saved." });
-            } else {
-              setResult({ ok: false, message: outcome.message });
-            }
-          }}
-        >
-          <input
-            key={user.displayName}
-            id={nameId}
-            name="name"
-            defaultValue={user.displayName}
-            autoComplete="name"
-            maxLength={80}
-            aria-describedby={`${nameId}-description ${nameId}-result`}
-            className={inputClass}
-          />
-          <Button type="submit" disabled={pending}>
-            Save
-          </Button>
-        </form>
-      }
-    >
-      {result !== null && <Result id={`${nameId}-result`} result={result} />}
-    </SettingsRow>
+      <SettingsRow title="Email" control={<p className="text-sm break-all">{user.email}</p>} />
+      <SettingsRow
+        title="Role"
+        control={<p className="text-sm">{user.role === "admin" ? "Admin" : "User"}</p>}
+      />
+    </SettingsSection>
   );
 }
 
@@ -273,10 +238,6 @@ function PasswordSection({ email }: { readonly email: string }) {
   );
 }
 
-function providerName(method: SignInMethod): string {
-  return method._tag === "Provider" ? method.name : "your sign-in provider";
-}
-
 /** The signed-in user's own profile and password. */
 export function AccountPage() {
   const session = useSession();
@@ -286,7 +247,6 @@ export function AccountPage() {
   }
 
   const { user, method } = session.session;
-  const provider = providerName(method);
 
   return (
     <>
@@ -294,28 +254,7 @@ export function AccountPage() {
         <h1 className="text-base font-semibold">Profile</h1>
       </div>
       <div className="mx-auto w-full max-w-3xl space-y-8 px-4 py-8 sm:px-8">
-        <SettingsSection title="You">
-          <PictureRow user={user} provider={provider} />
-          <NameRow user={user} provider={provider} />
-          <SettingsRow
-            title="Email"
-            description={
-              user.linkedToProvider
-                ? `Set by ${provider}.`
-                : "You sign in with this. An admin can change it."
-            }
-            control={<p className="text-sm break-all">{user.email}</p>}
-          />
-          <SettingsRow
-            title="Role"
-            description={
-              user.role === "admin"
-                ? "You can use everything, including Cleanup and Settings."
-                : "You can see everything and fetch, pull, clone, switch and stash. Cleanup and Settings are for admins."
-            }
-            control={<p className="text-sm">{user.role === "admin" ? "Admin" : "User"}</p>}
-          />
-        </SettingsSection>
+        <ProfileSection user={user} />
         {method._tag === "Password" && user.hasPassword && <PasswordSection email={user.email} />}
       </div>
     </>

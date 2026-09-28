@@ -226,7 +226,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
         Effect.gen(function* () {
           const record = yield* ownRecord;
 
-          if (record.providerName !== null) {
+          if ((yield* users.describe(record)).displayNameFromProvider) {
             return yield* new ManagedByProvider();
           }
 
@@ -238,7 +238,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
         Effect.gen(function* () {
           const record = yield* ownRecord;
 
-          if (record.providerPicture !== null) {
+          if ((yield* users.describe(record)).avatar._tag === "Provider") {
             return yield* new ManagedByProvider();
           }
 
