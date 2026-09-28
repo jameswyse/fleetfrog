@@ -41,11 +41,15 @@ function UserRow({
       <Avatar user={user} size={36} />
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-2 text-sm font-medium">
-          <span className="truncate">{user.displayName}</span>
+          <span data-personal className="truncate">
+            {user.displayName}
+          </span>
           {isMe && <Chip tone="neutral">You</Chip>}
           {user.role === "admin" && <Chip tone="neutral">Admin</Chip>}
         </p>
-        <p className="truncate text-sm text-ink-muted">{user.email}</p>
+        <p data-personal className="truncate text-sm text-ink-muted">
+          {user.email}
+        </p>
       </div>
       <p className="hidden shrink-0 text-sm text-ink-muted sm:block">
         {user.lastSignedInAt === null ? (

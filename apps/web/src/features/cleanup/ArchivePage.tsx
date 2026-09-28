@@ -16,6 +16,7 @@ import { machineBlocker } from "../actions/actionAvailability.ts";
 import { describeActiveRunBriefly } from "../actions/actionCopy.ts";
 import { useStartBatch } from "../actions/useStartBatch.ts";
 import { linkedWorktrees, planUnarchive } from "../archive/archiveAvailability.ts";
+import { PersonalText } from "../preferences/PersonalText.tsx";
 import { TrashCheckoutDialog } from "./TrashCheckoutDialog.tsx";
 
 import type { ActionRun } from "@fleetfrog/protocol/domain/activity";
@@ -70,7 +71,9 @@ function ArchivedRow({
           <MachineKindIcon kind={machineKind(machine)} />
           <span>{machineLabel(machine)}</span>
         </p>
-        <p className="font-mono text-xs break-all text-ink-muted">{checkout.path}</p>
+        <p className="font-mono text-xs break-all text-ink-muted">
+          <PersonalText>{checkout.path}</PersonalText>
+        </p>
         {linkedWorktrees(checkout).length > 0 && (
           <p className="text-xs text-ink-muted">
             With {plural(linkedWorktrees(checkout).length, "linked worktree")}
@@ -97,8 +100,11 @@ function ArchivedRow({
         </p>
         {plan._tag === "Ready" && (
           <p className="text-xs text-ink-muted">
-            Unarchiving moves it to <span className="font-mono break-all">{plan.destination}</span>,
-            or with a number added if something is there now
+            Unarchiving moves it to{" "}
+            <span className="font-mono break-all">
+              <PersonalText>{plan.destination}</PersonalText>
+            </span>
+            , or with a number added if something is there now
           </p>
         )}
         {failure !== null && (

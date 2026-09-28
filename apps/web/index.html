@@ -7,6 +7,24 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>FleetFrog</title>
+    <script>
+      // Applies this browser's preferences before the first paint, so the page never flashes the
+      // other colour scheme or personal details. src/features/preferences/preferences.ts owns them.
+      try {
+        const colorScheme = localStorage.getItem("fleetfrog.colorScheme");
+
+        if (colorScheme === "light" || colorScheme === "dark") {
+          document.documentElement.dataset.colorScheme = colorScheme;
+        }
+
+        document.documentElement.toggleAttribute(
+          "data-blur-personal",
+          localStorage.getItem("fleetfrog.blurPersonal") === "on",
+        );
+      } catch {
+        // Storage is blocked, so the page keeps the system's colours.
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

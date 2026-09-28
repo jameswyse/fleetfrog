@@ -13,6 +13,7 @@ import { nothingUnique } from "@fleetfrog/protocol/domain/trash";
 
 import { operationNames } from "../actions/actionCopy.ts";
 import { useStartBatch } from "../actions/useStartBatch.ts";
+import { PersonalText } from "../preferences/PersonalText.tsx";
 import { busyThreads, cloneFolders, projectsAt } from "../t3Code/t3CodeLookup.ts";
 import { BusyThreadsNotice, ProjectFolderNotice } from "../t3Code/T3CodeNotices.tsx";
 
@@ -223,7 +224,9 @@ export function TrashCheckoutDialog({
       onClose={onClose}
     >
       <div className="space-y-4 text-sm">
-        <p className="font-mono text-[13px] break-all text-ink-muted">{checkout.path}</p>
+        <p className="font-mono text-[13px] break-all text-ink-muted">
+          <PersonalText>{checkout.path}</PersonalText>
+        </p>
         <BusyThreadsNotice
           threads={busyThreads(machine, folders)}
           where={folders.length > 1 ? "in this checkout or its worktrees" : "in this checkout"}

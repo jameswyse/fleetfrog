@@ -7,6 +7,8 @@ import { Chip } from "@/ui/Chip.tsx";
 import { plural } from "@/ui/plural.ts";
 import { expandHome, isWithin } from "@fleetfrog/protocol/domain/cloneDestination";
 
+import { PersonalText, useMaskPersonal } from "../../preferences/PersonalText.tsx";
+
 import type { HubResult } from "@/rpc/hubConnection.ts";
 import type { DiscoveryRoot, FolderOutcome, FolderStatus } from "@fleetfrog/protocol/domain/fleet";
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
@@ -82,6 +84,7 @@ export function ProjectFolders({
   const [creations, setCreations] = useState<ReadonlyMap<string, Creation>>(() => new Map());
   const statuses = new Map(roots.map(({ path, status }) => [path, status]));
   const inputId = `new-folder-${machineId}`;
+  const mask = useMaskPersonal();
 
   // The hub reported a different saved list, so show it in place of the local copy.
   if (adoptedKey !== savedKey) {
@@ -166,8 +169,8 @@ export function ProjectFolders({
             <li key={path} className="flex min-h-11 items-center gap-3 px-3 py-1.5 text-sm">
               <FolderIcon className="size-4 text-ink-muted" />
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-mono text-[13px]" title={path}>
-                  {path}
+                <span className="block truncate font-mono text-[13px]" title={mask(path)}>
+                  <PersonalText>{path}</PersonalText>
                 </span>
                 {creation?._tag === "Failed" && (
                   <span className="block text-xs text-danger">
@@ -241,6 +244,7 @@ export function ProjectFolders({
           </label>
           <input
             id={inputId}
+            data-personal
             value={draft}
             onChange={(event) => setDraft(event.currentTarget.value)}
             placeholder="Add a folder, such as ~/Code"

@@ -129,6 +129,7 @@ export function ArchiveFolderField({
         placeholder="Archiving is off"
         aria-describedby={`${id}-description ${id}-status`}
         aria-invalid={problem === null ? undefined : true}
+        data-personal
         defaultValue={folder ?? ""}
         onBlur={(event) => void commit(event.currentTarget)}
         onKeyDown={(event) => {

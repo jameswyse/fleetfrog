@@ -119,12 +119,15 @@ function ProfileSection({ user }: { readonly user: User }) {
         {...(!user.displayNameFromProvider && { htmlFor: nameId })}
         control={
           user.displayNameFromProvider ? (
-            <p className="text-sm">{user.displayName}</p>
+            <p data-personal className="text-sm">
+              {user.displayName}
+            </p>
           ) : (
             // Keyed on the saved name, so a change from elsewhere replaces what is shown.
             <input
               key={user.displayName}
               id={nameId}
+              data-personal
               defaultValue={user.displayName}
               autoComplete="name"
               maxLength={80}
@@ -139,7 +142,14 @@ function ProfileSection({ user }: { readonly user: User }) {
           )
         }
       />
-      <SettingsRow title="Email" control={<p className="text-sm break-all">{user.email}</p>} />
+      <SettingsRow
+        title="Email"
+        control={
+          <p data-personal className="text-sm break-all">
+            {user.email}
+          </p>
+        }
+      />
       <SettingsRow
         title="Role"
         control={<p className="text-sm">{user.role === "admin" ? "Admin" : "User"}</p>}

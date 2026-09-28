@@ -1,6 +1,8 @@
 import { plural } from "@/ui/plural.ts";
 import { schemaDrift } from "@fleetfrog/protocol/domain/t3Code";
 
+import { PersonalText } from "../../preferences/PersonalText.tsx";
+
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 import type { T3CodeProject } from "@fleetfrog/protocol/domain/t3Code";
 
@@ -50,7 +52,11 @@ export function ReadingSummary({
 
   const { reading } = status;
 
-  const database = <span className="font-mono text-xs break-all">{status.database}</span>;
+  const database = (
+    <span className="font-mono text-xs break-all">
+      <PersonalText>{status.database}</PersonalText>
+    </span>
+  );
 
   if (reading._tag === "NotFound") {
     return <span className="text-ink-muted">T3 Code isn't installed. There's no {database}.</span>;

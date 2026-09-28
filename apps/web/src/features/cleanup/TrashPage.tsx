@@ -15,6 +15,7 @@ import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 import { machineBlocker } from "../actions/actionAvailability.ts";
 import { describeActiveRunBriefly } from "../actions/actionCopy.ts";
 import { useStartBatch } from "../actions/useStartBatch.ts";
+import { PersonalText } from "../preferences/PersonalText.tsx";
 import { sameTarget, trashEntries } from "./trashEntries.ts";
 
 import type { ActionRun, TargetedRun } from "@fleetfrog/protocol/domain/activity";
@@ -154,7 +155,9 @@ function EntryDetails({ entry }: { readonly entry: TrashEntry }) {
         <span aria-hidden="true">·</span>
         <span>{formatBytes(checkout.sizeBytes)}</span>
       </p>
-      <p className="font-mono text-xs break-all text-ink-muted">{checkout.originalPath}</p>
+      <p className="font-mono text-xs break-all text-ink-muted">
+        <PersonalText>{checkout.originalPath}</PersonalText>
+      </p>
       {checkout.lastCommit !== null && (
         <p className="truncate text-xs text-ink-muted">
           {checkout.branch !== null && <span className="font-mono">{checkout.branch}</span>}{" "}

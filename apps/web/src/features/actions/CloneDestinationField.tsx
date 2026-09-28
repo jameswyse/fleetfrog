@@ -1,5 +1,7 @@
 import { ChevronDownIcon } from "lucide-react";
 
+import { PersonalText, useMaskPersonal } from "../preferences/PersonalText.tsx";
+
 import type { Machine } from "@fleetfrog/protocol/domain/fleet";
 
 import type { DestinationDraft } from "./cloneDestinationDraft.ts";
@@ -29,6 +31,7 @@ export function CloneDestinationField({
   readonly onChange: (next: DestinationDraft) => void;
 }) {
   const roots = machine.discoveryRoots;
+  const mask = useMaskPersonal();
 
   return (
     // A fieldset won't shrink below its contents unless told to.
@@ -49,7 +52,7 @@ export function CloneDestinationField({
             >
               {roots.map((root) => (
                 <option key={root.path} value={root.path}>
-                  {root.path}
+                  {mask(root.path)}
                   {root.status === "Missing" || root.status === "NotFolder"
                     ? " (doesn't exist)"
                     : ""}
@@ -63,10 +66,10 @@ export function CloneDestinationField({
           </span>
         ) : (
           <span
-            title={value.root}
+            title={mask(value.root)}
             className={`max-w-[60%] shrink-0 truncate rounded bg-chip px-1.5 py-0.5 text-ink ${pathText}`}
           >
-            {value.root}
+            <PersonalText>{value.root}</PersonalText>
           </span>
         )}
         <span aria-hidden="true" className={`px-0.5 text-ink-muted ${pathText}`}>

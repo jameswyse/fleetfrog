@@ -13,6 +13,8 @@
  * them. They mean only what their owner picked them to, and colour nothing but those icons.
  */
 :root {
+  color-scheme: light dark;
+
   --neutral-100: #ffffff;
   --neutral-99: #fafcfa;
   --neutral-97: #f4f6f4;
@@ -59,98 +61,73 @@
   /* The main header's height once it fits on one row, so panels can sit just below it. */
   --app-header-height: 3.8125rem;
 
-  --canvas: var(--neutral-97);
-  --surface: var(--neutral-100);
-  --surface-raised: var(--neutral-99);
-  --line: var(--neutral-91);
-  --ink: var(--neutral-23);
-  --ink-muted: var(--neutral-48);
+  --canvas: light-dark(var(--neutral-97), var(--neutral-18));
+  --surface: light-dark(var(--neutral-100), var(--neutral-22));
+  --surface-raised: light-dark(var(--neutral-99), var(--neutral-25));
+  --line: light-dark(var(--neutral-91), var(--neutral-31));
+  --ink: light-dark(var(--neutral-23), var(--neutral-93));
+  --ink-muted: light-dark(var(--neutral-48), var(--neutral-72));
   --scrim: color-mix(in oklab, var(--neutral-18) 55%, transparent);
   /* A chip set into a field, such as a clone's project folder. */
-  --chip: var(--neutral-87);
-  --chip-hover: var(--neutral-84);
+  --chip: light-dark(var(--neutral-87), var(--neutral-36));
+  --chip-hover: light-dark(var(--neutral-84), var(--neutral-40));
   /* Filled primary actions, focus rings and the selection ring. */
-  --accent: var(--blue-52);
-  --accent-hover: var(--blue-47);
+  --accent: light-dark(var(--blue-52), var(--blue-70));
+  --accent-hover: light-dark(var(--blue-47), var(--blue-75));
   /* Text on an accent fill. */
-  --accent-ink: var(--neutral-100);
+  --accent-ink: light-dark(var(--neutral-100), var(--blue-20));
   /* Links and other accent text on a surface or an accent tint. */
-  --accent-text: var(--blue-52);
+  --accent-text: light-dark(var(--blue-52), var(--blue-70));
   /* The tint behind a selection. Opaque, so pinned cells still cover what scrolls beneath them. */
-  --accent-soft: var(--blue-95);
-  --changes: var(--amber-53);
-  --changes-soft: var(--amber-96);
-  --sync: var(--violet-50);
-  --sync-soft: var(--violet-95);
-  --danger: var(--red-50);
-  --danger-soft: var(--red-94);
-  --clean: var(--green-52);
-  --logo-frog: var(--green-61);
-  --bitbucket: var(--atlassian-48);
+  --accent-soft: light-dark(var(--blue-95), var(--blue-28));
+  --changes: light-dark(var(--amber-53), var(--amber-79));
+  --changes-soft: light-dark(var(--amber-96), var(--amber-28));
+  --sync: light-dark(var(--violet-50), var(--violet-76));
+  --sync-soft: light-dark(var(--violet-95), var(--violet-27));
+  --danger: light-dark(var(--red-50), var(--red-73));
+  --danger-soft: light-dark(var(--red-94), var(--red-26));
+  --clean: light-dark(var(--green-52), var(--green-78));
+  --logo-frog: light-dark(var(--green-61), var(--green-81));
+  --bitbucket: light-dark(var(--atlassian-48), var(--atlassian-69));
 
-  --project-gray: #4b5563;
-  --project-red: #dc2626;
-  --project-orange: #ea580c;
-  --project-amber: #d97706;
-  --project-yellow: #ca8a04;
-  --project-lime: #65a30d;
-  --project-green: #16a34a;
-  --project-emerald: #059669;
-  --project-teal: #0d9488;
-  --project-cyan: #0891b2;
-  --project-sky: #0284c7;
-  --project-blue: #2563eb;
-  --project-indigo: #4f46e5;
-  --project-violet: #7c3aed;
-  --project-purple: #9333ea;
-  --project-fuchsia: #c026d3;
-  --project-pink: #db2777;
-  --project-rose: #e11d48;
+  --project-gray: light-dark(#4b5563, #9ca3af);
+  --project-red: light-dark(#dc2626, #f87171);
+  --project-orange: light-dark(#ea580c, #fb923c);
+  --project-amber: light-dark(#d97706, #fbbf24);
+  --project-yellow: light-dark(#ca8a04, #facc15);
+  --project-lime: light-dark(#65a30d, #a3e635);
+  --project-green: light-dark(#16a34a, #4ade80);
+  --project-emerald: light-dark(#059669, #34d399);
+  --project-teal: light-dark(#0d9488, #2dd4bf);
+  --project-cyan: light-dark(#0891b2, #22d3ee);
+  --project-sky: light-dark(#0284c7, #38bdf8);
+  --project-blue: light-dark(#2563eb, #60a5fa);
+  --project-indigo: light-dark(#4f46e5, #818cf8);
+  --project-violet: light-dark(#7c3aed, #a78bfa);
+  --project-purple: light-dark(#9333ea, #c084fc);
+  --project-fuchsia: light-dark(#c026d3, #e879f9);
+  --project-pink: light-dark(#db2777, #f472b6);
+  --project-rose: light-dark(#e11d48, #fb7185);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --canvas: var(--neutral-18);
-    --surface: var(--neutral-22);
-    --surface-raised: var(--neutral-25);
-    --line: var(--neutral-31);
-    --ink: var(--neutral-93);
-    --ink-muted: var(--neutral-72);
-    --chip: var(--neutral-36);
-    --chip-hover: var(--neutral-40);
-    --accent: var(--blue-70);
-    --accent-hover: var(--blue-75);
-    --accent-ink: var(--blue-20);
-    --accent-text: var(--blue-70);
-    --accent-soft: var(--blue-28);
-    --changes: var(--amber-79);
-    --changes-soft: var(--amber-28);
-    --sync: var(--violet-76);
-    --sync-soft: var(--violet-27);
-    --danger: var(--red-73);
-    --danger-soft: var(--red-26);
-    --clean: var(--green-78);
-    --logo-frog: var(--green-81);
-    --bitbucket: var(--atlassian-69);
+/* The roles follow the system, unless this browser chose a scheme in its preferences. */
+:root[data-color-scheme="light"] {
+  color-scheme: light;
+}
 
-    --project-gray: #9ca3af;
-    --project-red: #f87171;
-    --project-orange: #fb923c;
-    --project-amber: #fbbf24;
-    --project-yellow: #facc15;
-    --project-lime: #a3e635;
-    --project-green: #4ade80;
-    --project-emerald: #34d399;
-    --project-teal: #2dd4bf;
-    --project-cyan: #22d3ee;
-    --project-sky: #38bdf8;
-    --project-blue: #60a5fa;
-    --project-indigo: #818cf8;
-    --project-violet: #a78bfa;
-    --project-purple: #c084fc;
-    --project-fuchsia: #e879f9;
-    --project-pink: #f472b6;
-    --project-rose: #fb7185;
+:root[data-color-scheme="dark"] {
+  color-scheme: dark;
+}
+
+@custom-variant dark {
+  :root[data-color-scheme="dark"] & {
+    @slot;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-color-scheme="light"]) & {
+      @slot;
+    }
   }
 }
 
@@ -210,6 +187,21 @@
   dialog::backdrop {
     background: var(--scrim);
   }
+}
+
+/*
+ * Personal details, such as names, email addresses and usernames, are marked `data-personal` and
+ * blurred when this browser asks, for people who share their screen. A field shows its value while
+ * it has focus, so it stays editable. The rule is unlayered, so no utility can undo it.
+ */
+:root[data-blur-personal] [data-personal]:not(input) {
+  filter: blur(0.45em);
+}
+
+/* A field keeps its outline, blurring only its text. A shadow blurs half as much as a filter. */
+:root[data-blur-personal] input[data-personal]:not(:focus) {
+  color: transparent;
+  text-shadow: 0 0 0.9em var(--ink);
 }
 
 /* The sign-in page's one-time entrance: each part rises into place a moment after the one above. */

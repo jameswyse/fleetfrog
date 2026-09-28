@@ -11,6 +11,7 @@ import { GitHubIcon } from "@/ui/HostIcon.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
+import { PersonalText } from "../../preferences/PersonalText.tsx";
 import { busyThreads } from "../../t3Code/t3CodeLookup.ts";
 import { BusyThreadsNotice } from "../../t3Code/T3CodeNotices.tsx";
 import { BranchesSection } from "./BranchesSection.tsx";
@@ -329,11 +330,15 @@ export function CheckoutSections({
       <PanelSection title="Location" icon={FolderOpenIcon} tone="neutral">
         <Facts>
           <Fact term="Path">
-            <span className="font-mono text-[13px] break-all">{checkout.path}</span>
+            <span className="font-mono text-[13px] break-all">
+              <PersonalText>{checkout.path}</PersonalText>
+            </span>
           </Fact>
           {checkout.worktree._tag === "Linked" && (
             <Fact term="Worktree of">
-              <span className="font-mono text-[13px] break-all">{checkout.worktree.mainPath}</span>
+              <span className="font-mono text-[13px] break-all">
+                <PersonalText>{checkout.worktree.mainPath}</PersonalText>
+              </span>
             </Fact>
           )}
           <Fact term="Fetched">

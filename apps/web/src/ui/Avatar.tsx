@@ -47,6 +47,7 @@ export function Avatar({
   return (
     <span
       aria-hidden="true"
+      data-personal
       style={{ width: size, height: size, fontSize: size * 0.4 }}
       className={`relative inline-grid shrink-0 place-items-center overflow-hidden rounded-full bg-accent-soft font-medium text-accent-text select-none ${className}`}
     >

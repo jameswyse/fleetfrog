@@ -15,6 +15,7 @@ import {
   T3CodeSettings as SettingsSchema,
 } from "@fleetfrog/protocol/domain/t3Code";
 
+import { PersonalText } from "../../preferences/PersonalText.tsx";
 import { SettingsRow, SettingsSection, SideDetail, SidePanel } from "../SettingsSection.tsx";
 import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
 import { ReadingSummary, SchemaText, unmatchedProjects } from "./T3CodeFacts.tsx";
@@ -175,8 +176,10 @@ function UnmatchedSection({ fleet }: { readonly fleet: Fleet }) {
           }
           description={
             <>
-              <span className="font-mono text-xs break-all">{project.path}</span> on{" "}
-              {machineLabel(machine)}
+              <span className="font-mono text-xs break-all">
+                <PersonalText>{project.path}</PersonalText>
+              </span>{" "}
+              on {machineLabel(machine)}
             </>
           }
         />

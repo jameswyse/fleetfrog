@@ -60,6 +60,7 @@ function PasswordForm({ redirect }: { readonly redirect: string }) {
         <input
           ref={email}
           id={emailId}
+          data-personal
           name="email"
           type="email"
           autoComplete="username"
@@ -148,10 +149,10 @@ function TailscaleButton({
         }}
       >
         {pending ? <Spinner /> : <TailscaleMark className="size-5" />}
-        Continue as {identity.name}
+        Continue as <span data-personal>{identity.name}</span>
       </button>
       <p className="text-center text-xs text-ink-muted">
-        Signed in to Tailscale as {identity.login}
+        Signed in to Tailscale as <span data-personal>{identity.login}</span>
       </p>
       <p id={errorId} role="alert" className="text-sm text-danger empty:hidden">
         {error}

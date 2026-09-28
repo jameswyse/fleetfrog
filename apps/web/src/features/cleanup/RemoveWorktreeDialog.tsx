@@ -11,6 +11,7 @@ import { Spinner } from "@/ui/Spinner.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { useStartBatch } from "../actions/useStartBatch.ts";
+import { PersonalText } from "../preferences/PersonalText.tsx";
 import { busyThreads, worktreeThread } from "../t3Code/t3CodeLookup.ts";
 import { BusyThreadsNotice, WorktreeThreadNote } from "../t3Code/T3CodeNotices.tsx";
 
@@ -188,7 +189,9 @@ export function RemoveWorktreeDialog({
   return (
     <Dialog title="Remove this worktree?" onClose={onClose}>
       <div className="space-y-4 text-sm">
-        <p className="font-mono text-[13px] break-all text-ink-muted">{worktree}</p>
+        <p className="font-mono text-[13px] break-all text-ink-muted">
+          <PersonalText>{worktree}</PersonalText>
+        </p>
         {agents.length > 0 ? (
           <BusyThreadsNotice
             threads={agents}

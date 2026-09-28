@@ -1,6 +1,7 @@
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { Spinner } from "@/ui/Spinner.tsx";
 
+import { PersonalText } from "../preferences/PersonalText.tsx";
 import { describeActiveRun, describeOutcome } from "./actionCopy.ts";
 
 import type { OutcomeKind } from "@fleetfrog/protocol/domain/action";
@@ -26,7 +27,9 @@ export function RunStateText({ run }: { readonly run: ActionRun }) {
     return (
       <span className="flex min-w-0 items-center gap-1.5 text-sync">
         <Spinner />
-        <span className="truncate">{describeActiveRun(run)}</span>
+        <span className="truncate">
+          <PersonalText>{describeActiveRun(run)}</PersonalText>
+        </span>
       </span>
     );
   }
@@ -36,7 +39,11 @@ export function RunStateText({ run }: { readonly run: ActionRun }) {
   return (
     <span className="min-w-0">
       <span className={`font-medium ${outcomeTones[state.outcome._tag]}`}>{summary}</span>
-      {detail !== null && <span className="break-words">: {detail}</span>}
+      {detail !== null && (
+        <span className="break-words">
+          : <PersonalText>{detail}</PersonalText>
+        </span>
+      )}
       <span className="text-ink-muted">
         {" · "}
         <RelativeTime at={state.finishedAt} />

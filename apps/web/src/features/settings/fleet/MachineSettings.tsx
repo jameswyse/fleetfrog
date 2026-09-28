@@ -122,7 +122,7 @@ function StatusPanel({ fleet, machine }: { readonly fleet: Fleet; readonly machi
               rel="noreferrer"
               className="inline-flex items-center gap-0.5 text-accent-text underline-offset-2 hover:underline"
             >
-              {githubCli.login}
+              <span data-personal>{githubCli.login}</span>
               <ArrowUpRightIcon className="size-3.5" />
               <span className="sr-only"> (opens in a new tab)</span>
             </a>

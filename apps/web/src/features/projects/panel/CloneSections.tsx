@@ -20,6 +20,7 @@ import { CloneDestinationField } from "../../actions/CloneDestinationField.tsx";
 import { RunActivity } from "../../actions/RunActivity.tsx";
 import { activeCloneFor, latestCloneFor } from "../../actions/runLookup.ts";
 import { useStartBatch } from "../../actions/useStartBatch.ts";
+import { PersonalText } from "../../preferences/PersonalText.tsx";
 import { PanelSection } from "./PanelSection.tsx";
 
 import type { ActionRun } from "@fleetfrog/protocol/domain/activity";
@@ -79,7 +80,9 @@ function Cloning({ run }: { readonly run: ActionRun }) {
     >
       <RunActivity run={run} layout="Stacked" align="Start" />
       {run.state._tag === "Running" && run.state.progress !== null && (
-        <p className="font-mono text-xs break-words text-ink-muted">{run.state.progress}</p>
+        <p className="font-mono text-xs break-words text-ink-muted">
+          <PersonalText>{run.state.progress}</PersonalText>
+        </p>
       )}
       <Link
         to="/activity"
@@ -155,12 +158,16 @@ function CloneForm({
       {lastFailure !== null && (
         <p className="flex items-start gap-2 rounded-lg bg-danger-soft px-2.5 py-2 text-danger">
           <TriangleAlertIcon className="mt-0.5" />
-          <span className="min-w-0 break-words">The last clone failed: {lastFailure}</span>
+          <span className="min-w-0 break-words">
+            The last clone failed: <PersonalText>{lastFailure}</PersonalText>
+          </span>
         </p>
       )}
       <div>
         <p className="text-ink-muted">From</p>
-        <p className="mt-1 font-mono text-[13px] break-all">{source}</p>
+        <p className="mt-1 font-mono text-[13px] break-all">
+          <PersonalText>{source}</PersonalText>
+        </p>
       </div>
       <div>
         <CloneDestinationField

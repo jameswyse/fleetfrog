@@ -92,6 +92,7 @@ function TurnOnPasswordsDialog({
             : "People will sign in with an email address and password. Set yours now, so you stay signed in as an admin. Everyone else is signed out, and you can add accounts for them under Users."}
         </p>
         <TextField
+          data-personal
           label="Your name"
           name="displayName"
           autoComplete="name"
@@ -99,6 +100,7 @@ function TurnOnPasswordsDialog({
           error={messageFor(errors, "displayName")}
         />
         <TextField
+          data-personal
           label="Your email"
           name="email"
           type="email"
