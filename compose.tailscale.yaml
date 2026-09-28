@@ -1,0 +1,58 @@
+# Runs the FleetFrog hub on your tailnet, with a Tailscale sidecar that serves it over HTTPS. The
+# hub gets its own machine name, fleetfrog, and nothing listens on the host's network. See "Run on
+# Tailscale" in README.md. compose.build.yaml works with this file as it does with compose.yaml.
+services:
+  tailscale:
+    image: tailscale/tailscale:latest
+    # The machine's name on the tailnet, so the dashboard is at https://fleetfrog.<tailnet>.ts.net.
+    hostname: fleetfrog
+    restart: unless-stopped
+    environment:
+      # Needed only for the first start. Without one, the log prints a sign-in link instead.
+      TS_AUTHKEY: ${TS_AUTHKEY:-}
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_SERVE_CONFIG: /config/serve.json
+      # Shared with the hub, which reads Serve's settings to put the agent address in pairing codes.
+      TS_SOCKET: /var/run/tailscale/tailscaled.sock
+    configs:
+      - source: tailscale-serve
+        target: /config/serve.json
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+      - tailscale-socket:/var/run/tailscale
+    # To reach the dashboard on the host's network as well, publish its port here:
+    # ports:
+    #   - "7420:7420"
+
+  hub:
+    image: ghcr.io/jameswyse/fleetfrog-hub:${FLEETFROG_VERSION:-latest}
+    restart: unless-stopped
+    # Shares the sidecar's network, where Tailscale Serve forwards to the hub's ports on localhost.
+    network_mode: service:tailscale
+    depends_on:
+      - tailscale
+    environment:
+      # Tailscale Serve terminates TLS for agents with the tailnet's certificate.
+      FLEETFROG_AGENT_TLS: none
+      FLEETFROG_TAILSCALE_SOCKET: /var/run/tailscale/tailscaled.sock
+    volumes:
+      - fleetfrog-data:/data
+      - tailscale-socket:/var/run/tailscale
+
+configs:
+  # The dashboard on port 443 and agents on 8443. $${TS_CERT_DOMAIN} reaches Tailscale unexpanded,
+  # and it fills in the machine's name on the tailnet.
+  tailscale-serve:
+    content: |
+      {
+        "TCP": { "443": { "HTTPS": true }, "8443": { "HTTPS": true } },
+        "Web": {
+          "$${TS_CERT_DOMAIN}:443": { "Handlers": { "/": { "Proxy": "http://127.0.0.1:7420" } } },
+          "$${TS_CERT_DOMAIN}:8443": { "Handlers": { "/": { "Proxy": "http://127.0.0.1:7421" } } }
+        }
+      }
+
+volumes:
+  fleetfrog-data:
+  tailscale-state:
+  tailscale-socket:

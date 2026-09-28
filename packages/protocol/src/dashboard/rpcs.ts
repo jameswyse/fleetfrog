@@ -97,6 +97,12 @@ export class InvalidIcon extends Schema.TaggedError<InvalidIcon>()("InvalidIcon"
 /** The file isn't a PNG, JPEG or WebP image, or is too large. */
 export class InvalidAvatar extends Schema.TaggedError<InvalidAvatar>()("InvalidAvatar", {}) {}
 
+/** The hub couldn't find the HTTPS address Tailscale Serve gives agents. The message says why. */
+export class TailscaleServeUnavailable extends Schema.TaggedError<TailscaleServeUnavailable>()(
+  "TailscaleServeUnavailable",
+  { message: Schema.String },
+) {}
+
 export class MachineNotFound extends Schema.TaggedError<MachineNotFound>()("MachineNotFound", {
   machineId: MachineId,
 }) {}
@@ -154,6 +160,8 @@ export const AgentEndpoint = Schema.TaggedUnion({
   Url: { url: Schema.String },
   /** The same host the dashboard was loaded from, on the agent port. */
   DashboardHost: { scheme: Schema.Literals(["wss", "ws"]), port: Schema.Int },
+  /** The HTTPS address Tailscale Serve forwards to the agent port, read when the offer is made. */
+  Tailnet: { url: Schema.String },
 });
 export type AgentEndpoint = typeof AgentEndpoint.Type;
 
@@ -221,7 +229,7 @@ export class DashboardRpcs extends RpcGroup.make(
     payload: { machineId: MachineId, folder: Schema.NullOr(Schema.NonEmptyString) },
     error: Schema.Union([MachineNotFound, InvalidArchiveFolder]),
   }),
-  Rpc.make("CreatePairingOffer", { success: PairingOffer }),
+  Rpc.make("CreatePairingOffer", { success: PairingOffer, error: TailscaleServeUnavailable }),
   /** Users can start only `git`-tier actions. */
   Rpc.make("StartBatch", {
     payload: { request: BatchRequest },

@@ -50,6 +50,7 @@ const storedAs = (mode: "none" | "local" | "oidc") =>
         agentPort: 7421,
         agentTls: "self-signed",
         agentUrl: null,
+        tailscaleSocket: null,
         webRoot: null,
         authModeOverride: null,
       }),

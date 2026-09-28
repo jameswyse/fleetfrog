@@ -8,8 +8,9 @@ import { InvalidPairingCode } from "@fleetfrog/protocol/pairing/rpcs";
 
 import { HubConfig } from "../hubConfig.ts";
 import { AgentCertificate } from "./agentCertificate.ts";
+import { readTailnetAgentUrl } from "./tailscaleServe.ts";
 
-import type { PairingOffer } from "@fleetfrog/protocol/dashboard/rpcs";
+import type { PairingOffer, TailscaleServeUnavailable } from "@fleetfrog/protocol/dashboard/rpcs";
 
 const offerLifetime = Duration.minutes(pairingCodeLifetimeMinutes);
 
@@ -21,7 +22,7 @@ function hashCode(code: string): string {
 export class PairingOffers extends Context.Service<
   PairingOffers,
   {
-    readonly create: Effect.Effect<PairingOffer>;
+    readonly create: Effect.Effect<PairingOffer, TailscaleServeUnavailable>;
     readonly redeem: (code: string) => Effect.Effect<void, InvalidPairingCode>;
   }
 >()("fleetfrog/PairingOffers") {
@@ -30,16 +31,27 @@ export class PairingOffers extends Context.Service<
       const config = yield* HubConfig;
       const { tls } = yield* AgentCertificate;
       const expiries = new Map<string, DateTime.Utc>();
-      const endpoint: AgentEndpoint =
-        config.agentUrl === null
-          ? AgentEndpoint.cases.DashboardHost.make({
-              scheme: tls === null ? "ws" : "wss",
-              port: config.agentPort,
-            })
-          : AgentEndpoint.cases.Url.make({ url: config.agentUrl });
+      const endpoint = Effect.gen(function* () {
+        if (config.agentUrl !== null) {
+          return AgentEndpoint.cases.Url.make({ url: config.agentUrl });
+        }
+
+        // Read for each offer, because the address changes when the tailnet machine is renamed.
+        if (config.tailscaleSocket !== null) {
+          const url = yield* readTailnetAgentUrl(config.tailscaleSocket, config.agentPort);
+
+          return AgentEndpoint.cases.Tailnet.make({ url });
+        }
+
+        return AgentEndpoint.cases.DashboardHost.make({
+          scheme: tls === null ? "ws" : "wss",
+          port: config.agentPort,
+        });
+      });
 
       return {
         create: Effect.gen(function* () {
+          const offerEndpoint: AgentEndpoint = yield* endpoint;
           const now = yield* DateTime.now;
           const code = randomBytes(16).toString("base64url");
           const expiresAt = DateTime.addDuration(now, offerLifetime);
@@ -54,8 +66,10 @@ export class PairingOffers extends Context.Service<
 
           return {
             code,
-            certificateFingerprint: tls?.fingerprint ?? null,
-            endpoint,
+            // Agents on the tailnet see Tailscale's certificate, never the hub's own.
+            certificateFingerprint:
+              offerEndpoint._tag === "Tailnet" ? null : (tls?.fingerprint ?? null),
+            endpoint: offerEndpoint,
             expiresAt,
           };
         }),

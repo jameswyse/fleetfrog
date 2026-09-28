@@ -62,12 +62,11 @@ Agents have the `git` and `cleanup` tiers.
 ## Security
 
 - **DNS rebinding.** With sign-in off, the dashboard socket's `Origin` check doesn't stop DNS rebinding. A `Host` allowlist would.
-- **Trusted-header sign-in.** Behind a proxy that signs people in, such as Pangolin or Authentik's proxy outpost, the hub could read the user from a header such as `Remote-User`, giving roles and Activity attribution without a second sign-in. It's safe only when the hub can't be reached except through the proxy.
+- **Trusted-header sign-in.** Behind a proxy that signs people in, such as Pangolin or Authentik's proxy outpost, the hub could read the user from a header such as `Remote-User`, giving roles and Activity attribution without a second sign-in. It's safe only when the hub can't be reached except through the proxy. Tailscale Serve sends `Tailscale-User-Login` in the same way, but with `compose.tailscale.yaml` other tailnet machines may reach the hub's ports directly, bypassing Serve, so that setup would need to rule out a forged header first.
 - **Clones checked locally.** Discovery folders and clone URLs come from the hub, so a compromised hub could clone any HTTPS or SSH repository into any non-hidden folder. Writable folders and allowed hosts kept in the agent's local policy would close that.
 
 ## Networking and platforms
 
-- **Tailscale integration.** Many users don't have a network where their machines can reach each other, and Tailscale is common and supported by T3 Code. The Macs already reach the hub through MagicDNS, because macOS Local Network privacy blocks launchd agents from LAN addresses.
 - **Windows**, maybe.
 - **Faster hub-down detection.** An agent takes about 20 seconds to notice that the hub has gone.
 - **Agents after logout on macOS.** launchd agents stop when the user logs out.

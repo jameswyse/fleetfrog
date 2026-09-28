@@ -24,9 +24,9 @@ const installCommand =
   "curl -fsSL https://github.com/jameswyse/fleetfrog/releases/latest/download/install.sh | sh";
 
 function agentUrl(offer: PairingOffer): string {
-  return offer.endpoint._tag === "Url"
-    ? offer.endpoint.url
-    : `${offer.endpoint.scheme}://${window.location.hostname}:${offer.endpoint.port}`;
+  return offer.endpoint._tag === "DashboardHost"
+    ? `${offer.endpoint.scheme}://${window.location.hostname}:${offer.endpoint.port}`
+    : offer.endpoint.url;
 }
 
 type OfferState =
@@ -169,6 +169,12 @@ export function PairMachine() {
                     </span>
                   </div>
                   {copyFailed(offer.command) && <CopyFailed />}
+                  {offer.offer.endpoint._tag === "Tailnet" && (
+                    <p className="text-ink-muted">
+                      The machine connects to the hub over Tailscale, so sign it in to the same
+                      tailnet before you run the command.
+                    </p>
+                  )}
                   {offer.offer.endpoint._tag === "DashboardHost" &&
                     loopbackHosts.has(window.location.hostname) && (
                       <p className="rounded-md border border-changes/30 bg-changes-soft p-3 text-changes">

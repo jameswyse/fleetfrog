@@ -36,6 +36,7 @@ import type {
   NotSignedIn,
   ProviderRejected,
   RepositoryNotFound,
+  TailscaleServeUnavailable,
   TooManyAttempts,
   UserNotFound,
   WrongPassword,
@@ -68,6 +69,7 @@ export type DashboardError =
   | InvalidIcon
   | ProviderRejected
   | TooManyAttempts
+  | TailscaleServeUnavailable
   | RpcClientError.RpcClientError;
 
 /** The most recent fleet from the hub and when the dashboard received it. */
@@ -270,6 +272,7 @@ const failureMessages = {
   ProviderRejected: "The sign-in provider didn't accept those settings.",
   InvalidIcon: "Choose a PNG, JPEG, WebP, SVG or ICO image under 256 KB.",
   TooManyAttempts: "Too many wrong passwords. Wait a few minutes, then try again.",
+  TailscaleServeUnavailable: "The hub couldn't find its address on your tailnet.",
   RpcClientError: "The hub did not respond. Check that it is still running.",
 } satisfies Record<DashboardError["_tag"], string>;
 
@@ -280,8 +283,9 @@ export function describeCause(cause: Cause.Cause<DashboardError>): string {
     return "Something went wrong talking to the hub. Try again.";
   }
 
-  // The provider's own reason says what to fix.
-  return error.success._tag === "ProviderRejected"
+  // These carry the hub's own reason, which says what to fix.
+  return error.success._tag === "ProviderRejected" ||
+    error.success._tag === "TailscaleServeUnavailable"
     ? error.success.message
     : failureMessages[error.success._tag];
 }

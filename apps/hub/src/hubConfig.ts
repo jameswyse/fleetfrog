@@ -22,6 +22,8 @@ export class HubConfig extends Context.Service<
     readonly agentTls: "self-signed" | "none";
     /** The public agent URL, when agents cannot reach the hub on the dashboard's host. */
     readonly agentUrl: string | null;
+    /** tailscaled's local API socket, shared from a sidecar whose Tailscale Serve fronts the hub. */
+    readonly tailscaleSocket: string | null;
     /** Built dashboard files. Absent in development, where Vite serves the dashboard. */
     readonly webRoot: string | null;
     /** `none` turns sign-in off whatever the settings say, for an admin who can't sign in. */
@@ -35,6 +37,9 @@ export class HubConfig extends Context.Service<
       agentPort: Config.Port("FLEETFROG_AGENT_PORT").pipe(Config.withDefault(7421)),
       agentTls: AgentTransport.pipe(Config.withDefault("self-signed" as const)),
       agentUrl: Config.schema(WebSocketUrl, "FLEETFROG_AGENT_URL").pipe(Config.withDefault(null)),
+      tailscaleSocket: Config.NonEmptyString("FLEETFROG_TAILSCALE_SOCKET").pipe(
+        Config.withDefault(null),
+      ),
       webRoot: Config.NonEmptyString("FLEETFROG_WEB_ROOT").pipe(Config.withDefault(null)),
       authModeOverride: Config.Literals(["none"], "FLEETFROG_AUTH_MODE").pipe(
         Config.withDefault(null),
