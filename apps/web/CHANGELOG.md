@@ -1,5 +1,12 @@
 # @fleetfrog/web
 
+## 0.1.1
+
+### Patch Changes
+
+- e26d3b3: Show which machines run an older agent than the hub in Settings › Fleet, and update them to the hub's version from there or from a machine's page.
+- 2b33ebe: Offer to update an agent only when its machine's owner allows updates, and list agent updates among what each machine allows.
+
 ## 0.1.0
 
 ### Minor Changes
