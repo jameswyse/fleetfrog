@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en-AU">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#05170f" />
+    <title>FleetFrog: every repository on every machine</title>
+    <meta
+      name="description"
+      content="FleetFrog is a self-hosted dashboard for the computers you develop on. See every Git repository on every machine, with its branch, changes and commits to push or pull."
+    />
+    <link rel="canonical" href="https://fleetfrog.dev/" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="FleetFrog" />
+    <meta property="og:url" content="https://fleetfrog.dev/" />
+    <meta property="og:title" content="FleetFrog: every repository on every machine" />
+    <meta
+      property="og:description"
+      content="A self-hosted dashboard for the Git repositories on every computer you develop on."
+    />
+    <meta property="og:image" content="https://fleetfrog.dev/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="The FleetFrog logo, a green frog, above the words: See every repository on every machine."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body>
+    <svg width="0" height="0" class="absolute" aria-hidden="true">
+      <symbol id="frog" viewBox="0 0 160 128">
+        <g
+          stroke="#073E30"
+          stroke-width="8.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          fill="none"
+        >
+          <path
+            d="M25 53C18 39 23 19 38 14C54 8 68 19 73 33C78 32 84 32 90 34C97 19 108 12 121 15C139 19 144 38 136 55C150 66 153 80 143 94C130 111 104 117 81 117C57 117 31 112 17 98C4 86 9 68 25 53Z"
+            fill="#78DF3E"
+          />
+          <path d="M39 34L52 44L39 54M105 50H125" stroke-width="8" />
+          <path d="M45 78C63 95 96 98 117 79" />
+        </g>
+      </symbol>
+      <!-- Platform logos from Simple Icons (https://simpleicons.org), released under CC0. -->
+      <symbol id="linux-logo" viewBox="0 0 24 24">
+        <path
+          fill="currentColor"
+          d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.132 1.884 1.071.771-.06 1.592-.536 2.257-1.306.631-.765 1.683-1.084 2.378-1.503.348-.199.629-.469.649-.853.023-.4-.2-.811-.714-1.376v-.097l-.003-.003c-.17-.2-.25-.535-.338-.926-.085-.401-.182-.786-.492-1.046h-.003c-.059-.054-.123-.067-.188-.135a.357.357 0 00-.19-.064c.431-1.278.264-2.55-.173-3.694-.533-1.41-1.465-2.638-2.175-3.483-.796-1.005-1.576-1.957-1.56-3.368.026-2.152.236-6.133-3.544-6.139zm.529 3.405h.013c.213 0 .396.062.584.198.19.135.33.332.438.533.105.259.158.459.166.724 0-.02.006-.04.006-.06v.105a.086.086 0 01-.004-.021l-.004-.024a1.807 1.807 0 01-.15.706.953.953 0 01-.213.335.71.71 0 00-.088-.042c-.104-.045-.198-.064-.284-.133a1.312 1.312 0 00-.22-.066c.05-.06.146-.133.183-.198.053-.128.082-.264.088-.402v-.02a1.21 1.21 0 00-.061-.4c-.045-.134-.101-.2-.183-.333-.084-.066-.167-.132-.267-.132h-.016c-.093 0-.176.03-.262.132a.8.8 0 00-.205.334 1.18 1.18 0 00-.09.4v.019c.002.089.008.179.02.267-.193-.067-.438-.135-.607-.202a1.635 1.635 0 01-.018-.2v-.02a1.772 1.772 0 01.15-.768c.082-.22.232-.406.43-.533a.985.985 0 01.594-.2zm-2.962.059h.036c.142 0 .27.048.399.135.146.129.264.288.344.465.09.199.14.4.153.667v.004c.007.134.006.2-.002.266v.08c-.03.007-.056.018-.083.024-.152.055-.274.135-.393.2.012-.09.013-.18.003-.267v-.015c-.012-.133-.04-.2-.082-.333a.613.613 0 00-.166-.267.248.248 0 00-.183-.064h-.021c-.071.006-.13.04-.186.132a.552.552 0 00-.12.27.944.944 0 00-.023.33v.015c.012.135.037.2.08.334.046.134.098.2.166.268.01.009.02.018.034.024-.07.057-.117.07-.176.136a.304.304 0 01-.131.068 2.62 2.62 0 01-.275-.402 1.772 1.772 0 01-.155-.667 1.759 1.759 0 01.08-.668 1.43 1.43 0 01.283-.535c.128-.133.26-.2.418-.2zm1.37 1.706c.332 0 .733.065 1.216.399.293.2.523.269 1.052.468h.003c.255.136.405.266.478.399v-.131a.571.571 0 01.016.47c-.123.31-.516.643-1.063.842v.002c-.268.135-.501.333-.775.465-.276.135-.588.292-1.012.267a1.139 1.139 0 01-.448-.067 3.566 3.566 0 01-.322-.198c-.195-.135-.363-.332-.612-.465v-.005h-.005c-.4-.246-.616-.512-.686-.71-.07-.268-.005-.47.193-.6.224-.135.38-.271.483-.336.104-.074.143-.102.176-.131h.002v-.003c.169-.202.436-.47.839-.601.139-.036.294-.065.466-.065zm2.8 2.142c.358 1.417 1.196 3.475 1.735 4.473.286.534.855 1.659 1.102 3.024.156-.005.33.018.513.064.646-1.671-.546-3.467-1.089-3.966-.22-.2-.232-.335-.123-.335.59.534 1.365 1.572 1.646 2.757.13.535.16 1.104.021 1.67.067.028.135.06.205.067 1.032.534 1.413.938 1.23 1.537v-.043c-.06-.003-.12 0-.18 0h-.016c.151-.467-.182-.825-1.065-1.224-.915-.4-1.646-.336-1.77.465-.008.043-.013.066-.018.135-.068.023-.139.053-.209.064-.43.268-.662.669-.793 1.187-.13.533-.17 1.156-.205 1.869v.003c-.02.334-.17.838-.319 1.35-1.5 1.072-3.58 1.538-5.348.334a2.645 2.645 0 00-.402-.533 1.45 1.45 0 00-.275-.333c.182 0 .338-.03.465-.067a.615.615 0 00.314-.334c.108-.267 0-.697-.345-1.163-.345-.467-.931-.995-1.788-1.521-.63-.4-.986-.87-1.15-1.396-.165-.534-.143-1.085-.015-1.645.245-1.07.873-2.11 1.274-2.763.107-.065.037.135-.408.974-.396.751-1.14 2.497-.122 3.854a8.123 8.123 0 01.647-2.876c.564-1.278 1.743-3.504 1.836-5.268.048.036.217.135.289.202.218.133.38.333.59.465.21.201.477.335.876.335.039.003.075.006.11.006.412 0 .73-.134.997-.268.29-.134.52-.334.74-.4h.005c.467-.135.835-.402 1.044-.7zm2.185 8.958c.037.6.343 1.245.882 1.377.588.134 1.434-.333 1.791-.765l.211-.01c.315-.007.577.01.847.268l.003.003c.208.199.305.53.391.876.085.4.154.78.409 1.066.486.527.645.906.636 1.14l.003-.007v.018l-.003-.012c-.015.262-.185.396-.498.595-.63.401-1.746.712-2.457 1.57-.618.737-1.37 1.14-2.036 1.191-.664.053-1.237-.2-1.574-.898l-.005-.003c-.21-.4-.12-1.025.056-1.69.176-.668.428-1.344.463-1.897.037-.714.076-1.335.195-1.814.12-.465.308-.797.641-.984l.045-.022zm-10.814.049h.01c.053 0 .105.005.157.014.376.055.706.333 1.023.752l.91 1.664.003.003c.243.533.754 1.064 1.189 1.637.434.598.77 1.131.729 1.57v.006c-.057.744-.48 1.148-1.125 1.294-.645.135-1.52.002-2.395-.464-.968-.536-2.118-.469-2.857-.602-.369-.066-.61-.2-.723-.4-.11-.2-.113-.602.123-1.23v-.004l.002-.003c.117-.334.03-.752-.027-1.118-.055-.401-.083-.71.043-.94.16-.334.396-.4.69-.533.294-.135.64-.202.915-.47h.002v-.002c.256-.268.445-.601.668-.838.19-.201.38-.336.663-.336zm7.159-9.074c-.435.201-.945.535-1.488.535-.542 0-.97-.267-1.28-.466-.154-.134-.28-.268-.373-.335-.164-.134-.144-.333-.074-.333.109.016.129.134.199.2.096.066.215.2.36.333.292.2.68.467 1.167.467.485 0 1.053-.267 1.398-.466.195-.135.445-.334.648-.467.156-.136.149-.267.279-.267.128.016.034.134-.147.332a8.097 8.097 0 01-.69.468zm-1.082-1.583V5.64c-.006-.02.013-.042.029-.05.074-.043.18-.027.26.004.063 0 .16.067.15.135-.006.049-.085.066-.135.066-.055 0-.092-.043-.141-.068-.052-.018-.146-.008-.163-.065zm-.551 0c-.02.058-.113.049-.166.066-.047.025-.086.068-.14.068-.05 0-.13-.02-.136-.068-.01-.066.088-.133.15-.133.08-.031.184-.047.259-.005.019.009.036.03.03.05v.02h.003z"
+        />
+      </symbol>
+      <symbol id="apple-logo" viewBox="0 0 24 24">
+        <path
+          fill="currentColor"
+          d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"
+        />
+      </symbol>
+    </svg>
+
+    <header class="absolute inset-x-0 top-0 z-10">
+      <div class="page-width flex items-center justify-between gap-6 py-5">
+        <a href="/" class="-m-2 rounded-xl p-2">
+          <svg viewBox="0 0 304 64" role="img" aria-label="FleetFrog" class="h-8 w-auto">
+            <use href="#frog" width="75.29" height="60.24" />
+            <path
+              class="fill-ink"
+              transform="translate(100 0)"
+              d="M21.700 49.000L21.700 11.200L30.000 11.200L30.000 49.000ZM18.650 17.250Q18.200 17.100 17.600 17.000Q17.000 16.900 16.400 16.900Q15.250 16.900 14.550 17.300Q13.850 17.700 13.450 18.375Q13.050 19.050 12.900 19.900Q12.750 20.750 12.750 21.600L12.750 24.100L18.300 24.100L18.300 30.250L12.750 30.250L12.750 49.000L4.550 49.000L4.550 30.250L0.000 30.250L0.000 24.100L4.550 24.100L4.550 21.700Q4.550 19.400 5.050 17.325Q5.550 15.250 6.775 13.675Q8.000 12.100 10.075 11.175Q12.150 10.250 15.250 10.250Q16.300 10.250 17.325 10.375Q18.350 10.500 19.200 10.750ZM52.650 33.700Q52.650 31.750 51.425 30.350Q50.200 28.950 47.750 28.950Q46.550 28.950 45.550 29.325Q44.550 29.700 43.800 30.350Q43.050 31.000 42.600 31.875Q42.150 32.750 42.100 33.700ZM60.200 36.850Q60.200 37.350 60.200 37.850Q60.200 38.350 60.150 38.800L42.100 38.800Q42.200 39.850 42.725 40.700Q43.250 41.550 44.075 42.175Q44.900 42.800 45.925 43.150Q46.950 43.500 48.050 43.500Q50.000 43.500 51.350 42.775Q52.700 42.050 53.550 40.900L59.250 44.500Q57.500 47.050 54.625 48.425Q51.750 49.800 47.950 49.800Q45.150 49.800 42.650 48.925Q40.150 48.050 38.275 46.375Q36.400 44.700 35.325 42.250Q34.250 39.800 34.250 36.650Q34.250 33.600 35.300 31.125Q36.350 28.650 38.150 26.925Q39.950 25.200 42.400 24.250Q44.850 23.300 47.700 23.300Q50.450 23.300 52.750 24.225Q55.050 25.150 56.700 26.900Q58.350 28.650 59.275 31.150Q60.200 33.650 60.200 36.850ZM81.450 33.700Q81.450 31.750 80.225 30.350Q79.000 28.950 76.550 28.950Q75.350 28.950 74.350 29.325Q73.350 29.700 72.600 30.350Q71.850 31.000 71.400 31.875Q70.950 32.750 70.900 33.700ZM89.000 36.850Q89.000 37.350 89.000 37.850Q89.000 38.350 88.950 38.800L70.900 38.800Q71.000 39.850 71.525 40.700Q72.050 41.550 72.875 42.175Q73.700 42.800 74.725 43.150Q75.750 43.500 76.850 43.500Q78.800 43.500 80.150 42.775Q81.500 42.050 82.350 40.900L88.050 44.500Q86.300 47.050 83.425 48.425Q80.550 49.800 76.750 49.800Q73.950 49.800 71.450 48.925Q68.950 48.050 67.075 46.375Q65.200 44.700 64.125 42.250Q63.050 39.800 63.050 36.650Q63.050 33.600 64.100 31.125Q65.150 28.650 66.950 26.925Q68.750 25.200 71.200 24.250Q73.650 23.300 76.500 23.300Q79.250 23.300 81.550 24.225Q83.850 25.150 85.500 26.900Q87.150 28.650 88.075 31.150Q89.000 33.650 89.000 36.850ZM102.000 30.250L102.000 39.750Q102.000 41.500 102.675 42.375Q103.350 43.250 105.100 43.250Q105.700 43.250 106.375 43.150Q107.050 43.050 107.500 42.850L107.600 48.850Q106.750 49.150 105.450 49.375Q104.150 49.600 102.850 49.600Q100.350 49.600 98.650 48.975Q96.950 48.350 95.925 47.175Q94.900 46.000 94.450 44.375Q94.000 42.750 94.000 40.750L94.000 30.250L90.000 30.250L90.000 24.100L93.950 24.100L93.950 17.550L102.000 17.550L102.000 24.100L107.850 24.100L107.850 30.250Z"
+            />
+            <path
+              class="fill-frog"
+              transform="translate(209.25 0)"
+              d="M14.400 28.450L8.900 28.450L8.900 49.000L5.500 49.000L5.500 28.450L0.600 28.450L0.600 25.600L5.500 25.600L5.500 19.200Q5.500 15.200 7.450 12.900Q9.400 10.600 13.450 10.600Q14.100 10.600 14.850 10.675Q15.600 10.750 16.250 10.950L15.650 13.950Q15.100 13.800 14.550 13.700Q14.000 13.600 13.300 13.600Q11.950 13.600 11.075 14.050Q10.200 14.500 9.725 15.325Q9.250 16.150 9.075 17.250Q8.900 18.350 8.900 19.600L8.900 25.600L14.400 25.600ZM18.250 30.750Q18.250 29.800 18.200 28.300Q18.150 26.800 18.050 25.600L21.300 25.600Q21.400 26.550 21.450 27.700Q21.500 28.850 21.500 29.600L21.600 29.600Q22.600 27.550 24.600 26.275Q26.600 25.000 29.100 25.000Q29.750 25.000 30.275 25.050Q30.800 25.100 31.350 25.250L30.900 28.450Q30.600 28.350 29.900 28.250Q29.200 28.150 28.500 28.150Q27.150 28.150 25.900 28.650Q24.650 29.150 23.725 30.225Q22.800 31.300 22.225 32.975Q21.650 34.650 21.650 37.000L21.650 49.000L18.250 49.000ZM57.600 37.300Q57.600 39.950 56.675 42.200Q55.750 44.450 54.100 46.100Q52.450 47.750 50.150 48.675Q47.850 49.600 45.100 49.600Q42.400 49.600 40.100 48.675Q37.800 47.750 36.150 46.100Q34.500 44.450 33.575 42.200Q32.650 39.950 32.650 37.300Q32.650 34.650 33.575 32.400Q34.500 30.150 36.150 28.500Q37.800 26.850 40.100 25.925Q42.400 25.000 45.100 25.000Q47.850 25.000 50.150 25.925Q52.450 26.850 54.100 28.500Q55.750 30.150 56.675 32.400Q57.600 34.650 57.600 37.300ZM54.000 37.300Q54.000 35.350 53.375 33.625Q52.750 31.900 51.600 30.625Q50.450 29.350 48.800 28.600Q47.150 27.850 45.100 27.850Q43.050 27.850 41.425 28.600Q39.800 29.350 38.650 30.625Q37.500 31.900 36.875 33.625Q36.250 35.350 36.250 37.300Q36.250 39.250 36.875 40.975Q37.500 42.700 38.650 43.975Q39.800 45.250 41.425 45.975Q43.050 46.700 45.100 46.700Q47.150 46.700 48.800 45.975Q50.450 45.250 51.600 43.975Q52.750 42.700 53.375 40.975Q54.000 39.250 54.000 37.300ZM65.150 53.700Q66.550 55.500 68.975 56.750Q71.400 58.000 74.100 58.000Q76.600 58.000 78.350 57.275Q80.100 56.550 81.175 55.300Q82.250 54.050 82.750 52.375Q83.250 50.700 83.250 48.800L83.250 44.400L83.150 44.400Q81.800 46.600 79.325 47.800Q76.850 49.000 74.300 49.000Q71.550 49.000 69.325 48.100Q67.100 47.200 65.525 45.625Q63.950 44.050 63.075 41.850Q62.200 39.650 62.200 37.100Q62.200 34.600 63.075 32.400Q63.950 30.200 65.525 28.550Q67.100 26.900 69.325 25.950Q71.550 25.000 74.300 25.000Q76.850 25.000 79.300 26.200Q81.750 27.400 83.150 29.650L83.250 29.650L83.250 25.600L86.650 25.600L86.650 48.800Q86.650 50.700 86.125 52.850Q85.600 55.000 84.175 56.800Q82.750 58.600 80.300 59.800Q77.850 61.000 73.950 61.000Q70.700 61.000 67.750 59.750Q64.800 58.500 62.700 56.300ZM65.800 37.000Q65.800 38.850 66.400 40.500Q67.000 42.150 68.125 43.400Q69.250 44.650 70.900 45.375Q72.550 46.100 74.650 46.100Q76.600 46.100 78.250 45.450Q79.900 44.800 81.100 43.600Q82.300 42.400 82.975 40.725Q83.650 39.050 83.650 37.000Q83.650 35.150 82.975 33.500Q82.300 31.850 81.100 30.600Q79.900 29.350 78.250 28.600Q76.600 27.850 74.650 27.850Q72.550 27.850 70.900 28.600Q69.250 29.350 68.125 30.600Q67.000 31.850 66.400 33.500Q65.800 35.150 65.800 37.000Z"
+            />
+          </svg>
+        </a>
+        <nav aria-label="Main">
+          <ul class="flex items-center gap-1 text-[0.9375rem] font-medium">
+            <li class="max-sm:hidden"><a href="#get-started" class="nav-link">Get started</a></li>
+            <li>
+              <a
+                href="https://github.com/jameswyse/fleetfrog"
+                target="_blank"
+                rel="noopener"
+                class="nav-link"
+                aria-label="FleetFrog on GitHub (opens in a new tab)"
+              >
+                <svg viewBox="0 0 24 24" class="size-5 fill-current" aria-hidden="true">
+                  <path
+                    d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"
+                  />
+                </svg>
+              </a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="relative isolate overflow-hidden" data-hero aria-labelledby="hero-title">
+        <canvas class="pond absolute inset-0 -z-10 size-full" data-pond aria-hidden="true"></canvas>
+        <div
+          class="page-width flex min-h-[max(42rem,94svh)] flex-col items-center justify-center pt-32 pb-24 text-center"
+        >
+          <div class="rise-in relative">
+            <div class="frog-glow" aria-hidden="true"></div>
+            <svg
+              viewBox="0 3 158 119"
+              class="relative h-auto w-36 sm:w-44"
+              data-frog
+              aria-hidden="true"
+            >
+              <use href="#frog" width="160" height="128" />
+            </svg>
+          </div>
+          <h1
+            id="hero-title"
+            data-pond-text
+            class="rise-in font-display mt-10 max-w-4xl text-[clamp(2.5rem,7vw,5.125rem)] leading-[1.04] font-semibold tracking-[-0.03em] text-balance [animation-delay:100ms]"
+          >
+            See every repository on <em class="accent">every machine</em>.
+          </h1>
+          <p
+            data-pond-text
+            class="rise-in mt-7 max-w-[36rem] text-lg leading-relaxed text-pretty text-ink-muted sm:text-xl [animation-delay:200ms]"
+          >
+            FleetFrog is a self-hosted dashboard for the computers you develop on. See what’s
+            uncommitted, unpushed or behind without checking each machine by hand.
+          </p>
+          <div
+            data-pond-text
+            class="rise-in mt-10 flex flex-wrap items-center justify-center gap-3 [animation-delay:300ms]"
+          >
+            <a href="#get-started" class="button button-primary">
+              Get started
+              <svg viewBox="0 0 24 24" class="icon" aria-hidden="true">
+                <path d="M12 5v14" />
+                <path d="m19 12-7 7-7-7" />
+              </svg>
+            </a>
+            <a
+              href="https://github.com/jameswyse/fleetfrog"
+              target="_blank"
+              rel="noopener"
+              class="button button-secondary"
+            >
+              View on GitHub
+              <span class="sr-only"> (opens in a new tab)</span>
+              <svg viewBox="0 0 24 24" class="icon" aria-hidden="true">
+                <path d="M7 7h10v10" />
+                <path d="M7 17 17 7" />
+              </svg>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section id="get-started" class="py-24 sm:py-32" aria-labelledby="get-started-title">
+        <div class="page-width grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
+          <div class="lg:sticky lg:top-10 lg:self-start">
+            <h2 id="get-started-title" class="section-title">Get started</h2>
+            <p class="section-lead">
+              The hub runs in Docker, and each machine needs Git. FleetFrog is in early beta, so
+              expect rough edges and breaking changes between 0.x versions.
+            </p>
+            <p class="mt-6">
+              <a
+                href="https://github.com/jameswyse/fleetfrog#readme"
+                target="_blank"
+                rel="noopener"
+                class="text-link"
+              >
+                Read the setup guide on GitHub<span class="sr-only"> (opens in a new tab)</span>
+              </a>
+            </p>
+          </div>
+          <ol class="grid grid-cols-1 gap-5">
+            <li class="step">
+              <h3 class="step-title">
+                <span class="step-number" aria-hidden="true">1</span>Run the hub
+              </h3>
+              <p class="step-text">
+                Download the Compose file and start the hub, then open the dashboard on port 7420.
+              </p>
+              <div class="command">
+                <pre><code><span class="command-line">curl -fsSLO https://raw.githubusercontent.com/jameswyse/fleetfrog/main/compose.yaml</span>
+<span class="command-line">docker compose up -d</span></code></pre>
+                <button
+                  type="button"
+                  class="copy-button"
+                  aria-label="Copy the hub commands"
+                  data-copy
+                >
+                  <svg viewBox="0 0 24 24" class="icon copy-icon" aria-hidden="true">
+                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                  </svg>
+                  <svg viewBox="0 0 24 24" class="icon copied-icon" aria-hidden="true">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                </button>
+              </div>
+            </li>
+            <li class="step">
+              <h3 class="step-title">
+                <span class="step-number" aria-hidden="true">2</span>Add your machines
+              </h3>
+              <p class="step-text">
+                Install the agent on each computer you develop on, then pair it from Settings ›
+                Fleet in the dashboard.
+              </p>
+              <div class="command">
+                <pre><code><span class="command-line">curl -fsSL https://github.com/jameswyse/fleetfrog/releases/latest/download/install.sh | sh</span></code></pre>
+                <button
+                  type="button"
+                  class="copy-button"
+                  aria-label="Copy the install command"
+                  data-copy
+                >
+                  <svg viewBox="0 0 24 24" class="icon copy-icon" aria-hidden="true">
+                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                  </svg>
+                  <svg viewBox="0 0 24 24" class="icon copied-icon" aria-hidden="true">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                </button>
+              </div>
+              <ul class="downloads mt-5 grid gap-2">
+                <li>
+                  <a
+                    href="https://github.com/jameswyse/fleetfrog/releases/latest/download/fleetfrog-linux-x86_64"
+                    class="download"
+                  >
+                    <svg viewBox="0 0 24 24" class="download-logo" aria-hidden="true">
+                      <use href="#linux-logo" />
+                    </svg>
+                    <span class="download-label">
+                      <span class="whitespace-nowrap">Download for Linux</span>
+                      <span class="download-detail">x86-64</span>
+                    </span>
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://github.com/jameswyse/fleetfrog/releases/latest/download/fleetfrog-linux-aarch64"
+                    class="download"
+                  >
+                    <svg viewBox="0 0 24 24" class="download-logo" aria-hidden="true">
+                      <use href="#linux-logo" />
+                    </svg>
+                    <span class="download-label">
+                      <span class="whitespace-nowrap">Download for Linux</span>
+                      <span class="download-detail">ARM64</span>
+                    </span>
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://github.com/jameswyse/fleetfrog/releases/latest/download/fleetfrog-macos-aarch64"
+                    class="download"
+                  >
+                    <svg viewBox="0 0 24 24" class="download-logo" aria-hidden="true">
+                      <use href="#apple-logo" />
+                    </svg>
+                    <span class="download-label">
+                      <span class="whitespace-nowrap">Download for macOS</span>
+                      <span class="download-detail">Apple silicon</span>
+                    </span>
+                  </a>
+                </li>
+              </ul>
+            </li>
+          </ol>
+        </div>
+      </section>
+    </main>
+
+    <footer class="border-t border-line">
+      <div
+        class="page-width flex flex-col gap-6 py-10 text-sm text-ink-muted sm:flex-row sm:items-center sm:justify-between"
+      >
+        <p class="flex items-center gap-3">
+          <svg viewBox="0 3 158 119" class="h-auto w-7 shrink-0" aria-hidden="true">
+            <use href="#frog" width="160" height="128" />
+          </svg>
+          <span>
+            © 2026
+            <a
+              href="https://wyse.dev"
+              target="_blank"
+              rel="noopener"
+              class="text-ink underline decoration-ink-faint underline-offset-4 transition-[text-decoration-color] duration-150 hover:decoration-ink"
+              >James Wyse<span class="sr-only"> (opens in a new tab)</span></a
+            >
+            · MIT licensed
+          </span>
+        </p>
+        <nav aria-label="Project">
+          <ul class="flex flex-wrap gap-x-6 gap-y-2">
+            <li>
+              <a
+                href="https://github.com/jameswyse/fleetfrog"
+                target="_blank"
+                rel="noopener"
+                class="footer-link"
+                >GitHub<span class="sr-only"> (opens in a new tab)</span></a
+              >
+            </li>
+            <li>
+              <a
+                href="https://github.com/jameswyse/fleetfrog/releases"
+                target="_blank"
+                rel="noopener"
+                class="footer-link"
+                >Releases<span class="sr-only"> (opens in a new tab)</span></a
+              >
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </footer>
+
+    <p class="sr-only" role="status" data-copy-status></p>
+  </body>
+</html>

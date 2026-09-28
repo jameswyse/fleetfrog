@@ -27,6 +27,11 @@ catalog:
 minimumReleaseAge: 1440
 minimumReleaseAgeExcludePrune: true
 strictDepBuilds: true
+# Wrangler, for the website, runs without these packages' install scripts: pnpm installs their
+# binaries as platform packages.
+allowBuilds:
+  esbuild: false
+  workerd: false
 blockExoticSubdeps: true
 savePrefix: ""
 cleanupUnusedCatalogs: true

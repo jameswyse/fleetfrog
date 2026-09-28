@@ -25,6 +25,7 @@ const typeScriptFiles = [
 const testFiles = filesWithExtensions("**/*.test", typeScriptExtensions);
 const testAndSpecFiles = [...testFiles, ...filesWithExtensions("**/*.spec", typeScriptExtensions)];
 const webSourceFiles = filesWithExtensions("apps/web/src/**/*", typeScriptExtensions);
+const siteSourceFiles = filesWithExtensions("apps/site/src/**/*", typeScriptExtensions);
 const nodeSourceFiles = [
   ...filesWithExtensions("apps/agent-ts/**/*", typeScriptExtensions),
   ...filesWithExtensions("apps/hub/**/*", typeScriptExtensions),
@@ -229,6 +230,11 @@ export default defineConfig({
         ...effectRules,
         ...e18eRules,
       },
+    },
+    {
+      files: siteSourceFiles,
+      env: { browser: true },
+      rules: e18eRules,
     },
     {
       files: nodeSourceFiles,

@@ -20,6 +20,9 @@ data
 # The hub image builds neither agent. Leaving out the Rust one also keeps pnpm from needing Cargo.
 apps/agent-rs
 
+# The website is served by Cloudflare Pages, not the hub.
+apps/site
+
 # Documentation and changesets don't affect the image, so they shouldn't invalidate its cache.
 **/*.md
 .changeset
