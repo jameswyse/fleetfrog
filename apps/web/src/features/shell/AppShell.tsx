@@ -9,7 +9,7 @@ import { Spinner } from "@/ui/Spinner.tsx";
 
 import { t3CodeIssues } from "../settings/integrations/t3CodeHealth.ts";
 import { HubStatus } from "./HubStatus.tsx";
-import { StaleNotice } from "./StaleNotice.tsx";
+import { OutdatedNotice } from "./OutdatedNotice.tsx";
 import { UserMenu } from "./UserMenu.tsx";
 
 const navigation = [
@@ -110,7 +110,7 @@ export function AppShell() {
         </div>
       </header>
       <main id="content" className="flex min-h-0 flex-1 flex-col">
-        <StaleNotice hub={hub} />
+        <OutdatedNotice />
         <Outlet />
       </main>
     </div>

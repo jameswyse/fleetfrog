@@ -12,7 +12,10 @@ import type { Role, User } from "@fleetfrog/protocol/domain/user";
 export type SessionState =
   | { readonly _tag: "Loading" }
   | { readonly _tag: "Known"; readonly session: Session }
-  /** The hub didn't answer, so the dashboard carries on as if it were open and keeps trying. */
+  /**
+   * The hub didn't answer before it ever said who is signed in, so the dashboard carries on as if
+   * it were open and keeps trying.
+   */
   | { readonly _tag: "Unreachable" };
 
 const decodeSession = Schema.decodeUnknownOption(Schema.toCodecJson(Session));
@@ -101,6 +104,14 @@ async function readSession(response: Response): Promise<Option.Option<Session>> 
   return decodeSession(await response.json());
 }
 
+/**
+ * What to show when the hub can't say who is signed in. A session it already reported stays, so an
+ * outage doesn't take away the account menu or change which pages the header offers.
+ */
+function withoutAnswer(): SessionState {
+  return state._tag === "Known" ? state : { _tag: "Unreachable" };
+}
+
 /** Asks the hub who is signed in, which also keeps the session going. */
 export async function refreshSession(): Promise<SessionState> {
   try {
@@ -109,12 +120,12 @@ export async function refreshSession(): Promise<SessionState> {
 
     setState(
       Option.match(session, {
-        onNone: () => ({ _tag: "Unreachable" }),
+        onNone: withoutAnswer,
         onSome: (known) => ({ _tag: "Known", session: known }),
       }),
     );
   } catch {
-    setState({ _tag: "Unreachable" });
+    setState(withoutAnswer());
   }
 
   return state;
