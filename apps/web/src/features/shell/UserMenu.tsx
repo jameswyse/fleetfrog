@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 import { Link } from "@tanstack/react-router";
 import { ChevronDownIcon, LogOutIcon, Settings2Icon, UserRoundIcon } from "lucide-react";
 
@@ -5,11 +7,26 @@ import { signOut, useSession } from "@/rpc/session.ts";
 import { Avatar } from "@/ui/Avatar.tsx";
 import { MenuIcon, MenuItem, menuItemClass, Menu } from "@/ui/Menu.tsx";
 
-import { PreferenceControls } from "../preferences/PreferenceControls.tsx";
+import { ThemePicker } from "../preferences/ThemePicker.tsx";
+
+/** A quick way to the theme, which Profile & Settings also offers. */
+function QuickTheme() {
+  const labelId = useId();
+
+  return (
+    <div className="px-3 py-2">
+      <p id={labelId} className="mb-1.5 text-xs text-ink-muted">
+        Theme
+      </p>
+      <ThemePicker labelledBy={labelId} />
+    </div>
+  );
+}
 
 /**
- * The signed-in user's picture, opening this browser's preferences, their profile and sign-out.
- * With sign-in off, or when the hub never said who is signed in, it offers the preferences alone.
+ * The signed-in user's picture, opening the theme, Profile & Settings and sign-out. With sign-in
+ * off, or when the hub never said who is signed in, it offers the theme and this browser's
+ * settings, under Appearance.
  */
 export function UserMenu() {
   const session = useSession();
@@ -29,7 +46,19 @@ export function UserMenu() {
             "-me-2 grid size-10 shrink-0 place-items-center rounded-full text-ink-muted hover:bg-surface-raised hover:text-ink",
         }}
       >
-        {() => <PreferenceControls />}
+        {(close) => (
+          <>
+            <QuickTheme />
+            <div className="border-t border-line pt-1">
+              <Link to="/account" onClick={close} className={menuItemClass}>
+                <MenuIcon>
+                  <Settings2Icon />
+                </MenuIcon>
+                Appearance
+              </Link>
+            </div>
+          </>
+        )}
       </Menu>
     );
   }
@@ -43,9 +72,7 @@ export function UserMenu() {
         content: (
           <>
             <Avatar user={user} size={28} />
-            <span data-personal className="hidden max-w-40 truncate sm:inline">
-              {user.displayName}
-            </span>
+            <span className="hidden max-w-40 truncate sm:inline">{user.displayName}</span>
             <ChevronDownIcon aria-hidden="true" className="text-ink-muted" />
           </>
         ),
@@ -57,20 +84,22 @@ export function UserMenu() {
         <>
           <div className="flex items-center gap-3 px-3 pt-2 pb-3">
             <Avatar user={user} size={40} />
-            <div data-personal className="min-w-0">
+            <div className="min-w-0">
               <p className="truncate text-sm font-medium">{user.displayName}</p>
-              <p className="truncate text-xs text-ink-muted">{user.email}</p>
+              <p data-personal className="truncate text-xs text-ink-muted">
+                {user.email}
+              </p>
             </div>
           </div>
           <div className="border-t border-line py-1">
-            <PreferenceControls />
+            <QuickTheme />
           </div>
           <div className="border-t border-line pt-1">
             <Link to="/account" onClick={close} className={menuItemClass}>
               <MenuIcon>
                 <UserRoundIcon />
               </MenuIcon>
-              Profile
+              Profile & Settings
             </Link>
             <MenuItem
               icon={<LogOutIcon />}

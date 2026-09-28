@@ -4,7 +4,6 @@ import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
 import { ProjectIcon } from "@/ui/ProjectIcon.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
-import { useMaskPersonal } from "../../preferences/PersonalText.tsx";
 import { CellState, problemWords } from "../CellContent.tsx";
 import { cellFor, summariseCell } from "../cellSummary.ts";
 import { RepositoryActions } from "../RepositoryActions.tsx";
@@ -34,8 +33,6 @@ function CheckoutPicker({
   readonly current: MachineCheckout;
   readonly onChoose: (path: string) => void;
 }) {
-  const mask = useMaskPersonal();
-
   return (
     <PanelSection
       title="Checkouts on this machine"
@@ -54,7 +51,7 @@ function CheckoutPicker({
                 type="button"
                 aria-current={entry === current ? "true" : undefined}
                 onClick={() => onChoose(entry.checkout.path)}
-                title={mask(entry.checkout.path)}
+                title={entry.checkout.path}
                 className="flex w-full items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-start text-sm hover:bg-canvas aria-[current=true]:bg-accent-soft"
               >
                 {linked ? (

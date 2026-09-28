@@ -149,7 +149,7 @@ function TailscaleButton({
         }}
       >
         {pending ? <Spinner /> : <TailscaleMark className="size-5" />}
-        Continue as <span data-personal>{identity.name}</span>
+        Continue as {identity.name}
       </button>
       <p className="text-center text-xs text-ink-muted">
         Signed in to Tailscale as <span data-personal>{identity.login}</span>

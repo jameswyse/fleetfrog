@@ -6,7 +6,6 @@ import { plural } from "@/ui/plural.ts";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { useStartBatch } from "../actions/useStartBatch.ts";
-import { PersonalText } from "../preferences/PersonalText.tsx";
 import {
   ArchiveFolderField,
   archiveFolderCreator,
@@ -65,13 +64,9 @@ function ArchiveMoves({
       <p>The whole folder moves, with its changes, stashes and ignored files:</p>
       <dl className="grid grid-cols-[4rem_minmax(0,1fr)] gap-x-3 gap-y-1 rounded-md border border-line bg-canvas px-3 py-2">
         <dt className="text-ink-muted">From</dt>
-        <dd className="font-mono text-[13px] break-all">
-          <PersonalText>{checkout.path}</PersonalText>
-        </dd>
+        <dd className="font-mono text-[13px] break-all">{checkout.path}</dd>
         <dt className="text-ink-muted">To</dt>
-        <dd className="font-mono text-[13px] break-all">
-          <PersonalText>{destination}</PersonalText>
-        </dd>
+        <dd className="font-mono text-[13px] break-all">{destination}</dd>
       </dl>
       {worktrees.length > 0 && (
         <div>
@@ -83,8 +78,7 @@ function ArchiveMoves({
           <ul className="mt-2 space-y-1 rounded-md border border-line bg-canvas px-3 py-2">
             {worktrees.map(({ from, to }) => (
               <li key={from} className="font-mono text-[13px] break-all">
-                <PersonalText>{from}</PersonalText> <span className="text-ink-muted">→</span>{" "}
-                <PersonalText>{to}</PersonalText>
+                {from} <span className="text-ink-muted">→</span> {to}
               </li>
             ))}
           </ul>
@@ -125,11 +119,8 @@ export function ArchiveDialog({
       <div className="space-y-4 text-sm">
         {fromWorktree !== null && (
           <p>
-            <span className="font-mono break-all">
-              <PersonalText>{fromWorktree}</PersonalText>
-            </span>{" "}
-            is a linked worktree, so it moves with its main checkout. This archives the main
-            checkout and all its worktrees.
+            <span className="font-mono break-all">{fromWorktree}</span> is a linked worktree, so it
+            moves with its main checkout. This archives the main checkout and all its worktrees.
           </p>
         )}
         <BusyThreadsNotice

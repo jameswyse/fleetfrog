@@ -5,7 +5,6 @@ import { Dialog } from "@/ui/Dialog.tsx";
 import { suggestCloneDestination } from "@fleetfrog/protocol/domain/cloneDestination";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
-import { PersonalText } from "../preferences/PersonalText.tsx";
 import { checkoutPaths, cloneBlocker } from "./actionAvailability.ts";
 import { draftFromSuggestion, draftPath, draftProblem } from "./cloneDestinationDraft.ts";
 import { CloneDestinationField } from "./CloneDestinationField.tsx";
@@ -157,9 +156,7 @@ export function CloneDialog({
                     {blocked !== null && <span className="text-ink-muted">· {blocked}</span>}
                   </label>
                   {blocked === null && warning !== null && (
-                    <p className="mt-1 ms-6 text-changes">
-                      <PersonalText>{warning}</PersonalText>
-                    </p>
+                    <p className="mt-1 ms-6 text-changes">{warning}</p>
                   )}
                   {checked && (
                     <div className="mt-2 ms-6">

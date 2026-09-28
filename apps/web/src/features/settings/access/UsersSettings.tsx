@@ -41,9 +41,7 @@ function UserRow({
       <Avatar user={user} size={36} />
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-2 text-sm font-medium">
-          <span data-personal className="truncate">
-            {user.displayName}
-          </span>
+          <span className="truncate">{user.displayName}</span>
           {isMe && <Chip tone="neutral">You</Chip>}
           {user.role === "admin" && <Chip tone="neutral">Admin</Chip>}
         </p>

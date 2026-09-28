@@ -3,7 +3,6 @@ import { Dialog } from "@/ui/Dialog.tsx";
 import { plural } from "@/ui/plural.ts";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
-import { PersonalText } from "../preferences/PersonalText.tsx";
 import { busyThreads } from "../t3Code/t3CodeLookup.ts";
 import { BusyThreadsNotice } from "../t3Code/T3CodeNotices.tsx";
 import { useStartBatch } from "./useStartBatch.ts";
@@ -43,10 +42,7 @@ export function StashDialog({
         />
         <p className="text-ink-muted">
           To bring the changes back, run <code className="font-mono">git stash pop</code> in{" "}
-          <span className="font-mono break-all">
-            <PersonalText>{checkout.path}</PersonalText>
-          </span>
-          .
+          <span className="font-mono break-all">{checkout.path}</span>.
         </p>
         <p role="status" className="text-danger">
           {failure}

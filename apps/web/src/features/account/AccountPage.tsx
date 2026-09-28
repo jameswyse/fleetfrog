@@ -1,7 +1,5 @@
 import { useId, useRef, useState } from "react";
 
-import { Navigate } from "@tanstack/react-router";
-
 import { requestHub } from "@/rpc/hubConnection.ts";
 import { replaceUser, useSession } from "@/rpc/session.ts";
 import { Avatar } from "@/ui/Avatar.tsx";
@@ -9,6 +7,7 @@ import { Button } from "@/ui/Button.tsx";
 import { formText } from "@/ui/formText.ts";
 import { minimumPasswordLength } from "@fleetfrog/protocol/domain/user";
 
+import { BrowserSettings } from "../preferences/BrowserSettings.tsx";
 import { SettingsRow, SettingsSection } from "../settings/SettingsSection.tsx";
 import { SaveStatus, useAutoSave } from "../settings/useAutoSave.tsx";
 import { resizeAvatar } from "./resizeAvatar.ts";
@@ -119,15 +118,12 @@ function ProfileSection({ user }: { readonly user: User }) {
         {...(!user.displayNameFromProvider && { htmlFor: nameId })}
         control={
           user.displayNameFromProvider ? (
-            <p data-personal className="text-sm">
-              {user.displayName}
-            </p>
+            <p className="text-sm">{user.displayName}</p>
           ) : (
             // Keyed on the saved name, so a change from elsewhere replaces what is shown.
             <input
               key={user.displayName}
               id={nameId}
-              data-personal
               defaultValue={user.displayName}
               autoComplete="name"
               maxLength={80}
@@ -248,24 +244,32 @@ function PasswordSection({ email }: { readonly email: string }) {
   );
 }
 
-/** The signed-in user's own profile and password. */
+/**
+ * The signed-in user's profile and password, then this browser's settings. With sign-in off, or
+ * when the hub never said who is signed in, this browser's settings alone, under Appearance.
+ */
 export function AccountPage() {
   const session = useSession();
-
-  if (session._tag !== "Known" || session.session._tag !== "SignedIn") {
-    return <Navigate to="/" replace />;
-  }
-
-  const { user, methods } = session.session;
+  const signedIn =
+    session._tag === "Known" && session.session._tag === "SignedIn" ? session.session : null;
 
   return (
     <>
       <div className="flex min-h-14 items-center border-b border-line px-4 py-2 sm:px-8">
-        <h1 className="text-base font-semibold">Profile</h1>
+        <h1 className="text-base font-semibold">
+          {signedIn === null ? "Appearance" : "Profile & Settings"}
+        </h1>
       </div>
       <div className="mx-auto w-full max-w-3xl space-y-8 px-4 py-8 sm:px-8">
-        <ProfileSection user={user} />
-        {methods.passwords && user.hasPassword && <PasswordSection email={user.email} />}
+        {signedIn !== null && (
+          <>
+            <ProfileSection user={signedIn.user} />
+            {signedIn.methods.passwords && signedIn.user.hasPassword && (
+              <PasswordSection email={signedIn.user.email} />
+            )}
+          </>
+        )}
+        <BrowserSettings />
       </div>
     </>
   );

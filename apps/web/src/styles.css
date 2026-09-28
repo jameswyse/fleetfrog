@@ -190,16 +190,17 @@
 }
 
 /*
- * Personal details, such as names, email addresses and usernames, are marked `data-personal` and
- * blurred when this browser asks, for people who share their screen. A field shows its value while
- * it has focus, so it stays editable. The rule is unlayered, so no utility can undo it.
+ * Email addresses and usernames from other services, such as GitHub, are marked `data-personal`
+ * and blurred when this browser asks, for people who share their screen. Each shows while the
+ * pointer is over it, and a field shows its value while it has focus, so it stays editable. The
+ * rules are unlayered, so no utility can undo them.
  */
-:root[data-blur-personal] [data-personal]:not(input) {
+:root[data-blur-personal] [data-personal]:not(input, :hover) {
   filter: blur(0.45em);
 }
 
 /* A field keeps its outline, blurring only its text. A shadow blurs half as much as a filter. */
-:root[data-blur-personal] input[data-personal]:not(:focus) {
+:root[data-blur-personal] input[data-personal]:not(:focus, :hover) {
   color: transparent;
   text-shadow: 0 0 0.9em var(--ink);
 }

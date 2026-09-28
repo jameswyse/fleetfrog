@@ -12,7 +12,7 @@ export function Dialog({
   children,
   placement = "centre",
 }: {
-  readonly title: ReactNode;
+  readonly title: string;
   readonly onClose: () => void;
   readonly children: ReactNode;
   readonly placement?: "centre" | "side";

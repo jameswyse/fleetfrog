@@ -46,12 +46,7 @@ function RunningBatch({
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-ink-muted">
             <span>
               Started <RelativeTime at={batch.requestedAt} />
-              {batch.requestedBy !== null && (
-                <>
-                  {" "}
-                  by <span data-personal>{batch.requestedBy.name}</span>
-                </>
-              )}
+              {batch.requestedBy !== null && ` by ${batch.requestedBy.name}`}
             </span>
             <RunCountChips counts={batch.counts} />
           </div>

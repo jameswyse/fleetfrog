@@ -139,7 +139,6 @@ export function AddUserDialog({
         }}
       >
         <TextField
-          data-personal
           label="Name"
           name="displayName"
           autoComplete="off"
@@ -210,14 +209,7 @@ export function EditUserDialog({
   const [pending, setPending] = useState(false);
 
   return (
-    <Dialog
-      title={
-        <>
-          Edit <span data-personal>{user.displayName}</span>
-        </>
-      }
-      onClose={onClose}
-    >
+    <Dialog title={`Edit ${user.displayName}`} onClose={onClose}>
       <form
         noValidate
         className="space-y-4"
@@ -261,7 +253,6 @@ export function EditUserDialog({
         }}
       >
         <TextField
-          data-personal
           label="Name"
           name="displayName"
           autoComplete="off"
@@ -312,14 +303,7 @@ export function SetPasswordDialog({
   const [pending, setPending] = useState(false);
 
   return (
-    <Dialog
-      title={
-        <>
-          Set <span data-personal>{user.displayName}</span>'s password
-        </>
-      }
-      onClose={onClose}
-    >
+    <Dialog title={`Set ${user.displayName}'s password`} onClose={onClose}>
       <form
         noValidate
         className="space-y-4"
@@ -386,14 +370,7 @@ export function DeleteUserDialog({
   const [pending, setPending] = useState(false);
 
   return (
-    <Dialog
-      title={
-        <>
-          Delete <span data-personal>{user.displayName}</span>?
-        </>
-      }
-      onClose={onClose}
-    >
+    <Dialog title={`Delete ${user.displayName}?`} onClose={onClose}>
       <div className="space-y-4 text-sm">
         <p>
           They're signed out and can't sign in again. What they did stays in Activity.

@@ -8,7 +8,6 @@ import { useMayRun } from "@/rpc/session.ts";
 import { machineBlocker } from "../../actions/actionAvailability.ts";
 import { activeRunFor } from "../../actions/runLookup.ts";
 import { RemoveWorktreeDialog } from "../../cleanup/RemoveWorktreeDialog.tsx";
-import { PersonalText } from "../../preferences/PersonalText.tsx";
 import { worktreeThread } from "../../t3Code/t3CodeLookup.ts";
 import { threadDoing } from "../../t3Code/T3CodeNotices.tsx";
 import { PanelSection } from "./PanelSection.tsx";
@@ -53,9 +52,7 @@ export function WorktreesSection({
           return (
             <li key={worktree.path} className="flex items-start gap-2 text-sm">
               <span className="min-w-0 flex-1">
-                <span className="block font-mono text-[13px] break-all">
-                  <PersonalText>{worktree.path}</PersonalText>
-                </span>
+                <span className="block font-mono text-[13px] break-all">{worktree.path}</span>
                 <span className="block text-xs text-ink-muted">
                   {worktree.branch ?? "Detached HEAD"}
                   {note !== null && <span className="text-changes"> · {note}</span>}

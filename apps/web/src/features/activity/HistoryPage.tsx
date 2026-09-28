@@ -63,7 +63,7 @@ function BatchRow({ batch, open }: { readonly batch: ActionBatch; readonly open:
         </Link>
         {batch.requestedBy !== null && (
           <span className="block text-sm font-normal text-ink-muted">
-            by <span data-personal>{batch.requestedBy.name}</span>
+            by {batch.requestedBy.name}
           </span>
         )}
       </th>

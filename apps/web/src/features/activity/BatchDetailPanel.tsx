@@ -4,7 +4,6 @@ import { RelativeTime } from "@/ui/RelativeTime.tsx";
 
 import { describeBatch, describeCounts } from "../actions/actionCopy.ts";
 import { RunStateText } from "../actions/RunStateText.tsx";
-import { PersonalText } from "../preferences/PersonalText.tsx";
 import { CancelButton } from "./CancelButton.tsx";
 
 import type { ActionRun, BatchId, RunDetail } from "@fleetfrog/protocol/domain/activity";
@@ -36,9 +35,7 @@ function RunItem({ detail }: { readonly detail: RunDetail }) {
             {run.repositoryName} <span className="font-normal text-ink-muted">on</span>{" "}
             {run.machineName}
           </p>
-          <p className="font-mono text-[13px] break-all text-ink-muted">
-            <PersonalText>{run.path}</PersonalText>
-          </p>
+          <p className="font-mono text-[13px] break-all text-ink-muted">{run.path}</p>
         </div>
         {run.state._tag !== "Finished" && (
           <CancelButton
@@ -55,7 +52,7 @@ function RunItem({ detail }: { readonly detail: RunDetail }) {
         <details className="mt-2">
           <summary className="cursor-pointer text-sm text-ink-muted">Git output</summary>
           <pre className="mt-2 max-h-64 overflow-auto rounded-md bg-canvas px-3 py-2 font-mono text-xs whitespace-pre-wrap">
-            <PersonalText>{output.join("\n")}</PersonalText>
+            {output.join("\n")}
           </pre>
         </details>
       )}
@@ -86,12 +83,8 @@ export function BatchDetailPanel({
           <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
             <p className="text-ink-muted">
               Started <RelativeTime at={detail.value.batch.requestedAt} />
-              {detail.value.batch.requestedBy !== null && (
-                <>
-                  {" "}
-                  by <span data-personal>{detail.value.batch.requestedBy.name}</span>
-                </>
-              )}
+              {detail.value.batch.requestedBy !== null &&
+                ` by ${detail.value.batch.requestedBy.name}`}
               {" · "}
               {describeCounts(detail.value.batch.counts)}
             </p>
