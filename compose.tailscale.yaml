@@ -20,6 +20,7 @@ services:
     volumes:
       - tailscale-state:/var/lib/tailscale
       - tailscale-socket:/var/run/tailscale
+      - fleetfrog-socket:/run/fleetfrog
     # To reach the dashboard on the host's network as well, publish its port here:
     # ports:
     #   - "7420:7420"
@@ -27,7 +28,7 @@ services:
   hub:
     image: ghcr.io/jameswyse/fleetfrog-hub:${FLEETFROG_VERSION:-latest}
     restart: unless-stopped
-    # Shares the sidecar's network, where Tailscale Serve forwards to the hub's ports on localhost.
+    # Shares the sidecar's network, where Tailscale Serve reaches the agent port on localhost.
     network_mode: service:tailscale
     depends_on:
       - tailscale
@@ -35,19 +36,23 @@ services:
       # Tailscale Serve terminates TLS for agents with the tailnet's certificate.
       FLEETFROG_AGENT_TLS: none
       FLEETFROG_TAILSCALE_SOCKET: /var/run/tailscale/tailscaled.sock
+      # Serve reaches the dashboard here, so the hub knows its requests say who sent them.
+      FLEETFROG_DASHBOARD_SOCKET: /run/fleetfrog/dashboard.sock
     volumes:
       - fleetfrog-data:/data
       - tailscale-socket:/var/run/tailscale
+      - fleetfrog-socket:/run/fleetfrog
 
 configs:
-  # The dashboard on port 443 and agents on 8443. $${TS_CERT_DOMAIN} reaches Tailscale unexpanded,
-  # and it fills in the machine's name on the tailnet.
+  # The dashboard on port 443, through the hub's socket, and agents on 8443. Other tailnet machines
+  # can reach the hub's ports directly, but not the socket. $${TS_CERT_DOMAIN} reaches Tailscale
+  # unexpanded, and it fills in the machine's name on the tailnet.
   tailscale-serve:
     content: |
       {
         "TCP": { "443": { "HTTPS": true }, "8443": { "HTTPS": true } },
         "Web": {
-          "$${TS_CERT_DOMAIN}:443": { "Handlers": { "/": { "Proxy": "http://127.0.0.1:7420" } } },
+          "$${TS_CERT_DOMAIN}:443": { "Handlers": { "/": { "Proxy": "unix:/run/fleetfrog/dashboard.sock" } } },
           "$${TS_CERT_DOMAIN}:8443": { "Handlers": { "/": { "Proxy": "http://127.0.0.1:7421" } } }
         }
       }
@@ -56,3 +61,9 @@ volumes:
   fleetfrog-data:
   tailscale-state:
   tailscale-socket:
+  # In memory and owned by the hub's user, so the hub can create its socket here.
+  fleetfrog-socket:
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: uid=1000,gid=1000

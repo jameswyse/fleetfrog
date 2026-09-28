@@ -214,6 +214,28 @@ export async function signIn(credentials: {
   }
 }
 
+/** Signs in as the tailnet user Tailscale Serve says opened the dashboard. */
+export async function signInWithTailscale(): Promise<Outcome> {
+  try {
+    const response = await fetch("/auth/tailscale", { method: "POST" });
+    const session = response.ok ? await readSession(response) : Option.none();
+
+    if (Option.isSome(session)) {
+      setState({ _tag: "Known", session: session.value });
+
+      return { _tag: "Success" };
+    }
+
+    return {
+      _tag: "Failure",
+      message:
+        response.status === 409 ? await response.text() : "The hub didn't sign you in. Try again.",
+    };
+  } catch {
+    return unreachable;
+  }
+}
+
 /**
  * Signs out and loads the sign-in page afresh, forgetting the page they were on, so whoever signs
  * in next starts at Projects and nothing from this session stays in memory.

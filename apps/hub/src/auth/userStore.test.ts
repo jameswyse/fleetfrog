@@ -23,6 +23,7 @@ const TestStore = UserStore.layer.pipe(
       agentTls: "self-signed",
       agentUrl: null,
       tailscaleSocket: null,
+      dashboardSocket: null,
       webRoot: null,
       authModeOverride: null,
     }),
@@ -211,5 +212,62 @@ it.effect("uses the provider's name only while people sign in through it", () =>
 
     expect(described.displayName).toBe("Ada from the provider");
     expect(described.displayNameFromProvider).toBe(true);
+  }).pipe(Effect.provide(TestStore)),
+);
+
+const tailnetUser = (login: string, admin = false) => ({
+  login,
+  email: Email.make(login),
+  name: login.split("@")[0] ?? login,
+  admin,
+});
+
+it.effect("links a Tailscale sign-in by email, then follows the tailnet login", () =>
+  Effect.gen(function* () {
+    const users = yield* UserStore;
+    const local = yield* create("ada@example.com", "user");
+    const first = yield* users.signInFromTailscale(tailnetUser("ada@example.com"));
+
+    expect(first).toMatchObject({ id: local.id, tailscaleLogin: "ada@example.com" });
+
+    // Ada moves to another email, and someone else takes the old one.
+    yield* users.update({
+      userId: local.id,
+      email: Email.make("ada@work.example"),
+      displayName: local.displayName,
+      role: "user",
+    });
+    yield* create("ada@example.com", "user");
+
+    expect((yield* users.signInFromTailscale(tailnetUser("ada@example.com"))).id).toBe(local.id);
+  }).pipe(Effect.provide(TestStore)),
+);
+
+it.effect("creates a user for a new tailnet login, and an admin when turning Tailscale on", () =>
+  Effect.gen(function* () {
+    const users = yield* UserStore;
+    const newcomer = yield* users.signInFromTailscale(tailnetUser("bo@example.com"));
+    const promoted = yield* users.signInFromTailscale(tailnetUser("bo@example.com", true));
+
+    expect(newcomer.role).toBe("user");
+    expect(promoted).toMatchObject({ id: newcomer.id, role: "admin" });
+  }).pipe(Effect.provide(TestStore)),
+);
+
+it.effect("won't hand an account linked to one tailnet login to another with its email", () =>
+  Effect.gen(function* () {
+    const users = yield* UserStore;
+    const ada = yield* users.signInFromTailscale(tailnetUser("ada@github"));
+
+    yield* users.update({
+      userId: ada.id,
+      email: Email.make("ada@example.com"),
+      displayName: ada.displayName,
+      role: "user",
+    });
+
+    const other = yield* Effect.flip(users.signInFromTailscale(tailnetUser("ada@example.com")));
+
+    expect(other._tag).toBe("EmailTaken");
   }).pipe(Effect.provide(TestStore)),
 );

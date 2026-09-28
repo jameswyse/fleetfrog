@@ -9,7 +9,7 @@ import { useHubStream } from "@/rpc/useHubStream.ts";
 import { Button } from "@/ui/Button.tsx";
 import { formText } from "@/ui/formText.ts";
 import { SidebarPage } from "@/ui/SidebarLayout.tsx";
-import { OidcInput } from "@fleetfrog/protocol/domain/user";
+import { isSignInOn, OidcInput } from "@fleetfrog/protocol/domain/user";
 
 import { ProviderButtonContent, providerButtonClass } from "../../account/ProviderButton.tsx";
 import { SettingsSection } from "../SettingsSection.tsx";
@@ -118,7 +118,7 @@ function ProviderForm({
 }) {
   const navigate = useNavigate();
   const saved = settings.oidc;
-  const signInOn = settings.passwords || settings.provider;
+  const signInOn = isSignInOn(settings);
   const activate = useRef<HTMLFormElement>(null);
   const [name, setName] = useState(saved?.providerName ?? "");
   const [dashboardUrl, setDashboardUrl] = useState(saved?.dashboardUrl ?? window.location.origin);

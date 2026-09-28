@@ -2,6 +2,14 @@ import { Schema } from "effect";
 
 import { DisplayName, Email, Password, User } from "../domain/user.ts";
 
+/** A tailnet user, from the identity headers Tailscale Serve adds to each request. */
+export const TailscaleIdentity = Schema.Struct({
+  /** Tailscale's login name, such as `alice@example.com` or `alice@github`. */
+  login: Schema.String,
+  name: Schema.String,
+});
+export type TailscaleIdentity = typeof TailscaleIdentity.Type;
+
 /**
  * Sign-in runs over plain HTTP under `/auth`, because the browser needs its session cookie before
  * it opens the dashboard socket.
@@ -12,6 +20,11 @@ export const SignInMethods = Schema.Struct({
   provider: Schema.NullOr(
     Schema.Struct({ name: Schema.String, icon: Schema.NullOr(Schema.String) }),
   ),
+  /**
+   * Present when people can sign in through Tailscale. The identity is who Tailscale Serve says
+   * sent the request, and is null when the dashboard wasn't opened through Serve.
+   */
+  tailscale: Schema.NullOr(Schema.Struct({ identity: Schema.NullOr(TailscaleIdentity) })),
 });
 export type SignInMethods = typeof SignInMethods.Type;
 
@@ -66,5 +79,11 @@ export const MethodChange = Schema.TaggedUnion({
   /** Only while sign-in is on. With it off, an admin turns the provider on by signing in through it. */
   EnableProvider: {},
   DisableProvider: {},
+  /**
+   * Makes the Tailscale user who sent the request an admin and signs them in, so it must come
+   * through Tailscale Serve. When sign-in was off, it ends every other session.
+   */
+  EnableTailscale: {},
+  DisableTailscale: {},
 });
 export type MethodChange = typeof MethodChange.Type;

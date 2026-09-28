@@ -32,6 +32,7 @@ const UserRow = Schema.Struct({
   oidc_subject: Schema.NullOr(Schema.String),
   provider_name: Schema.NullOr(Schema.String),
   provider_picture: Schema.NullOr(Schema.String),
+  tailscale_login: Schema.NullOr(Schema.String),
   avatar_id: Schema.NullOr(Schema.String),
   created_at: Timestamp,
   last_signed_in_at: Schema.NullOr(Timestamp),
@@ -53,6 +54,8 @@ export interface UserRecord {
   readonly oidc: { readonly issuer: string; readonly subject: string } | null;
   readonly providerName: string | null;
   readonly providerPicture: string | null;
+  /** The tailnet login the user signs in through Tailscale as. */
+  readonly tailscaleLogin: string | null;
   /** The content hash of the uploaded picture. */
   readonly avatarId: string | null;
   readonly createdAt: DateTime.Utc;
@@ -68,6 +71,18 @@ export interface ProviderIdentity {
   /** The provider's `email_verified` claim, when it sends one. */
   readonly emailVerified: boolean | null;
   readonly role: Role | null;
+}
+
+export interface TailnetUser {
+  readonly login: string;
+  /**
+   * The login as the new account's email. Logins always have an email's form, but aren't always
+   * addresses, such as `alice@github`.
+   */
+  readonly email: Email;
+  readonly name: string;
+  /** Turning Tailscale sign-in on makes the admin who does it an admin. */
+  readonly admin: boolean;
 }
 
 export interface UploadedAvatar {
@@ -88,6 +103,7 @@ function toRecord(row: typeof UserRow.Type): UserRecord {
         : { issuer: row.oidc_issuer, subject: row.oidc_subject },
     providerName: row.provider_name,
     providerPicture: row.provider_picture,
+    tailscaleLogin: row.tailscale_login,
     avatarId: row.avatar_id,
     createdAt: row.created_at,
     lastSignedInAt: row.last_signed_in_at,
@@ -127,6 +143,7 @@ export function describeUser(record: UserRecord, describing: Describing): User {
     displayNameFromProvider: providerName !== null,
     hasPassword: record.passwordHash !== null,
     linkedToProvider: record.oidc !== null,
+    linkedToTailscale: record.tailscaleLogin !== null,
     createdAt: record.createdAt,
     lastSignedInAt: record.lastSignedInAt,
   };
@@ -180,6 +197,11 @@ export class UserStore extends Context.Service<
     readonly signInFromProvider: (
       identity: ProviderIdentity,
     ) => Effect.Effect<{ readonly user: UserRecord; readonly roleChanged: boolean }, EmailTaken>;
+    /**
+     * The user Tailscale signed in, found by their tailnet login, then by an email that isn't tied
+     * to another login, or created as a user. Turning Tailscale on makes them an admin.
+     */
+    readonly signInFromTailscale: (identity: TailnetUser) => Effect.Effect<UserRecord, EmailTaken>;
   }
 >()("fleetfrog/UserStore") {
   static readonly layer = Layer.effect(this)(
@@ -424,6 +446,45 @@ export class UserStore extends Context.Service<
               ),
             ),
           ),
+        signInFromTailscale: (identity) =>
+          write(
+            Effect.gen(function* () {
+              const all = yield* SubscriptionRef.get(records);
+              const existing =
+                all.find(({ tailscaleLogin }) => tailscaleLogin === identity.login) ??
+                all.find(
+                  ({ email, tailscaleLogin }) =>
+                    email === identity.email && tailscaleLogin === null,
+                );
+
+              if (existing === undefined) {
+                if (yield* emailTaken(identity.email, null)) {
+                  return yield* new EmailTaken();
+                }
+
+                const id = UserId.make(randomUUID());
+
+                yield* sql`insert into users ${sql.insert({
+                  id,
+                  email: identity.email,
+                  display_name: identity.name,
+                  role: identity.admin ? "admin" : "user",
+                  tailscale_login: identity.login,
+                  created_at: yield* now,
+                })}`.pipe(Effect.orDie);
+
+                return id;
+              }
+
+              const role = identity.admin ? "admin" : existing.role;
+
+              yield* sql`update users set ${sql.update({ tailscale_login: identity.login, role })} where id = ${existing.id}`.pipe(
+                Effect.orDie,
+              );
+
+              return existing.id;
+            }),
+          ).pipe(Effect.flatMap((id) => find(id).pipe(Effect.orDie))),
         recordSignIn: (userId) =>
           write(
             now.pipe(

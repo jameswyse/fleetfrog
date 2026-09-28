@@ -67,6 +67,8 @@ export const User = Schema.Struct({
   hasPassword: Schema.Boolean,
   /** Whether the user has signed in through the provider, which ties them to its account. */
   linkedToProvider: Schema.Boolean,
+  /** Whether the user has signed in through Tailscale, which ties them to their tailnet login. */
+  linkedToTailscale: Schema.Boolean,
   createdAt: Schema.DateTimeUtc,
   lastSignedInAt: Schema.NullOr(Schema.DateTimeUtc),
 });
@@ -110,22 +112,33 @@ export const OidcSummary = OidcSettings.mapFields(Struct.omit(["clientSecret"]))
 export type OidcSummary = typeof OidcSummary.Type;
 
 /**
- * The hub's sign-in settings as stored. Each way of signing in is on or off by itself; with both
- * off, sign-in is off and anyone who can reach the dashboard is an admin.
+ * The hub's sign-in settings as stored. Each way of signing in is on or off by itself; with all
+ * of them off, sign-in is off and anyone who can reach the dashboard is an admin.
  */
 export const AuthSettings = Schema.Struct({
   passwords: Schema.Boolean,
   /** Signing in through the OpenID Connect provider in `oidc`. */
   provider: Schema.Boolean,
+  /** Signing in as the tailnet user that Tailscale Serve says opened the dashboard. */
+  tailscale: Schema.Boolean,
   /** Whether users without a picture get their Gravatar, which their browsers fetch from Gravatar. */
   gravatar: Schema.Boolean,
   oidc: Schema.NullOr(OidcSettings),
 });
 export type AuthSettings = typeof AuthSettings.Type;
 
+/** The switches for each way of signing in. */
+export type SignInSwitches = Pick<AuthSettings, "passwords" | "provider" | "tailscale">;
+
+/** Whether any way of signing in is on. With none, anyone who can reach the dashboard is an admin. */
+export function isSignInOn(methods: SignInSwitches): boolean {
+  return methods.passwords || methods.provider || methods.tailscale;
+}
+
 export const defaultAuthSettings: AuthSettings = {
   passwords: false,
   provider: false,
+  tailscale: false,
   gravatar: true,
   oidc: null,
 };
@@ -142,6 +155,9 @@ export type ProviderIcon = typeof ProviderIcon.Type;
 export const AuthSettingsView = Schema.Struct({
   passwords: Schema.Boolean,
   provider: Schema.Boolean,
+  tailscale: Schema.Boolean,
+  /** Whether Tailscale Serve fronts the hub, which Tailscale sign-in needs. */
+  tailscaleAvailable: Schema.Boolean,
   /** `FLEETFROG_AUTH_MODE` on the hub keeps sign-in off whatever the settings say. */
   overridden: Schema.Boolean,
   gravatar: Schema.Boolean,

@@ -51,6 +51,7 @@ const storedAs = (mode: "none" | "local" | "oidc") =>
         agentTls: "self-signed",
         agentUrl: null,
         tailscaleSocket: null,
+        dashboardSocket: null,
         webRoot: null,
         authModeOverride: null,
       }),
@@ -68,6 +69,7 @@ describe("0012_sign_in_methods", () => {
 
       expect(yield* SubscriptionRef.get(auth.settings)).toEqual({
         ...methods,
+        tailscale: false,
         gravatar: false,
         oidc,
       });

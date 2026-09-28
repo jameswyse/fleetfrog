@@ -7,13 +7,7 @@ import { AuthSettings, defaultAuthSettings } from "@fleetfrog/protocol/domain/us
 import { HubConfig } from "../hubConfig.ts";
 import { JsonColumn } from "../persistence/database.ts";
 
-import type { AuthSettingsView } from "@fleetfrog/protocol/domain/user";
-
-/** Which ways of signing in are in force. With neither, sign-in is off. */
-export interface Methods {
-  readonly passwords: boolean;
-  readonly provider: boolean;
-}
+import type { AuthSettingsView, SignInSwitches } from "@fleetfrog/protocol/domain/user";
 
 const AuthJson = JsonColumn(AuthSettings);
 const encodeAuth = Schema.encodeSync(AuthJson);
@@ -28,7 +22,7 @@ export class AuthSettingsStore extends Context.Service<
   {
     readonly settings: SubscriptionRef.SubscriptionRef<AuthSettings>;
     /** The ways of signing in in force, which `FLEETFROG_AUTH_MODE` can turn off. */
-    readonly methods: Effect.Effect<Methods>;
+    readonly methods: Effect.Effect<SignInSwitches>;
     /** Whether `FLEETFROG_AUTH_MODE` has turned sign-in off. */
     readonly overridden: boolean;
     readonly update: (auth: AuthSettings) => Effect.Effect<void>;
@@ -39,7 +33,7 @@ export class AuthSettingsStore extends Context.Service<
   static readonly layer = Layer.effect(this)(
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
-      const { authModeOverride } = yield* HubConfig;
+      const { authModeOverride, dashboardSocket } = yield* HubConfig;
       const [stored] = yield* sql`select auth_json from settings where id = 1`.pipe(
         Effect.flatMap(decodeRows),
         Effect.orDie,
@@ -49,10 +43,10 @@ export class AuthSettingsStore extends Context.Service<
       return {
         settings,
         methods: SubscriptionRef.get(settings).pipe(
-          Effect.map(({ passwords, provider }) =>
+          Effect.map(({ passwords, provider, tailscale }) =>
             authModeOverride === null
-              ? { passwords, provider }
-              : { passwords: false, provider: false },
+              ? { passwords, provider, tailscale }
+              : { passwords: false, provider: false, tailscale: false },
           ),
         ),
         overridden: authModeOverride !== null,
@@ -67,9 +61,11 @@ export class AuthSettingsStore extends Context.Service<
             Effect.andThen(SubscriptionRef.set(settings, auth)),
           ),
         watch: SubscriptionRef.changes(settings).pipe(
-          Stream.map(({ passwords, provider, gravatar, oidc }) => ({
+          Stream.map(({ passwords, provider, tailscale, gravatar, oidc }) => ({
             passwords,
             provider,
+            tailscale,
+            tailscaleAvailable: dashboardSocket !== null,
             overridden: authModeOverride !== null,
             gravatar,
             oidc: oidc === null ? null : Struct.omit(oidc, ["clientSecret"]),

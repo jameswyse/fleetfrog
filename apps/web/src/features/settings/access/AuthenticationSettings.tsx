@@ -12,7 +12,7 @@ import { formText } from "@/ui/formText.ts";
 import { SidebarPage } from "@/ui/SidebarLayout.tsx";
 import { Switch } from "@/ui/Switch.tsx";
 import { MethodChange } from "@fleetfrog/protocol/dashboard/auth";
-import { minimumPasswordLength } from "@fleetfrog/protocol/domain/user";
+import { isSignInOn, minimumPasswordLength } from "@fleetfrog/protocol/domain/user";
 
 import { SettingsRow, SettingsSection } from "../SettingsSection.tsx";
 import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
@@ -179,30 +179,41 @@ function TurnOffDialog({ onClose }: { readonly onClose: () => void }) {
   );
 }
 
-/** Confirms turning one way of signing in off while the other stays on. */
+type TurningOff = "DisablePasswords" | "DisableProvider" | "DisableTailscale";
+
+/** Confirms turning one way of signing in off while another stays on. */
 function TurnOffMethodDialog({
   change,
-  providerName,
+  settings,
   onClose,
 }: {
-  readonly change: "DisablePasswords" | "DisableProvider";
-  readonly providerName: string;
+  readonly change: TurningOff;
+  readonly settings: AuthSettingsView;
   readonly onClose: () => void;
 }) {
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const passwords = change === "DisablePasswords";
+  const providerName = settings.oidc?.providerName ?? "the provider";
+  const method = {
+    DisablePasswords: { name: "passwords", phrase: "with a password" },
+    DisableProvider: { name: "OpenID Connect", phrase: `through ${providerName}` },
+    DisableTailscale: { name: "Tailscale sign-in", phrase: "through Tailscale" },
+  } as const;
+  const remaining = (
+    [
+      settings.passwords && "DisablePasswords",
+      settings.provider && "DisableProvider",
+      settings.tailscale && "DisableTailscale",
+    ] as const
+  ).filter((other): other is TurningOff => other !== false && other !== change);
 
   return (
-    <Dialog
-      title={passwords ? "Turn off passwords?" : "Turn off OpenID Connect?"}
-      onClose={onClose}
-    >
+    <Dialog title={`Turn off ${method[change].name}?`} onClose={onClose}>
       <div className="space-y-4 text-sm">
         <p>
-          {passwords
-            ? `People sign in through ${providerName} only. Passwords stay, ready for when you turn them back on.`
-            : "People sign in with passwords only, so anyone without one can't sign in until an admin sets one."}{" "}
+          People can sign in only {remaining.map((other) => method[other].phrase).join(" or ")}.
+          {change === "DisablePasswords" &&
+            " Passwords stay, ready for when you turn them back on."}{" "}
           Everyone else is signed out.
         </p>
         <p role="status" className="text-danger empty:hidden">
@@ -227,7 +238,59 @@ function TurnOffMethodDialog({
               }
             }}
           >
-            {passwords ? "Turn off passwords" : "Turn off OpenID Connect"}
+            Turn off {method[change].name}
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+  );
+}
+
+/**
+ * Turning Tailscale on signs the admin in as their own tailnet account, which could be another
+ * FleetFrog account than the one they're using, so it asks first.
+ */
+function TurnOnTailscaleDialog({
+  signInOn,
+  onClose,
+}: {
+  readonly signInOn: boolean;
+  readonly onClose: () => void;
+}) {
+  const [failure, setFailure] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  return (
+    <Dialog title="Turn on Tailscale sign-in?" onClose={onClose}>
+      <div className="space-y-4 text-sm">
+        <p>
+          People on your tailnet sign in as their Tailscale account, which becomes a FleetFrog user
+          the first time. Your Tailscale account becomes an admin, and you're signed in with it.
+          {!signInOn && " Everyone else has to sign in."}
+        </p>
+        <p role="status" className="text-danger empty:hidden">
+          {failure}
+        </p>
+        <div className="flex justify-end gap-3">
+          <Button onClick={onClose}>Cancel</Button>
+          <Button
+            tone="primary"
+            disabled={pending}
+            onClick={async () => {
+              setPending(true);
+
+              const outcome = await changeMethods({ _tag: "EnableTailscale" });
+
+              setPending(false);
+
+              if (outcome._tag === "Failure") {
+                setFailure(outcome.message);
+              } else {
+                onClose();
+              }
+            }}
+          >
+            {pending ? "Turning on…" : "Turn on"}
           </Button>
         </div>
       </div>
@@ -264,28 +327,29 @@ function SignInThroughProviderDialog({
 
 type Asking =
   | "TurnOnPasswords"
+  | "TurnOnTailscale"
   | "TurnOff"
-  | "DisablePasswords"
-  | "DisableProvider"
+  | TurningOff
   | "SignInThroughProvider";
 
-/** The two ways of signing in, each on or off by itself. With neither, sign-in is off. */
+/** The ways of signing in, each on or off by itself. With none, sign-in is off. */
 function MethodsSection({ settings }: { readonly settings: AuthSettingsView }) {
   const { state, save } = useAutoSave();
   const [asking, setAsking] = useState<Asking | null>(null);
   // Turned on before it's set up, which stays unsaved until the provider's details are saved.
   const [providerWanted, setProviderWanted] = useState(false);
-  const signInOn = settings.passwords || settings.provider;
+  const signInOn = isSignInOn(settings);
   const providerName = settings.oidc?.providerName ?? "the provider";
-  // Turning passwords off leaves the provider on, or turns sign-in off when it's the only way in.
-  const passwordsOff = settings.provider ? "DisablePasswords" : "TurnOff";
+  // Turning off the only way in turns sign-in off.
+  const turnOff = (change: TurningOff, othersOn: boolean) =>
+    setAsking(othersOn ? change : "TurnOff");
 
   const switchProvider = (on: boolean) => {
     if (!on) {
       if (providerWanted) {
         setProviderWanted(false);
       } else {
-        setAsking(settings.passwords ? "DisableProvider" : "TurnOff");
+        turnOff("DisableProvider", settings.passwords || settings.tailscale);
       }
 
       return;
@@ -318,7 +382,11 @@ function MethodsSection({ settings }: { readonly settings: AuthSettingsView }) {
             aria-describedby="passwords-description"
             checked={settings.passwords}
             disabled={settings.overridden}
-            onChange={(on) => setAsking(on ? "TurnOnPasswords" : passwordsOff)}
+            onChange={(on) =>
+              on
+                ? setAsking("TurnOnPasswords")
+                : turnOff("DisablePasswords", settings.provider || settings.tailscale)
+            }
           />
         }
       />
@@ -363,16 +431,41 @@ function MethodsSection({ settings }: { readonly settings: AuthSettingsView }) {
           </div>
         )}
       </SettingsRow>
+      {(settings.tailscaleAvailable || settings.tailscale) && (
+        <SettingsRow
+          title="Tailscale"
+          description={
+            settings.tailscaleAvailable
+              ? "People on your tailnet sign in as their Tailscale account, when they open the dashboard at its Tailscale address."
+              : "Tailscale Serve no longer fronts the hub, so nobody can sign in this way."
+          }
+          htmlFor="tailscale"
+          control={
+            <Switch
+              id="tailscale"
+              aria-describedby="tailscale-description"
+              checked={settings.tailscale}
+              disabled={settings.overridden}
+              onChange={(on) =>
+                on
+                  ? setAsking("TurnOnTailscale")
+                  : turnOff("DisableTailscale", settings.passwords || settings.provider)
+              }
+            />
+          }
+        />
+      )}
       {asking === "TurnOnPasswords" && (
         <TurnOnPasswordsDialog signInOn={signInOn} onClose={() => setAsking(null)} />
       )}
       {asking === "TurnOff" && <TurnOffDialog onClose={() => setAsking(null)} />}
-      {(asking === "DisablePasswords" || asking === "DisableProvider") && (
-        <TurnOffMethodDialog
-          change={asking}
-          providerName={providerName}
-          onClose={() => setAsking(null)}
-        />
+      {asking === "TurnOnTailscale" && (
+        <TurnOnTailscaleDialog signInOn={signInOn} onClose={() => setAsking(null)} />
+      )}
+      {(asking === "DisablePasswords" ||
+        asking === "DisableProvider" ||
+        asking === "DisableTailscale") && (
+        <TurnOffMethodDialog change={asking} settings={settings} onClose={() => setAsking(null)} />
       )}
       {asking === "SignInThroughProvider" && (
         <SignInThroughProviderDialog providerName={providerName} onClose={() => setAsking(null)} />

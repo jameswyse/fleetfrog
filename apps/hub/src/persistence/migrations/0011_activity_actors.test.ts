@@ -62,6 +62,7 @@ const TestStores = Layer.mergeAll(ActivityStore.layer, AuthSettingsStore.layer).
       agentTls: "self-signed",
       agentUrl: null,
       tailscaleSocket: null,
+      dashboardSocket: null,
       webRoot: null,
       authModeOverride: null,
     }),

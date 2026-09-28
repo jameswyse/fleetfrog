@@ -28,21 +28,22 @@ docker run -d --name fleetfrog-hub --restart unless-stopped \
 
 Open `http://<hub-address>:7420`. Agents connect on port `7421` over TLS using a certificate the hub generates on first start. The database and certificate live in the `fleetfrog-data` volume.
 
-| Variable                     | Default       | Purpose                                                                                       |
-| ---------------------------- | ------------- | --------------------------------------------------------------------------------------------- |
-| `FLEETFROG_DASHBOARD_PORT`   | `7420`        | Dashboard and its WebSocket.                                                                  |
-| `FLEETFROG_AGENT_PORT`       | `7421`        | Agent pairing and connections.                                                                |
-| `FLEETFROG_AGENT_TLS`        | `self-signed` | Set to `none` when a reverse proxy terminates TLS for agents.                                 |
-| `FLEETFROG_AGENT_URL`        | unset         | The agent URL to put in pairing strings when it differs from the dashboard's host.            |
-| `FLEETFROG_TAILSCALE_SOCKET` | unset         | The socket of a Tailscale sidecar whose Serve settings give agents the hub's tailnet address. |
-| `FLEETFROG_DATA_DIR`         | `data`        | Where the database and certificate are stored. The image uses `/data`.                        |
-| `FLEETFROG_AUTH_MODE`        | unset         | Set to `none` to turn sign-in off whatever the settings say, if you're locked out.            |
+| Variable                     | Default       | Purpose                                                                                          |
+| ---------------------------- | ------------- | ------------------------------------------------------------------------------------------------ |
+| `FLEETFROG_DASHBOARD_PORT`   | `7420`        | Dashboard and its WebSocket.                                                                     |
+| `FLEETFROG_AGENT_PORT`       | `7421`        | Agent pairing and connections.                                                                   |
+| `FLEETFROG_AGENT_TLS`        | `self-signed` | Set to `none` when a reverse proxy terminates TLS for agents.                                    |
+| `FLEETFROG_AGENT_URL`        | unset         | The agent URL to put in pairing strings when it differs from the dashboard's host.               |
+| `FLEETFROG_TAILSCALE_SOCKET` | unset         | The socket of a Tailscale sidecar whose Serve settings give agents the hub's tailnet address.    |
+| `FLEETFROG_DASHBOARD_SOCKET` | unset         | A Unix socket the dashboard also listens on, for Tailscale Serve, which Tailscale sign-in needs. |
+| `FLEETFROG_DATA_DIR`         | `data`        | Where the database and certificate are stored. The image uses `/data`.                           |
+| `FLEETFROG_AUTH_MODE`        | unset         | Set to `none` to turn sign-in off whatever the settings say, if you're locked out.               |
 
 With Compose, `FLEETFROG_VERSION` picks the image tag, such as `0.1` to take only patch releases of 0.1. It defaults to `latest`.
 
 ## Run on Tailscale
 
-If your machines use Tailscale, the hub can run on your tailnet instead of your local network. Laptops then reach it from anywhere, and nothing on the hub's host is open to the local network. [`compose.tailscale.yaml`](compose.tailscale.yaml) adds a Tailscale container that joins your tailnet as `fleetfrog`. Its Tailscale Serve settings put the dashboard at `https://fleetfrog.<tailnet>.ts.net` and agent connections on port 8443 of the same name, both using the certificate Tailscale issues for that name. The hub reads those settings, so pairing codes point agents at the tailnet address.
+If your machines use Tailscale, the hub can run on your tailnet instead of your local network. Laptops then reach it from anywhere, and nothing on the hub's host is open to the local network. [`compose.tailscale.yaml`](compose.tailscale.yaml) adds a Tailscale container that joins your tailnet as `fleetfrog`. Its Tailscale Serve settings put the dashboard at `https://fleetfrog.<tailnet>.ts.net` and agent connections on port 8443 of the same name, both using the certificate Tailscale issues for that name. The hub reads those settings, so pairing codes point agents at the tailnet address, and people on your tailnet can [sign in through Tailscale](#sign-in). The container needs Tailscale 1.98 or later, which the `latest` image has.
 
 In the Tailscale admin console, turn on MagicDNS and HTTPS certificates under **DNS**, and create an auth key under **Settings › Keys**. Then download the file as your Compose file and start it:
 
@@ -59,14 +60,17 @@ Starting this file in the folder that ran `compose.yaml` keeps the hub's data, b
 
 ## Sign in
 
-A new hub has sign-in off, so anyone who can reach the dashboard port can use all of it. That suits a private network, or a proxy that signs people in first, such as Pangolin. To turn sign-in on, open **Settings › Authentication**, where each way of signing in has its own switch. People can use either while both are on.
+A new hub has sign-in off, so anyone who can reach the dashboard port can use all of it. That suits a private network, or a proxy that signs people in first, such as Pangolin. To turn sign-in on, open **Settings › Authentication**, where each way of signing in has its own switch. People can use any of them that are on.
 
 - **Email and password.** You set your own email and password as you turn it on. Add everyone else under **Settings › Authentication › Users**, where admins also change roles and set new passwords.
 - **OpenID Connect.** A provider such as Authentik signs people in. Create an OAuth2/OpenID provider for FleetFrog as a confidential client, and register the redirect URI that **Settings › Authentication › OpenID Connect** shows, which is the dashboard's URL followed by `/auth/oidc/callback`. Enter the provider's issuer URL, client ID and client secret, and save; the hub checks that the provider answers. If sign-in was off, you then sign in through the provider once, which turns it on and keeps you an admin.
+- **Tailscale.** With the hub on your tailnet as [Run on Tailscale](#run-on-tailscale) describes, people who open the dashboard at its Tailscale address sign in as their Tailscale account, with one click. Turn it on from that address, which makes your own Tailscale account an admin.
 
 The sign-in button shows the icon from the provider's website, such as your Authentik branding, or one you upload. People who sign in through the provider get an account on their first sign-in, or take over the account with their email. While the provider is on, their name and picture come from it. An admin group, if you set one, makes its members admins and everyone else users at each sign-in, and a required group lets only its members sign in. Both read the `groups` claim.
 
-FleetFrog won't let you lock yourself out. Turning passwords off needs you to have signed in through the provider, and turning the provider off needs your account to have a password. Turning sign-in on from off, or turning a way of signing in off, signs everyone else out.
+People who sign in through Tailscale get an account on their first sign-in as users, or take over the account with their Tailscale login as its email. Tailscale Serve tells the hub who each person is. The hub trusts that only on the socket Serve reaches it through, because other tailnet machines can connect to its ports directly.
+
+FleetFrog won't let you lock yourself out. Turning a way of signing in off needs another that's on and works for your account: a password, or having signed in through the provider or Tailscale. Turning sign-in on from off, or turning a way of signing in off, signs everyone else out.
 
 Admins can use everything. Users can see everything and fetch, pull, clone, switch and stash, but can't use Cleanup, cleanup actions or Settings. Activity shows who started each action and made each change.
 

@@ -5,7 +5,7 @@ import { Cookies, Headers } from "effect/unstable/http";
 import { SqlClient } from "effect/unstable/sql";
 
 import { NotSignedIn } from "@fleetfrog/protocol/dashboard/rpcs";
-import { UserId } from "@fleetfrog/protocol/domain/user";
+import { isSignInOn, UserId } from "@fleetfrog/protocol/domain/user";
 
 import { AuthSettingsStore } from "./authSettingsStore.ts";
 import { UserStore } from "./userStore.ts";
@@ -84,9 +84,7 @@ export class DashboardSessions extends Context.Service<
       return {
         viewer: (headers) =>
           Effect.gen(function* () {
-            const { passwords, provider } = yield* auth.methods;
-
-            if (!passwords && !provider) {
+            if (!isSignInOn(yield* auth.methods)) {
               return { _tag: "Anyone" } as const;
             }
 

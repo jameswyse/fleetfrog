@@ -9,8 +9,11 @@ import {
   Session,
 } from "@fleetfrog/protocol/dashboard/auth";
 import { viewerRole } from "@fleetfrog/protocol/dashboard/rpcs";
+import { Email, isSignInOn } from "@fleetfrog/protocol/domain/user";
 
 import { isCrossOrigin } from "../http/sameOrigin.ts";
+import { clientAddress, tailscaleIdentity } from "../http/serveSocket.ts";
+import { HubConfig } from "../hubConfig.ts";
 import { AuthSettingsStore } from "./authSettingsStore.ts";
 import { DashboardSessions, sessionCookie, sessionLifetime } from "./dashboardSessions.ts";
 import { LoginThrottle } from "./loginThrottle.ts";
@@ -22,9 +25,10 @@ import { UserStore } from "./userStore.ts";
 import type { Cause } from "effect";
 
 import type { SignInMethods } from "@fleetfrog/protocol/dashboard/auth";
-import type { UserId } from "@fleetfrog/protocol/domain/user";
+import type { AuthSettings, SignInSwitches, UserId } from "@fleetfrog/protocol/domain/user";
 
 import type { OidcIntent } from "./oidcSignIn.ts";
+import type { UserRecord } from "./userStore.ts";
 
 const sessionJson = HttpServerResponse.schemaJson(Schema.toCodecJson(Session));
 const failureJson = HttpServerResponse.schemaJson(Schema.toCodecJson(LoginFailure));
@@ -42,16 +46,18 @@ function cookieOptions(request: HttpServerRequest.HttpServerRequest) {
 }
 
 const forbidden = HttpServerResponse.text("Forbidden.", { status: 403 });
+const decodeEmail = Schema.decodeUnknownOption(Email);
 
 /** Describes the session of the signed-in user, if any, for the dashboard. */
 const describeSession = Effect.fnUntraced(function* (userId: UserId | null) {
   const auth = yield* AuthSettingsStore;
   const users = yield* UserStore;
+  const request = yield* HttpServerRequest.HttpServerRequest;
   const { oidc } = yield* SubscriptionRef.get(auth.settings);
   const icon = yield* ProviderIconStore.use((icons) => SubscriptionRef.get(icons.current));
-  const { passwords, provider } = yield* auth.methods;
+  const { passwords, provider, tailscale } = yield* auth.methods;
 
-  if (!passwords && !provider) {
+  if (!isSignInOn({ passwords, provider, tailscale })) {
     return Session.cases.Open.make({});
   }
 
@@ -59,6 +65,7 @@ const describeSession = Effect.fnUntraced(function* (userId: UserId | null) {
     passwords,
     provider:
       provider && oidc !== null ? { name: oidc.providerName, icon: icon?.id ?? null } : null,
+    tailscale: tailscale ? { identity: Option.getOrNull(tailscaleIdentity(request)) } : null,
   };
 
   if (userId === null) {
@@ -120,7 +127,7 @@ const login = HttpRouter.add(
     const users = yield* UserStore;
     const throttle = yield* LoginThrottle;
 
-    if (isCrossOrigin(request.headers)) {
+    if (isCrossOrigin(request)) {
       return forbidden;
     }
 
@@ -135,7 +142,7 @@ const login = HttpRouter.add(
     }
 
     const { email, password } = body.value;
-    const attempt = { email, address: Option.getOrElse(request.remoteAddress, () => "") };
+    const attempt = { email, address: Option.getOrElse(clientAddress(request), () => "") };
     const wait = yield* throttle.reserve(attempt);
 
     if (Option.isSome(wait)) {
@@ -170,7 +177,7 @@ const logout = HttpRouter.add(
     const request = yield* HttpServerRequest.HttpServerRequest;
     const sessions = yield* DashboardSessions;
 
-    if (isCrossOrigin(request.headers)) {
+    if (isCrossOrigin(request)) {
       return forbidden;
     }
 
@@ -193,6 +200,120 @@ function refuse(reason: string) {
   return HttpServerResponse.text(reason, { status: 409 });
 }
 
+/**
+ * The account of the tailnet user who sent the request, found or created, or why there isn't
+ * one. Turning Tailscale sign-in on makes that account an admin.
+ */
+const tailnetAccount = Effect.fnUntraced(function* (options: { readonly admin: boolean }) {
+  const request = yield* HttpServerRequest.HttpServerRequest;
+  const identity = tailscaleIdentity(request);
+
+  if (Option.isNone(identity)) {
+    return Result.fail(
+      "Open the dashboard at its Tailscale address, on a device signed in to Tailscale as you.",
+    );
+  }
+
+  const { name } = identity.value;
+  const tailnetLogin = identity.value.login;
+  const email = decodeEmail(tailnetLogin);
+
+  if (Option.isNone(email)) {
+    return Result.fail(
+      `Your Tailscale login, ${tailnetLogin}, isn't an email address, which FleetFrog needs.`,
+    );
+  }
+
+  return yield* UserStore.use((users) =>
+    users.signInFromTailscale({
+      login: tailnetLogin,
+      email: email.value,
+      name,
+      admin: options.admin,
+    }),
+  ).pipe(
+    Effect.map((account) => Result.succeed(account)),
+    Effect.catchTag("EmailTaken", () =>
+      Effect.succeed(
+        Result.fail(
+          `Another FleetFrog user has ${email.value} as their email and signs in through another Tailscale login.`,
+        ),
+      ),
+    ),
+  );
+});
+
+/** Signs in the tailnet user Tailscale Serve says sent the request, from the sign-in page. */
+const tailscaleSignIn = HttpRouter.add(
+  "POST",
+  "/auth/tailscale",
+  Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+
+    if (isCrossOrigin(request)) {
+      return forbidden;
+    }
+
+    if (!(yield* AuthSettingsStore.use((auth) => auth.methods)).tailscale) {
+      return refuse("Tailscale sign-in is off.");
+    }
+
+    const account = yield* tailnetAccount({ admin: false });
+
+    return Result.isFailure(account) ? refuse(account.failure) : yield* signIn(account.success.id);
+  }).pipe(Effect.orDie),
+);
+
+const noOtherWayIn = "Turn on another way of signing in first, or turn sign-in off.";
+
+/**
+ * Why turning a way of signing in off would lock out the admin doing it, if it would: sign-in
+ * stays on, so they need another way in that works for their own account.
+ */
+function lockoutReason(
+  settings: AuthSettings,
+  self: UserRecord,
+  method: keyof SignInSwitches,
+  { tailscaleAvailable }: { readonly tailscaleAvailable: boolean },
+): string | null {
+  const providerName = settings.oidc?.providerName ?? "the provider";
+  const others = [
+    {
+      method: "passwords",
+      on: settings.passwords,
+      usable: self.passwordHash !== null,
+      fix: "set yourself a password under Users",
+    },
+    {
+      method: "provider",
+      on: settings.provider,
+      usable: self.oidc !== null,
+      fix: `sign in through ${providerName} once`,
+    },
+    {
+      method: "tailscale",
+      // Without Serve in front of the hub, nobody can sign in through Tailscale.
+      on: settings.tailscale && tailscaleAvailable,
+      usable: self.tailscaleLogin !== null,
+      fix: "sign in through Tailscale once",
+    },
+  ].filter((other) => other.method !== method && other.on);
+
+  if (others.length === 0) {
+    return noOtherWayIn;
+  }
+
+  if (others.some((other) => other.usable)) {
+    return null;
+  }
+
+  const without = { passwords: "a password", provider: providerName, tailscale: "Tailscale" }[
+    method
+  ];
+
+  return `You couldn't sign in again without ${without}. First, ${others.map((other) => other.fix).join(", or ")}.`;
+}
+
 const changeMethods = HttpRouter.add(
   "POST",
   "/auth/methods",
@@ -201,8 +322,9 @@ const changeMethods = HttpRouter.add(
     const auth = yield* AuthSettingsStore;
     const users = yield* UserStore;
     const sessions = yield* DashboardSessions;
+    const config = yield* HubConfig;
 
-    if (isCrossOrigin(request.headers)) {
+    if (isCrossOrigin(request)) {
       return forbidden;
     }
 
@@ -224,17 +346,37 @@ const changeMethods = HttpRouter.add(
 
     const settings = yield* SubscriptionRef.get(auth.settings);
     const change = body.value;
-    const wasOn = settings.passwords || settings.provider;
+    const wasOn = isSignInOn(settings);
     const providerName = settings.oidc?.providerName ?? "the provider";
     // With sign-in on, only a signed-in admin gets this far.
     const signedIn = viewer.value._tag === "SignedIn" ? viewer.value : null;
     const self = signedIn === null ? null : yield* users.find(signedIn.userId).pipe(Effect.orDie);
     // The session as it is after the change.
     const current = describeSession(signedIn?.userId ?? null).pipe(Effect.flatMap(sessionJson));
+    // Turns one way of signing in off, as long as the admin keeps another way in.
+    const turnOff = (method: keyof SignInSwitches) =>
+      Effect.gen(function* () {
+        if (signedIn === null || self === null) {
+          return refuse(noOtherWayIn);
+        }
+
+        const lockout = lockoutReason(settings, self, method, {
+          tailscaleAvailable: config.dashboardSocket !== null,
+        });
+
+        if (lockout !== null) {
+          return refuse(lockout);
+        }
+
+        yield* auth.update({ ...settings, [method]: false });
+        yield* sessions.endOthers(signedIn.sessionHash);
+
+        return yield* current;
+      });
 
     switch (change._tag) {
       case "TurnOff": {
-        yield* auth.update({ ...settings, passwords: false, provider: false });
+        yield* auth.update({ ...settings, passwords: false, provider: false, tailscale: false });
         yield* sessions.endAll;
 
         return yield* HttpServerResponse.expireCookie(
@@ -279,22 +421,8 @@ const changeMethods = HttpRouter.add(
         return yield* signIn(userId);
       }
 
-      case "DisablePasswords": {
-        if (!settings.provider || signedIn === null) {
-          return refuse(`Turn on ${providerName} first, or turn sign-in off.`);
-        }
-
-        if (self?.oidc === null) {
-          return refuse(
-            `Sign in through ${providerName} once first, so you can still sign in without a password.`,
-          );
-        }
-
-        yield* auth.update({ ...settings, passwords: false });
-        yield* sessions.endOthers(signedIn.sessionHash);
-
-        return yield* current;
-      }
+      case "DisablePasswords":
+        return yield* turnOff("passwords");
 
       case "EnableProvider": {
         if (settings.oidc === null) {
@@ -310,22 +438,34 @@ const changeMethods = HttpRouter.add(
         return yield* current;
       }
 
-      case "DisableProvider": {
-        if (!settings.passwords || signedIn === null) {
-          return refuse("Turn on passwords first, or turn sign-in off.");
-        }
+      case "DisableProvider":
+        return yield* turnOff("provider");
 
-        if (self?.passwordHash === null) {
+      case "EnableTailscale": {
+        if (config.dashboardSocket === null) {
           return refuse(
-            "Your account has no password, so you couldn't sign in. Set yourself one under Users first.",
+            "Tailscale Serve doesn't front the hub, so it can't tell who's on your tailnet.",
           );
         }
 
-        yield* auth.update({ ...settings, provider: false });
-        yield* sessions.endOthers(signedIn.sessionHash);
+        const account = yield* tailnetAccount({ admin: true });
 
-        return yield* current;
+        if (Result.isFailure(account)) {
+          return refuse(account.failure);
+        }
+
+        yield* auth.update({ ...settings, tailscale: true });
+
+        // Everyone using the dashboard with sign-in off now has to sign in.
+        if (!wasOn) {
+          yield* sessions.endAll;
+        }
+
+        return yield* signIn(account.success.id);
       }
+
+      case "DisableTailscale":
+        return yield* turnOff("tailscale");
 
       default: {
         const unknown: never = change;
@@ -413,7 +553,7 @@ const oidcActivate = HttpRouter.add(
     ).pipe(Effect.option);
 
     if (
-      isCrossOrigin(request.headers) ||
+      isCrossOrigin(request) ||
       Option.isNone(viewer) ||
       viewerRole(viewer.value) !== "admin" ||
       auth.overridden
@@ -457,7 +597,7 @@ const oidcCallback = HttpRouter.add(
       yield* auth.update({ ...settings, provider: true });
 
       // With sign-in off until now, everyone using the dashboard has to sign in.
-      if (!settings.passwords && !settings.provider) {
+      if (!isSignInOn(settings)) {
         yield* sessions.endAll;
       }
     } else if (roleChanged) {
@@ -539,6 +679,7 @@ export const AuthRoutes = Layer.mergeAll(
   session,
   login,
   logout,
+  tailscaleSignIn,
   changeMethods,
   oidcStart,
   oidcActivate,

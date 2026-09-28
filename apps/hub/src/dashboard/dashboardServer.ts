@@ -18,6 +18,7 @@ import { DashboardAuthenticationLive } from "../auth/dashboardAuthentication.ts"
 import { DashboardSessions } from "../auth/dashboardSessions.ts";
 import { ProjectIconStore } from "../catalogue/projectIconStore.ts";
 import { isCrossOrigin } from "../http/sameOrigin.ts";
+import { listenOnServeSocket } from "../http/serveSocket.ts";
 import { HubConfig } from "../hubConfig.ts";
 import { DashboardHandlers } from "./dashboardHandlers.ts";
 
@@ -34,7 +35,7 @@ const dashboardProtocol = Layer.effect(RpcServer.Protocol)(
       Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest;
 
-        if (isCrossOrigin(request.headers)) {
+        if (isCrossOrigin(request)) {
           return HttpServerResponse.text("Cross-origin connections are not accepted.", {
             status: 403,
           });
@@ -99,7 +100,7 @@ const projectIcons = HttpRouter.add(
   }),
 );
 
-/** The dashboard port: the built dashboard plus its RPC WebSocket. */
+/** The dashboard port, and the socket for Tailscale Serve: the built dashboard plus its RPC WebSocket. */
 export const DashboardServer = Layer.unwrap(
   Effect.gen(function* () {
     const config = yield* HubConfig;
@@ -111,9 +112,16 @@ export const DashboardServer = Layer.unwrap(
     );
     const api = Layer.mergeAll(rpc, projectIcons, AuthRoutes);
     const routes = config.webRoot === null ? api : Layer.merge(api, dashboardFiles(config.webRoot));
-
-    return HttpRouter.serve(routes, { disableLogger: true }).pipe(
-      Layer.provide(NodeHttpServer.layer(createServer, { port: config.dashboardPort })),
+    const server = createServer();
+    const dashboard = HttpRouter.serve(routes, { disableLogger: true }).pipe(
+      Layer.provide(NodeHttpServer.layer(() => server, { port: config.dashboardPort })),
     );
+
+    // The socket opens once the server has its routes, so Serve never reaches it without them.
+    return config.dashboardSocket === null
+      ? dashboard
+      : Layer.effectDiscard(listenOnServeSocket(server, config.dashboardSocket)).pipe(
+          Layer.provideMerge(dashboard),
+        );
   }),
 );

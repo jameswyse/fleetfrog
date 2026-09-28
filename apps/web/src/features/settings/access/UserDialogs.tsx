@@ -374,6 +374,8 @@ export function DeleteUserDialog({
           They're signed out and can't sign in again. What they did stays in Activity.
           {user.linkedToProvider &&
             " If they can still sign in through the provider, that creates a new account for them."}
+          {user.linkedToTailscale &&
+            " If they can still sign in through Tailscale, that creates a new account for them."}
         </p>
         <p role="status" className="text-danger empty:hidden">
           {failure}

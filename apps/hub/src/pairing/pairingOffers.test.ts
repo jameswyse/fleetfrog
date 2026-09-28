@@ -17,6 +17,7 @@ const TestOffers = PairingOffers.layer.pipe(
       agentTls: "self-signed",
       agentUrl: null,
       tailscaleSocket: null,
+      dashboardSocket: null,
       webRoot: null,
       authModeOverride: null,
     }),

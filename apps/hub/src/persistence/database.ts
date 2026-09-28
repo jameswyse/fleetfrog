@@ -17,6 +17,7 @@ import t3Code from "./migrations/0009_t3code.ts";
 import users from "./migrations/0010_users.ts";
 import activityActors from "./migrations/0011_activity_actors.ts";
 import signInMethods from "./migrations/0012_sign_in_methods.ts";
+import tailscaleSignIn from "./migrations/0013_tailscale_sign_in.ts";
 
 const client = Layer.unwrap(
   Effect.gen(function* () {
@@ -42,6 +43,7 @@ export const migrations = {
   "0010_users": users,
   "0011_activity_actors": activityActors,
   "0012_sign_in_methods": signInMethods,
+  "0013_tailscale_sign_in": tailscaleSignIn,
 };
 
 export const Migrations = SqliteMigrator.layer({ loader: SqliteMigrator.fromRecord(migrations) });

@@ -24,6 +24,11 @@ export class HubConfig extends Context.Service<
     readonly agentUrl: string | null;
     /** tailscaled's local API socket, shared from a sidecar whose Tailscale Serve fronts the hub. */
     readonly tailscaleSocket: string | null;
+    /**
+     * A Unix socket the dashboard also listens on, for Tailscale Serve alone to reach. Only
+     * requests on it are trusted to say which tailnet user sent them.
+     */
+    readonly dashboardSocket: string | null;
     /** Built dashboard files. Absent in development, where Vite serves the dashboard. */
     readonly webRoot: string | null;
     /** `none` turns sign-in off whatever the settings say, for an admin who can't sign in. */
@@ -38,6 +43,9 @@ export class HubConfig extends Context.Service<
       agentTls: AgentTransport.pipe(Config.withDefault("self-signed" as const)),
       agentUrl: Config.schema(WebSocketUrl, "FLEETFROG_AGENT_URL").pipe(Config.withDefault(null)),
       tailscaleSocket: Config.NonEmptyString("FLEETFROG_TAILSCALE_SOCKET").pipe(
+        Config.withDefault(null),
+      ),
+      dashboardSocket: Config.NonEmptyString("FLEETFROG_DASHBOARD_SOCKET").pipe(
         Config.withDefault(null),
       ),
       webRoot: Config.NonEmptyString("FLEETFROG_WEB_ROOT").pipe(Config.withDefault(null)),
