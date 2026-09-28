@@ -1,7 +1,6 @@
 import { createServer } from "node:http";
 import path from "node:path";
 
-import { NodeHttpServer } from "@effect/platform-node";
 import { Effect, Layer, Option } from "effect";
 import {
   HttpRouter,
@@ -17,6 +16,7 @@ import { AuthRoutes } from "../auth/authRoutes.ts";
 import { DashboardAuthenticationLive } from "../auth/dashboardAuthentication.ts";
 import { DashboardSessions } from "../auth/dashboardSessions.ts";
 import { ProjectIconStore } from "../catalogue/projectIconStore.ts";
+import { nodeServer } from "../http/nodeServer.ts";
 import { isCrossOrigin } from "../http/sameOrigin.ts";
 import { listenOnServeSocket } from "../http/serveSocket.ts";
 import { HubConfig } from "../hubConfig.ts";
@@ -114,7 +114,7 @@ export const DashboardServer = Layer.unwrap(
     const routes = config.webRoot === null ? api : Layer.merge(api, dashboardFiles(config.webRoot));
     const server = createServer();
     const dashboard = HttpRouter.serve(routes, { disableLogger: true }).pipe(
-      Layer.provide(NodeHttpServer.layer(() => server, { port: config.dashboardPort })),
+      Layer.provide(nodeServer(server, { port: config.dashboardPort })),
     );
 
     // The socket opens once the server has its routes, so Serve never reaches it without them.

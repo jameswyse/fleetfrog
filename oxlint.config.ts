@@ -202,8 +202,11 @@ export default defineConfig({
       plugins: [...sharedPlugins, "vitest"],
       rules: {
         "vitest/no-conditional-expect": "error",
-        // `@effect/vitest` runs Effect-returning tests through `it.effect`.
-        "vitest/no-standalone-expect": ["error", { additionalTestBlockFunctions: ["it.effect"] }],
+        // `@effect/vitest` runs Effect-returning tests through `it.effect`, or `it.live` for real time.
+        "vitest/no-standalone-expect": [
+          "error",
+          { additionalTestBlockFunctions: ["it.effect", "it.live"] },
+        ],
       },
     },
     {
