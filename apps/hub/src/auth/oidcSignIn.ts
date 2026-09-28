@@ -212,7 +212,7 @@ export class OidcSignIn extends Context.Service<
             }
 
             // Sign-in may have moved away from the provider while this one was at it.
-            if (started.intent === "SignIn" && (yield* auth.mode) !== "oidc") {
+            if (started.intent === "SignIn" && !(yield* auth.methods).provider) {
               return yield* failure("Signing in through a provider is off.");
             }
 

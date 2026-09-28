@@ -1,32 +1,38 @@
 import { useState } from "react";
 
-import { useSearch } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 import { Option, Schema } from "effect";
 
 import { requestHub } from "@/rpc/hubConnection.ts";
-import { changeMode, useSession } from "@/rpc/session.ts";
+import { changeMethods, useSession } from "@/rpc/session.ts";
 import { useHubStream } from "@/rpc/useHubStream.ts";
 import { Button } from "@/ui/Button.tsx";
 import { Dialog } from "@/ui/Dialog.tsx";
 import { formText } from "@/ui/formText.ts";
 import { SidebarPage } from "@/ui/SidebarLayout.tsx";
 import { Switch } from "@/ui/Switch.tsx";
-import { ModeChange } from "@fleetfrog/protocol/dashboard/auth";
-import { minimumPasswordLength, OidcInput } from "@fleetfrog/protocol/domain/user";
+import { MethodChange } from "@fleetfrog/protocol/dashboard/auth";
+import { minimumPasswordLength } from "@fleetfrog/protocol/domain/user";
 
 import { SettingsRow, SettingsSection } from "../SettingsSection.tsx";
 import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
 import { TextField } from "./TextField.tsx";
 import { checkFields, messageFor } from "./userForm.ts";
 
-import type { AuthMode, AuthSettingsView } from "@fleetfrog/protocol/domain/user";
+import type { AuthSettingsView } from "@fleetfrog/protocol/domain/user";
 
 import type { FieldError } from "./userForm.ts";
 
-const decodeModeChange = Schema.decodeUnknownOption(ModeChange);
+const decodeMethodChange = Schema.decodeUnknownOption(MethodChange);
 
-/** Turns password sign-in on, with the admin's own account so they stay signed in. */
-function TurnOnPasswordsDialog({ onClose }: { readonly onClose: () => void }) {
+/** Turns password sign-in on, with the admin's own account so they can sign in with it. */
+function TurnOnPasswordsDialog({
+  signInOn,
+  onClose,
+}: {
+  readonly signInOn: boolean;
+  readonly onClose: () => void;
+}) {
   const session = useSession();
   const me =
     session._tag === "Known" && session.session._tag === "SignedIn" ? session.session.user : null;
@@ -45,8 +51,8 @@ function TurnOnPasswordsDialog({ onClose }: { readonly onClose: () => void }) {
           const form = event.currentTarget;
           const values = new FormData(form);
           const found = checkFields(form, ["displayName", "email", "password", "confirm"]);
-          const change = decodeModeChange({
-            _tag: "Local",
+          const change = decodeMethodChange({
+            _tag: "EnablePasswords",
             email: formText(values, "email"),
             displayName: formText(values, "displayName").trim(),
             password: formText(values, "password"),
@@ -69,7 +75,7 @@ function TurnOnPasswordsDialog({ onClose }: { readonly onClose: () => void }) {
           setPending(true);
           setFailure(null);
 
-          const outcome = await changeMode(change.value);
+          const outcome = await changeMethods(change.value);
 
           setPending(false);
 
@@ -81,9 +87,9 @@ function TurnOnPasswordsDialog({ onClose }: { readonly onClose: () => void }) {
         }}
       >
         <p>
-          People will sign in with an email address and password. Set yours now, so you stay signed
-          in as an admin. Everyone else is signed out, and you can add accounts for them under
-          Users.
+          {signInOn
+            ? "People can also sign in with an email address and password. Set yours now, and add accounts for others under Users."
+            : "People will sign in with an email address and password. Set yours now, so you stay signed in as an admin. Everyone else is signed out, and you can add accounts for them under Users."}
         </p>
         <TextField
           label="Your name"
@@ -154,7 +160,7 @@ function TurnOffDialog({ onClose }: { readonly onClose: () => void }) {
             onClick={async () => {
               setPending(true);
 
-              const outcome = await changeMode({ _tag: "None" });
+              const outcome = await changeMethods({ _tag: "TurnOff" });
 
               setPending(false);
 
@@ -173,286 +179,203 @@ function TurnOffDialog({ onClose }: { readonly onClose: () => void }) {
   );
 }
 
-function modeOptions(settings: AuthSettingsView): ReadonlyArray<{
-  readonly mode: AuthMode;
-  readonly title: string;
-  readonly description: string;
-}> {
-  return [
-    {
-      mode: "none",
-      title: "Off",
-      description:
-        "Anyone who can reach the dashboard can use all of it. For a private network, or behind a proxy that signs people in, such as Pangolin.",
-    },
-    {
-      mode: "local",
-      title: "Email and password",
-      description: "People sign in with the accounts under Users.",
-    },
-    {
-      mode: "oidc",
-      title: "Sign-in provider",
-      description:
-        settings.oidc === null
-          ? "People sign in through an OpenID Connect provider such as Authentik."
-          : `People sign in through ${settings.oidc.providerName}.`,
-    },
-  ];
-}
-
-function ModeChoice({
-  settings,
-  onChooseProvider,
+/** Confirms turning one way of signing in off while the other stays on. */
+function TurnOffMethodDialog({
+  change,
+  providerName,
+  onClose,
 }: {
-  readonly settings: AuthSettingsView;
-  /** Choosing the provider opens its settings, where it's turned on once it works. */
-  readonly onChooseProvider: () => void;
+  readonly change: "DisablePasswords" | "DisableProvider";
+  readonly providerName: string;
+  readonly onClose: () => void;
 }) {
-  const [changing, setChanging] = useState<AuthMode | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const passwords = change === "DisablePasswords";
 
   return (
-    <SettingsSection title="How people sign in">
-      <fieldset disabled={settings.overridden}>
-        <legend className="sr-only">How people sign in</legend>
-        {modeOptions(settings).map(({ mode, title, description }) => (
-          <label
-            key={mode}
-            className="flex cursor-pointer items-start gap-3 border-line px-5 py-4 not-first-of-type:border-t hover:bg-surface-raised has-disabled:cursor-not-allowed has-disabled:opacity-60"
+    <Dialog
+      title={passwords ? "Turn off passwords?" : "Turn off OpenID Connect?"}
+      onClose={onClose}
+    >
+      <div className="space-y-4 text-sm">
+        <p>
+          {passwords
+            ? `People sign in through ${providerName} only. Passwords stay, ready for when you turn them back on.`
+            : "People sign in with passwords only, so anyone without one can't sign in until an admin sets one."}{" "}
+          Everyone else is signed out.
+        </p>
+        <p role="status" className="text-danger empty:hidden">
+          {failure}
+        </p>
+        <div className="flex justify-end gap-3">
+          <Button onClick={onClose}>Cancel</Button>
+          <Button
+            tone="danger"
+            disabled={pending}
+            onClick={async () => {
+              setPending(true);
+
+              const outcome = await changeMethods({ _tag: change });
+
+              setPending(false);
+
+              if (outcome._tag === "Failure") {
+                setFailure(outcome.message);
+              } else {
+                onClose();
+              }
+            }}
           >
-            <input
-              type="radio"
-              name="mode"
-              value={mode}
-              checked={settings.mode === mode}
-              onChange={() => (mode === "oidc" ? onChooseProvider() : setChanging(mode))}
-              className="mt-0.5 size-4 accent-accent"
-            />
-            <span>
-              <span className="block text-sm font-medium">{title}</span>
-              <span className="mt-0.5 block text-sm text-ink-muted">{description}</span>
-            </span>
-          </label>
-        ))}
-      </fieldset>
-      {changing === "none" && <TurnOffDialog onClose={() => setChanging(null)} />}
-      {changing === "local" && <TurnOnPasswordsDialog onClose={() => setChanging(null)} />}
-    </SettingsSection>
+            {passwords ? "Turn off passwords" : "Turn off OpenID Connect"}
+          </Button>
+        </div>
+      </div>
+    </Dialog>
   );
 }
 
-const decodeOidcInput = Schema.decodeUnknownOption(OidcInput);
-
-/** Which fields need something in them, in the order they're shown. */
-const requiredProviderFields = [
-  ["providerName", "Enter a name for the sign-in button."],
-  ["issuerUrl", "Enter the issuer URL, starting with https://."],
-  ["clientId", "Enter the client ID."],
-  ["dashboardUrl", "Enter the dashboard's URL, starting with https://."],
-] as const;
-
-/**
- * The provider's settings, shown once someone chooses the provider or while it's in use. Until
- * it's in use, turning it on starts with the admin signing in through it, which proves it works.
- */
-function ProviderSection({
-  settings,
-  onCancel,
+/** With sign-in off, the provider turns on once the admin signs in through it, which proves it works. */
+function SignInThroughProviderDialog({
+  providerName,
+  onClose,
 }: {
-  readonly settings: AuthSettingsView;
-  readonly onCancel: () => void;
+  readonly providerName: string;
+  readonly onClose: () => void;
 }) {
-  const saved = settings.oidc;
-  const active = settings.mode === "oidc";
-  const [dashboardUrl, setDashboardUrl] = useState(saved?.dashboardUrl ?? window.location.origin);
-  const [errors, setErrors] = useState<ReadonlyArray<{ field: string; message: string }>>([]);
-  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
-  const [pending, setPending] = useState(false);
-  const errorFor = (field: string) => errors.find((error) => error.field === field)?.message;
-  const callback = URL.canParse(dashboardUrl)
-    ? new URL("/auth/oidc/callback", dashboardUrl).href
-    : null;
-
   return (
-    <SettingsSection title="Sign-in provider">
-      <form
-        noValidate
-        className="space-y-4 px-5 py-4"
-        onSubmit={async (event) => {
-          event.preventDefault();
-
-          const form = event.currentTarget;
-          const values = new FormData(form);
-          const optional = (name: string) => formText(values, name).trim() || null;
-          const input = decodeOidcInput({
-            providerName: formText(values, "providerName"),
-            issuerUrl: formText(values, "issuerUrl"),
-            clientId: formText(values, "clientId"),
-            clientSecret: formText(values, "clientSecret") || null,
-            dashboardUrl: formText(values, "dashboardUrl"),
-            adminGroup: optional("adminGroup"),
-            requiredGroup: optional("requiredGroup"),
-          });
-          const found = requiredProviderFields.flatMap(([field, message]) => {
-            const value = formText(values, field).trim();
-            const url = field === "issuerUrl" || field === "dashboardUrl";
-
-            return value === "" || (url && !URL.canParse(value)) ? [{ field, message }] : [];
-          });
-          const first = found[0] === undefined ? null : form.elements.namedItem(found[0].field);
-
-          setErrors(found);
-          setResult(null);
-
-          if (first instanceof HTMLInputElement) {
-            first.focus();
-          }
-
-          if (found.length > 0) {
-            return;
-          }
-
-          if (Option.isNone(input)) {
-            setResult({
-              ok: false,
-              message:
-                "Check the details: URLs start with http:// or https://, and the name is at most 80 characters.",
-            });
-
-            return;
-          }
-
-          setPending(true);
-
-          const outcome = await requestHub((client) =>
-            client.SetOidcSettings({ settings: input.value }),
-          );
-
-          setPending(false);
-          setResult(
-            outcome._tag === "Success"
-              ? { ok: true, message: "Saved. The provider answered." }
-              : { ok: false, message: outcome.message },
-          );
-
-          if (outcome._tag === "Success") {
-            const secret = form.elements.namedItem("clientSecret");
-
-            if (secret instanceof HTMLInputElement) {
-              secret.value = "";
-            }
-          }
-        }}
-      >
-        <p className="text-sm text-ink-muted">
-          Create an OAuth2/OpenID application for FleetFrog at your provider, such as Authentik,
-          then copy its details here.
+    <Dialog title={`Sign in with ${providerName}?`} onClose={onClose}>
+      <div className="space-y-4 text-sm">
+        <p>
+          Sign-in is off, so OpenID Connect turns on once you've signed in through {providerName},
+          which checks it works. Then everyone has to sign in, and you stay an admin.
         </p>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <TextField
-            label="Provider name"
-            name="providerName"
-            autoComplete="off"
-            defaultValue={saved?.providerName ?? ""}
-            placeholder="Authentik"
-            hint="Shown on the sign-in button."
-            error={errorFor("providerName")}
-          />
-          <TextField
-            label="Issuer URL"
-            name="issuerUrl"
-            type="url"
-            autoComplete="off"
-            defaultValue={saved?.issuerUrl ?? ""}
-            placeholder="https://auth.example.com/application/o/fleetfrog/"
-            hint="FleetFrog reads the provider's details from here."
-            error={errorFor("issuerUrl")}
-          />
-          <TextField
-            label="Client ID"
-            name="clientId"
-            autoComplete="off"
-            defaultValue={saved?.clientId ?? ""}
-            error={errorFor("clientId")}
-          />
-          <TextField
-            label="Client secret"
-            name="clientSecret"
-            type="password"
-            autoComplete="off"
-            placeholder={saved === null ? "" : "Saved"}
-            hint={
-              saved === null
-                ? undefined
-                : "Leave it empty to keep the saved one, unless you change the issuer URL or client ID."
-            }
-          />
-          <TextField
-            label="Dashboard URL"
-            name="dashboardUrl"
-            type="url"
-            autoComplete="off"
-            value={dashboardUrl}
-            onChange={(event) => setDashboardUrl(event.currentTarget.value)}
-            hint="Where people open FleetFrog, which the provider sends them back to."
-            error={errorFor("dashboardUrl")}
-          />
-          <div className="space-y-1.5 text-sm">
-            <p className="font-medium">Redirect URI</p>
-            <p className="min-h-9 rounded-md border border-line bg-surface-raised px-2.5 py-2 font-mono text-[13px] break-all select-all">
-              {callback ?? "Enter the dashboard URL first."}
-            </p>
-            <p className="text-ink-muted">Register this at the provider.</p>
-          </div>
-          <TextField
-            label="Admin group (optional)"
-            name="adminGroup"
-            autoComplete="off"
-            defaultValue={saved?.adminGroup ?? ""}
-            hint="Members are admins and everyone else is a user, checked at each sign-in. Leave it empty to set roles under Users."
-          />
-          <TextField
-            label="Required group (optional)"
-            name="requiredGroup"
-            autoComplete="off"
-            defaultValue={saved?.requiredGroup ?? ""}
-            hint="Only members can sign in. Leave it empty to let in anyone the provider signs in."
-          />
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p role="status" className="text-sm empty:hidden">
-            {result !== null && (
-              <span className={result.ok ? "text-clean" : "text-danger"}>{result.message}</span>
-            )}
-          </p>
-          <div className="ms-auto flex gap-3">
-            {!active && <Button onClick={onCancel}>Cancel</Button>}
-            <Button
-              tone={saved === null || active ? "primary" : "secondary"}
-              type="submit"
-              disabled={pending}
-            >
-              {pending ? "Checking…" : "Save"}
-            </Button>
-          </div>
-        </div>
-      </form>
-      {saved !== null && !active && (
-        // A form post, which the hub accepts only from this page.
-        <form
-          method="post"
-          action="/auth/oidc/activate"
-          className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-5 py-4"
-        >
-          <p className="min-w-0 flex-1 basis-80 text-sm text-ink-muted">
-            To turn it on, sign in at {saved.providerName} to check it works. Everyone else is
-            signed out, and you stay an admin. People whose email matches an account here take it
-            over when they first sign in.
-          </p>
+        {/* A form post, which the hub accepts only from this page. */}
+        <form method="post" action="/auth/oidc/activate" className="flex justify-end gap-3">
+          <Button onClick={onClose}>Cancel</Button>
           <Button tone="primary" type="submit">
-            Sign in with {saved.providerName}
+            Sign in with {providerName}
           </Button>
         </form>
+      </div>
+    </Dialog>
+  );
+}
+
+type Asking =
+  | "TurnOnPasswords"
+  | "TurnOff"
+  | "DisablePasswords"
+  | "DisableProvider"
+  | "SignInThroughProvider";
+
+/** The two ways of signing in, each on or off by itself. With neither, sign-in is off. */
+function MethodsSection({ settings }: { readonly settings: AuthSettingsView }) {
+  const { state, save } = useAutoSave();
+  const [asking, setAsking] = useState<Asking | null>(null);
+  // Turned on before it's set up, which stays unsaved until the provider's details are saved.
+  const [providerWanted, setProviderWanted] = useState(false);
+  const signInOn = settings.passwords || settings.provider;
+  const providerName = settings.oidc?.providerName ?? "the provider";
+  // Turning passwords off leaves the provider on, or turns sign-in off when it's the only way in.
+  const passwordsOff = settings.provider ? "DisablePasswords" : "TurnOff";
+
+  const switchProvider = (on: boolean) => {
+    if (!on) {
+      if (providerWanted) {
+        setProviderWanted(false);
+      } else {
+        setAsking(settings.passwords ? "DisableProvider" : "TurnOff");
+      }
+
+      return;
+    }
+
+    if (settings.oidc === null) {
+      setProviderWanted(true);
+    } else if (signInOn) {
+      void save(async () => {
+        const outcome = await changeMethods({ _tag: "EnableProvider" });
+
+        return outcome._tag === "Failure"
+          ? outcome
+          : { _tag: "Success" as const, value: undefined };
+      });
+    } else {
+      setAsking("SignInThroughProvider");
+    }
+  };
+
+  return (
+    <SettingsSection title="Sign-in methods" status={<SaveStatus state={state} />}>
+      <SettingsRow
+        title="Email and password"
+        description="People sign in with an account under Users."
+        htmlFor="passwords"
+        control={
+          <Switch
+            id="passwords"
+            aria-describedby="passwords-description"
+            checked={settings.passwords}
+            disabled={settings.overridden}
+            onChange={(on) => setAsking(on ? "TurnOnPasswords" : passwordsOff)}
+          />
+        }
+      />
+      <SettingsRow
+        title="OpenID Connect"
+        description={
+          settings.oidc === null
+            ? "People sign in through a provider such as Authentik."
+            : `People sign in through ${settings.oidc.providerName}.`
+        }
+        htmlFor="provider"
+        control={
+          <div className="flex items-center gap-4">
+            {settings.oidc !== null && (
+              <Link
+                to="/settings/authentication/oidc"
+                className="text-sm text-accent-text underline-offset-2 hover:underline"
+              >
+                Settings
+              </Link>
+            )}
+            <Switch
+              id="provider"
+              aria-describedby="provider-description"
+              checked={settings.provider || providerWanted}
+              disabled={settings.overridden}
+              onChange={switchProvider}
+            />
+          </div>
+        }
+      >
+        {providerWanted && settings.oidc === null && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-changes/30 bg-changes-soft px-4 py-3 text-sm text-changes">
+            <p>OpenID Connect needs setting up before it can turn on.</p>
+            <Link
+              to="/settings/authentication/oidc"
+              search={{ enable: true }}
+              className="inline-flex min-h-8 items-center rounded-md bg-accent px-3 font-medium text-accent-ink hover:bg-accent-hover"
+            >
+              Set up
+            </Link>
+          </div>
+        )}
+      </SettingsRow>
+      {asking === "TurnOnPasswords" && (
+        <TurnOnPasswordsDialog signInOn={signInOn} onClose={() => setAsking(null)} />
+      )}
+      {asking === "TurnOff" && <TurnOffDialog onClose={() => setAsking(null)} />}
+      {(asking === "DisablePasswords" || asking === "DisableProvider") && (
+        <TurnOffMethodDialog
+          change={asking}
+          providerName={providerName}
+          onClose={() => setAsking(null)}
+        />
+      )}
+      {asking === "SignInThroughProvider" && (
+        <SignInThroughProviderDialog providerName={providerName} onClose={() => setAsking(null)} />
       )}
     </SettingsSection>
   );
@@ -487,8 +410,6 @@ export function AuthenticationSettings() {
   // Set by the hub when a test sign-in through the provider didn't work.
   const { failure } = useSearch({ from: "/_app/settings/authentication/" });
   const settings = useHubStream({ key: "auth", open: (client) => client.WatchAuthSettings() });
-  // A failed test sign-in comes back here, where the provider's settings need fixing.
-  const [choosingProvider, setChoosingProvider] = useState(failure !== undefined);
 
   return (
     <SidebarPage title="Authentication">
@@ -511,19 +432,10 @@ export function AuthenticationSettings() {
               role="alert"
               className="rounded-xl border border-danger/30 bg-danger-soft px-5 py-4 text-sm text-danger"
             >
-              Sign-in through the provider is still off. {failure}
+              OpenID Connect is still off. {failure}
             </p>
           )}
-          <ModeChoice
-            settings={settings.value}
-            onChooseProvider={() => setChoosingProvider(true)}
-          />
-          {(settings.value.mode === "oidc" || choosingProvider) && (
-            <ProviderSection
-              settings={settings.value}
-              onCancel={() => setChoosingProvider(false)}
-            />
-          )}
+          <MethodsSection settings={settings.value} />
           <GravatarSection settings={settings.value} />
         </>
       )}

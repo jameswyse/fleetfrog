@@ -91,6 +91,9 @@ export class ProviderRejected extends Schema.TaggedError<ProviderRejected>()("Pr
   message: Schema.String,
 }) {}
 
+/** The file isn't a PNG, JPEG, WebP, SVG or ICO image, or is larger than 256 KB. */
+export class InvalidIcon extends Schema.TaggedError<InvalidIcon>()("InvalidIcon", {}) {}
+
 /** The file isn't a PNG, JPEG or WebP image, or is too large. */
 export class InvalidAvatar extends Schema.TaggedError<InvalidAvatar>()("InvalidAvatar", {}) {}
 
@@ -298,6 +301,14 @@ export class DashboardRpcs extends RpcGroup.make(
   /** Streams the sign-in settings on subscribe and after every change. Modes change over HTTP. */
   Rpc.make("WatchAuthSettings", { success: AuthSettingsView, stream: true }),
   Rpc.make("SetGravatar", { payload: { enabled: Schema.Boolean } }),
+  /**
+   * Replaces the provider's sign-in button icon with an uploaded image, or with null, goes back to
+   * the icon from the provider's website.
+   */
+  Rpc.make("SetProviderIcon", {
+    payload: { icon: Schema.NullOr(Schema.Uint8Array) },
+    error: InvalidIcon,
+  }),
   /** Checks the provider answers, then saves its settings. Turning it on happens over HTTP. */
   Rpc.make("SetOidcSettings", { payload: { settings: OidcInput }, error: ProviderRejected }),
 ).middleware(DashboardAuthentication) {}

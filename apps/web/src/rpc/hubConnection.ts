@@ -27,6 +27,7 @@ import type {
   Forbidden,
   InvalidArchiveFolder,
   InvalidAvatar,
+  InvalidIcon,
   LastAdmin,
   MachineNotFound,
   ManagedByProvider,
@@ -64,6 +65,7 @@ export type DashboardError =
   | WrongPassword
   | ManagedByProvider
   | InvalidAvatar
+  | InvalidIcon
   | ProviderRejected
   | TooManyAttempts
   | RpcClientError.RpcClientError;
@@ -266,6 +268,7 @@ const failureMessages = {
   ManagedByProvider: "Your sign-in provider sets this, so change it there.",
   InvalidAvatar: "Choose a PNG, JPEG or WebP image under 512 KB.",
   ProviderRejected: "The sign-in provider didn't accept those settings.",
+  InvalidIcon: "Choose a PNG, JPEG, WebP, SVG or ICO image under 256 KB.",
   TooManyAttempts: "Too many wrong passwords. Wait a few minutes, then try again.",
   RpcClientError: "The hub did not respond. Check that it is still running.",
 } satisfies Record<DashboardError["_tag"], string>;

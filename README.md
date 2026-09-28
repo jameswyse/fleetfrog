@@ -41,12 +41,14 @@ With Compose, `FLEETFROG_VERSION` picks the image tag, such as `0.1` to take onl
 
 ## Sign in
 
-A new hub has sign-in off, so anyone who can reach the dashboard port can use all of it. That suits a private network, or a proxy that signs people in first, such as Pangolin. To turn sign-in on, open **Settings › Authentication** and choose how people sign in:
+A new hub has sign-in off, so anyone who can reach the dashboard port can use all of it. That suits a private network, or a proxy that signs people in first, such as Pangolin. To turn sign-in on, open **Settings › Authentication**, where each way of signing in has its own switch. People can use either while both are on.
 
-- **Email and password.** You set your own email and password as you turn it on, and stay signed in as an admin. Add everyone else under **Settings › Users**, where admins also change roles and set new passwords.
-- **Sign-in provider.** An OpenID Connect provider such as Authentik signs people in. Create an OAuth2/OpenID provider for FleetFrog as a confidential client, and register the redirect URI that **Settings › Authentication** shows, which is the dashboard's URL followed by `/auth/oidc/callback`. Enter the provider's issuer URL, client ID and client secret, and save; the hub checks that the provider answers. Then choose **Sign-in provider** and sign in through it once, which turns it on and keeps you an admin.
+- **Email and password.** You set your own email and password as you turn it on. Add everyone else under **Settings › Authentication › Users**, where admins also change roles and set new passwords.
+- **OpenID Connect.** A provider such as Authentik signs people in. Create an OAuth2/OpenID provider for FleetFrog as a confidential client, and register the redirect URI that **Settings › Authentication › OpenID Connect** shows, which is the dashboard's URL followed by `/auth/oidc/callback`. Enter the provider's issuer URL, client ID and client secret, and save; the hub checks that the provider answers. If sign-in was off, you then sign in through the provider once, which turns it on and keeps you an admin.
 
-Turning sign-in on or off signs everyone else out. People who sign in through a provider get an account on their first sign-in, or take over the account with their email. Their name and picture come from the provider. An admin group, if you set one, makes its members admins and everyone else users at each sign-in, and a required group lets only its members sign in. Both read the `groups` claim.
+The sign-in button shows the icon from the provider's website, such as your Authentik branding, or one you upload. People who sign in through the provider get an account on their first sign-in, or take over the account with their email. While the provider is on, their name and picture come from it. An admin group, if you set one, makes its members admins and everyone else users at each sign-in, and a required group lets only its members sign in. Both read the `groups` claim.
+
+FleetFrog won't let you lock yourself out. Turning passwords off needs you to have signed in through the provider, and turning the provider off needs your account to have a password. Turning sign-in on from off, or turning a way of signing in off, signs everyone else out.
 
 Admins can use everything. Users can see everything and fetch, pull, clone, switch and stash, but can't use Cleanup, cleanup actions or Settings. Activity shows who started each action and made each change.
 

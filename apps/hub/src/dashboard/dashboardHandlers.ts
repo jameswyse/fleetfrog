@@ -6,6 +6,7 @@ import {
   Forbidden,
   InvalidArchiveFolder,
   InvalidAvatar,
+  InvalidIcon,
   ManagedByProvider,
   NotSignedIn,
   ProviderRejected,
@@ -31,6 +32,7 @@ import { DashboardSessions } from "../auth/dashboardSessions.ts";
 import { LoginThrottle } from "../auth/loginThrottle.ts";
 import { OidcSignIn } from "../auth/oidcSignIn.ts";
 import { checkPassword, hashPassword } from "../auth/passwords.ts";
+import { fetchProviderIcon, iconType, ProviderIconStore } from "../auth/providerIcon.ts";
 import { UserStore } from "../auth/userStore.ts";
 import { FleetFeed } from "../catalogue/fleetFeed.ts";
 import { ProjectIconStore } from "../catalogue/projectIconStore.ts";
@@ -61,6 +63,19 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
     const auth = yield* AuthSettingsStore;
     const oidc = yield* OidcSignIn;
     const throttle = yield* LoginThrottle;
+    const buttonIcon = yield* ProviderIconStore;
+    /** Shows the icon from the provider's website on the sign-in button, or none if it has none. */
+    const useProviderIcon = (issuerUrl: string) =>
+      fetchProviderIcon(issuerUrl).pipe(
+        Effect.flatMap((found) =>
+          buttonIcon.replace(
+            Option.match(found, {
+              onNone: () => null,
+              onSome: ({ data, mediaType }) => ({ data, mediaType, source: "provider" as const }),
+            }),
+          ),
+        ),
+      );
     const dashboardSessions = yield* DashboardSessions;
     /** The signed-in user making the call. With sign-in off there's no one to act as. */
     const signedIn = Effect.gen(function* () {
@@ -303,7 +318,10 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
         }),
       DeleteUser: ({ userId }) =>
         users.remove(userId).pipe(Effect.andThen(dashboardSessions.endForUser(userId))),
-      WatchAuthSettings: () => auth.watch,
+      WatchAuthSettings: () =>
+        Stream.zipLatest(auth.watch, SubscriptionRef.changes(buttonIcon.current)).pipe(
+          Stream.map(([settings, icon]) => ({ ...settings, icon })),
+        ),
       SetOidcSettings: ({ settings: input }) =>
         Effect.gen(function* () {
           const current = yield* SubscriptionRef.get(auth.settings);
@@ -330,7 +348,31 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
             .check(settings)
             .pipe(Effect.mapError(({ message }) => new ProviderRejected({ message })));
 
-          return yield* auth.update({ ...current, oidc: settings });
+          yield* auth.update({ ...current, oidc: settings });
+
+          // Unless an admin uploaded one, the button shows the provider's own icon, which may have
+          // changed with its settings.
+          return (yield* SubscriptionRef.get(buttonIcon.current))?.source === "uploaded"
+            ? undefined
+            : yield* useProviderIcon(settings.issuerUrl);
+        }),
+      SetProviderIcon: ({ icon }) =>
+        Effect.gen(function* () {
+          if (icon === null) {
+            const { oidc: saved } = yield* SubscriptionRef.get(auth.settings);
+
+            return yield* saved === null
+              ? buttonIcon.replace(null)
+              : useProviderIcon(saved.issuerUrl);
+          }
+
+          const mediaType = iconType(icon);
+
+          if (mediaType === null) {
+            return yield* new InvalidIcon();
+          }
+
+          return yield* buttonIcon.replace({ data: icon, mediaType, source: "uploaded" });
         }),
       SetGravatar: ({ enabled }) =>
         SubscriptionRef.get(auth.settings).pipe(

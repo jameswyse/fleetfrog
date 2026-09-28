@@ -24,6 +24,7 @@ import { Route as AppCleanupTrashRouteImport } from './routes/_app/cleanup/trash
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
 import { Route as AppSettingsScanningRouteImport } from './routes/_app/settings/scanning'
 import { Route as AppSettingsAuthenticationIndexRouteImport } from './routes/_app/settings/authentication/index'
+import { Route as AppSettingsAuthenticationOidcRouteImport } from './routes/_app/settings/authentication/oidc'
 import { Route as AppSettingsAuthenticationUsersRouteImport } from './routes/_app/settings/authentication/users'
 import { Route as AppSettingsFleetIndexRouteImport } from './routes/_app/settings/fleet/index'
 import { Route as AppSettingsFleetMachineIdRouteImport } from './routes/_app/settings/fleet/$machineId'
@@ -106,6 +107,12 @@ const AppSettingsAuthenticationIndexRoute =
     path: '/authentication/',
     getParentRoute: () => AppSettingsRoute,
   } as any)
+const AppSettingsAuthenticationOidcRoute =
+  AppSettingsAuthenticationOidcRouteImport.update({
+    id: '/authentication/oidc',
+    path: '/authentication/oidc',
+    getParentRoute: () => AppSettingsRoute,
+  } as any)
 const AppSettingsAuthenticationUsersRoute =
   AppSettingsAuthenticationUsersRouteImport.update({
     id: '/authentication/users',
@@ -155,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/activity/': typeof AppActivityIndexRoute
   '/cleanup/': typeof AppCleanupIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
+  '/settings/authentication/oidc': typeof AppSettingsAuthenticationOidcRoute
   '/settings/authentication/users': typeof AppSettingsAuthenticationUsersRoute
   '/settings/fleet/$machineId': typeof AppSettingsFleetMachineIdRoute
   '/settings/fleet/pair': typeof AppSettingsFleetPairRoute
@@ -174,6 +182,7 @@ export interface FileRoutesByTo {
   '/activity': typeof AppActivityIndexRoute
   '/cleanup': typeof AppCleanupIndexRoute
   '/settings': typeof AppSettingsIndexRoute
+  '/settings/authentication/oidc': typeof AppSettingsAuthenticationOidcRoute
   '/settings/authentication/users': typeof AppSettingsAuthenticationUsersRoute
   '/settings/fleet/$machineId': typeof AppSettingsFleetMachineIdRoute
   '/settings/fleet/pair': typeof AppSettingsFleetPairRoute
@@ -198,6 +207,7 @@ export interface FileRoutesById {
   '/_app/activity/': typeof AppActivityIndexRoute
   '/_app/cleanup/': typeof AppCleanupIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
+  '/_app/settings/authentication/oidc': typeof AppSettingsAuthenticationOidcRoute
   '/_app/settings/authentication/users': typeof AppSettingsAuthenticationUsersRoute
   '/_app/settings/fleet/$machineId': typeof AppSettingsFleetMachineIdRoute
   '/_app/settings/fleet/pair': typeof AppSettingsFleetPairRoute
@@ -222,6 +232,7 @@ export interface FileRouteTypes {
     | '/activity/'
     | '/cleanup/'
     | '/settings/'
+    | '/settings/authentication/oidc'
     | '/settings/authentication/users'
     | '/settings/fleet/$machineId'
     | '/settings/fleet/pair'
@@ -241,6 +252,7 @@ export interface FileRouteTypes {
     | '/activity'
     | '/cleanup'
     | '/settings'
+    | '/settings/authentication/oidc'
     | '/settings/authentication/users'
     | '/settings/fleet/$machineId'
     | '/settings/fleet/pair'
@@ -264,6 +276,7 @@ export interface FileRouteTypes {
     | '/_app/activity/'
     | '/_app/cleanup/'
     | '/_app/settings/'
+    | '/_app/settings/authentication/oidc'
     | '/_app/settings/authentication/users'
     | '/_app/settings/fleet/$machineId'
     | '/_app/settings/fleet/pair'
@@ -385,6 +398,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsAuthenticationIndexRouteImport
       parentRoute: typeof AppSettingsRoute
     }
+    '/_app/settings/authentication/oidc': {
+      id: '/_app/settings/authentication/oidc'
+      path: '/authentication/oidc'
+      fullPath: '/settings/authentication/oidc'
+      preLoaderRoute: typeof AppSettingsAuthenticationOidcRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
     '/_app/settings/authentication/users': {
       id: '/_app/settings/authentication/users'
       path: '/authentication/users'
@@ -463,6 +483,7 @@ const AppCleanupRouteWithChildren = AppCleanupRoute._addFileChildren(
 interface AppSettingsRouteChildren {
   AppSettingsScanningRoute: typeof AppSettingsScanningRoute
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
+  AppSettingsAuthenticationOidcRoute: typeof AppSettingsAuthenticationOidcRoute
   AppSettingsAuthenticationUsersRoute: typeof AppSettingsAuthenticationUsersRoute
   AppSettingsFleetMachineIdRoute: typeof AppSettingsFleetMachineIdRoute
   AppSettingsFleetPairRoute: typeof AppSettingsFleetPairRoute
@@ -475,6 +496,7 @@ interface AppSettingsRouteChildren {
 const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsScanningRoute: AppSettingsScanningRoute,
   AppSettingsIndexRoute: AppSettingsIndexRoute,
+  AppSettingsAuthenticationOidcRoute: AppSettingsAuthenticationOidcRoute,
   AppSettingsAuthenticationUsersRoute: AppSettingsAuthenticationUsersRoute,
   AppSettingsFleetMachineIdRoute: AppSettingsFleetMachineIdRoute,
   AppSettingsFleetPairRoute: AppSettingsFleetPairRoute,

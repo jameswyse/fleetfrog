@@ -5,6 +5,7 @@ import {
   LayersIcon,
   PlusIcon,
   RefreshCwIcon,
+  ShieldCheckIcon,
   TriangleAlertIcon,
   UsersIcon,
 } from "lucide-react";
@@ -108,6 +109,12 @@ export function SettingsLayout() {
                   <Link to="/settings/authentication/users" className={sidebarLinkClass}>
                     <UsersIcon />
                     Users
+                  </Link>
+                </li>
+                <li className={sidebarSubmenuItemClass}>
+                  <Link to="/settings/authentication/oidc" className={sidebarLinkClass}>
+                    <ShieldCheckIcon />
+                    OpenID Connect
                   </Link>
                 </li>
               </ul>

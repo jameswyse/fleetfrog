@@ -1,7 +1,6 @@
 import { useId, useRef, useState } from "react";
 
 import { useSearch } from "@tanstack/react-router";
-import { LogInIcon } from "lucide-react";
 
 import { signIn, useSession } from "@/rpc/session.ts";
 import { Button } from "@/ui/Button.tsx";
@@ -10,7 +9,9 @@ import { FrogMark } from "@/ui/Logo.tsx";
 import { Spinner } from "@/ui/Spinner.tsx";
 import { localPath } from "@fleetfrog/protocol/dashboard/auth";
 
-import type { SignInMethod } from "@fleetfrog/protocol/dashboard/auth";
+import { ProviderButtonContent, providerButtonClass } from "./ProviderButton.tsx";
+
+import type { SignInMethods } from "@fleetfrog/protocol/dashboard/auth";
 
 const inputClass =
   "min-h-10 w-full rounded-lg border border-line bg-canvas px-3 text-base sm:text-sm aria-invalid:border-danger";
@@ -94,41 +95,50 @@ function PasswordForm({ redirect }: { readonly redirect: string }) {
   );
 }
 
-function ProviderButton({ name, redirect }: { readonly name: string; readonly redirect: string }) {
+function ProviderButton({
+  provider,
+  redirect,
+}: {
+  readonly provider: NonNullable<SignInMethods["provider"]>;
+  readonly redirect: string;
+}) {
   return (
     <a
-      href={`/auth/oidc/start?${new URLSearchParams({ redirect })}`}
-      className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md bg-accent px-3 text-sm font-medium text-accent-ink hover:bg-accent-hover"
+      href={`/auth/oidc/start?${new URLSearchParams({ redirect }).toString()}`}
+      className={providerButtonClass}
     >
-      <LogInIcon aria-hidden="true" />
-      Sign in with {name}
+      <ProviderButtonContent name={provider.name} icon={provider.icon} />
     </a>
   );
 }
 
 function SignInCard({
-  method,
+  methods,
   redirect,
   failure,
 }: {
-  readonly method: SignInMethod;
+  readonly methods: SignInMethods;
   readonly redirect: string;
   readonly failure: string | undefined;
 }) {
   return (
-    <div className="rise-in rounded-2xl bg-surface p-6 shadow-[0_0_0_1px_var(--line),0_1px_2px_oklch(0_0_0/0.04),0_12px_32px_-8px_oklch(0_0_0/0.12)] [animation-delay:200ms] sm:p-8">
-      {method._tag === "Password" ? (
-        <PasswordForm redirect={redirect} />
-      ) : (
-        <div className="space-y-4">
-          {failure !== undefined && (
-            <p role="alert" className="text-sm text-danger">
-              {failure}
-            </p>
-          )}
-          <ProviderButton name={method.name} redirect={redirect} />
-        </div>
+    <div className="rise-in space-y-5 rounded-2xl bg-surface p-6 shadow-[0_0_0_1px_var(--line),0_1px_2px_oklch(0_0_0/0.04),0_12px_32px_-8px_oklch(0_0_0/0.12)] [animation-delay:200ms] sm:p-8">
+      {failure !== undefined && (
+        <p role="alert" className="text-sm text-danger">
+          {failure}
+        </p>
       )}
+      {methods.provider !== null && (
+        <ProviderButton provider={methods.provider} redirect={redirect} />
+      )}
+      {methods.provider !== null && methods.passwords && (
+        <p className="flex items-center gap-3 text-xs text-ink-muted">
+          <span aria-hidden="true" className="h-px flex-1 bg-line" />
+          or
+          <span aria-hidden="true" className="h-px flex-1 bg-line" />
+        </p>
+      )}
+      {methods.passwords && <PasswordForm redirect={redirect} />}
     </div>
   );
 }
@@ -156,7 +166,7 @@ export function LoginPage() {
           Sign in to FleetFrog
         </h1>
         <div className="mt-8">
-          <SignInCard method={session.session.method} redirect={target} failure={failure} />
+          <SignInCard methods={session.session.methods} redirect={target} failure={failure} />
         </div>
       </div>
     </main>

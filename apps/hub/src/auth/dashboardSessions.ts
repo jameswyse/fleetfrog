@@ -50,6 +50,8 @@ export class DashboardSessions extends Context.Service<
     ) => Effect.Effect<void>;
     /** Ends every session and closes every socket, including those opened with sign-in off. */
     readonly endAll: Effect.Effect<void>;
+    /** Ends every session but the one given, and closes their sockets. */
+    readonly endOthers: (sessionHash: string) => Effect.Effect<void>;
     /** Runs a dashboard socket until it closes or its session ends. */
     readonly connect: <A, E, R>(
       viewer: Viewer,
@@ -82,7 +84,9 @@ export class DashboardSessions extends Context.Service<
       return {
         viewer: (headers) =>
           Effect.gen(function* () {
-            if ((yield* auth.mode) === "none") {
+            const { passwords, provider } = yield* auth.methods;
+
+            if (!passwords && !provider) {
               return { _tag: "Anyone" } as const;
             }
 
@@ -156,6 +160,11 @@ export class DashboardSessions extends Context.Service<
           Effect.orDie,
           Effect.andThen(close(() => true)),
         ),
+        endOthers: (sessionHash) =>
+          sql`delete from dashboard_sessions where token_hash != ${sessionHash}`.pipe(
+            Effect.orDie,
+            Effect.andThen(close((connection) => connection.sessionHash !== sessionHash)),
+          ),
         connect: (viewer, socket) =>
           Effect.gen(function* () {
             const connection: Connection = {

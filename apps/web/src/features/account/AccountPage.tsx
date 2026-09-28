@@ -246,7 +246,7 @@ export function AccountPage() {
     return <Navigate to="/" replace />;
   }
 
-  const { user, method } = session.session;
+  const { user, methods } = session.session;
 
   return (
     <>
@@ -255,7 +255,7 @@ export function AccountPage() {
       </div>
       <div className="mx-auto w-full max-w-3xl space-y-8 px-4 py-8 sm:px-8">
         <ProfileSection user={user} />
-        {method._tag === "Password" && user.hasPassword && <PasswordSection email={user.email} />}
+        {methods.passwords && user.hasPassword && <PasswordSection email={user.email} />}
       </div>
     </>
   );

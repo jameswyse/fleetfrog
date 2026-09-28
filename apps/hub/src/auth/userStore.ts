@@ -225,7 +225,7 @@ export class UserStore extends Context.Service<
       const now = DateTime.now.pipe(Effect.map(DateTime.formatIso));
       const describing = (settings: AuthSettings): Describing => ({
         gravatar: settings.gravatar,
-        providerInUse: !auth.overridden && settings.mode === "oidc",
+        providerInUse: !auth.overridden && settings.provider,
       });
 
       return {

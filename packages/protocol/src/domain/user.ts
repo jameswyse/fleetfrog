@@ -16,10 +16,6 @@ export function mayRun(role: Role, kind: ActionKind): boolean {
   return role === "admin" || actionTiers[kind] === "git";
 }
 
-/** How people sign in to the dashboard. With `none`, anyone who can reach it is an admin. */
-export const AuthMode = Schema.Literals(["none", "local", "oidc"]);
-export type AuthMode = typeof AuthMode.Type;
-
 /** Emails are compared without case, so they're stored lowercased. */
 export const Email = Schema.Trim.pipe(
   Schema.decodeTo(
@@ -113,23 +109,43 @@ export type OidcInput = typeof OidcInput.Type;
 export const OidcSummary = OidcSettings.mapFields(Struct.omit(["clientSecret"]));
 export type OidcSummary = typeof OidcSummary.Type;
 
-/** The hub's sign-in settings as stored. */
+/**
+ * The hub's sign-in settings as stored. Each way of signing in is on or off by itself; with both
+ * off, sign-in is off and anyone who can reach the dashboard is an admin.
+ */
 export const AuthSettings = Schema.Struct({
-  mode: AuthMode,
+  passwords: Schema.Boolean,
+  /** Signing in through the OpenID Connect provider in `oidc`. */
+  provider: Schema.Boolean,
   /** Whether users without a picture get their Gravatar, which their browsers fetch from Gravatar. */
   gravatar: Schema.Boolean,
   oidc: Schema.NullOr(OidcSettings),
 });
 export type AuthSettings = typeof AuthSettings.Type;
 
-export const defaultAuthSettings: AuthSettings = { mode: "none", gravatar: true, oidc: null };
+export const defaultAuthSettings: AuthSettings = {
+  passwords: false,
+  provider: false,
+  gravatar: true,
+  oidc: null,
+};
+
+/** Where the provider's sign-in button icon came from. */
+export const ProviderIconSource = Schema.Literals(["provider", "uploaded"]);
+export type ProviderIconSource = typeof ProviderIconSource.Type;
+
+/** The sign-in button's icon, served from `/auth/provider-icon/:id`. */
+export const ProviderIcon = Schema.Struct({ id: Schema.String, source: ProviderIconSource });
+export type ProviderIcon = typeof ProviderIcon.Type;
 
 /** The sign-in settings as admins see them. */
 export const AuthSettingsView = Schema.Struct({
-  mode: AuthMode,
-  /** `FLEETFROG_AUTH_MODE` on the hub keeps sign-in off whatever the mode says. */
+  passwords: Schema.Boolean,
+  provider: Schema.Boolean,
+  /** `FLEETFROG_AUTH_MODE` on the hub keeps sign-in off whatever the settings say. */
   overridden: Schema.Boolean,
   gravatar: Schema.Boolean,
   oidc: Schema.NullOr(OidcSummary),
+  icon: Schema.NullOr(ProviderIcon),
 });
 export type AuthSettingsView = typeof AuthSettingsView.Type;

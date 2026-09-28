@@ -7,7 +7,13 @@ import { AuthSettings, defaultAuthSettings } from "@fleetfrog/protocol/domain/us
 import { HubConfig } from "../hubConfig.ts";
 import { JsonColumn } from "../persistence/database.ts";
 
-import type { AuthMode, AuthSettingsView } from "@fleetfrog/protocol/domain/user";
+import type { AuthSettingsView } from "@fleetfrog/protocol/domain/user";
+
+/** Which ways of signing in are in force. With neither, sign-in is off. */
+export interface Methods {
+  readonly passwords: boolean;
+  readonly provider: boolean;
+}
 
 const AuthJson = JsonColumn(AuthSettings);
 const encodeAuth = Schema.encodeSync(AuthJson);
@@ -21,13 +27,13 @@ export class AuthSettingsStore extends Context.Service<
   AuthSettingsStore,
   {
     readonly settings: SubscriptionRef.SubscriptionRef<AuthSettings>;
-    /** The mode in force, which `FLEETFROG_AUTH_MODE` can override. */
-    readonly mode: Effect.Effect<AuthMode>;
+    /** The ways of signing in in force, which `FLEETFROG_AUTH_MODE` can turn off. */
+    readonly methods: Effect.Effect<Methods>;
     /** Whether `FLEETFROG_AUTH_MODE` has turned sign-in off. */
     readonly overridden: boolean;
     readonly update: (auth: AuthSettings) => Effect.Effect<void>;
     /** The settings as admins see them, on subscribe and after every change. */
-    readonly watch: Stream.Stream<AuthSettingsView>;
+    readonly watch: Stream.Stream<Omit<AuthSettingsView, "icon">>;
   }
 >()("fleetfrog/AuthSettingsStore") {
   static readonly layer = Layer.effect(this)(
@@ -42,8 +48,12 @@ export class AuthSettingsStore extends Context.Service<
 
       return {
         settings,
-        mode: SubscriptionRef.get(settings).pipe(
-          Effect.map(({ mode }) => authModeOverride ?? mode),
+        methods: SubscriptionRef.get(settings).pipe(
+          Effect.map(({ passwords, provider }) =>
+            authModeOverride === null
+              ? { passwords, provider }
+              : { passwords: false, provider: false },
+          ),
         ),
         overridden: authModeOverride !== null,
         // The settings row may not exist yet, and it needs polling intervals to be created.
@@ -57,8 +67,9 @@ export class AuthSettingsStore extends Context.Service<
             Effect.andThen(SubscriptionRef.set(settings, auth)),
           ),
         watch: SubscriptionRef.changes(settings).pipe(
-          Stream.map(({ mode, gravatar, oidc }) => ({
-            mode,
+          Stream.map(({ passwords, provider, gravatar, oidc }) => ({
+            passwords,
+            provider,
             overridden: authModeOverride !== null,
             gravatar,
             oidc: oidc === null ? null : Struct.omit(oidc, ["clientSecret"]),

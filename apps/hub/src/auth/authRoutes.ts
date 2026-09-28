@@ -5,7 +5,7 @@ import {
   localPath,
   LoginFailure,
   LoginRequest,
-  ModeChange,
+  MethodChange,
   Session,
 } from "@fleetfrog/protocol/dashboard/auth";
 import { viewerRole } from "@fleetfrog/protocol/dashboard/rpcs";
@@ -16,11 +16,12 @@ import { DashboardSessions, sessionCookie, sessionLifetime } from "./dashboardSe
 import { LoginThrottle } from "./loginThrottle.ts";
 import { OidcSignIn } from "./oidcSignIn.ts";
 import { checkPassword, hashPassword } from "./passwords.ts";
+import { ProviderIconStore } from "./providerIcon.ts";
 import { UserStore } from "./userStore.ts";
 
 import type { Cause } from "effect";
 
-import type { SignInMethod } from "@fleetfrog/protocol/dashboard/auth";
+import type { SignInMethods } from "@fleetfrog/protocol/dashboard/auth";
 import type { UserId } from "@fleetfrog/protocol/domain/user";
 
 import type { OidcIntent } from "./oidcSignIn.ts";
@@ -47,21 +48,26 @@ const describeSession = Effect.fnUntraced(function* (userId: UserId | null) {
   const auth = yield* AuthSettingsStore;
   const users = yield* UserStore;
   const { oidc } = yield* SubscriptionRef.get(auth.settings);
-  const mode = yield* auth.mode;
-  const method: SignInMethod =
-    mode === "oidc" ? { _tag: "Provider", name: oidc?.providerName ?? "" } : { _tag: "Password" };
+  const icon = yield* ProviderIconStore.use((icons) => SubscriptionRef.get(icons.current));
+  const { passwords, provider } = yield* auth.methods;
 
-  if (mode === "none") {
+  if (!passwords && !provider) {
     return Session.cases.Open.make({});
   }
 
+  const methods: SignInMethods = {
+    passwords,
+    provider:
+      provider && oidc !== null ? { name: oidc.providerName, icon: icon?.id ?? null } : null,
+  };
+
   if (userId === null) {
-    return Session.cases.SignedOut.make({ method });
+    return Session.cases.SignedOut.make({ methods });
   }
 
   const user = yield* users.find(userId).pipe(Effect.flatMap(users.describe), Effect.orDie);
 
-  return Session.cases.SignedIn.make({ method, user });
+  return Session.cases.SignedIn.make({ methods, user });
 });
 
 /** Starts a session for the user and answers with it, setting its cookie. */
@@ -118,7 +124,7 @@ const login = HttpRouter.add(
       return forbidden;
     }
 
-    if ((yield* auth.mode) !== "local") {
+    if (!(yield* auth.methods).passwords) {
       return HttpServerResponse.text("Password sign-in is off.", { status: 409 });
     }
 
@@ -182,9 +188,14 @@ const logout = HttpRouter.add(
   }).pipe(Effect.orDie),
 );
 
-const changeMode = HttpRouter.add(
+/** Why a change to how people sign in was refused, for the admin who asked. */
+function refuse(reason: string) {
+  return HttpServerResponse.text(reason, { status: 409 });
+}
+
+const changeMethods = HttpRouter.add(
   "POST",
-  "/auth/mode",
+  "/auth/methods",
   Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const auth = yield* AuthSettingsStore;
@@ -202,57 +213,126 @@ const changeMode = HttpRouter.add(
     }
 
     if (auth.overridden) {
-      return HttpServerResponse.text("FLEETFROG_AUTH_MODE has turned sign-in off.", {
-        status: 409,
-      });
+      return refuse("FLEETFROG_AUTH_MODE on the hub keeps sign-in off. Remove it to choose here.");
     }
 
-    const body = yield* HttpServerRequest.schemaBodyJson(ModeChange).pipe(Effect.option);
+    const body = yield* HttpServerRequest.schemaBodyJson(MethodChange).pipe(Effect.option);
 
     if (Option.isNone(body)) {
-      return HttpServerResponse.text("Expected a mode change.", { status: 400 });
+      return HttpServerResponse.text("Expected a change to how people sign in.", { status: 400 });
     }
 
     const settings = yield* SubscriptionRef.get(auth.settings);
     const change = body.value;
+    const wasOn = settings.passwords || settings.provider;
+    const providerName = settings.oidc?.providerName ?? "the provider";
+    // With sign-in on, only a signed-in admin gets this far.
+    const signedIn = viewer.value._tag === "SignedIn" ? viewer.value : null;
+    const self = signedIn === null ? null : yield* users.find(signedIn.userId).pipe(Effect.orDie);
+    // The session as it is after the change.
+    const current = describeSession(signedIn?.userId ?? null).pipe(Effect.flatMap(sessionJson));
 
-    if (change._tag === "None") {
-      yield* auth.update({ ...settings, mode: "none" });
-      yield* sessions.endAll;
+    switch (change._tag) {
+      case "TurnOff": {
+        yield* auth.update({ ...settings, passwords: false, provider: false });
+        yield* sessions.endAll;
 
-      return yield* HttpServerResponse.expireCookie(
-        yield* sessionJson(Session.cases.Open.make({})),
-        sessionCookie,
-        cookieOptions(request),
-      );
+        return yield* HttpServerResponse.expireCookie(
+          yield* sessionJson(Session.cases.Open.make({})),
+          sessionCookie,
+          cookieOptions(request),
+        );
+      }
+
+      case "EnablePasswords": {
+        // The admin's own account, found by email or created, becomes an admin with this password.
+        const passwordHash = yield* hashPassword(change.password);
+        const existing = yield* users.findByEmail(change.email);
+        const userId = Option.isSome(existing)
+          ? existing.value.id
+          : (yield* users.create({
+              email: change.email,
+              displayName: change.displayName,
+              role: "admin",
+              passwordHash,
+            })).id;
+
+        if (Option.isSome(existing)) {
+          yield* users.update({
+            userId,
+            email: change.email,
+            displayName: change.displayName,
+            role: "admin",
+          });
+          yield* users.setPasswordHash({ userId, passwordHash });
+        }
+
+        yield* auth.update({ ...settings, passwords: true });
+
+        if (wasOn) {
+          return yield* current;
+        }
+
+        // Everyone using the dashboard with sign-in off now has to sign in.
+        yield* sessions.endAll;
+
+        return yield* signIn(userId);
+      }
+
+      case "DisablePasswords": {
+        if (!settings.provider || signedIn === null) {
+          return refuse(`Turn on ${providerName} first, or turn sign-in off.`);
+        }
+
+        if (self?.oidc === null) {
+          return refuse(
+            `Sign in through ${providerName} once first, so you can still sign in without a password.`,
+          );
+        }
+
+        yield* auth.update({ ...settings, passwords: false });
+        yield* sessions.endOthers(signedIn.sessionHash);
+
+        return yield* current;
+      }
+
+      case "EnableProvider": {
+        if (settings.oidc === null) {
+          return refuse("Set up OpenID Connect first.");
+        }
+
+        if (!wasOn) {
+          return refuse(`With sign-in off, turn it on by signing in through ${providerName}.`);
+        }
+
+        yield* auth.update({ ...settings, provider: true });
+
+        return yield* current;
+      }
+
+      case "DisableProvider": {
+        if (!settings.passwords || signedIn === null) {
+          return refuse("Turn on passwords first, or turn sign-in off.");
+        }
+
+        if (self?.passwordHash === null) {
+          return refuse(
+            "Your account has no password, so you couldn't sign in. Set yourself one under Users first.",
+          );
+        }
+
+        yield* auth.update({ ...settings, provider: false });
+        yield* sessions.endOthers(signedIn.sessionHash);
+
+        return yield* current;
+      }
+
+      default: {
+        const unknown: never = change;
+
+        return unknown;
+      }
     }
-
-    // The admin's own account, found by email or created, becomes an admin with this password.
-    const passwordHash = yield* hashPassword(change.password);
-    const existing = yield* users.findByEmail(change.email);
-    const userId = Option.isSome(existing)
-      ? existing.value.id
-      : (yield* users.create({
-          email: change.email,
-          displayName: change.displayName,
-          role: "admin",
-          passwordHash,
-        })).id;
-
-    if (Option.isSome(existing)) {
-      yield* users.update({
-        userId,
-        email: change.email,
-        displayName: change.displayName,
-        role: "admin",
-      });
-      yield* users.setPasswordHash({ userId, passwordHash });
-    }
-
-    yield* auth.update({ ...settings, mode: "local" });
-    yield* sessions.endAll;
-
-    return yield* signIn(userId);
   }).pipe(Effect.orDie),
 );
 
@@ -307,7 +387,7 @@ const oidcStart = HttpRouter.add(
   Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
 
-    if ((yield* AuthSettingsStore.use((auth) => auth.mode)) !== "oidc") {
+    if (!(yield* AuthSettingsStore.use((auth) => auth.methods)).provider) {
       return yield* failed("SignIn", "Signing in through a provider is off.");
     }
 
@@ -372,8 +452,14 @@ const oidcCallback = HttpRouter.add(
         return yield* failed(intent, "FLEETFROG_AUTH_MODE on the hub keeps sign-in off.");
       }
 
-      yield* auth.update({ ...(yield* SubscriptionRef.get(auth.settings)), mode: "oidc" });
-      yield* sessions.endAll;
+      const settings = yield* SubscriptionRef.get(auth.settings);
+
+      yield* auth.update({ ...settings, provider: true });
+
+      // With sign-in off until now, everyone using the dashboard has to sign in.
+      if (!settings.passwords && !settings.provider) {
+        yield* sessions.endAll;
+      }
     } else if (roleChanged) {
       // Open sockets carry what the old role could see, so they close.
       yield* sessions.endForUser(user.id);
@@ -421,14 +507,42 @@ const avatars = HttpRouter.add(
   }),
 );
 
+/**
+ * The provider's sign-in button icon by the hash of its bytes, so browsers keep it for good. It
+ * shows on the sign-in page, so it's public. An SVG is sandboxed and never runs a script.
+ */
+const providerIcon = HttpRouter.add(
+  "GET",
+  "/auth/provider-icon/:id",
+  Effect.gen(function* () {
+    const { id } = yield* HttpRouter.params;
+    const icon =
+      id === undefined ? Option.none() : yield* ProviderIconStore.use((store) => store.find(id));
+
+    return Option.match(icon, {
+      onNone: () => HttpServerResponse.text("No such icon.", { status: 404 }),
+      onSome: ({ mediaType, data }) =>
+        HttpServerResponse.uint8Array(data, {
+          contentType: mediaType,
+          headers: {
+            "cache-control": "public, max-age=31536000, immutable",
+            "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+            "x-content-type-options": "nosniff",
+          },
+        }),
+    });
+  }),
+);
+
 /** Sign-in over plain HTTP, since the dashboard socket needs the session cookie first. */
 export const AuthRoutes = Layer.mergeAll(
   session,
   login,
   logout,
-  changeMode,
+  changeMethods,
   oidcStart,
   oidcActivate,
   oidcCallback,
+  providerIcon,
   avatars,
 );

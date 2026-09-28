@@ -5,7 +5,7 @@ import { Option, Schema } from "effect";
 import { LoginFailure, Session } from "@fleetfrog/protocol/dashboard/auth";
 import { mayRun } from "@fleetfrog/protocol/domain/user";
 
-import type { ModeChange } from "@fleetfrog/protocol/dashboard/auth";
+import type { MethodChange } from "@fleetfrog/protocol/dashboard/auth";
 import type { ActionKind } from "@fleetfrog/protocol/domain/action";
 import type { Role, User } from "@fleetfrog/protocol/domain/user";
 
@@ -211,17 +211,20 @@ export async function signOut(): Promise<void> {
   if (signedIn._tag === "Known" && signedIn.session._tag === "SignedIn") {
     setState({
       _tag: "Known",
-      session: { _tag: "SignedOut", method: signedIn.session.method },
+      session: { _tag: "SignedOut", methods: signedIn.session.methods },
     });
   } else {
     await refreshSession();
   }
 }
 
-/** Turns sign-in on or off. Every other session ends, and the admin stays signed in. */
-export async function changeMode(change: ModeChange): Promise<Outcome> {
+/**
+ * Turns a way of signing in on or off. The hub refuses a change that would lock the admin out,
+ * saying why.
+ */
+export async function changeMethods(change: MethodChange): Promise<Outcome> {
   try {
-    const response = await post("/auth/mode", change);
+    const response = await post("/auth/methods", change);
     const session = response.ok ? await readSession(response) : Option.none();
 
     if (Option.isSome(session)) {
@@ -234,7 +237,7 @@ export async function changeMode(change: ModeChange): Promise<Outcome> {
       _tag: "Failure",
       message:
         response.status === 409
-          ? "FLEETFROG_AUTH_MODE on the hub keeps sign-in off. Remove it to turn sign-in on."
+          ? await response.text()
           : "The hub didn't accept that change. Try again.",
     };
   } catch {
