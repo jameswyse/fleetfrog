@@ -11,5 +11,7 @@
   // workers.dev address, which Cloudflare's GitHub app comments on the pull request.
   "workers_dev": false,
   "preview_urls": true,
+  // `wrangler preview`, which Workers Builds runs for each branch, needs this block even when empty.
+  "previews": {},
   "routes": [{ "pattern": "fleetfrog.dev", "custom_domain": true }],
 }
