@@ -8,7 +8,8 @@
     "not_found_handling": "404-page",
   },
   // Production is served at fleetfrog.dev and www.fleetfrog.dev. Each branch's preview is served
-  // at a subdomain of fleetfrog.dev, such as my-branch.fleetfrog.dev, which Cloudflare's GitHub app comments on the pull request.
+  // at a subdomain of fleetfrog.dev, such as my-branch.fleetfrog.dev, which Cloudflare's GitHub app
+  // comments on the pull request.
   "workers_dev": false,
   "preview_urls": true,
   // `wrangler preview`, which Workers Builds runs for each branch, needs this block even when empty.
