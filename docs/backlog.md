@@ -18,6 +18,11 @@ Ideas for after phase 2. They're captured, not planned: an entry doesn't mean it
 - **Status-only cells.** A denser grid whose cells show only the state symbols, without branch names, to fit many machines.
 - **Repository list view.** An alternative to the grid: one row per repository with a status dot for each machine, beside a detail pane. It was prototyped against the grid on 26/09/2026 and set aside while fleets are small.
 
+## User settings
+
+- **Colour scheme.** Choose light, dark or the system setting for the dashboard.
+- **Blurring sensitive details.** Blur details that identify the user, such as email addresses and usernames, for people who stream their screen or work in public places such as planes.
+
 ## Git actions
 
 - **Automatic pull.** Pull the default branch periodically, as T3 Code does, only when the working tree is clean. The checkout panel already says when T3 Code pulls a project itself, which such a feature should leave to T3 Code.
