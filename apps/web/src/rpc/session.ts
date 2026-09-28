@@ -203,19 +203,13 @@ export async function signIn(credentials: {
   }
 }
 
+/**
+ * Signs out and loads the sign-in page afresh, forgetting the page they were on, so whoever signs
+ * in next starts at Projects and nothing from this session stays in memory.
+ */
 export async function signOut(): Promise<void> {
-  const signedIn = state;
-
   await fetch("/auth/logout", { method: "POST" }).catch(() => undefined);
-
-  if (signedIn._tag === "Known" && signedIn.session._tag === "SignedIn") {
-    setState({
-      _tag: "Known",
-      session: { _tag: "SignedOut", methods: signedIn.session.methods },
-    });
-  } else {
-    await refreshSession();
-  }
+  window.location.assign("/login");
 }
 
 /**
