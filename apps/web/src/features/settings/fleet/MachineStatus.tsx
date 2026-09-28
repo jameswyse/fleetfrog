@@ -2,7 +2,6 @@ import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { Tier } from "@fleetfrog/protocol/domain/action";
 import { agentOutdated } from "@fleetfrog/protocol/domain/actionAvailability";
 
-import { tierNames } from "../../actions/actionCopy.ts";
 import { shortProcessorName } from "./systemFormat.ts";
 
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
@@ -45,6 +44,19 @@ export function ConnectionStatus({ machine }: { readonly machine: Machine }) {
   );
 }
 
+/** How each tier reads in a list of what a machine allows. */
+const tierPhrases = {
+  git: "Git actions",
+  cleanup: "cleanup actions",
+  update: "agent updates",
+} satisfies Record<Tier, string>;
+
+const tierList = new Intl.ListFormat("en-AU", { type: "conjunction" });
+
+function capitalised(text: string): string {
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+}
+
 /** What the hub may ask this machine to do, as its owner's policy allows. */
 export function ActionsText({ machine }: { readonly machine: Machine }) {
   if (machine.connection._tag === "Offline") {
@@ -64,18 +76,21 @@ export function ActionsText({ machine }: { readonly machine: Machine }) {
     );
   }
 
-  const { allowedTiers } = machine.connection.capabilities;
-  const denied = Tier.literals.filter((tier) => !allowedTiers.includes(tier));
-  const [only] = Tier.literals.filter((tier) => allowedTiers.includes(tier));
+  const { allowedTiers, updatesItself } = machine.connection.capabilities;
+  // Only an agent that can update itself has use for the update tier.
+  const tiers = Tier.literals.filter((tier) => tier !== "update" || updatesItself);
+  const allowed = tiers.filter((tier) => allowedTiers.includes(tier));
+  const denied = tiers.filter((tier) => !allowedTiers.includes(tier));
+  const allowedList = tierList.format(allowed.map((tier) => tierPhrases[tier]));
 
   if (denied.length === 0) {
-    return <>Git and cleanup actions allowed</>;
+    return <>{capitalised(allowedList)} allowed</>;
   }
 
   return (
     <>
-      {only === undefined ? "No actions allowed" : `Only ${tierNames[only]} actions allowed`}. To
-      allow the rest, run{" "}
+      {allowed.length === 0 ? "Nothing allowed" : `Only ${allowedList} allowed`}. To allow the rest,
+      run{" "}
       {denied.map((tier, index) => (
         <span key={tier}>
           {index > 0 && " and "}

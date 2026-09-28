@@ -20,10 +20,16 @@ pub fn create_project_folder(
     archive_folder: Option<&str>,
     home: &str,
 ) -> FolderOutcome {
-    let tier = if roots.iter().any(|root| root == path) {
-        Tier::Git
+    let (tier, turned_off) = if roots.iter().any(|root| root == path) {
+        (
+            Tier::Git,
+            "Git actions are turned off on this machine, and they include creating project folders.",
+        )
     } else if archive_folder == Some(path) {
-        Tier::Cleanup
+        (
+            Tier::Cleanup,
+            "Cleanup actions are turned off on this machine, and they include creating the Archive folder.",
+        )
     } else {
         return failed(format!(
             "{path} isn't one of this machine's project folders or its Archive folder."
@@ -31,14 +37,7 @@ pub fn create_project_folder(
     };
 
     if !load_policy().is_ok_and(|policy| policy.allows(tier)) {
-        return failed(match tier {
-            Tier::Git => {
-                "Git actions are turned off on this machine, and they include creating project folders."
-            }
-            Tier::Cleanup => {
-                "Cleanup actions are turned off on this machine, and they include creating the Archive folder."
-            }
-        });
+        return failed(turned_off);
     }
 
     let folder = match paths::check_folder_path(path, home) {

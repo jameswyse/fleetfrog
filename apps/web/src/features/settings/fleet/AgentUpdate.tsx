@@ -47,6 +47,10 @@ function describeVersion(machine: Machine, hubVersion: string): string {
     return `Runs ${agentVersion}, older than the hub's ${hubVersion}. This agent can't update itself. Run the install command on the machine, or pull and rebuild the agent if it runs from source.`;
   }
 
+  if (!machine.connection.capabilities.allowedTiers.includes("update")) {
+    return `Runs ${agentVersion}, older than the hub's ${hubVersion}. The machine's owner hasn't allowed updates from the hub. Run fleetfrog update on the machine, or fleetfrog allow update to let the hub update it.`;
+  }
+
   return `Runs ${agentVersion}. The hub runs ${hubVersion}, which the agent should match.`;
 }
 

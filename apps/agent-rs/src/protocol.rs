@@ -12,15 +12,35 @@ pub type Count = u64;
 pub enum Tier {
     Git,
     Cleanup,
+    Update,
 }
 
 impl Tier {
-    pub const ALL: [Tier; 2] = [Tier::Git, Tier::Cleanup];
+    pub const ALL: [Tier; 3] = [Tier::Git, Tier::Cleanup, Tier::Update];
 
     pub fn as_str(self) -> &'static str {
         match self {
             Tier::Git => "git",
             Tier::Cleanup => "cleanup",
+            Tier::Update => "update",
+        }
+    }
+
+    /// What the tier covers, as the subject of a sentence.
+    pub fn plural_name(self) -> &'static str {
+        match self {
+            Tier::Git => "Git actions",
+            Tier::Cleanup => "Cleanup actions",
+            Tier::Update => "Agent updates",
+        }
+    }
+
+    /// Whether the tier is allowed on a machine whose owner hasn't decided. The agent records this
+    /// in the policy the first time it meets the tier, so changing a default later leaves existing
+    /// machines as they were.
+    pub fn allowed_by_default(self) -> bool {
+        match self {
+            Tier::Git | Tier::Cleanup | Tier::Update => true,
         }
     }
 

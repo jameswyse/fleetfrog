@@ -150,38 +150,110 @@ pub fn save_agent_config(config: &AgentConfig) -> Result<(), ConfigUnavailable> 
     std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o600)).map_err(unavailable)
 }
 
-/// Which tiers of actions the machine's owner allows. It lives in its own file so that pairing
-/// again keeps it, and only a command run on this machine changes it.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+/// Which tiers of actions the machine's owner allows, with every tier this agent knows decided. It
+/// lives in its own file so that pairing again keeps it, and only a command run on this machine
+/// changes it.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AgentPolicy {
     pub allowed_tiers: Vec<Tier>,
 }
 
 impl AgentPolicy {
-    /// Every tier is allowed until the owner denies it.
-    pub fn default_policy() -> AgentPolicy {
-        AgentPolicy {
-            allowed_tiers: Tier::ALL.to_vec(),
-        }
-    }
-
     pub fn allows(&self, tier: Tier) -> bool {
         self.allowed_tiers.contains(&tier)
     }
 }
 
-/// The saved policy, or the default when there is none. A damaged file fails rather than guessing.
-pub fn load_policy() -> Result<AgentPolicy, ConfigUnavailable> {
+/// The policy file. It lists denied tiers as well as allowed ones, so a tier in neither is one
+/// the owner hasn't decided, such as one added after the file was written. Tiers this agent
+/// doesn't know, from a newer agent, are left out rather than making the file unreadable.
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PolicyFile {
+    allowed_tiers: Vec<String>,
+    /// Absent from files written before it, when `git` and `cleanup` were the only tiers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    denied_tiers: Option<Vec<String>>,
+}
+
+/// The tiers that existed before the policy listed denied tiers. A file without that list denied
+/// each of these it didn't allow.
+const TIERS_BEFORE_DENIED_LIST: [Tier; 2] = [Tier::Git, Tier::Cleanup];
+
+/// What the policy file says, with each undecided tier given its default.
+struct ReadPolicy {
+    policy: AgentPolicy,
+    /// Tiers that took their default because the file didn't decide them.
+    defaulted: Vec<Tier>,
+    /// Whether the file needs writing to record every decision: it's missing, predates the
+    /// denied list or leaves a tier undecided.
+    incomplete: bool,
+}
+
+fn known_tiers(names: &[String]) -> Vec<Tier> {
+    names.iter().filter_map(|name| Tier::parse(name)).collect()
+}
+
+/// Decides every tier from the file, or from defaults when there is none. A denial wins over an
+/// allowance of the same tier.
+fn decide(file: Option<&PolicyFile>) -> ReadPolicy {
+    let allowed = file
+        .map(|file| known_tiers(&file.allowed_tiers))
+        .unwrap_or_default();
+    let denied = match file {
+        None => Vec::new(),
+        Some(PolicyFile {
+            denied_tiers: Some(names),
+            ..
+        }) => known_tiers(names),
+        Some(PolicyFile {
+            denied_tiers: None, ..
+        }) => TIERS_BEFORE_DENIED_LIST
+            .into_iter()
+            .filter(|tier| !allowed.contains(tier))
+            .collect(),
+    };
+    let mut allowed_tiers = Vec::new();
+    let mut defaulted = Vec::new();
+
+    for tier in Tier::ALL {
+        let decided = allowed.contains(&tier) || denied.contains(&tier);
+
+        if !decided {
+            defaulted.push(tier);
+        }
+
+        if !denied.contains(&tier)
+            && (allowed.contains(&tier) || (!decided && tier.allowed_by_default()))
+        {
+            allowed_tiers.push(tier);
+        }
+    }
+
+    ReadPolicy {
+        incomplete: !defaulted.is_empty() || file.is_none_or(|file| file.denied_tiers.is_none()),
+        policy: AgentPolicy { allowed_tiers },
+        defaulted,
+    }
+}
+
+fn read_policy() -> Result<ReadPolicy, ConfigUnavailable> {
     let file = policy_path();
     let Some(text) = read_optional(&file)? else {
-        return Ok(AgentPolicy::default_policy());
+        return Ok(decide(None));
     };
-
-    serde_json::from_str(&text).map_err(|_| ConfigUnavailable {
+    let stored: PolicyFile = serde_json::from_str(&text).map_err(|_| ConfigUnavailable {
         path: file,
         message: "The saved policy is not valid.".into(),
-    })
+    })?;
+
+    Ok(decide(Some(&stored)))
+}
+
+/// The saved policy, with each tier it doesn't decide at its default. A damaged file fails rather
+/// than guessing.
+pub fn load_policy() -> Result<AgentPolicy, ConfigUnavailable> {
+    read_policy().map(|read| read.policy)
 }
 
 fn save_policy(policy: &AgentPolicy) -> Result<(), ConfigUnavailable> {
@@ -191,7 +263,18 @@ fn save_policy(policy: &AgentPolicy) -> Result<(), ConfigUnavailable> {
         message: describe_io(&error),
     };
     let staged = format!("{file}.{}.tmp", std::process::id());
-    let json = serde_json::to_string(policy).expect("the policy encodes as JSON");
+    let names = |allowed: bool| {
+        Tier::ALL
+            .into_iter()
+            .filter(|tier| policy.allows(*tier) == allowed)
+            .map(|tier| tier.as_str().to_string())
+            .collect()
+    };
+    let json = serde_json::to_string(&PolicyFile {
+        allowed_tiers: names(true),
+        denied_tiers: Some(names(false)),
+    })
+    .expect("the policy encodes as JSON");
 
     create_private_directory(&config_directory()).map_err(unavailable)?;
     std::fs::OpenOptions::new()
@@ -209,6 +292,35 @@ fn save_policy(policy: &AgentPolicy) -> Result<(), ConfigUnavailable> {
     std::fs::rename(&staged, &file).map_err(unavailable)
 }
 
+/// Records in the audit log the tiers that took their default in `policy`.
+fn audit_defaults(defaulted: &[Tier], policy: &AgentPolicy) {
+    if defaulted.is_empty() {
+        return;
+    }
+
+    let (allowed_tiers, denied_tiers) = defaulted
+        .iter()
+        .partition::<Vec<Tier>, _>(|tier| policy.allows(**tier));
+
+    audit::write(AuditEntry::PolicyDefaultsApplied {
+        allowed_tiers,
+        denied_tiers,
+    });
+}
+
+/// Writes each tier the policy doesn't decide into it at its default, so a later change to that
+/// default leaves this machine as it is. Returns the tiers that took their default.
+pub fn record_policy_defaults() -> Result<Vec<Tier>, ConfigUnavailable> {
+    let read = read_policy()?;
+
+    if read.incomplete {
+        save_policy(&read.policy)?;
+        audit_defaults(&read.defaulted, &read.policy);
+    }
+
+    Ok(read.defaulted)
+}
+
 pub struct PolicyChange {
     pub changed: bool,
     pub replaced_damaged: bool,
@@ -217,29 +329,39 @@ pub struct PolicyChange {
 /// Allows and denies tiers, then saves and records the policy only if that changed it. A damaged
 /// policy allows nothing, so the change starts from nothing and replaces it.
 pub fn change_policy(allow: &[Tier], deny: &[Tier]) -> Result<PolicyChange, ConfigUnavailable> {
-    let current = load_policy().ok();
+    let current = read_policy().ok();
     let replaced_damaged = current.is_none();
-    let policy = current.unwrap_or(AgentPolicy {
-        allowed_tiers: Vec::new(),
-    });
-    let mut allowed_tiers = Vec::new();
+    let (policy, defaulted, incomplete) = match current {
+        Some(read) => (read.policy, read.defaulted, read.incomplete),
+        None => (
+            AgentPolicy {
+                allowed_tiers: Vec::new(),
+            },
+            Vec::new(),
+            true,
+        ),
+    };
+    let allowed_tiers: Vec<Tier> = Tier::ALL
+        .into_iter()
+        .filter(|tier| !deny.contains(tier) && (policy.allows(*tier) || allow.contains(tier)))
+        .collect();
+    let changed = replaced_damaged || allowed_tiers != policy.allowed_tiers;
 
-    for tier in policy.allowed_tiers.iter().chain(allow) {
-        if !allowed_tiers.contains(tier) && !deny.contains(tier) {
-            allowed_tiers.push(*tier);
-        }
+    // Saving also records any defaults the file didn't have yet.
+    if changed || incomplete {
+        let saved = AgentPolicy {
+            allowed_tiers: allowed_tiers.clone(),
+        };
+        let untouched: Vec<Tier> = defaulted
+            .into_iter()
+            .filter(|tier| !allow.contains(tier) && !deny.contains(tier))
+            .collect();
+
+        save_policy(&saved)?;
+        audit_defaults(&untouched, &saved);
     }
 
-    let changed = replaced_damaged
-        || allowed_tiers.len() != policy.allowed_tiers.len()
-        || allowed_tiers
-            .iter()
-            .any(|tier| !policy.allowed_tiers.contains(tier));
-
     if changed {
-        save_policy(&AgentPolicy {
-            allowed_tiers: allowed_tiers.clone(),
-        })?;
         audit::write(AuditEntry::PolicyChanged { allowed_tiers });
     }
 
@@ -252,6 +374,44 @@ pub fn change_policy(allow: &[Tier], deny: &[Tier]) -> Result<PolicyChange, Conf
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn read(json: &str) -> ReadPolicy {
+        decide(Some(&serde_json::from_str::<PolicyFile>(json).unwrap()))
+    }
+
+    #[test]
+    fn keeps_denials_from_files_written_before_the_denied_list() {
+        let read = read(r#"{"allowedTiers":["git"]}"#);
+
+        assert_eq!(read.policy.allowed_tiers, vec![Tier::Git, Tier::Update]);
+        assert_eq!(read.defaulted, vec![Tier::Update]);
+        assert!(read.incomplete);
+    }
+
+    #[test]
+    fn follows_a_complete_file_and_skips_tiers_it_does_not_know() {
+        let read = read(
+            r#"{"allowedTiers":["git","teleport"],"deniedTiers":["cleanup","update","teleport"]}"#,
+        );
+
+        assert_eq!(read.policy.allowed_tiers, vec![Tier::Git]);
+        assert!(read.defaulted.is_empty());
+        assert!(!read.incomplete);
+    }
+
+    #[test]
+    fn gives_undecided_tiers_their_defaults() {
+        let read = read(r#"{"allowedTiers":[],"deniedTiers":["git"]}"#);
+
+        assert_eq!(read.policy.allowed_tiers, vec![Tier::Cleanup, Tier::Update]);
+        assert_eq!(read.defaulted, vec![Tier::Cleanup, Tier::Update]);
+        assert!(read.incomplete);
+
+        let missing = decide(None);
+
+        assert_eq!(missing.policy.allowed_tiers, Tier::ALL.to_vec());
+        assert!(missing.incomplete);
+    }
 
     #[test]
     fn recognises_uuids() {

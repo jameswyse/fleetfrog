@@ -11,13 +11,17 @@ use tokio::task::JoinHandle;
 
 use crate::actions::archive::Folders;
 use crate::actions::runner::ActionRunner;
-use crate::config::{AgentConfig, ConfigUnavailable, load_agent_config, load_policy, policy_path};
+use crate::config::{
+    AgentConfig, ConfigUnavailable, load_agent_config, load_policy, policy_path,
+    record_policy_defaults,
+};
 use crate::folders::create_project_folder;
 use crate::hub::rpc::{HubClient, RpcError, StreamItem};
 use crate::log;
 use crate::machine::{read_machine_info, read_system_usage};
 use crate::protocol::{
-    ACTION_KINDS, ActionUpdate, AgentCapabilities, Configuration, GithubCli, HubCommand, failed,
+    ACTION_KINDS, ActionUpdate, AgentCapabilities, Configuration, GithubCli, HubCommand, Tier,
+    failed,
 };
 use crate::scanner::Scanner;
 use crate::store::default_trash_directory;
@@ -379,7 +383,16 @@ impl Session {
 
         log::info(&format!("Updating the agent to {version}"));
         self.track(tokio::spawn(async move {
-            match update::install(&version).await {
+            let installed = if load_policy().is_ok_and(|policy| policy.allows(Tier::Update)) {
+                update::install(&version).await
+            } else {
+                Err(
+                    "This machine's owner hasn't allowed updates from the hub. Run fleetfrog allow update on it, or fleetfrog update there."
+                        .to_string(),
+                )
+            };
+
+            match installed {
                 Ok(executable) => {
                     log::info(&format!("Installed the agent {version}"));
                     session.installed.send_replace(Some(executable));
@@ -600,6 +613,22 @@ pub async fn run_agent(stopping: crate::process::Cancel) -> AgentStopped {
         Ok(None) => return AgentStopped::NotPaired,
         Ok(Some(config)) => config,
     };
+
+    // An update may have added tiers this machine's owner hasn't decided yet.
+    match record_policy_defaults() {
+        Ok(defaulted) if !defaulted.is_empty() => {
+            let names: Vec<&str> = defaulted.iter().map(|tier| tier.as_str()).collect();
+
+            log::info(&format!(
+                "Recorded the default for {} in {}",
+                names.join(", "),
+                policy_path()
+            ));
+        }
+        Ok(_) => {}
+        Err(error) => log::warning("Could not record the policy's defaults", error.message),
+    }
+
     let mut delay = FIRST_RETRY_DELAY;
 
     loop {

@@ -10,6 +10,14 @@ export const tierDescriptions = {
   git: "Git actions: fetch, pull (fast-forward only), clone into a project folder, switch branches and stash changes",
   cleanup:
     "Cleanup actions: delete branches, archive checkouts, move them to the trash or delete them, and restore or empty the trash",
+  update: "Agent updates: let the hub update this agent to the hub's version",
+} satisfies Record<Tier, string>;
+
+/** What each tier covers, as the subject of a sentence. */
+const tierPluralNames = {
+  git: "Git actions",
+  cleanup: "Cleanup actions",
+  update: "Agent updates",
 } satisfies Record<Tier, string>;
 
 const tierArgument = Argument.Literals("tier", Tier.literals).pipe(
@@ -33,8 +41,8 @@ function setTier(options: { readonly tier: Tier; readonly change: "allow" | "den
           replacedDamaged &&
             `The saved policy at ${policyPath()} couldn't be read, so it was replaced.`,
           changed
-            ? `${options.tier} actions are now ${verb} on this machine. The hub sees the change within 15 seconds.`
-            : `${options.tier} actions were already ${verb} on this machine.`,
+            ? `${tierPluralNames[options.tier]} are now ${verb} on this machine. The hub sees the change within 15 seconds.`
+            : `${tierPluralNames[options.tier]} were already ${verb} on this machine.`,
         ]
           .filter(Boolean)
           .join("\n"),

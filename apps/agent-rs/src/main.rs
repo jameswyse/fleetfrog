@@ -58,6 +58,10 @@ Environment:
 Tiers:
   git      Git actions: fetch, pull (fast-forward only), clone into a project folder, switch branches and stash changes
   cleanup  Cleanup actions: delete branches, archive checkouts, move them to the trash or delete them, and restore or empty the trash
+  update   Agent updates: let the hub update this agent to the hub's version
+
+Every tier is allowed until you deny it. A tier added in an update starts at its default, which the
+agent records in its policy the first time it runs.
 
 Options:
   -h, --help     Show this help
@@ -83,10 +87,10 @@ fn runtime() -> tokio::runtime::Runtime {
 
 fn parse_tier(value: Option<&String>) -> Result<Tier, ExitCode> {
     match value {
-        None => Err(usage_error("Missing the tier: git or cleanup.")),
+        None => Err(usage_error("Missing the tier: git, cleanup or update.")),
         Some(value) => Tier::parse(value).ok_or_else(|| {
             usage_error(&format!(
-                "Unknown tier \"{value}\". Expected git or cleanup."
+                "Unknown tier \"{value}\". Expected git, cleanup or update."
             ))
         }),
     }
@@ -340,13 +344,13 @@ fn set_tier(arguments: &[String], allow: bool) -> ExitCode {
 
             if change.changed {
                 println!(
-                    "{} actions are now {verb} on this machine. The hub sees the change within 15 seconds.",
-                    tier.as_str()
+                    "{} are now {verb} on this machine. The hub sees the change within 15 seconds.",
+                    tier.plural_name()
                 );
             } else {
                 println!(
-                    "{} actions were already {verb} on this machine.",
-                    tier.as_str()
+                    "{} were already {verb} on this machine.",
+                    tier.plural_name()
                 );
             }
 

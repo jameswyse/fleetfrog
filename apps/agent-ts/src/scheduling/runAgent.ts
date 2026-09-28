@@ -6,7 +6,7 @@ import { ActionKind, ActionOutcome, ActionUpdate } from "@fleetfrog/protocol/dom
 import { makeActionRunner } from "../actions/actionRunner.ts";
 import { writeAuditEntry } from "../audit/auditLog.ts";
 import { loadAgentConfig } from "../config/agentConfig.ts";
-import { loadPolicy, policyPath } from "../config/agentPolicy.ts";
+import { loadPolicy, policyPath, recordPolicyDefaults } from "../config/agentPolicy.ts";
 import { makeHubClient } from "../connection/hubClient.ts";
 import { createProjectFolder } from "../folders/createProjectFolder.ts";
 import { readMachineInfo, runsFromSource } from "../machine/machineInfo.ts";
@@ -308,6 +308,18 @@ export const runAgent = Effect.gen(function* () {
   if (Option.isNone(config)) {
     return yield* new NotPaired();
   }
+
+  // An update may have added tiers this machine's owner hasn't decided yet.
+  yield* recordPolicyDefaults.pipe(
+    Effect.flatMap((defaulted) =>
+      defaulted.length === 0
+        ? Effect.void
+        : Effect.logInfo(`Recorded the default for ${defaulted.join(", ")} in ${policyPath()}`),
+    ),
+    Effect.catchTag("ConfigUnavailable", (error) =>
+      Effect.logWarning("Could not record the policy's defaults", error.message),
+    ),
+  );
 
   let delay = firstRetryDelay;
 

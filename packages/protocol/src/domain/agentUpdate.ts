@@ -1,6 +1,14 @@
 import { Schema } from "effect";
 
-import type { Machine } from "./fleet.ts";
+import type { Connection } from "./fleet.ts";
+import type { MachineInfo } from "./machine.ts";
+
+/** The parts of a machine that decide whether its agent can update. */
+interface UpdatableMachine {
+  readonly info: Pick<MachineInfo, "agentVersion">;
+  readonly connection: Connection;
+  readonly update: AgentUpdate | null;
+}
 
 /**
  * How updating a machine's agent to the hub's version is going. Every FleetFrog package shares one
@@ -30,22 +38,23 @@ export function compareVersions(left: string, right: string): number {
 }
 
 /** Whether the machine's agent runs an older version than the hub. */
-export function agentBehindHub(machine: Pick<Machine, "info">, hubVersion: string): boolean {
+export function agentBehindHub(
+  machine: Pick<UpdatableMachine, "info">,
+  hubVersion: string,
+): boolean {
   return compareVersions(machine.info.agentVersion, hubVersion) < 0;
 }
 
 /**
  * Whether the hub can update the machine's agent now: it runs an older version, is online, can
- * replace itself, and isn't already updating.
+ * replace itself, its owner allows updates, and it isn't already updating.
  */
-export function canUpdateAgent(
-  machine: Pick<Machine, "info" | "connection" | "update">,
-  hubVersion: string,
-): boolean {
+export function canUpdateAgent(machine: UpdatableMachine, hubVersion: string): boolean {
   return (
     agentBehindHub(machine, hubVersion) &&
     machine.connection._tag === "Online" &&
     machine.connection.capabilities.updatesItself &&
+    machine.connection.capabilities.allowedTiers.includes("update") &&
     machine.update?._tag !== "Updating"
   );
 }

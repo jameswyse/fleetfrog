@@ -40,6 +40,11 @@ pub enum AuditEntry {
     PolicyChanged {
         allowed_tiers: Vec<Tier>,
     },
+    /// Tiers the owner hadn't decided, such as ones added in an update, recorded at their defaults.
+    PolicyDefaultsApplied {
+        allowed_tiers: Vec<Tier>,
+        denied_tiers: Vec<Tier>,
+    },
     Paired {
         agent_url: String,
         machine_id: String,

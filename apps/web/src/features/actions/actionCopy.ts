@@ -55,7 +55,11 @@ export function describeBatch({ kind, scope }: Pick<ActionBatch, "kind" | "scope
 }
 
 /** Each tier as a sentence names it after its first word, such as "cleanup actions". */
-export const tierNames = { git: "Git", cleanup: "cleanup" } satisfies Record<Tier, string>;
+export const tierNames = {
+  git: "Git",
+  cleanup: "cleanup",
+  update: "update",
+} satisfies Record<Tier, string>;
 
 /** The first letter capitalised, for a tier name that starts a sentence. */
 function capitalised(text: string): string {

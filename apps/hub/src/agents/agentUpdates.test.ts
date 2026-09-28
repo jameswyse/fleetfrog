@@ -35,7 +35,7 @@ const TestUpdates = AgentUpdates.layer.pipe(
 
 const capabilities = (updatesItself: boolean): AgentCapabilities => ({
   actions: [],
-  allowedTiers: [],
+  allowedTiers: ["update"],
   policyReadable: true,
   createsFolders: true,
   updatesItself,

@@ -9,9 +9,10 @@ import { TrashId } from "./trash.ts";
  * `fleetfrog allow` and `fleetfrog deny`. The hub can see the policy but never change it. `git`
  * covers fetching, pulling, cloning, switching branches and stashing, and creating the project
  * folders that clones go into. `cleanup` covers actions that remove things from where the
- * developer works: archiving, the trash and permanent deletion.
+ * developer works: archiving, the trash and permanent deletion. `update` lets the hub update the
+ * agent to the hub's version.
  */
-export const Tier = Schema.Literals(["git", "cleanup"]);
+export const Tier = Schema.Literals(["git", "cleanup", "update"]);
 export type Tier = typeof Tier.Type;
 
 export const BranchAtCommit = Schema.Struct({ name: Schema.String, sha: Schema.String });
@@ -165,7 +166,9 @@ export type TargetedRequest = typeof TargetedRequest.Type;
  * A list of names that keeps only those this version of FleetFrog knows. The hub and agents update
  * separately, so each side ignores names the other has added instead of refusing the connection.
  */
-function knownNames<const Names extends ReadonlyArray<string>>(names: Schema.Literals<Names>) {
+export function knownNames<const Names extends ReadonlyArray<string>>(
+  names: Schema.Literals<Names>,
+) {
   const isKnown = Schema.is(names);
 
   return Schema.Array(Schema.String).pipe(

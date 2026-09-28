@@ -85,13 +85,16 @@ The hub never sends commands. It asks for a named action on a checkout the agent
 - Clone accepts only HTTPS and SSH URLs without credentials, into a new folder inside one of the machine's discovery folders and outside hidden folders.
 - Git runs without a terminal, so it fails rather than prompting, and with hooks disabled, so a pull or clone never runs scripts from the repository.
 
-Each machine's owner decides what the hub may ask for. Git actions are allowed by default:
+Each machine's owner decides what the hub may ask for, in three tiers: `git` for fetching, pulling, cloning, switching branches and stashing, `cleanup` for archiving, the trash and deleting, and `update` for updating the agent to the hub's version. Every tier is allowed by default:
 
 ```sh
-fleetfrog deny git    # refuse fetch, pull and clone on this machine
-fleetfrog allow git   # allow them again
-fleetfrog status      # show the policy and where the audit log is
+fleetfrog deny git       # refuse Git actions on this machine
+fleetfrog allow git      # allow them again
+fleetfrog deny update    # update this agent only with fleetfrog update
+fleetfrog status         # show the policy and where the audit log is
 ```
+
+The policy file records each tier as allowed or denied. When an update adds a tier, the agent gives it its default the first time it runs and records that in the policy and the audit log, so a machine keeps its settings when a later version changes a default.
 
 The agent records every action it runs or refuses in a local audit log that the hub can't change: `~/.local/state/fleetfrog/actions.log` on Linux and `~/Library/Logs/FleetFrog/actions.log` on macOS. It keeps about 2 MB.
 

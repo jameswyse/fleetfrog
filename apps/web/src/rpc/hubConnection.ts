@@ -216,7 +216,7 @@ const failureMessages = {
   InvalidArchiveFolder:
     "That folder can't be this machine's Archive folder. It may hold one of its project folders.",
   AgentNotUpdatable:
-    "The agent can't update now. It may be offline, already updating or already on the hub's version.",
+    "The agent can't update now. It may be offline, not allowed to update, already updating or already on the hub's version.",
   RpcClientError: "The hub did not respond. Check that it is still running.",
 } satisfies Record<DashboardError["_tag"], string>;
 

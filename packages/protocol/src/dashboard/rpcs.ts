@@ -39,8 +39,8 @@ export class InvalidArchiveFolder extends Schema.TaggedError<InvalidArchiveFolde
 ) {}
 
 /**
- * The hub can't update the machine's agent now: it's offline, built from source, already updating
- * or already on the hub's version.
+ * The hub can't update the machine's agent now: it's offline, built from source, not allowed to
+ * update by its owner, already updating or already on the hub's version.
  */
 export class AgentNotUpdatable extends Schema.TaggedError<AgentNotUpdatable>()(
   "AgentNotUpdatable",

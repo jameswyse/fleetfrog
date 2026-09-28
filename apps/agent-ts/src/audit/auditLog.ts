@@ -29,6 +29,12 @@ export type AuditEntry =
   /** A project folder the hub asked for, created because it was missing. */
   | { readonly event: "FolderCreated"; readonly path: string }
   | { readonly event: "PolicyChanged"; readonly allowedTiers: ReadonlyArray<Tier> }
+  /** Tiers the owner hadn't decided, such as ones added in an update, recorded at their defaults. */
+  | {
+      readonly event: "PolicyDefaultsApplied";
+      readonly allowedTiers: ReadonlyArray<Tier>;
+      readonly deniedTiers: ReadonlyArray<Tier>;
+    }
   | { readonly event: "Paired"; readonly agentUrl: string; readonly machineId: MachineId };
 
 /** At this size the log moves to `actions.log.1`, replacing the previous one. */
