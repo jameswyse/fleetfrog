@@ -5,6 +5,7 @@ import { createRouter, RouterProvider } from "@tanstack/react-router";
 
 import { routeTree } from "./routeTree.gen.ts";
 import { startHubConnection } from "./rpc/hubConnection.ts";
+import { refreshSession } from "./rpc/session.ts";
 
 import "./styles.css";
 
@@ -22,6 +23,7 @@ if (root === null) {
   throw new Error("The page is missing its #root element.");
 }
 
+void refreshSession();
 startHubConnection();
 createRoot(root).render(
   <StrictMode>

@@ -57,6 +57,7 @@ export type Avatar = typeof Avatar.Type;
 
 export const avatarMediaTypes = ["image/png", "image/jpeg", "image/webp"] as const;
 export const AvatarMediaType = Schema.Literals(avatarMediaTypes);
+export type AvatarMediaType = typeof AvatarMediaType.Type;
 export const maximumAvatarBytes = 512 * 1024;
 
 export const User = Schema.Struct({

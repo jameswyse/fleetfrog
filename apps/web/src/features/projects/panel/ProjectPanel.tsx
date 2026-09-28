@@ -2,6 +2,8 @@ import { useId } from "react";
 
 import { Link } from "@tanstack/react-router";
 
+import { useRole } from "@/rpc/session.ts";
+
 import { selectionKey } from "../ProjectGrid.tsx";
 import { CellPanel } from "./CellPanel.tsx";
 import { FleetOverview } from "./FleetOverview.tsx";
@@ -44,6 +46,7 @@ export function ProjectPanel({
   readonly onClose: () => void;
 }) {
   const headingId = useId();
+  const role = useRole();
 
   if (selection === null) {
     return (
@@ -80,13 +83,18 @@ export function ProjectPanel({
           <p className="px-5 text-sm text-ink-muted">
             {archived ? (
               <>
-                Every checkout of it is in the Archive folder.{" "}
-                <Link
-                  to="/cleanup/archive"
-                  className="text-accent-text underline-offset-2 hover:underline"
-                >
-                  See the archive
-                </Link>
+                Every checkout of it is in the Archive folder.
+                {role === "admin" && (
+                  <>
+                    {" "}
+                    <Link
+                      to="/cleanup/archive"
+                      className="text-accent-text underline-offset-2 hover:underline"
+                    >
+                      See the archive
+                    </Link>
+                  </>
+                )}
               </>
             ) : (
               "No machine has it any more, or it was matched with another repository."

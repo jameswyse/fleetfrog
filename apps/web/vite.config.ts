@@ -20,8 +20,13 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    // The hub serves the RPC socket and project icons; in development Vite serves the dashboard
-    // and forwards both.
-    proxy: { "/rpc": { target: hubUrl, ws: true }, "/project-icons": { target: hubUrl } },
+    // The hub serves the RPC socket, sign-in, project icons and pictures; in development Vite
+    // serves the dashboard and forwards the rest.
+    proxy: {
+      "/rpc": { target: hubUrl, ws: true },
+      "/project-icons": { target: hubUrl },
+      "/auth": { target: hubUrl },
+      "/avatars": { target: hubUrl },
+    },
   },
 });

@@ -16,6 +16,8 @@ import { Socket } from "effect/unstable/socket";
 
 import { DashboardRpcs } from "@fleetfrog/protocol/dashboard/rpcs";
 
+import { refreshSession, whenAccessible } from "./session.ts";
+
 import type { RpcClientError } from "effect/unstable/rpc";
 
 import type {
@@ -198,10 +200,20 @@ const session = Effect.gen(function* () {
   ),
 );
 
-/** Connects to the hub for the lifetime of the page, reconnecting after any drop. */
+/** Forgets what the last user could see, so the next one starts from nothing. */
+function forget(): void {
+  runs = noRuns;
+  setState({ _tag: "Connecting" });
+}
+
+/**
+ * Connects to the hub for the lifetime of the page, reconnecting after any drop. A drop can mean
+ * the session ended, so it asks who is signed in first, and waits while no one is.
+ */
 export function startHubConnection(): void {
   Effect.runFork(
-    session.pipe(
+    Effect.promise(whenAccessible).pipe(
+      Effect.andThen(session),
       Effect.catchCause((cause) =>
         Effect.sync(() => {
           if (isSchemaMismatch(cause) && !outdated) {
@@ -211,6 +223,14 @@ export function startHubConnection(): void {
         }).pipe(Effect.andThen(Effect.logWarning("Hub connection lost", cause))),
       ),
       Effect.andThen(Effect.sleep(retryDelay)),
+      Effect.andThen(Effect.promise(refreshSession)),
+      Effect.tap((current) =>
+        Effect.sync(() => {
+          if (current._tag === "Known" && current.session._tag === "SignedOut") {
+            forget();
+          }
+        }),
+      ),
       Effect.forever,
     ),
   );

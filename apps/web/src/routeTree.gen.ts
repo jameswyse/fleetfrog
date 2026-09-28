@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppAccountRouteImport } from './routes/_app/account'
 import { Route as AppActivityRouteImport } from './routes/_app/activity'
 import { Route as AppCleanupRouteImport } from './routes/_app/cleanup'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
@@ -31,9 +33,19 @@ const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccountRoute = AppAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
   getParentRoute: () => AppRoute,
 } as any)
 const AppActivityRoute = AppActivityRouteImport.update({
@@ -117,6 +129,8 @@ const AppSettingsIntegrationsT3CodeRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/login': typeof LoginRoute
+  '/account': typeof AppAccountRoute
   '/activity': typeof AppActivityRouteWithChildren
   '/cleanup': typeof AppCleanupRouteWithChildren
   '/settings': typeof AppSettingsRouteWithChildren
@@ -134,6 +148,8 @@ export interface FileRoutesByFullPath {
   '/settings/integrations/': typeof AppSettingsIntegrationsIndexRoute
 }
 export interface FileRoutesByTo {
+  '/login': typeof LoginRoute
+  '/account': typeof AppAccountRoute
   '/': typeof AppIndexRoute
   '/activity/running': typeof AppActivityRunningRoute
   '/cleanup/archive': typeof AppCleanupArchiveRoute
@@ -151,6 +167,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
+  '/login': typeof LoginRoute
+  '/_app/account': typeof AppAccountRoute
   '/_app/activity': typeof AppActivityRouteWithChildren
   '/_app/cleanup': typeof AppCleanupRouteWithChildren
   '/_app/settings': typeof AppSettingsRouteWithChildren
@@ -172,6 +190,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/login'
+    | '/account'
     | '/activity'
     | '/cleanup'
     | '/settings'
@@ -189,6 +209,8 @@ export interface FileRouteTypes {
     | '/settings/integrations/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/login'
+    | '/account'
     | '/'
     | '/activity/running'
     | '/cleanup/archive'
@@ -205,6 +227,8 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_app'
+    | '/login'
+    | '/_app/account'
     | '/_app/activity'
     | '/_app/cleanup'
     | '/_app/settings'
@@ -225,6 +249,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
+  LoginRoute: typeof LoginRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -236,11 +261,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/': {
       id: '/_app/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/account': {
+      id: '/_app/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AppAccountRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/activity': {
@@ -406,6 +445,7 @@ const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppAccountRoute: typeof AppAccountRoute
   AppActivityRoute: typeof AppActivityRouteWithChildren
   AppCleanupRoute: typeof AppCleanupRouteWithChildren
   AppSettingsRoute: typeof AppSettingsRouteWithChildren
@@ -413,6 +453,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAccountRoute: AppAccountRoute,
   AppActivityRoute: AppActivityRouteWithChildren,
   AppCleanupRoute: AppCleanupRouteWithChildren,
   AppSettingsRoute: AppSettingsRouteWithChildren,
@@ -423,6 +464,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
+  LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

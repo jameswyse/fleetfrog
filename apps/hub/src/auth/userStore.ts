@@ -64,8 +64,6 @@ export interface UploadedAvatar {
   readonly data: Uint8Array;
 }
 
-type AvatarMediaType = typeof AvatarMediaType.Type;
-
 function toRecord(row: typeof UserRow.Type): UserRecord {
   return {
     id: row.id,

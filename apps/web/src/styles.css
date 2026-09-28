@@ -211,3 +211,17 @@
     background: var(--scrim);
   }
 }
+
+/* The sign-in page's one-time entrance: each part rises into place a moment after the one above. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rise-in {
+    animation: rise-in 500ms cubic-bezier(0.2, 0, 0, 1) both;
+  }
+}

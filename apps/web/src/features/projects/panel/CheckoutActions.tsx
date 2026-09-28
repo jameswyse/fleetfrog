@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { ArchiveIcon, Trash2Icon } from "lucide-react";
 
 import { requestHub, useRuns } from "@/rpc/hubConnection.ts";
+import { useMayRun } from "@/rpc/session.ts";
 import { Button } from "@/ui/Button.tsx";
 import { Menu, MenuItem } from "@/ui/Menu.tsx";
 
@@ -68,6 +69,8 @@ export function CheckoutActions({
         }
       : planArchive({ machine, checkout: archiveTarget });
   // A linked worktree is removed from its main checkout rather than moved to the trash.
+  // Archiving and the trash are cleanup, which only admins see.
+  const mayClean = useMayRun("Trash");
   const trashBlocked = machineBlocker(machine, linked === null ? "Trash" : "RemoveWorktree");
   const scope = { _tag: "Checkout", machineId: machine.id, path: checkout.path } as const;
   const agents = busyThreads(machine, [checkout.path]);
@@ -100,45 +103,47 @@ export function CheckoutActions({
             Stash changes
           </Button>
         )}
-        <Menu
-          label="More actions for this checkout"
-          trigger={{
-            content: "More…",
-            className:
-              "inline-flex min-h-9 items-center rounded-md px-3 text-sm font-medium text-ink-muted hover:bg-surface-raised hover:text-ink",
-          }}
-        >
-          {(close) => (
-            <>
-              <MenuItem
-                icon={<ArchiveIcon />}
-                disabled={archive._tag === "Blocked" || active !== undefined}
-                onClick={() => {
-                  close();
-                  setDialog("archive");
-                }}
-              >
-                Archive…
-              </MenuItem>
-              {archive._tag === "Blocked" && (
-                <p className="px-3 pb-2 text-xs text-ink-muted">{archive.reason}.</p>
-              )}
-              <MenuItem
-                icon={<Trash2Icon />}
-                disabled={trashBlocked !== null || active !== undefined}
-                onClick={() => {
-                  close();
-                  setDialog("trash");
-                }}
-              >
-                {linked === null ? "Move to the trash…" : "Remove worktree…"}
-              </MenuItem>
-              {trashBlocked !== null && (
-                <p className="px-3 pb-2 text-xs text-ink-muted">{trashBlocked}.</p>
-              )}
-            </>
-          )}
-        </Menu>
+        {mayClean && (
+          <Menu
+            label="More actions for this checkout"
+            trigger={{
+              content: "More…",
+              className:
+                "inline-flex min-h-9 items-center rounded-md px-3 text-sm font-medium text-ink-muted hover:bg-surface-raised hover:text-ink",
+            }}
+          >
+            {(close) => (
+              <>
+                <MenuItem
+                  icon={<ArchiveIcon />}
+                  disabled={archive._tag === "Blocked" || active !== undefined}
+                  onClick={() => {
+                    close();
+                    setDialog("archive");
+                  }}
+                >
+                  Archive…
+                </MenuItem>
+                {archive._tag === "Blocked" && (
+                  <p className="px-3 pb-2 text-xs text-ink-muted">{archive.reason}.</p>
+                )}
+                <MenuItem
+                  icon={<Trash2Icon />}
+                  disabled={trashBlocked !== null || active !== undefined}
+                  onClick={() => {
+                    close();
+                    setDialog("trash");
+                  }}
+                >
+                  {linked === null ? "Move to the trash…" : "Remove worktree…"}
+                </MenuItem>
+                {trashBlocked !== null && (
+                  <p className="px-3 pb-2 text-xs text-ink-muted">{trashBlocked}.</p>
+                )}
+              </>
+            )}
+          </Menu>
+        )}
         {active !== undefined && (
           <Button
             tone="quiet"

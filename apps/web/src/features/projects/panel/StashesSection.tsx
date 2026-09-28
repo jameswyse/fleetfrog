@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ArchiveIcon } from "lucide-react";
 
 import { useRuns } from "@/rpc/hubConnection.ts";
+import { useMayRun } from "@/rpc/session.ts";
 import { Button } from "@/ui/Button.tsx";
 import { Dialog } from "@/ui/Dialog.tsx";
 import { plural } from "@/ui/plural.ts";
@@ -104,6 +105,7 @@ export function StashesSection({
   const [dropping, setDropping] = useState<readonly [KnownStash, ...Array<KnownStash>] | null>(
     null,
   );
+  const mayDrop = useMayRun("DropStashes");
   const blocked = machineBlocker(machine, "DropStashes");
   const busy = activeRunFor(runs, { machineId: machine.id, checkout }) !== undefined;
   const known = git.stashes.items.filter(isKnown);
@@ -121,7 +123,7 @@ export function StashesSection({
               {stash.index}
             </span>
             <span className="min-w-0 flex-1 break-words">{stash.message}</span>
-            {isKnown(stash) && blocked === null && (
+            {isKnown(stash) && mayDrop && blocked === null && (
               <button
                 type="button"
                 disabled={busy}
@@ -135,7 +137,7 @@ export function StashesSection({
           </li>
         )}
       />
-      {first !== undefined && rest.length > 0 && blocked === null && (
+      {first !== undefined && rest.length > 0 && mayDrop && blocked === null && (
         <div className="mt-3 border-t border-line pt-3">
           <Button disabled={busy} onClick={() => setDropping([first, ...rest])}>
             {known.length === git.stashes.total
@@ -144,7 +146,7 @@ export function StashesSection({
           </Button>
         </div>
       )}
-      {blocked !== null && <p className="mt-2 text-xs text-ink-muted">{blocked}.</p>}
+      {mayDrop && blocked !== null && <p className="mt-2 text-xs text-ink-muted">{blocked}.</p>}
       {dropping !== null && (
         <DropStashesDialog
           machine={machine}

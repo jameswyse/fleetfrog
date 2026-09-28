@@ -1,18 +1,22 @@
-import { Link, Outlet } from "@tanstack/react-router";
+import { useEffect } from "react";
+
+import { Link, Outlet, useRouter } from "@tanstack/react-router";
 
 import { knownFleet, useHub, useRuns } from "@/rpc/hubConnection.ts";
+import { isSignedOut, useRole, useSession } from "@/rpc/session.ts";
 import { Logo } from "@/ui/Logo.tsx";
 import { Spinner } from "@/ui/Spinner.tsx";
 
 import { t3CodeIssues } from "../settings/integrations/t3CodeHealth.ts";
 import { HubStatus } from "./HubStatus.tsx";
 import { StaleNotice } from "./StaleNotice.tsx";
+import { UserMenu } from "./UserMenu.tsx";
 
 const navigation = [
-  { to: "/", label: "Projects" },
-  { to: "/cleanup", label: "Cleanup" },
-  { to: "/activity", label: "Activity" },
-  { to: "/settings", label: "Settings" },
+  { to: "/", label: "Projects", adminOnly: false },
+  { to: "/cleanup", label: "Cleanup", adminOnly: true },
+  { to: "/activity", label: "Activity", adminOnly: false },
+  { to: "/settings", label: "Settings", adminOnly: true },
 ] as const;
 
 /** How many runs are queued or running, linking to where they can be followed. */
@@ -38,10 +42,26 @@ function RunningIndicator() {
 }
 
 export function AppShell() {
+  const session = useSession();
+  const role = useRole();
+  const router = useRouter();
+  const signedOut = isSignedOut(session);
   const hub = useHub();
   const fleet = knownFleet(hub);
   // Settings is where an integration that needs attention says so, which people rarely visit.
   const settingsAttention = fleet !== null && t3CodeIssues(fleet).length > 0;
+
+  // The session can end while a page is open, such as when someone signs out elsewhere. Loading
+  // the route again sends them to the sign-in page.
+  useEffect(() => {
+    if (signedOut) {
+      void router.invalidate();
+    }
+  }, [router, signedOut]);
+
+  if (signedOut) {
+    return null;
+  }
 
   return (
     // A page marked `data-fills-viewport` gets exactly the window's height and scrolls inside
@@ -60,29 +80,32 @@ export function AppShell() {
           </Link>
           <nav aria-label="Main">
             <ul className="flex gap-1">
-              {navigation.map(({ to, label }) => (
-                <li key={to}>
-                  <Link
-                    to={to}
-                    // Settings stays current on every settings page; Projects only on its own.
-                    activeOptions={{ exact: to === "/", includeSearch: false }}
-                    className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-ink-muted hover:bg-surface-raised hover:text-ink aria-[current=page]:bg-surface-raised aria-[current=page]:text-ink"
-                  >
-                    {label}
-                    {to === "/settings" && settingsAttention && (
-                      <>
-                        <span aria-hidden="true" className="size-1.5 rounded-full bg-danger" />
-                        <span className="sr-only">, needs attention</span>
-                      </>
-                    )}
-                  </Link>
-                </li>
-              ))}
+              {navigation
+                .filter(({ adminOnly }) => role === "admin" || !adminOnly)
+                .map(({ to, label }) => (
+                  <li key={to}>
+                    <Link
+                      to={to}
+                      // Settings stays current on every settings page; Projects only on its own.
+                      activeOptions={{ exact: to === "/", includeSearch: false }}
+                      className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-ink-muted hover:bg-surface-raised hover:text-ink aria-[current=page]:bg-surface-raised aria-[current=page]:text-ink"
+                    >
+                      {label}
+                      {to === "/settings" && settingsAttention && (
+                        <>
+                          <span aria-hidden="true" className="size-1.5 rounded-full bg-danger" />
+                          <span className="sr-only">, needs attention</span>
+                        </>
+                      )}
+                    </Link>
+                  </li>
+                ))}
             </ul>
           </nav>
           <div className="ms-auto flex flex-wrap items-center gap-x-4 gap-y-2">
             <HubStatus />
             <RunningIndicator />
+            <UserMenu />
           </div>
         </div>
       </header>

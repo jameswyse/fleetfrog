@@ -3,6 +3,7 @@ import { useState } from "react";
 import { BotIcon, GitForkIcon } from "lucide-react";
 
 import { useRuns } from "@/rpc/hubConnection.ts";
+import { useMayRun } from "@/rpc/session.ts";
 
 import { machineBlocker } from "../../actions/actionAvailability.ts";
 import { activeRunFor } from "../../actions/runLookup.ts";
@@ -32,6 +33,7 @@ export function WorktreesSection({
 }) {
   const runs = useRuns();
   const [removing, setRemoving] = useState<LinkedWorktree | null>(null);
+  const mayRemove = useMayRun("RemoveWorktree");
   const blocked = machineBlocker(machine, "RemoveWorktree");
   const busy = activeRunFor(runs, { machineId: machine.id, checkout }) !== undefined;
 
@@ -69,7 +71,7 @@ export function WorktreesSection({
                   </span>
                 )}
               </span>
-              {blocked === null && (
+              {mayRemove && blocked === null && (
                 <button
                   type="button"
                   disabled={busy}
@@ -84,7 +86,7 @@ export function WorktreesSection({
           );
         })}
       </ul>
-      {blocked !== null && <p className="mt-2 text-xs text-ink-muted">{blocked}.</p>}
+      {mayRemove && blocked !== null && <p className="mt-2 text-xs text-ink-muted">{blocked}.</p>}
       {removing !== null && (
         <RemoveWorktreeDialog
           machine={machine}

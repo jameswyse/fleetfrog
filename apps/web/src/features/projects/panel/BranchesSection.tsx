@@ -3,6 +3,7 @@ import { useState } from "react";
 import { GitBranchIcon } from "lucide-react";
 
 import { useRuns } from "@/rpc/hubConnection.ts";
+import { useMayRun } from "@/rpc/session.ts";
 import { Button } from "@/ui/Button.tsx";
 
 import { machineBlocker, switchSkipReason } from "../../actions/actionAvailability.ts";
@@ -94,6 +95,7 @@ export function BranchesSection({
     : null;
 
   const { candidates, kept } = tidyCandidates({ checkout, git, inOtherWorktrees: elsewhere });
+  const mayTidy = useMayRun("DeleteBranches");
   const tidyBlocked = machineBlocker(machine, "DeleteBranches");
 
   const switchNow = (branch: string, onStarted?: () => void) =>
@@ -180,7 +182,7 @@ export function BranchesSection({
           {failure}
         </p>
       )}
-      {candidates.length > 0 && (
+      {mayTidy && candidates.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line pt-3">
           <Button disabled={tidyBlocked !== null || busy} onClick={() => setTidying(true)}>
             Tidy branches…
