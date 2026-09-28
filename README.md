@@ -65,7 +65,15 @@ Update the hub before the agents, because an older hub can't read every report f
 docker compose pull && docker compose up -d
 ```
 
-Then run the install script again on each machine. It replaces the agent and restarts its service. Each [release](https://github.com/jameswyse/fleetfrog/releases) lists what changed.
+Then update the agents to the hub's version. The hub and agents share one version number, and an agent only ever updates to the version its hub runs. In the dashboard, **Settings › Fleet** marks each machine whose agent is behind and has a button that updates them all. A machine's own page updates just that one. On a machine itself, run:
+
+```sh
+fleetfrog update
+```
+
+It asks the hub for its version, lists the agent's changes since the installed version and asks before updating. Pass `--yes` to skip the question. It downloads the release, checks it against the release's checksums, replaces the agent and restarts its service. Each [release](https://github.com/jameswyse/fleetfrog/releases) lists what changed.
+
+Agents from 0.1.0 and earlier can't update themselves, so run the install script again on those machines once. An agent built from source updates with Git instead.
 
 ## Actions
 
@@ -98,6 +106,8 @@ pnpm install
 pnpm --filter @fleetfrog/agent-rs build
 apps/agent-rs/dist/fleetfrog --version
 ```
+
+A build from source never updates itself, so a release can't replace your own changes. Pull and build again to update it.
 
 To build the hub image from a checkout instead of pulling it:
 

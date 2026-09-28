@@ -9,6 +9,7 @@ import { FleetFeed } from "../catalogue/fleetFeed.ts";
 import { ProjectIconStore } from "../catalogue/projectIconStore.ts";
 import { MachineStore } from "../machines/machineStore.ts";
 import { AgentSessions } from "./agentSessions.ts";
+import { AgentUpdates } from "./agentUpdates.ts";
 import { FolderRequests } from "./folderRequests.ts";
 import { InspectionRequests } from "./inspectionRequests.ts";
 
@@ -25,6 +26,7 @@ export const AgentHandlers = AgentRpcs.toLayer(
     const dispatcher = yield* ActionDispatcher;
     const folders = yield* FolderRequests;
     const inspections = yield* InspectionRequests;
+    const updates = yield* AgentUpdates;
 
     return {
       Connect: ({ info, capabilities }) =>
@@ -33,6 +35,7 @@ export const AgentHandlers = AgentRpcs.toLayer(
             const { id } = yield* CurrentMachine;
 
             yield* machines.recordConnection({ machineId: id, info });
+            yield* updates.connected({ machineId: id, agentVersion: info.agentVersion });
             yield* feed.invalidate;
 
             return yield* sessions.connect({ machineId: id, capabilities });
@@ -103,6 +106,9 @@ export const AgentHandlers = AgentRpcs.toLayer(
         CurrentMachine.use(({ id }) => folders.answer({ machineId: id, requestId, outcome })),
       ReportInspection: ({ requestId, result }) =>
         CurrentMachine.use(({ id }) => inspections.answer({ machineId: id, requestId, result })),
+      TargetVersion: () => Effect.succeed({ version: updates.targetVersion }),
+      ReportUpdateFailure: ({ version, message }) =>
+        CurrentMachine.use(({ id }) => updates.fail({ machineId: id, version, message })),
     };
   }),
 );

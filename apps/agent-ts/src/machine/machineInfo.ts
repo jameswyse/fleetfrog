@@ -18,6 +18,13 @@ const prettyHostnameLine = /^PRETTY_HOSTNAME=(?<value>.*)$/m;
 
 export const agentVersion = packageJson.version;
 
+/**
+ * Why this agent can't update itself, for `fleetfrog update` and a hub's `Update` command. It runs
+ * from a checkout on Node, so Git updates it.
+ */
+export const runsFromSource =
+  "This agent runs from source, so it can't update itself. Update it with Git and restart it.";
+
 function currentPlatform(): Platform {
   if (process.platform === "linux" || process.platform === "darwin") {
     return process.platform;

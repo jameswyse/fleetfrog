@@ -51,6 +51,7 @@ function machineWith(threads: ReadonlyArray<T3CodeThread>): Machine {
     lastStatusAt: null,
     pairedAt: at,
     usage: null,
+    update: null,
     trash: [],
     t3Code: {
       database: "/Users/dev/.t3/userdata/state.sqlite",

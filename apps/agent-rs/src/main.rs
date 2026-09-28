@@ -10,6 +10,7 @@ mod discovery;
 mod folders;
 mod git;
 mod github;
+mod http;
 mod hub;
 mod inspect;
 mod instance;
@@ -25,7 +26,10 @@ mod service;
 mod store;
 mod t3code;
 mod time;
+mod update;
 
+use std::io::{IsTerminal, Write};
+use std::path::Path;
 use std::process::ExitCode;
 
 use protocol::Tier;
@@ -44,6 +48,8 @@ Commands:
   service uninstall       Stop the background agent and remove its service
   allow <tier>            Let the hub run a tier of actions here
   deny <tier>             Stop the hub from running a tier of actions here
+  update                  Update this agent to the version its hub runs
+      -y, --yes           Update without asking first
 
 Environment:
   FLEETFROG_INSTANCE  Run a second agent beside the default one, such as dev, with its own pairing,
@@ -156,8 +162,7 @@ fn pair(arguments: &[String]) -> ExitCode {
 /// exits with 130 once running actions have finished, as the TypeScript agent does.
 fn run() -> ExitCode {
     let runtime = runtime();
-
-    runtime.block_on(async {
+    let stopped = runtime.block_on(async {
         let stopping = process::Cancel::new();
         let signals = {
             let stopping = stopping.clone();
@@ -183,27 +188,46 @@ fn run() -> ExitCode {
         let stopped = agent::run_agent(stopping).await;
 
         signals.abort();
+        stopped
+    });
 
-        match stopped {
-            agent::AgentStopped::NotPaired => {
-                eprintln!(
-                    "This machine is not paired yet. Run `fleetfrog pair <pairing-string>` first."
-                );
-                ExitCode::SUCCESS
-            }
-            agent::AgentStopped::MachineRemoved => {
-                eprintln!(
-                    "The hub no longer recognises this machine. Pair it again from the dashboard."
-                );
-                ExitCode::SUCCESS
-            }
-            agent::AgentStopped::ConfigUnavailable(error) => report_failure(&format!(
-                "Could not read the pairing from {}: {}",
-                error.path, error.message
-            )),
-            agent::AgentStopped::Stopped => ExitCode::from(130),
+    match stopped {
+        agent::AgentStopped::NotPaired => {
+            eprintln!(
+                "This machine is not paired yet. Run `fleetfrog pair <pairing-string>` first."
+            );
+            ExitCode::SUCCESS
         }
-    })
+        agent::AgentStopped::MachineRemoved => {
+            eprintln!(
+                "The hub no longer recognises this machine. Pair it again from the dashboard."
+            );
+            ExitCode::SUCCESS
+        }
+        agent::AgentStopped::ConfigUnavailable(error) => report_failure(&format!(
+            "Could not read the pairing from {}: {}",
+            error.path, error.message
+        )),
+        agent::AgentStopped::Stopped => ExitCode::from(130),
+        agent::AgentStopped::Updated { executable } => {
+            runtime.shutdown_background();
+            restart(&executable)
+        }
+    }
+}
+
+/// Becomes the updated agent at `executable`, keeping this process's id and environment, so the
+/// service manager sees its service carry on and a named instance stays that instance. When that
+/// fails, exiting with failure has the service manager start the new binary instead.
+fn restart(executable: &Path) -> ExitCode {
+    use std::os::unix::process::CommandExt;
+
+    log::info("Restarting on the updated agent");
+
+    let error = std::process::Command::new(executable).arg("run").exec();
+
+    log::error("Could not restart on the updated agent", error);
+    ExitCode::FAILURE
 }
 
 fn status() -> ExitCode {
@@ -328,6 +352,174 @@ fn set_tier(arguments: &[String], allow: bool) -> ExitCode {
 
             ExitCode::SUCCESS
         }
+    }
+}
+
+/// Asks before updating. Without a terminal to ask on, `--yes` has to say so up front.
+fn confirm(version: &str) -> Result<bool, ExitCode> {
+    if !std::io::stdin().is_terminal() {
+        return Err(report_failure(
+            "Standard input isn't a terminal, so the update can't be confirmed. Pass --yes to update without asking.",
+        ));
+    }
+
+    print!("Update the agent to {version}? [y/N] ");
+    let _ = std::io::stdout().flush();
+
+    let mut answer = String::new();
+
+    if std::io::stdin().read_line(&mut answer).is_err() {
+        return Ok(false);
+    }
+
+    Ok(matches!(
+        answer.trim().to_ascii_lowercase().as_str(),
+        "y" | "yes"
+    ))
+}
+
+/// Prints what changed in the agent after `installed`, up to `target`.
+fn print_changes(runtime: &tokio::runtime::Runtime, installed: &str, target: &str) {
+    let page = update::changelog::page_url(target);
+
+    match runtime.block_on(update::changelog::fetch(target)) {
+        Err(error) => println!("Could not fetch the changelog: {error}."),
+        Ok(markdown) => {
+            let releases =
+                update::changelog::between(update::changelog::parse(&markdown), installed, target);
+            let (lines, omitted) =
+                update::changelog::summarise(&releases, update::changelog::ENTRY_LIMIT);
+
+            if lines.is_empty() {
+                println!("The agent has no changes of its own between {installed} and {target}.");
+            } else {
+                println!(
+                    "Changes to the agent since {installed}:\n\n{}\n",
+                    lines.join("\n")
+                );
+            }
+
+            if omitted > 0 {
+                println!(
+                    "Plus {omitted} more {}.",
+                    if omitted == 1 { "change" } else { "changes" }
+                );
+            }
+        }
+    }
+
+    println!("Full changelog: {page}\n");
+}
+
+/// Updates the agent to the version its hub runs, after showing what changed and asking. A
+/// service moves to the new binary and restarts on it, as the install script does.
+fn update_command(arguments: &[String]) -> ExitCode {
+    let mut yes = false;
+
+    for argument in arguments {
+        match argument.as_str() {
+            "-y" | "--yes" => yes = true,
+            flag if flag.starts_with('-') => {
+                return usage_error(&format!("Unknown option {flag}."));
+            }
+            value => return usage_error(&format!("Unexpected argument {value}.")),
+        }
+    }
+
+    if !update::UPDATES_ITSELF {
+        return report_failure(update::BUILT_FROM_SOURCE);
+    }
+
+    let config = match config::load_agent_config() {
+        Err(error) => {
+            return report_failure(&format!(
+                "Could not read the pairing from {}: {}",
+                error.path, error.message
+            ));
+        }
+        Ok(None) => {
+            return report_failure(
+                "This machine is not paired yet, so there's no hub to take a version from. Run `fleetfrog pair <pairing-string>` first.",
+            );
+        }
+        Ok(Some(config)) => config,
+    };
+    let runtime = runtime();
+    let current = machine::AGENT_VERSION;
+    let target = match runtime.block_on(update::target_version(&config)) {
+        Ok(version) => version,
+        Err(update::TargetError::Unreachable(message)) => {
+            return report_failure(&format!("Could not reach the hub: {message}"));
+        }
+        Err(update::TargetError::HubTooOld) => {
+            return report_failure(
+                "The hub is too old to say which version its agents should run. Update the hub first.",
+            );
+        }
+        Err(update::TargetError::MachineRemoved) => {
+            return report_failure(
+                "The hub no longer recognises this machine. Pair it again from the dashboard.",
+            );
+        }
+        Err(update::TargetError::Failed(message)) => {
+            return report_failure(&format!(
+                "The hub couldn't say which version to run: {message}"
+            ));
+        }
+    };
+
+    match update::compare_versions(current, &target) {
+        std::cmp::Ordering::Equal => {
+            println!("The agent is up to date with the hub on {current}.");
+            return ExitCode::SUCCESS;
+        }
+        std::cmp::Ordering::Greater => {
+            println!(
+                "The agent runs {current}, which is newer than the hub's {target}. Update the hub to match."
+            );
+            return ExitCode::SUCCESS;
+        }
+        std::cmp::Ordering::Less => {}
+    }
+
+    println!("The hub runs {target}, and this agent runs {current}.\n");
+    print_changes(&runtime, current, &target);
+
+    if !yes {
+        match confirm(&target) {
+            Err(code) => return code,
+            Ok(false) => {
+                println!("The agent wasn't updated.");
+                return ExitCode::SUCCESS;
+            }
+            Ok(true) => {}
+        }
+    }
+
+    let executable = match runtime.block_on(update::install(&target)) {
+        Ok(executable) => executable,
+        Err(message) => return report_failure(&message),
+    };
+
+    println!("Updated the agent to {target} at {}.", executable.display());
+
+    if !service::is_installed() {
+        println!("Restart any agent started with `fleetfrog run` to use the new version.");
+        return ExitCode::SUCCESS;
+    }
+
+    // Installing the service from the new binary moves it here and restarts it on the new version.
+    match std::process::Command::new(&executable)
+        .args(["service", "install"])
+        .status()
+    {
+        Ok(status) if status.success() => ExitCode::SUCCESS,
+        Ok(_) => report_failure(
+            "The agent's service didn't restart. Run `fleetfrog service install` to try again.",
+        ),
+        Err(error) => report_failure(&format!(
+            "The agent's service didn't restart: {error}. Run `fleetfrog service install` to try again."
+        )),
     }
 }
 
@@ -473,6 +665,7 @@ fn main() -> ExitCode {
         Some("service") => service_command(rest),
         Some("allow") => set_tier(rest, true),
         Some("deny") => set_tier(rest, false),
+        Some("update") => update_command(rest),
         Some("__scan") => scan(rest),
         Some("__inspect") => inspect(rest),
         Some("__t3code") => t3code(rest),

@@ -4,6 +4,7 @@
 
 use std::os::fd::AsFd;
 use std::os::unix::fs::MetadataExt;
+use std::path::PathBuf;
 
 use crate::instance;
 use crate::paths;
@@ -22,15 +23,16 @@ fn launchd_label() -> String {
     instance::named("net.fleetfrog.agent")
 }
 
+/// Where this agent's binary is, with symbolic links resolved, as a service starts it.
+pub fn agent_executable() -> Result<PathBuf, String> {
+    std::env::current_exe()
+        .and_then(std::fs::canonicalize)
+        .map_err(|error| format!("Cannot tell where the agent is installed: {error}"))
+}
+
 /// The command that starts this agent: this binary, with symbolic links resolved.
 fn agent_command() -> Result<Vec<String>, ServiceError> {
-    let executable = std::env::current_exe()
-        .and_then(std::fs::canonicalize)
-        .map_err(|error| {
-            ServiceError::CommandFailed(format!(
-                "Cannot tell where the agent is installed: {error}"
-            ))
-        })?;
+    let executable = agent_executable().map_err(ServiceError::CommandFailed)?;
 
     Ok(vec![
         executable.to_string_lossy().into_owned(),
@@ -241,6 +243,17 @@ async fn run(tool: &str, args: &[&str]) -> Result<String, ServiceError> {
 fn launchd_domain() -> String {
     // SAFETY: `getuid` has no preconditions.
     format!("gui/{}", unsafe { libc::getuid() })
+}
+
+/// Whether this instance's service is installed, whichever binary it starts.
+pub fn is_installed() -> bool {
+    let definition = if cfg!(target_os = "macos") {
+        launchd_plist_path()
+    } else {
+        systemd_unit_path()
+    };
+
+    std::path::Path::new(&definition).exists()
 }
 
 /// Installs and starts the agent as a per-user background service. Returns where it was written.

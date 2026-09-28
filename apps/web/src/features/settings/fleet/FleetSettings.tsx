@@ -5,6 +5,7 @@ import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
 import { SidebarPage } from "@/ui/SidebarLayout.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
+import { AgentUpdateChip, UpdateAllAgents } from "./AgentUpdate.tsx";
 import { ConnectionText, describeHardware, repositoryCount } from "./MachineStatus.tsx";
 import { formatDiskSize, formatMemory, formatMemoryInUse } from "./systemFormat.ts";
 import { LoadPills, UsageMeter } from "./SystemMeters.tsx";
@@ -43,14 +44,17 @@ function MachineRow({ fleet, machine }: { readonly fleet: Fleet; readonly machin
           />
           <MachineKindIcon kind={machineKind(machine)} className="size-5 text-ink-muted" />
           <div className="min-w-0">
-            <Link
-              to="/settings/fleet/$machineId"
-              params={{ machineId: machine.id }}
-              className="font-medium underline-offset-2 hover:underline"
-            >
-              {machineLabel(machine)}
-            </Link>
-            <span className="sr-only">{online ? ", online" : ", offline"}</span>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <Link
+                to="/settings/fleet/$machineId"
+                params={{ machineId: machine.id }}
+                className="font-medium underline-offset-2 hover:underline"
+              >
+                {machineLabel(machine)}
+              </Link>
+              <span className="sr-only">{online ? ", online" : ", offline"}</span>
+              <AgentUpdateChip fleet={fleet} machine={machine} />
+            </div>
             <p className="mt-0.5 text-ink-muted">{describeHardware(machine)}</p>
             {!online && (
               <p className="mt-0.5 text-ink-muted">
@@ -95,9 +99,12 @@ export function FleetSettings() {
     <SidebarPage
       title="Fleet"
       action={
-        <Link to="/settings/fleet/pair" className={pairLinkClass}>
-          Pair a machine
-        </Link>
+        <div className="flex items-center gap-3">
+          {fleet !== null && <UpdateAllAgents fleet={fleet} />}
+          <Link to="/settings/fleet/pair" className={pairLinkClass}>
+            Pair a machine
+          </Link>
+        </div>
       }
     >
       {fleet === null && (

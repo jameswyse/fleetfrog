@@ -44,6 +44,12 @@ pub enum AuditEntry {
         agent_url: String,
         machine_id: String,
     },
+    /// The agent replaced its binary with another release, from `fleetfrog update` or for the hub.
+    /// Only the Rust agent updates itself, so the TypeScript agent never writes this event.
+    AgentUpdated {
+        previous_version: String,
+        version: String,
+    },
 }
 
 /// At this size the log moves to `actions.log.1`, replacing the previous one.

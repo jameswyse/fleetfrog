@@ -11,6 +11,7 @@ import { FolderOutcome, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 import { ActionDispatcher } from "../actions/actionDispatcher.ts";
 import { ActivityFeed } from "../activity/activityFeed.ts";
 import { AgentSessions } from "../agents/agentSessions.ts";
+import { AgentUpdates } from "../agents/agentUpdates.ts";
 import { FolderRequests } from "../agents/folderRequests.ts";
 import { InspectionRequests } from "../agents/inspectionRequests.ts";
 import { FleetFeed } from "../catalogue/fleetFeed.ts";
@@ -35,6 +36,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
     const activity = yield* ActivityFeed;
     const folders = yield* FolderRequests;
     const inspections = yield* InspectionRequests;
+    const updates = yield* AgentUpdates;
 
     return {
       WatchFleet: () => Stream.unwrap(presence.watch.pipe(Effect.as(feed.watch))),
@@ -115,6 +117,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
             machineName: machineLabel(machine),
           });
         }),
+      UpdateAgent: ({ machineId }) => updates.start(machineId),
       UpdatePolling: ({ polling: settings }) =>
         polling
           .update(settings)

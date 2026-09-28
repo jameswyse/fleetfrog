@@ -95,6 +95,13 @@ export const HubCommand = Schema.TaggedUnion({
       Schema.withDecodingDefaultTypeKey(Effect.succeed(null)),
     ),
   },
+  /**
+   * Replaces the agent with the release of `version`, the hub's own, then restarts it on that
+   * version. Sent only to agents that advertise `updatesItself` and run an older version, which
+   * the agent checks again. A failure is answered by `ReportUpdateFailure`, and success by the
+   * agent reconnecting on the new version.
+   */
+  Update: { version: Schema.String },
 });
 export type HubCommand = typeof HubCommand.Type;
 
@@ -176,6 +183,15 @@ export class AgentRpcs extends RpcGroup.make(
    * disconnected machine never closes its socket.
    */
   Rpc.make("Heartbeat"),
+  /**
+   * The version this hub's agents should run: its own, since every FleetFrog package shares one
+   * version. `fleetfrog update` asks for it on a connection of its own, without `Connect`.
+   */
+  Rpc.make("TargetVersion", { success: Schema.Struct({ version: Schema.String }) }),
+  /** Answers an `Update` command that failed. The agent carries on with its current version. */
+  Rpc.make("ReportUpdateFailure", {
+    payload: { version: Schema.String, message: Schema.String },
+  }),
 ).middleware(AgentAuthentication) {}
 
 export const heartbeatSeconds = 15;

@@ -30,6 +30,7 @@ describe("agent capabilities", () => {
       allowedTiers: ["git"],
       policyReadable: true,
       createsFolders: true,
+      updatesItself: false,
     });
   });
 });

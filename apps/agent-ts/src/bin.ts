@@ -8,6 +8,7 @@ import { allowCommand, denyCommand } from "./commands/policyCommands.ts";
 import { runCommand } from "./commands/runCommand.ts";
 import { serviceCommand } from "./commands/serviceCommand.ts";
 import { statusCommand } from "./commands/statusCommand.ts";
+import { updateCommand } from "./commands/updateCommand.ts";
 import { currentInstance, instanceVariable, isValidInstanceName } from "./config/agentInstance.ts";
 import { agentVersion } from "./machine/machineInfo.ts";
 
@@ -20,6 +21,7 @@ const fleetfrog = Command.make("fleetfrog").pipe(
     serviceCommand,
     allowCommand,
     denyCommand,
+    updateCommand,
   ]),
 );
 

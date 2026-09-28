@@ -19,6 +19,7 @@ import { DashboardRpcs } from "@fleetfrog/protocol/dashboard/rpcs";
 import type { RpcClientError } from "effect/unstable/rpc";
 
 import type {
+  AgentNotUpdatable,
   BatchNotFound,
   InvalidArchiveFolder,
   MachineNotFound,
@@ -42,6 +43,7 @@ export type DashboardError =
   | NoCloneSource
   | BatchNotFound
   | InvalidArchiveFolder
+  | AgentNotUpdatable
   | RpcClientError.RpcClientError;
 
 /** The most recent fleet from the hub and when the dashboard received it. */
@@ -213,6 +215,8 @@ const failureMessages = {
   BatchNotFound: "That action is no longer in the history.",
   InvalidArchiveFolder:
     "That folder can't be this machine's Archive folder. It may hold one of its project folders.",
+  AgentNotUpdatable:
+    "The agent can't update now. It may be offline, already updating or already on the hub's version.",
   RpcClientError: "The hub did not respond. Check that it is still running.",
 } satisfies Record<DashboardError["_tag"], string>;
 

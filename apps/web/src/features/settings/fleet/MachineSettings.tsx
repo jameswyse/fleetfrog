@@ -13,6 +13,7 @@ import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { SettingsRow, SettingsSection, SideDetail, SidePanel } from "../SettingsSection.tsx";
 import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
+import { AgentUpdateRow } from "./AgentUpdate.tsx";
 import {
   ArchiveFolderField,
   archiveFolderCreator,
@@ -250,7 +251,7 @@ function ConfigurationSection({
 }
 
 /** Things to do to the machine now, apart from its saved configuration. */
-function ActionsSection({ machine }: { readonly machine: Machine }) {
+function ActionsSection({ fleet, machine }: { readonly fleet: Fleet; readonly machine: Machine }) {
   const [rescanning, startRescan] = useTransition();
   const [notice, setNotice] = useState<Notice>({ _tag: "None" });
   const [removing, setRemoving] = useState(false);
@@ -274,6 +275,7 @@ function ActionsSection({ machine }: { readonly machine: Machine }) {
 
   return (
     <SettingsSection title="Actions">
+      <AgentUpdateRow fleet={fleet} machine={machine} />
       <SettingsRow
         title="Rescan"
         description="Search the project folders and read every checkout again now."
@@ -363,7 +365,7 @@ export function MachineSettings() {
       }
     >
       <ConfigurationSection fleet={fleet} machine={machine} />
-      <ActionsSection machine={machine} />
+      <ActionsSection fleet={fleet} machine={machine} />
     </SidebarPage>
   );
 }

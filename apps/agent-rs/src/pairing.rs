@@ -9,7 +9,8 @@ use url::Url;
 
 use crate::audit::{self, AuditEntry};
 use crate::config::{AgentConfig, ConfigUnavailable, ensure_config_writable, save_agent_config};
-use crate::hub::{hub_endpoint, open_stream, post_json, tls};
+use crate::http::open_stream;
+use crate::hub::{hub_endpoint, post_json, tls};
 use crate::machine::{read_machine_info, suggest_discovery_roots};
 
 pub enum PairError {

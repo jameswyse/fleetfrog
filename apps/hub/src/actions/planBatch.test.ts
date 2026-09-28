@@ -20,6 +20,7 @@ const everything: AgentCapabilities = {
   allowedTiers: ["git"],
   policyReadable: true,
   createsFolders: true,
+  updatesItself: false,
 };
 
 function machine(
@@ -53,13 +54,20 @@ function machine(
     archiveFolderStatus: null,
     trash: [],
     t3Code: null,
+    update: null,
   };
 }
 
 const online = machine("aaaaaaaa-0000-4000-8000-000000000000", { capabilities: everything });
 const offline = machine("bbbbbbbb-0000-4000-8000-000000000000", "offline");
 const outdated = machine("cccccccc-0000-4000-8000-000000000000", {
-  capabilities: { actions: [], allowedTiers: [], policyReadable: true, createsFolders: true },
+  capabilities: {
+    actions: [],
+    allowedTiers: [],
+    policyReadable: true,
+    createsFolders: true,
+    updatesItself: false,
+  },
 });
 const locked = machine("dddddddd-0000-4000-8000-000000000000", {
   capabilities: {
@@ -67,6 +75,7 @@ const locked = machine("dddddddd-0000-4000-8000-000000000000", {
     allowedTiers: [],
     policyReadable: true,
     createsFolders: true,
+    updatesItself: false,
   },
 });
 
@@ -94,6 +103,7 @@ const shopKey = RepositoryKey.make("remote:github.com/acme/shop");
 
 function fleetWith(checkouts: Repository["checkouts"]): Fleet {
   return {
+    hubVersion: "0.0.0",
     machines: [online, offline, outdated, locked],
     repositories: [
       {

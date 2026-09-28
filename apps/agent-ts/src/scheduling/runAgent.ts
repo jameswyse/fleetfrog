@@ -9,7 +9,7 @@ import { loadAgentConfig } from "../config/agentConfig.ts";
 import { loadPolicy, policyPath } from "../config/agentPolicy.ts";
 import { makeHubClient } from "../connection/hubClient.ts";
 import { createProjectFolder } from "../folders/createProjectFolder.ts";
-import { readMachineInfo } from "../machine/machineInfo.ts";
+import { readMachineInfo, runsFromSource } from "../machine/machineInfo.ts";
 import { readSystemUsage } from "../machine/systemInfo.ts";
 import { defaultTrashDirectory } from "../trash/trashFolder.ts";
 import { makeScanner } from "./scanner.ts";
@@ -47,12 +47,14 @@ const readCapabilities = loadPolicy.pipe(
     allowedTiers,
     policyReadable: true,
     createsFolders: true,
+    updatesItself: false,
   })),
   Effect.orElseSucceed((): AgentCapabilities => ({
     actions: ActionKind.literals,
     allowedTiers: [],
     policyReadable: false,
     createsFolders: true,
+    updatesItself: false,
   })),
 );
 
@@ -283,6 +285,15 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
             Effect.forkIn(sessionScope),
             Effect.asVoid,
           ),
+        // This agent doesn't advertise `updatesItself`, so only a confused hub asks.
+        Update: ({ version }) =>
+          client
+            .ReportUpdateFailure({ version, message: runsFromSource })
+            .pipe(
+              Effect.catchCause((cause) =>
+                Effect.logWarning("Could not answer an update request", cause),
+              ),
+            ),
       });
     }),
     Effect.catchTag("Unauthorised", () => Effect.fail(new MachineRemoved())),

@@ -1,6 +1,7 @@
 import { Schema } from "effect";
 
 import { AgentCapabilities } from "./action.ts";
+import { AgentUpdate } from "./agentUpdate.ts";
 import { Checkout } from "./checkout.ts";
 import { MachineId, MachineInfo, MachineKind, SystemUsage } from "./machine.ts";
 import { PollingSettings } from "./polling.ts";
@@ -58,6 +59,8 @@ export const Machine = Schema.Struct({
   trash: Schema.Array(TrashedCheckout),
   /** What the agent last read from T3 Code, or null while the integration is off or before a read. */
   t3Code: Schema.NullOr(T3CodeStatus),
+  /** How updating the agent to the hub's version is going, or null when it isn't being updated. */
+  update: Schema.NullOr(AgentUpdate),
 });
 export type Machine = typeof Machine.Type;
 
@@ -85,6 +88,8 @@ export type Repository = typeof Repository.Type;
 
 /** Everything the dashboard shows, sent whole whenever something changes. */
 export const Fleet = Schema.Struct({
+  /** The hub's version, which is also the version its agents should run. */
+  hubVersion: Schema.String,
   machines: Schema.Array(Machine),
   /** Repositories with checkouts in the machines' project folders. */
   repositories: Schema.Array(Repository),

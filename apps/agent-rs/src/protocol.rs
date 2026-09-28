@@ -307,6 +307,8 @@ pub struct AgentCapabilities {
     pub allowed_tiers: Vec<Tier>,
     pub policy_readable: bool,
     pub creates_folders: bool,
+    /// Whether the hub may send `Update`. Only release builds can replace themselves.
+    pub updates_itself: bool,
 }
 
 // Checkouts.
@@ -899,6 +901,10 @@ pub enum HubCommand {
         path: String,
         #[serde(default)]
         worktree: Option<String>,
+    },
+    /// Replaces the agent with the release of `version`, the hub's own, then restarts on it.
+    Update {
+        version: String,
     },
 }
 

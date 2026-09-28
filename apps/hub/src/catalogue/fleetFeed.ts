@@ -1,6 +1,7 @@
 import { Context, Duration, Effect, Layer, PubSub, Stream, SubscriptionRef } from "effect";
 
 import { AgentSessions } from "../agents/agentSessions.ts";
+import { AgentUpdates } from "../agents/agentUpdates.ts";
 import { MachineStore } from "../machines/machineStore.ts";
 import { IntegrationsStore } from "../settings/integrationsStore.ts";
 import { PollingStore } from "../settings/pollingStore.ts";
@@ -28,6 +29,7 @@ export class FleetFeed extends Context.Service<
       const machines = yield* MachineStore;
       const checkouts = yield* CheckoutStore;
       const sessions = yield* AgentSessions;
+      const agentUpdates = yield* AgentUpdates;
       const polling = yield* PollingStore;
       const integrations = yield* IntegrationsStore;
       const invalidations = yield* PubSub.sliding<void>(1);
@@ -36,6 +38,8 @@ export class FleetFeed extends Context.Service<
         machines: machines.all,
         checkouts: checkouts.all,
         online: SubscriptionRef.get(sessions.online),
+        hubVersion: Effect.succeed(agentUpdates.targetVersion),
+        updates: SubscriptionRef.get(agentUpdates.updates),
         polling: SubscriptionRef.get(polling.settings),
         integrations: SubscriptionRef.get(integrations.settings),
       }).pipe(Effect.map(buildFleet));
@@ -47,6 +51,7 @@ export class FleetFeed extends Context.Service<
           [
             Stream.fromPubSub(invalidations),
             SubscriptionRef.changes(sessions.online).pipe(Stream.as(undefined)),
+            SubscriptionRef.changes(agentUpdates.updates).pipe(Stream.as(undefined)),
             SubscriptionRef.changes(polling.settings).pipe(Stream.as(undefined)),
             SubscriptionRef.changes(integrations.settings).pipe(Stream.as(undefined)),
           ],

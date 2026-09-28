@@ -6,6 +6,7 @@ import { ActivityFeed } from "./activity/activityFeed.ts";
 import { ActivityStore } from "./activity/activityStore.ts";
 import { AgentServer } from "./agents/agentServer.ts";
 import { AgentSessions } from "./agents/agentSessions.ts";
+import { AgentUpdates } from "./agents/agentUpdates.ts";
 import { FolderRequests } from "./agents/folderRequests.ts";
 import { InspectionRequests } from "./agents/inspectionRequests.ts";
 import { CheckoutStore } from "./catalogue/checkoutStore.ts";
@@ -27,6 +28,7 @@ const Hub = Layer.merge(AgentServer, DashboardServer).pipe(
   Layer.provide(InspectionRequests.layer),
   Layer.provideMerge(FleetFeed.layer),
   Layer.provideMerge(ActivityFeed.layer),
+  Layer.provideMerge(AgentUpdates.layer),
   Layer.provideMerge(AgentSessions.layer),
   Layer.provideMerge(
     Layer.mergeAll(

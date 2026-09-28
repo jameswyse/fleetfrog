@@ -185,13 +185,25 @@ export const AgentCapabilities = Schema.Struct({
   policyReadable: Schema.Boolean,
   /** Whether the agent can create a missing project folder. Agents from before it say nothing. */
   createsFolders: Schema.Boolean.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(false))),
+  /**
+   * Whether the agent can replace itself with the hub's version when the hub asks. Only release
+   * builds of the Rust agent can. One built from source is updated with Git, and agents from before
+   * updating say nothing.
+   */
+  updatesItself: Schema.Boolean.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(false))),
 });
 export type AgentCapabilities = typeof AgentCapabilities.Type;
 
 /** Agents from before actions existed advertise nothing, so the hub sends them none. */
 export const AdvertisedCapabilities = AgentCapabilities.pipe(
   Schema.withDecodingDefaultTypeKey(
-    Effect.succeed({ actions: [], allowedTiers: [], policyReadable: true, createsFolders: false }),
+    Effect.succeed({
+      actions: [],
+      allowedTiers: [],
+      policyReadable: true,
+      createsFolders: false,
+      updatesItself: false,
+    }),
   ),
 );
 

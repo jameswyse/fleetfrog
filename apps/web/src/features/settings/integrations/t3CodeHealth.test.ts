@@ -38,6 +38,7 @@ function machine(id: string, reading: T3CodeReading | null): Machine {
     lastStatusAt: null,
     pairedAt: at,
     usage: null,
+    update: null,
     trash: [],
     t3Code:
       reading === null
@@ -63,6 +64,7 @@ const read = (migration: number, unreadRecords = 0): T3CodeReading => ({
 describe("t3CodeIssues", () => {
   it("flags unreadable databases and schemas either side of the supported one", () => {
     const fleet: Fleet = {
+      hubVersion: "0.0.0",
       machines: [
         machine("aaaaaaaa-0000-4000-8000-000000000000", read(supportedT3CodeSchema.migration)),
         machine("bbbbbbbb-0000-4000-8000-000000000000", read(supportedT3CodeSchema.migration + 1)),

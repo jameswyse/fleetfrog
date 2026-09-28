@@ -1,10 +1,12 @@
 //! Staying connected to the hub: one session per connection, following the hub's commands, with
 //! reconnection and backoff between sessions.
 
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
+use tokio::sync::watch;
 use tokio::task::JoinHandle;
 
 use crate::actions::archive::Folders;
@@ -19,6 +21,7 @@ use crate::protocol::{
 };
 use crate::scanner::Scanner;
 use crate::store::default_trash_directory;
+use crate::update;
 
 /// Sent every `heartbeatSeconds`. The hub ends a connection that goes quiet.
 const HEARTBEAT: Duration = Duration::from_secs(15);
@@ -38,6 +41,10 @@ pub enum AgentStopped {
     ConfigUnavailable(ConfigUnavailable),
     /// The owner stopped the agent, such as with Ctrl-C or the service manager.
     Stopped,
+    /// The hub had the agent update itself, and the new binary is at `executable`.
+    Updated {
+        executable: PathBuf,
+    },
 }
 
 /// Every action this agent knows, with the tiers its policy allows. A damaged policy allows none.
@@ -48,12 +55,14 @@ fn read_capabilities() -> AgentCapabilities {
             allowed_tiers: policy.allowed_tiers,
             policy_readable: true,
             creates_folders: true,
+            updates_itself: update::UPDATES_ITSELF,
         },
         Err(_) => AgentCapabilities {
             actions: ACTION_KINDS.to_vec(),
             allowed_tiers: Vec::new(),
             policy_readable: false,
             creates_folders: true,
+            updates_itself: update::UPDATES_ITSELF,
         },
     }
 }
@@ -72,6 +81,8 @@ enum SessionEnd {
     Closed,
     Disconnected(String),
     MachineRemoved,
+    /// An update was installed, so the agent restarts on it.
+    Updated(PathBuf),
 }
 
 /// A command from a newer hub that this agent can't read.
@@ -126,6 +137,8 @@ struct Session {
     tasks: Mutex<Vec<tokio::task::AbortHandle>>,
     /// Inspections, which the runner stops when the session ends, so any fetch stops cleanly.
     inspections: Mutex<Vec<JoinHandle<()>>>,
+    /// Where an update the hub asked for was installed, once it has been. The session then ends.
+    installed: watch::Sender<Option<PathBuf>>,
 }
 
 impl Session {
@@ -355,7 +368,41 @@ impl Session {
                     }
                 }));
             }
+            HubCommand::Update { version } => self.update(version),
         }
+    }
+
+    /// Installs the hub's version beside the running session. An update the session ends before is
+    /// abandoned, and a failed one is reported so the hub stops waiting for the agent to restart.
+    fn update(self: &Arc<Self>, version: String) {
+        let session = self.clone();
+
+        log::info(&format!("Updating the agent to {version}"));
+        self.track(tokio::spawn(async move {
+            match update::install(&version).await {
+                Ok(executable) => {
+                    log::info(&format!("Installed the agent {version}"));
+                    session.installed.send_replace(Some(executable));
+                }
+                Err(message) => {
+                    log::warning(
+                        &format!("Could not update the agent to {version}"),
+                        &message,
+                    );
+
+                    if let Err(error) = session
+                        .client
+                        .call(
+                            "ReportUpdateFailure",
+                            Some(json!({ "version": version, "message": message })),
+                        )
+                        .await
+                    {
+                        log::warning("Could not report the failed update", error);
+                    }
+                }
+            }
+        }));
     }
 
     async fn shut_down(&self) {
@@ -446,7 +493,9 @@ async fn run_session(config: &AgentConfig, stopping: &crate::process::Cancel) ->
         })),
         tasks: Mutex::new(Vec::new()),
         inspections: Mutex::new(Vec::new()),
+        installed: watch::channel(None).0,
     });
+    let mut installed = session.installed.subscribe();
     let capabilities = read_capabilities();
 
     warn_if_unreadable(&capabilities);
@@ -512,6 +561,8 @@ async fn run_session(config: &AgentConfig, stopping: &crate::process::Cancel) ->
                 item = commands.recv() => item,
                 _ = client.dropped.cancelled() => break SessionEnd::Disconnected("The connection to the hub closed".into()),
                 _ = stopping.cancelled() => break SessionEnd::Closed,
+                // Ends as updated below, once running actions have finished.
+                _ = installed.wait_for(Option::is_some) => break SessionEnd::Closed,
             };
 
             match item {
@@ -534,11 +585,15 @@ async fn run_session(config: &AgentConfig, stopping: &crate::process::Cancel) ->
     heartbeat.abort();
     session.shut_down().await;
 
-    end
+    // An update installed before the session ended for any other reason still needs a restart.
+    match session.installed.borrow().clone() {
+        Some(executable) => SessionEnd::Updated(executable),
+        None => end,
+    }
 }
 
-/// Stays connected to the hub, reconnecting with backoff, until the machine is removed or the
-/// owner stops the agent.
+/// Stays connected to the hub, reconnecting with backoff, until the machine is removed, the owner
+/// stops the agent, or it updates itself.
 pub async fn run_agent(stopping: crate::process::Cancel) -> AgentStopped {
     let config = match load_agent_config() {
         Err(error) => return AgentStopped::ConfigUnavailable(error),
@@ -553,6 +608,7 @@ pub async fn run_agent(stopping: crate::process::Cancel) -> AgentStopped {
         match run_session(&config, &stopping).await {
             SessionEnd::MachineRemoved => return AgentStopped::MachineRemoved,
             _ if stopping.is_cancelled() => return AgentStopped::Stopped,
+            SessionEnd::Updated(executable) => return AgentStopped::Updated { executable },
             SessionEnd::Closed => log::info("The hub closed the connection"),
             SessionEnd::Disconnected(reason) => log::warning("Disconnected from hub", reason),
         }

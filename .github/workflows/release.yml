@@ -86,7 +86,10 @@ jobs:
         working-directory: apps/agent-rs
       # pnpm install vendors the crates Cargo builds from.
       - uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
+      # Marks the binary as a release build, which can update itself to a later release.
       - working-directory: apps/agent-rs
+        env:
+          FLEETFROG_RELEASE: "1"
         run: |
           cargo build --release --locked --target ${{ matrix.target }}
           cp target/${{ matrix.target }}/release/fleetfrog ${{ matrix.asset }}

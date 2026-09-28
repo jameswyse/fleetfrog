@@ -38,6 +38,15 @@ export class InvalidArchiveFolder extends Schema.TaggedError<InvalidArchiveFolde
   {},
 ) {}
 
+/**
+ * The hub can't update the machine's agent now: it's offline, built from source, already updating
+ * or already on the hub's version.
+ */
+export class AgentNotUpdatable extends Schema.TaggedError<AgentNotUpdatable>()(
+  "AgentNotUpdatable",
+  { machineId: MachineId },
+) {}
+
 export class BatchNotFound extends Schema.TaggedError<BatchNotFound>()("BatchNotFound", {
   batchId: BatchId,
 }) {}
@@ -104,6 +113,14 @@ export class DashboardRpcs extends RpcGroup.make(
     error: MachineNotFound,
   }),
   Rpc.make("RemoveMachine", { payload: { machineId: MachineId }, error: MachineNotFound }),
+  /**
+   * Asks the machine's agent to update to the hub's version. The fleet shows how it goes, until
+   * the agent reconnects on the new version.
+   */
+  Rpc.make("UpdateAgent", {
+    payload: { machineId: MachineId },
+    error: Schema.Union([MachineNotFound, AgentNotUpdatable]),
+  }),
   /**
    * Asks the machine what deleting one of its checkouts would lose, or with `worktree`, what
    * removing that linked worktree of it would. Inspecting a checkout fetches first, so it can take

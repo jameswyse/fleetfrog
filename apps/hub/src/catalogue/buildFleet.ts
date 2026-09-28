@@ -3,6 +3,7 @@ import { DateTime } from "effect";
 import { Connection } from "@fleetfrog/protocol/domain/fleet";
 import { repositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
+import type { AgentUpdate } from "@fleetfrog/protocol/domain/agentUpdate";
 import type { Fleet, Machine, MachineCheckout, Repository } from "@fleetfrog/protocol/domain/fleet";
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 import type { PollingSettings } from "@fleetfrog/protocol/domain/polling";
@@ -193,6 +194,8 @@ export function buildFleet(sources: {
   readonly machines: ReadonlyArray<MachineRecord>;
   readonly checkouts: ReadonlyArray<MachineCheckout>;
   readonly online: ReadonlyMap<MachineId, OnlineAgent>;
+  readonly hubVersion: string;
+  readonly updates: ReadonlyMap<MachineId, AgentUpdate>;
   readonly polling: PollingSettings;
   readonly integrations: IntegrationSettings;
 }): Fleet {
@@ -223,6 +226,7 @@ export function buildFleet(sources: {
       usage: record.usage,
       trash: record.trash,
       t3Code: t3Code.enabled ? record.t3Code : null,
+      update: sources.updates.get(record.id) ?? null,
     };
   });
   const projects =
@@ -246,6 +250,7 @@ export function buildFleet(sources: {
   );
 
   return {
+    hubVersion: sources.hubVersion,
     machines,
     repositories,
     archive,

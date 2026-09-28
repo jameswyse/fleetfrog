@@ -19,7 +19,8 @@ use url::Url;
 use crate::config::AgentConfig;
 use crate::process::Cancel;
 
-use super::{hub_endpoint, open_stream, tls};
+use super::{hub_endpoint, tls};
+use crate::http::open_stream;
 
 const PING_INTERVAL: Duration = Duration::from_secs(5);
 /// As long as Effect's WebSocket waits for the hub to accept the connection.

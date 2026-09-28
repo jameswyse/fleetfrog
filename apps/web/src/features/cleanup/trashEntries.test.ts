@@ -36,6 +36,7 @@ const machine: Machine = {
   lastStatusAt: null,
   pairedAt: at("2026-09-01T00:00:00Z"),
   usage: null,
+  update: null,
   trash: [],
   t3Code: null,
 };
@@ -77,6 +78,7 @@ const git: GitStatus = {
 };
 
 const fleet: Fleet = {
+  hubVersion: "0.0.0",
   machines: [machine],
   repositories: [
     {

@@ -2,6 +2,8 @@
 
 FleetFrog is in beta, so versions stay below 1.0. Every package shares one version, which [changesets](https://github.com/changesets/changesets) bumps.
 
+Agents update to their hub's version and never past it, so every release ships the hub image and the agent binaries together, even when only one of them changed. `fleetfrog update` and the dashboard's update buttons download the agent from the GitHub release named after the hub's version.
+
 ## Versions
 
 Describe each change people will notice in a changeset, naming the packages it changes:
@@ -18,7 +20,7 @@ The [release workflow](../.github/workflows/release.yml) runs on every push to `
 
 Merging it releases the version. The workflow then:
 
-1. Builds the agent for Linux on x86-64 and ARM, linked statically against musl so it runs on any distribution, and for macOS on Apple silicon.
+1. Builds the agent for Linux on x86-64 and ARM, linked statically against musl so it runs on any distribution, and for macOS on Apple silicon. It sets `FLEETFROG_RELEASE`, which marks the build as one that can update itself.
 2. Builds the hub image for `linux/amd64` and `linux/arm64`.
 3. Once every build passes, tags the image `ghcr.io/jameswyse/fleetfrog-hub` with the version, such as `0.1.3`, its minor version, such as `0.1`, and `latest`.
 4. Creates the GitHub release and its `v0.1.3` tag, with the three agent binaries, `install.sh` and `SHA256SUMS`. Its notes merge the version's sections from every changelog.
