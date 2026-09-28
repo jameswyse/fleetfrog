@@ -238,8 +238,9 @@ export function startPond(
 
   new ResizeObserver(layout).observe(canvas);
 
-  new IntersectionObserver(([entry]) => {
-    onScreen = entry?.isIntersecting ?? false;
+  // One callback can report several changes, so only the last shows whether the hero is visible now.
+  new IntersectionObserver((entries) => {
+    onScreen = entries.at(-1)?.isIntersecting ?? false;
 
     if (onScreen) {
       start();
