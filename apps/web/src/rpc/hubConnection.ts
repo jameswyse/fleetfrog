@@ -35,6 +35,7 @@ import type {
   NotSignedIn,
   ProviderRejected,
   RepositoryNotFound,
+  TooManyAttempts,
   UserNotFound,
   WrongPassword,
 } from "@fleetfrog/protocol/dashboard/rpcs";
@@ -64,6 +65,7 @@ export type DashboardError =
   | ManagedByProvider
   | InvalidAvatar
   | ProviderRejected
+  | TooManyAttempts
   | RpcClientError.RpcClientError;
 
 /** The most recent fleet from the hub and when the dashboard received it. */
@@ -264,6 +266,7 @@ const failureMessages = {
   ManagedByProvider: "Your sign-in provider sets this, so change it there.",
   InvalidAvatar: "Choose a PNG, JPEG or WebP image under 512 KB.",
   ProviderRejected: "The sign-in provider didn't accept those settings.",
+  TooManyAttempts: "Too many wrong passwords. Wait a few minutes, then try again.",
   RpcClientError: "The hub did not respond. Check that it is still running.",
 } satisfies Record<DashboardError["_tag"], string>;
 

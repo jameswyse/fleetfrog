@@ -54,7 +54,15 @@ function TurnOnPasswordsDialog({ onClose }: { readonly onClose: () => void }) {
 
           setErrors(found);
 
-          if (found.length > 0 || Option.isNone(change)) {
+          if (found.length > 0) {
+            return;
+          }
+
+          if (Option.isNone(change)) {
+            setFailure(
+              "Check the details: a name is at most 80 characters, a password at most 256.",
+            );
+
             return;
           }
 
@@ -216,15 +224,13 @@ function TurnOnProviderDialog({
           Someone whose email matches an account here takes that account over when they first sign
           in, keeping its role.
         </p>
-        <div className="flex justify-end gap-3">
+        {/* A form post, which the hub accepts only from this page. */}
+        <form method="post" action="/auth/oidc/activate" className="flex justify-end gap-3">
           <Button onClick={onClose}>Cancel</Button>
-          <a
-            href="/auth/oidc/start?intent=activate"
-            className="inline-flex min-h-9 items-center justify-center rounded-md bg-accent px-3 text-sm font-medium text-accent-ink hover:bg-accent-hover"
-          >
+          <Button tone="primary" type="submit">
             Sign in with {providerName}
-          </a>
-        </div>
+          </Button>
+        </form>
       </div>
     </Dialog>
   );
@@ -326,7 +332,17 @@ function ProviderSection({ settings }: { readonly settings: AuthSettingsView }) 
             first.focus();
           }
 
-          if (found.length > 0 || Option.isNone(input)) {
+          if (found.length > 0) {
+            return;
+          }
+
+          if (Option.isNone(input)) {
+            setResult({
+              ok: false,
+              message:
+                "Check the details: URLs start with http:// or https://, and the name is at most 80 characters.",
+            });
+
             return;
           }
 
@@ -389,7 +405,11 @@ function ProviderSection({ settings }: { readonly settings: AuthSettingsView }) 
             type="password"
             autoComplete="off"
             placeholder={saved === null ? "" : "Saved"}
-            hint={saved === null ? undefined : "Leave it empty to keep the saved one."}
+            hint={
+              saved === null
+                ? undefined
+                : "Leave it empty to keep the saved one, unless you change the issuer URL or client ID."
+            }
           />
           <TextField
             label="Dashboard URL"

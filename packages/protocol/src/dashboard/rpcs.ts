@@ -75,6 +75,11 @@ export class LastAdmin extends Schema.TaggedError<LastAdmin>()("LastAdmin", {}) 
 
 export class WrongPassword extends Schema.TaggedError<WrongPassword>()("WrongPassword", {}) {}
 
+/** Too many wrong passwords in a row, so the next try has to wait. */
+export class TooManyAttempts extends Schema.TaggedError<TooManyAttempts>()("TooManyAttempts", {
+  retryAfterSeconds: Schema.Int,
+}) {}
+
 /** The sign-in provider sets this on every sign-in, so it can't be changed here. */
 export class ManagedByProvider extends Schema.TaggedError<ManagedByProvider>()(
   "ManagedByProvider",
@@ -261,7 +266,7 @@ export class DashboardRpcs extends RpcGroup.make(
   /** Ends the user's other sessions. */
   Rpc.make("ChangePassword", {
     payload: { currentPassword: Schema.String, newPassword: Password },
-    error: Schema.Union([NotSignedIn, WrongPassword]),
+    error: Schema.Union([NotSignedIn, WrongPassword, TooManyAttempts]),
   }).annotate(Access, "user"),
   /** Streams every user on subscribe and after every change. */
   Rpc.make("WatchUsers", { success: Schema.Array(User), stream: true }),

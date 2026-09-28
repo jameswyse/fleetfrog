@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { requestHub } from "@/rpc/hubConnection.ts";
+import { useRole } from "@/rpc/session.ts";
 import { Menu, MenuIcon, MenuItem, menuItemClass } from "@/ui/Menu.tsx";
 
 import { canPull, machineBlocker } from "../actions/actionAvailability.ts";
@@ -29,6 +30,7 @@ export function MachineActions({
   readonly machine: Machine;
   readonly trigger: { readonly content: ReactNode; readonly className: string };
 }) {
+  const role = useRole();
   const [pulling, setPulling] = useState(false);
   const fetching = useStartBatch();
   const [rescanning, startRescan] = useTransition();
@@ -80,16 +82,18 @@ export function MachineActions({
             >
               {rescanning ? "Requesting rescan…" : "Rescan now"}
             </MenuItem>
-            <Link
-              to="/settings/fleet/$machineId"
-              params={{ machineId: machine.id }}
-              className={menuItemClass}
-            >
-              <MenuIcon>
-                <SettingsIcon />
-              </MenuIcon>
-              Machine settings
-            </Link>
+            {role === "admin" && (
+              <Link
+                to="/settings/fleet/$machineId"
+                params={{ machineId: machine.id }}
+                className={menuItemClass}
+              >
+                <MenuIcon>
+                  <SettingsIcon />
+                </MenuIcon>
+                Machine settings
+              </Link>
+            )}
             <p role="status" className="px-3 text-sm text-danger">
               {failure}
             </p>

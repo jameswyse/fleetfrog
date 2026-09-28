@@ -1,6 +1,7 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 
 import { knownFleet, useHub } from "@/rpc/hubConnection.ts";
+import { useRole } from "@/rpc/session.ts";
 
 import { repositoryMatches } from "./checkoutSummary.ts";
 import { projectPanelId, ProjectPanel } from "./panel/ProjectPanel.tsx";
@@ -37,6 +38,7 @@ function EmptyState({
  */
 export function ProjectsPage() {
   const hub = useHub();
+  const role = useRole();
   const search = useSearch({ from: "/_app/" });
   const navigate = useNavigate({ from: "/" });
   const filter = search.filter ?? "all";
@@ -61,15 +63,21 @@ export function ProjectsPage() {
   if (machines.length === 0) {
     return (
       <EmptyState title="No machines yet">
-        Pair a development machine and its repositories will appear here.
-        <div className="mt-5">
-          <Link
-            to="/settings/fleet/pair"
-            className="inline-flex min-h-9 items-center rounded-md bg-accent px-3 text-sm font-medium text-accent-ink hover:bg-accent-hover"
-          >
-            Pair a machine
-          </Link>
-        </div>
+        {role === "admin" ? (
+          <>
+            Pair a development machine and its repositories will appear here.
+            <div className="mt-5">
+              <Link
+                to="/settings/fleet/pair"
+                className="inline-flex min-h-9 items-center rounded-md bg-accent px-3 text-sm font-medium text-accent-ink hover:bg-accent-hover"
+              >
+                Pair a machine
+              </Link>
+            </div>
+          </>
+        ) : (
+          "Once an admin pairs a development machine, its repositories will appear here."
+        )}
       </EmptyState>
     );
   }

@@ -1,8 +1,9 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { Schema } from "effect";
 
-import { LoginPage, safeRedirect } from "@/features/account/LoginPage.tsx";
+import { LoginPage } from "@/features/account/LoginPage.tsx";
 import { isSignedOut, settledSession } from "@/rpc/session.ts";
+import { localPath } from "@fleetfrog/protocol/dashboard/auth";
 
 const LoginSearch = Schema.Struct({
   redirect: Schema.optionalKey(Schema.String),
@@ -15,7 +16,7 @@ export const Route = createFileRoute("/login")({
   // Someone already signed in, or sign-in is off: carry on to where they were going.
   beforeLoad: async ({ search }) => {
     if (!isSignedOut(await settledSession())) {
-      throw redirect({ href: safeRedirect(search.redirect), replace: true });
+      throw redirect({ href: localPath(search.redirect), replace: true });
     }
   },
   component: LoginPage,

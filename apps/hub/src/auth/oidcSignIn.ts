@@ -10,7 +10,6 @@ import type { OidcSettings, Role } from "@fleetfrog/protocol/domain/user";
 
 import type { UserRecord } from "./userStore.ts";
 
-/** Why signing in through the provider didn't work, in words for the person trying. */
 /**
  * `SignIn` signs someone in while the provider is in use. `Activate` is an admin's test sign-in
  * that turns the provider on once it works, making them an admin.
@@ -18,6 +17,7 @@ import type { UserRecord } from "./userStore.ts";
 export const OidcIntent = Schema.Literals(["SignIn", "Activate"]);
 export type OidcIntent = typeof OidcIntent.Type;
 
+/** Why signing in through the provider didn't work, in words for the person trying. */
 export class OidcFailure extends Schema.TaggedError<OidcFailure>()("OidcFailure", {
   message: Schema.String,
   /** What the failed attempt was for, which decides where to explain it. */
@@ -26,6 +26,8 @@ export class OidcFailure extends Schema.TaggedError<OidcFailure>()("OidcFailure"
 
 /** How long someone has to finish signing in at the provider. */
 const pendingLifetime = Duration.minutes(10);
+/** Anyone can start a sign-in, so unfinished ones are capped, dropping the oldest first. */
+const maximumPending = 1000;
 
 interface Pending {
   readonly intent: OidcIntent;
@@ -40,6 +42,7 @@ const Claims = Schema.Struct({
   email: Schema.optionalKey(Schema.String),
   name: Schema.optionalKey(Schema.String),
   preferred_username: Schema.optionalKey(Schema.String),
+  email_verified: Schema.optionalKey(Schema.Boolean),
   picture: Schema.optionalKey(Schema.String),
   groups: Schema.optionalKey(Schema.Array(Schema.String)),
 });
@@ -174,6 +177,10 @@ export class OidcSignIn extends Context.Service<
 
             pending.set(state, { intent, redirect, verifier, nonce, startedAt: now });
 
+            while (pending.size > maximumPending) {
+              pending.delete(pending.keys().next().value ?? state);
+            }
+
             return {
               url: oidc.buildAuthorizationUrl(config, {
                 redirect_uri: callbackUrl(settings).href,
@@ -204,6 +211,11 @@ export class OidcSignIn extends Context.Service<
               return yield* failure("That sign-in took too long or was already used. Try again.");
             }
 
+            // Sign-in may have moved away from the provider while this one was at it.
+            if (started.intent === "SignIn" && (yield* auth.mode) !== "oidc") {
+              return yield* failure("Signing in through a provider is off.");
+            }
+
             return yield* Effect.gen(function* () {
               const providerError = current.searchParams.get("error_description");
 
@@ -224,13 +236,20 @@ export class OidcSignIn extends Context.Service<
               });
               const fromToken = tokens.claims();
               // Some providers put the profile only in the ID token, others only behind userinfo.
-              const fromUserInfo = yield* Effect.tryPromise(() =>
-                oidc.fetchUserInfo(
-                  config,
-                  tokens.access_token,
-                  fromToken?.sub ?? oidc.skipSubjectCheck,
-                ),
-              ).pipe(Effect.orElseSucceed(() => ({})));
+              // Carrying on without userinfo could get someone's groups, and so their role, wrong.
+              const fromUserInfo =
+                config.serverMetadata().userinfo_endpoint === undefined
+                  ? {}
+                  : yield* Effect.tryPromise({
+                      try: () =>
+                        oidc.fetchUserInfo(
+                          config,
+                          tokens.access_token,
+                          fromToken?.sub ?? oidc.skipSubjectCheck,
+                        ),
+                      catch: (cause) =>
+                        failure(`The provider didn't share the profile. (${describe(cause)})`),
+                    });
               const claims = decodeClaims({ ...fromToken, ...fromUserInfo });
 
               if (Option.isNone(claims)) {
@@ -268,13 +287,14 @@ export class OidcSignIn extends Context.Service<
                   email: address.value,
                   name: name ?? preferred_username ?? null,
                   picture: picture ?? null,
+                  emailVerified: claims.value.email_verified ?? null,
                   role: started.intent === "Activate" ? "admin" : groupRole,
                 })
                 .pipe(
                   Effect.catchTag("EmailTaken", () =>
                     Effect.fail(
                       failure(
-                        `Another FleetFrog user already has ${address.value} as their email.`,
+                        `Another FleetFrog user already has ${address.value} as their email. If it's yours, ask your provider's admin to mark it verified.`,
                       ),
                     ),
                   ),

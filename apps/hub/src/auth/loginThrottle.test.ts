@@ -4,33 +4,82 @@ import { TestClock } from "effect/testing";
 
 import { LoginThrottle } from "./loginThrottle.ts";
 
-const fail = (key: string, times: number) =>
-  LoginThrottle.use((throttle) => Effect.repeat(throttle.recordFailure(key), { times: times - 1 }));
+import type { Attempt } from "./loginThrottle.ts";
 
-it.effect("lets five failures through, then makes each attempt wait longer", () =>
+/** Makes failed attempts, returning how many the throttle let through. */
+const fail = (attempt: Attempt, times: number) =>
+  LoginThrottle.use((throttle) =>
+    Effect.forEach(Array.from({ length: times }), () => throttle.reserve(attempt)).pipe(
+      Effect.map((waits) => waits.filter(Option.isNone).length),
+    ),
+  );
+
+const ada = { email: "ada@example.com", address: "10.0.0.1" };
+
+it.effect("lets five attempts at an email through, then makes each wait longer", () =>
   Effect.gen(function* () {
     const throttle = yield* LoginThrottle;
 
-    yield* fail("a", 5);
-    expect(yield* throttle.wait("a")).toEqual(Option.some(Duration.seconds(30)));
+    // Sent all at once, the extra guesses are refused rather than all checked.
+    expect(yield* fail(ada, 8)).toBe(5);
+    expect(yield* throttle.reserve({ ...ada, address: "10.0.0.2" })).toEqual(
+      Option.some(Duration.seconds(30)),
+    );
 
     yield* TestClock.adjust(Duration.seconds(30));
-    expect(yield* throttle.wait("a")).toEqual(Option.none());
-
-    yield* fail("a", 1);
-    expect(yield* throttle.wait("a")).toEqual(Option.some(Duration.seconds(60)));
-    expect(yield* throttle.wait("b")).toEqual(Option.none());
+    expect(yield* fail(ada, 2)).toBe(1);
+    expect(yield* throttle.reserve(ada)).toEqual(Option.some(Duration.seconds(60)));
+    expect(yield* throttle.reserve({ ...ada, email: "bo@example.com" })).toEqual(Option.none());
   }).pipe(Effect.provide(LoginThrottle.layer)),
 );
 
-it.effect("caps the wait at 15 minutes and clears it on success", () =>
+it.effect("slows one address trying many emails", () =>
   Effect.gen(function* () {
     const throttle = yield* LoginThrottle;
 
-    yield* fail("a", 20);
-    expect(yield* throttle.wait("a")).toEqual(Option.some(Duration.minutes(15)));
+    for (let i = 0; i < 20; i++) {
+      yield* throttle.reserve({ email: `guess${i}@example.com`, address: "10.0.0.9" });
+    }
 
-    yield* throttle.recordSuccess("a");
-    expect(yield* throttle.wait("a")).toEqual(Option.none());
+    expect(yield* throttle.reserve({ email: "cy@example.com", address: "10.0.0.9" })).toEqual(
+      Option.some(Duration.seconds(30)),
+    );
+    expect(yield* throttle.reserve(ada)).toEqual(Option.none());
+  }).pipe(Effect.provide(LoginThrottle.layer)),
+);
+
+it.effect("doesn't count successful sign-ins against a shared address", () =>
+  Effect.gen(function* () {
+    const throttle = yield* LoginThrottle;
+
+    for (let i = 0; i < 30; i++) {
+      const attempt = { email: `person${i}@example.com`, address: "10.0.0.9" };
+
+      expect(yield* throttle.reserve(attempt)).toEqual(Option.none());
+      yield* throttle.succeeded(attempt);
+    }
+  }).pipe(Effect.provide(LoginThrottle.layer)),
+);
+
+it.effect("caps the wait at 15 minutes, clears it on success and forgets old failures", () =>
+  Effect.gen(function* () {
+    const throttle = yield* LoginThrottle;
+
+    // Each failure comes as soon as the previous wait is over, until the wait reaches its cap.
+    for (let i = 0; i < 12; i++) {
+      yield* TestClock.adjust(Duration.minutes(i === 0 ? 0 : 15));
+      yield* fail(ada, 1);
+    }
+
+    expect(yield* throttle.reserve(ada)).toEqual(Option.some(Duration.minutes(15)));
+
+    yield* throttle.succeeded(ada);
+    expect(yield* throttle.reserve(ada)).toEqual(Option.none());
+
+    const bo = { email: "bo@example.com", address: null };
+
+    yield* fail(bo, 4);
+    yield* TestClock.adjust(Duration.minutes(16));
+    expect(yield* fail(bo, 5)).toBe(5);
   }).pipe(Effect.provide(LoginThrottle.layer)),
 );

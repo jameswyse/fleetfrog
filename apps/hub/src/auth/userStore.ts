@@ -65,6 +65,8 @@ export interface ProviderIdentity {
   readonly email: Email;
   readonly name: string | null;
   readonly picture: string | null;
+  /** The provider's `email_verified` claim, when it sends one. */
+  readonly emailVerified: boolean | null;
   readonly role: Role | null;
 }
 
@@ -162,9 +164,10 @@ export class UserStore extends Context.Service<
     readonly remove: (userId: UserId) => Effect.Effect<void, UserNotFound | LastAdmin>;
     readonly recordSignIn: (userId: UserId) => Effect.Effect<void>;
     /**
-     * The user the provider signed in, found by their provider account, then by email, or
-     * created. Their email, name and picture follow the provider's. With a role, it replaces
-     * theirs; without one, a new user is a user.
+     * The user the provider signed in, found by their provider account, then by a verified email
+     * that isn't another account's at this provider, or created. Their email, name and picture follow
+     * the provider's. With a role, it replaces theirs, except that the last admin stays one;
+     * without one, a new user is a user.
      */
     readonly signInFromProvider: (
       identity: ProviderIdentity,
@@ -345,7 +348,15 @@ export class UserStore extends Context.Service<
                 all.find(
                   ({ oidc }) =>
                     oidc?.issuer === identity.issuer && oidc.subject === identity.subject,
-                ) ?? all.find(({ email }) => email === identity.email);
+                ) ??
+                // An account by email, unless another account at this provider already has it or the
+                // provider says the email isn't verified, since either would let someone take it over.
+                all.find(
+                  ({ email, oidc }) =>
+                    identity.emailVerified !== false &&
+                    email === identity.email &&
+                    (oidc === null || oidc.issuer !== identity.issuer),
+                );
               const fields = {
                 email: identity.email,
                 oidc_issuer: identity.issuer,
@@ -372,7 +383,18 @@ export class UserStore extends Context.Service<
                 return { id, roleChanged: false };
               }
 
-              const role = identity.role ?? existing.role;
+              const demotesLastAdmin =
+                existing.role === "admin" &&
+                identity.role === "user" &&
+                (yield* otherAdmins(existing.id)) === 0;
+              // The provider's group can't leave the hub without an admin, so the last one stays.
+              const role = demotesLastAdmin ? existing.role : (identity.role ?? existing.role);
+
+              if (demotesLastAdmin) {
+                yield* Effect.logWarning(
+                  "Kept the last admin an admin although the provider's group would make them a user",
+                ).pipe(Effect.annotateLogs({ userId: existing.id }));
+              }
 
               yield* sql`update users set ${sql.update({ ...fields, role })} where id = ${existing.id}`.pipe(
                 Effect.orDie,

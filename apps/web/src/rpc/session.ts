@@ -120,6 +120,15 @@ export async function refreshSession(): Promise<SessionState> {
   return state;
 }
 
+/** How often an open page renews its session, which lasts 30 days from the last renewal. */
+const renewalInterval = 6 * 60 * 60 * 1000;
+
+/** Asks who is signed in now, then keeps renewing the session for as long as the page is open. */
+export function startSession(): void {
+  void refreshSession();
+  setInterval(() => void refreshSession(), renewalInterval);
+}
+
 /** Shows the signed-in user as the hub last described them, such as after a profile change. */
 export function replaceUser(user: User): void {
   if (state._tag === "Known" && state.session._tag === "SignedIn") {

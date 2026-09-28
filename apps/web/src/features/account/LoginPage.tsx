@@ -8,13 +8,9 @@ import { Button } from "@/ui/Button.tsx";
 import { formText } from "@/ui/formText.ts";
 import { FrogMark } from "@/ui/Logo.tsx";
 import { Spinner } from "@/ui/Spinner.tsx";
+import { localPath } from "@fleetfrog/protocol/dashboard/auth";
 
 import type { SignInMethod } from "@fleetfrog/protocol/dashboard/auth";
-
-/** Only a path on this site, so a crafted link can't send someone elsewhere after signing in. */
-export function safeRedirect(redirect: string | undefined): string {
-  return redirect?.startsWith("/") === true && !redirect.startsWith("//") ? redirect : "/";
-}
 
 const inputClass =
   "min-h-10 w-full rounded-lg border border-line bg-canvas px-3 text-base sm:text-sm aria-invalid:border-danger";
@@ -142,7 +138,7 @@ export function LoginPage() {
   // `failure` is why the last sign-in through the provider didn't work, from the hub's redirect.
   const { redirect, failure } = useSearch({ from: "/login" });
   const session = useSession();
-  const target = safeRedirect(redirect);
+  const target = localPath(redirect);
 
   if (session._tag !== "Known" || session.session._tag !== "SignedOut") {
     return null;

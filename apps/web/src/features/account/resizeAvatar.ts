@@ -2,7 +2,7 @@ import { avatarMediaTypes } from "@fleetfrog/protocol/domain/user";
 
 import type { AvatarMediaType } from "@fleetfrog/protocol/domain/user";
 
-/** Pictures are shown at 40 pixels at most, so 256 stays sharp on any screen. */
+/** Pictures are shown at 48 pixels at most, so 256 stays sharp on any screen. */
 const side = 256;
 
 function isAvatarMediaType(type: string): type is AvatarMediaType {

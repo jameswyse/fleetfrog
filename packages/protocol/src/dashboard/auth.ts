@@ -21,6 +21,22 @@ export const Session = Schema.TaggedUnion({
 });
 export type Session = typeof Session.Type;
 
+/**
+ * Where to go after signing in, as a path on this site. Anything that resolves to another origin,
+ * such as `//evil.example` or `/\evil.example`, becomes the dashboard's home.
+ */
+export function localPath(redirect: string | null | undefined): string {
+  const base = "http://dashboard.invalid";
+
+  if (redirect === null || redirect === undefined || !URL.canParse(redirect, base)) {
+    return "/";
+  }
+
+  const url = new URL(redirect, base);
+
+  return url.origin === base ? `${url.pathname}${url.search}${url.hash}` : "/";
+}
+
 /** `POST /auth/login`, answered with the new `Session` or a `LoginFailure`. */
 export const LoginRequest = Schema.Struct({ email: Email, password: Schema.String });
 export type LoginRequest = typeof LoginRequest.Type;

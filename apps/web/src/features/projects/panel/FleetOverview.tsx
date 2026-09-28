@@ -10,6 +10,7 @@ import {
   TriangleAlertIcon,
 } from "lucide-react";
 
+import { useRole } from "@/rpc/session.ts";
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
 import { plural } from "@/ui/plural.ts";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
@@ -79,51 +80,63 @@ function CellRow({
 }
 
 function MachineRow({ fleet, machine }: { readonly fleet: Fleet; readonly machine: Machine }) {
+  const role = useRole();
   const { connection } = machine;
   const online = connection._tag === "Online";
   const repositories = fleet.repositories.filter(({ checkouts }) =>
     checkouts.some(({ machineId }) => machineId === machine.id),
   ).length;
 
+  const details = (
+    <>
+      <span
+        aria-hidden="true"
+        className={`size-2 shrink-0 rounded-full ${online ? "bg-clean" : "bg-ink-muted"}`}
+      />
+      <MachineKindIcon kind={machineKind(machine)} className="text-ink-muted" />
+      <span className="min-w-0 flex-1 truncate font-medium">{machineLabel(machine)}</span>
+      <span className="shrink-0 text-xs text-ink-muted">
+        {connection._tag === "Online" && (
+          <>
+            <span className="sr-only">Online, </span>
+            {plural(repositories, "repository", "repositories")}
+            {machine.lastDiscoveryAt !== null && (
+              <>
+                {" · scanned "}
+                <RelativeTime at={machine.lastDiscoveryAt} />
+              </>
+            )}
+          </>
+        )}
+        {connection._tag === "Offline" && (
+          <>
+            Offline
+            {connection.lastSeenAt !== null && (
+              <>
+                {" · seen "}
+                <RelativeTime at={connection.lastSeenAt} />
+              </>
+            )}
+          </>
+        )}
+      </span>
+    </>
+  );
+
+  // Users can't open Settings, so for them the row isn't a link.
   return (
     <li>
-      <Link
-        to="/settings/fleet/$machineId"
-        params={{ machineId: machine.id }}
-        className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-sm hover:bg-canvas"
-      >
-        <span
-          aria-hidden="true"
-          className={`size-2 shrink-0 rounded-full ${online ? "bg-clean" : "bg-ink-muted"}`}
-        />
-        <MachineKindIcon kind={machineKind(machine)} className="text-ink-muted" />
-        <span className="min-w-0 flex-1 truncate font-medium">{machineLabel(machine)}</span>
-        <span className="shrink-0 text-xs text-ink-muted">
-          {connection._tag === "Online" && (
-            <>
-              <span className="sr-only">Online, </span>
-              {plural(repositories, "repository", "repositories")}
-              {machine.lastDiscoveryAt !== null && (
-                <>
-                  {" · scanned "}
-                  <RelativeTime at={machine.lastDiscoveryAt} />
-                </>
-              )}
-            </>
-          )}
-          {connection._tag === "Offline" && (
-            <>
-              Offline
-              {connection.lastSeenAt !== null && (
-                <>
-                  {" · seen "}
-                  <RelativeTime at={connection.lastSeenAt} />
-                </>
-              )}
-            </>
-          )}
-        </span>
-      </Link>
+      {role === "admin" ? (
+        <Link
+          to="/settings/fleet/$machineId"
+          params={{ machineId: machine.id }}
+          className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-sm hover:bg-canvas"
+        >
+          {details}
+        </Link>
+      ) : (
+        <div className="flex items-center gap-2 px-1.5 py-1 text-sm">{details}</div>
+      )}
     </li>
   );
 }

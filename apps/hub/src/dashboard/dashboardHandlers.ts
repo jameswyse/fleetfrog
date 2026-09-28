@@ -1,4 +1,4 @@
-import { Effect, Option, Stream, SubscriptionRef } from "effect";
+import { Duration, Effect, Option, Stream, SubscriptionRef } from "effect";
 
 import {
   CurrentViewer,
@@ -10,6 +10,7 @@ import {
   NotSignedIn,
   ProviderRejected,
   RefreshTarget,
+  TooManyAttempts,
   viewerRole,
   WrongPassword,
 } from "@fleetfrog/protocol/dashboard/rpcs";
@@ -27,6 +28,7 @@ import { InspectionRequests } from "../agents/inspectionRequests.ts";
 import { AuthSettingsStore } from "../auth/authSettingsStore.ts";
 import { isAvatarImage } from "../auth/avatarImage.ts";
 import { DashboardSessions } from "../auth/dashboardSessions.ts";
+import { LoginThrottle } from "../auth/loginThrottle.ts";
 import { OidcSignIn } from "../auth/oidcSignIn.ts";
 import { checkPassword, hashPassword } from "../auth/passwords.ts";
 import { UserStore } from "../auth/userStore.ts";
@@ -58,6 +60,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
     const users = yield* UserStore;
     const auth = yield* AuthSettingsStore;
     const oidc = yield* OidcSignIn;
+    const throttle = yield* LoginThrottle;
     const dashboardSessions = yield* DashboardSessions;
     /** The signed-in user making the call. With sign-in off there's no one to act as. */
     const signedIn = Effect.gen(function* () {
@@ -251,10 +254,21 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
         Effect.gen(function* () {
           const { sessionHash } = yield* signedIn;
           const record = yield* ownRecord;
+          // A stolen session shouldn't be able to guess the password any faster than sign-in can.
+          const attempt = { email: record.email, address: null };
+          const wait = yield* throttle.reserve(attempt);
+
+          if (Option.isSome(wait)) {
+            return yield* new TooManyAttempts({
+              retryAfterSeconds: Math.ceil(Duration.toSeconds(wait.value)),
+            });
+          }
 
           if (!(yield* checkPassword({ password: currentPassword, hash: record.passwordHash }))) {
             return yield* new WrongPassword();
           }
+
+          yield* throttle.succeeded(attempt);
 
           yield* users
             .setPasswordHash({ userId: record.id, passwordHash: yield* hashPassword(newPassword) })
@@ -293,10 +307,21 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
       SetOidcSettings: ({ settings: input }) =>
         Effect.gen(function* () {
           const current = yield* SubscriptionRef.get(auth.settings);
-          const clientSecret = input.clientSecret ?? current.oidc?.clientSecret ?? null;
+          // The saved secret goes only to the provider it was saved for, so pointing the settings
+          // at another server can't send it there.
+          const saved =
+            current.oidc?.issuerUrl === input.issuerUrl && current.oidc.clientId === input.clientId
+              ? current.oidc.clientSecret
+              : null;
+          const clientSecret = input.clientSecret ?? saved;
 
           if (clientSecret === null) {
-            return yield* new ProviderRejected({ message: "Enter the client secret." });
+            return yield* new ProviderRejected({
+              message:
+                current.oidc === null
+                  ? "Enter the client secret."
+                  : "Enter the client secret again, since the issuer URL or client ID changed.",
+            });
           }
 
           const settings = { ...input, clientSecret };

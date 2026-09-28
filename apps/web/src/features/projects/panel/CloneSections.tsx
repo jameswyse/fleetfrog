@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { CircleDashedIcon, FolderDownIcon, TriangleAlertIcon } from "lucide-react";
 
 import { useRuns } from "@/rpc/hubConnection.ts";
+import { useRole } from "@/rpc/session.ts";
 import { Button } from "@/ui/Button.tsx";
 import { cloneSource, suggestCloneDestination } from "@fleetfrog/protocol/domain/cloneDestination";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
@@ -211,6 +212,7 @@ export function CloneSections({
   readonly machine: Machine;
 }) {
   const runs = useRuns();
+  const role = useRole();
   const target = { machineId: machine.id, repositoryKey: repository.key };
   const cloning = activeCloneFor(runs, target);
   const last = latestCloneFor(runs, target);
@@ -234,7 +236,7 @@ export function CloneSections({
         <p className="text-ink-muted">
           It can't be cloned onto {machineLabel(machine)} now: {blocker}.
         </p>
-        {machine.discoveryRoots.length === 0 && (
+        {machine.discoveryRoots.length === 0 && role === "admin" && (
           <Link
             to="/settings/fleet/$machineId"
             params={{ machineId: machine.id }}
