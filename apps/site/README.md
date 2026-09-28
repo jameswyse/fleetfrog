@@ -5,24 +5,28 @@ The FleetFrog website: one static page, and a page for addresses that don't exis
 ```sh
 pnpm --filter @fleetfrog/site dev
 pnpm --filter @fleetfrog/site build
+# Serves the build as Cloudflare does, with the headers in public/_headers and the 404 page.
+pnpm --filter @fleetfrog/site preview
 ```
 
 The page shows the version in this package's `package.json`. Every package shares one version, so it matches the hub and agent released from the same commit. The download links point at the latest GitHub release, so they never need updating.
 
 ## Deploying
 
-Cloudflare Pages builds the site from GitHub. Pushes to `main` update fleetfrog.dev, and each pull request that changes the site gets a preview, which the Cloudflare app links in a comment. The project uses these settings:
+Cloudflare Workers serves the site as static assets, and Workers Builds builds it from GitHub. Pushes to `main` deploy fleetfrog.dev. A push to any other branch that changes the site builds a preview, and Cloudflare's GitHub app comments its address on the pull request. [`wrangler.jsonc`](wrangler.jsonc) configures the Worker, including its custom domain. The Worker's build settings are:
 
-| Setting                | Value                                     |
-| ---------------------- | ----------------------------------------- |
-| Production branch      | `main`                                    |
-| Framework preset       | None                                      |
-| Build command          | `sh apps/site/scripts/cloudflareBuild.sh` |
-| Build output directory | `apps/site/dist`                          |
-| Root directory         | The repository root                       |
-| Build watch paths      | Include `apps/site/*`                     |
-| Environment variable   | `SKIP_DEPENDENCY_INSTALL` set to `1`      |
+| Setting           | Value                                             |
+| ----------------- | ------------------------------------------------- |
+| Worker name       | `fleetfrog-website`, the name in `wrangler.jsonc` |
+| Production branch | `main`                                            |
+| Preview builds    | On                                                |
+| Root directory    | `apps/site`                                       |
+| Build command     | `sh scripts/cloudflareBuild.sh`                   |
+| Deploy command    | `npx wrangler deploy`, the default                |
+| Preview command   | `npx wrangler preview`, the default               |
+| Build watch paths | Include `apps/site/*`                             |
+| Build variable    | `SKIP_DEPENDENCY_INSTALL` set to `1`              |
 
-Cloudflare's own install step would fail, because pnpm needs Cargo while the Rust agent is in the workspace and Cloudflare's build image doesn't have it. `SKIP_DEPENDENCY_INSTALL` turns that step off, and [`scripts/cloudflareBuild.sh`](scripts/cloudflareBuild.sh) moves the agent out of the checkout, installs only the site's dependencies and builds it. pnpm switches itself to the version in the root `package.json` and downloads the Node.js version pinned there.
+Cloudflare's own install step would fail, because pnpm needs Cargo while the Rust agent is in the workspace and Cloudflare's build image doesn't have it. `SKIP_DEPENDENCY_INSTALL` turns that step off, and [`scripts/cloudflareBuild.sh`](scripts/cloudflareBuild.sh) moves the agent out of the checkout, installs only the site's dependencies and builds it. pnpm switches itself to the version in the root `package.json` and downloads the Node.js version pinned there. The deploy and preview commands then run the Wrangler version in this package's `package.json`.
 
 `public/_headers` sets the page's security headers and lets browsers cache the built assets for good. Its content security policy allows nothing from other origins, so anything added from another origin, such as Cloudflare Web Analytics, needs adding there too.

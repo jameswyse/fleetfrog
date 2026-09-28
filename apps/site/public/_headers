@@ -1,4 +1,4 @@
-# Cloudflare Pages applies these headers: https://developers.cloudflare.com/pages/configuration/headers/
+# Cloudflare applies these headers: https://developers.cloudflare.com/workers/static-assets/headers/
 # The page loads nothing from other origins. Turning on Cloudflare Web Analytics injects a script
 # from static.cloudflareinsights.com, which script-src and connect-src would then need to allow.
 /*

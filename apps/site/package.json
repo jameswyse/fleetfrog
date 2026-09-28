@@ -2,7 +2,7 @@
   "name": "@fleetfrog/site",
   "version": "0.3.0",
   "private": true,
-  "description": "The fleetfrog.dev website, which Cloudflare Pages builds and serves.",
+  "description": "The fleetfrog.dev website, which Cloudflare Workers serves.",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -12,7 +12,7 @@
     "format:check": "oxfmt --list-different .",
     "lint": "oxlint .",
     "lint:fix": "oxlint --fix .",
-    "preview": "vite preview",
+    "preview": "wrangler dev",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -23,6 +23,7 @@
     "@tailwindcss/vite": "4.3.3",
     "tailwindcss": "4.3.3",
     "typescript": "catalog:",
-    "vite": "8.3.1"
+    "vite": "8.3.1",
+    "wrangler": "4.141.0"
   }
 }

@@ -29,7 +29,7 @@ Merging it releases the version. The workflow then:
 
 Releases are never marked as pre-releases, because `releases/latest` skips them and the install script downloads from there.
 
-The website, [fleetfrog.dev](https://fleetfrog.dev), shows the version from `apps/site/package.json`, so Cloudflare Pages deploys it again when the Version packages pull request merges. Its download links point at `releases/latest`, which serves the new binaries once the workflow creates the release. [`apps/site`](../apps/site/README.md) explains how it's deployed.
+The website, [fleetfrog.dev](https://fleetfrog.dev), shows the version from `apps/site/package.json`, so Cloudflare deploys it again when the Version packages pull request merges. Its download links point at `releases/latest`, which serves the new binaries once the workflow creates the release. [`apps/site`](../apps/site/README.md) explains how it's deployed.
 
 If a build fails, push a fix to `main` without a changeset. That push releases the same version, since it has no GitHub release yet. Rerunning the failed jobs also works when the failure was temporary.
 
