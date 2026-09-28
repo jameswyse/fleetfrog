@@ -1,5 +1,11 @@
 # @fleetfrog/hub
 
+## 0.3.0
+
+### Minor Changes
+
+- 85dd92d: Let people sign in with passwords and through an OpenID Connect provider at the same time, each turned on and off by itself, and give the provider sign-in button the icon from the provider website or an uploaded one.
+
 ## 0.2.0
 
 ### Minor Changes

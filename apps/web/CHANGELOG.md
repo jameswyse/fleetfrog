@@ -1,5 +1,11 @@
 # @fleetfrog/web
 
+## 0.3.0
+
+### Minor Changes
+
+- 85dd92d: Give each way of signing in its own switch, move OpenID Connect to its own settings page, and show the provider icon on the sign-in button.
+
 ## 0.2.0
 
 ### Minor Changes
