@@ -61,6 +61,11 @@ function BatchRow({ batch, open }: { readonly batch: ActionBatch; readonly open:
         >
           {describeBatch(batch)}
         </Link>
+        {batch.requestedBy !== null && (
+          <span className="block text-sm font-normal text-ink-muted">
+            by {batch.requestedBy.name}
+          </span>
+        )}
       </th>
       <td className={`${cellClass} text-ink-muted`}>{batch.machineNames.join(", ")}</td>
       <td className={cellClass}>
@@ -90,6 +95,9 @@ function EventRow({ entry }: { readonly entry: Extract<ActivityEntry, { _tag: "E
       </td>
       <th scope="row" className={`${cellClass} text-start font-normal`}>
         {describeEvent(entry.event)}
+        {entry.by !== null && (
+          <span className="block text-sm text-ink-muted">by {entry.by.name}</span>
+        )}
       </th>
       <td className={`${cellClass} text-ink-muted`}>{eventMachine(entry.event)}</td>
       <td className={cellClass} />

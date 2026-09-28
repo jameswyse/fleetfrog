@@ -7,6 +7,7 @@ import { ActivityStore } from "./activityStore.ts";
 import type { BatchNotFound } from "@fleetfrog/protocol/dashboard/rpcs";
 import type {
   ActivityFilter,
+  Actor,
   ActivityPage,
   BatchDetail,
   BatchId,
@@ -24,7 +25,7 @@ export class ActivityFeed extends Context.Service<
   {
     /** Signals that stored runs, batches or events changed. */
     readonly invalidate: Effect.Effect<void>;
-    readonly recordEvent: (event: HubEvent) => Effect.Effect<void>;
+    readonly recordEvent: (event: HubEvent, by: Actor) => Effect.Effect<void>;
     readonly watchRuns: Stream.Stream<RunsSnapshot>;
     readonly watchActivity: (query: {
       readonly filter: ActivityFilter;
@@ -60,7 +61,7 @@ export class ActivityFeed extends Context.Service<
 
       return {
         invalidate,
-        recordEvent: (event) => store.recordEvent(event).pipe(Effect.andThen(invalidate)),
+        recordEvent: (event, by) => store.recordEvent(event, by).pipe(Effect.andThen(invalidate)),
         watchRuns: onChange(
           Effect.all({
             activeBatches: store.activeBatches,

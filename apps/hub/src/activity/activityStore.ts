@@ -8,7 +8,7 @@ import {
   ActionRequest,
   OutcomeKind,
 } from "@fleetfrog/protocol/domain/action";
-import { BatchId, BatchScope, HubEvent, RunId } from "@fleetfrog/protocol/domain/activity";
+import { Actor, BatchId, BatchScope, HubEvent, RunId } from "@fleetfrog/protocol/domain/activity";
 import { MachineId } from "@fleetfrog/protocol/domain/machine";
 import { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
@@ -53,12 +53,17 @@ const BatchRow = Schema.Struct({
   scope_json: JsonColumn(BatchScope),
   requested_at: Timestamp,
   finished_at: Schema.NullOr(Timestamp),
+  requested_by_json: Schema.NullOr(JsonColumn(Actor)),
 });
 type BatchRow = typeof BatchRow.Type;
 
 const CountRow = Schema.Struct({ batch_id: BatchId, status: StatusColumn, count: Schema.Int });
 const MachineNameRow = Schema.Struct({ batch_id: BatchId, machine_name: Schema.String });
-const EventRow = Schema.Struct({ at: Timestamp, event_json: JsonColumn(HubEvent) });
+const EventRow = Schema.Struct({
+  at: Timestamp,
+  event_json: JsonColumn(HubEvent),
+  actor_json: Schema.NullOr(JsonColumn(Actor)),
+});
 const RunTargetRow = Schema.Struct({ id: RunId, machine_id: MachineId });
 
 const decodeRuns = Schema.decodeUnknownEffect(Schema.Array(RunRow));
@@ -71,6 +76,7 @@ const encodeRequest = Schema.encodeSync(JsonColumn(ActionRequest));
 const encodeOutcome = Schema.encodeSync(JsonColumn(ActionOutcome));
 const encodeOutput = Schema.encodeSync(JsonColumn(Schema.Array(Schema.String)));
 const encodeScope = Schema.encodeSync(JsonColumn(BatchScope));
+const encodeActor = Schema.encodeSync(JsonColumn(Actor));
 const encodeEvent = Schema.encodeSync(JsonColumn(HubEvent));
 
 const activeStatuses = ["Queued", "Running"];
@@ -142,6 +148,7 @@ export class ActivityStore extends Context.Service<
       readonly kind: ActionKind;
       readonly scope: BatchScope;
       readonly requestedAt: DateTime.Utc;
+      readonly requestedBy: Actor;
       readonly runs: ReadonlyArray<NewRun>;
     }) => Effect.Effect<void>;
     /** Each returns false when the run is not an unfinished run of that machine. */
@@ -170,7 +177,7 @@ export class ActivityStore extends Context.Service<
       readonly limit: number;
     }) => Effect.Effect<ActivityPage>;
     readonly batch: (batchId: BatchId) => Effect.Effect<BatchDetail, BatchNotFound>;
-    readonly recordEvent: (event: HubEvent) => Effect.Effect<void>;
+    readonly recordEvent: (event: HubEvent, by: Actor) => Effect.Effect<void>;
     readonly prune: (cutoff: DateTime.Utc) => Effect.Effect<void>;
   }
 >()("fleetfrog/ActivityStore") {
@@ -207,6 +214,7 @@ export class ActivityStore extends Context.Service<
           id: row.id,
           kind: row.kind,
           scope: row.scope_json,
+          requestedBy: row.requested_by_json,
           requestedAt: row.requested_at,
           finishedAt: row.finished_at,
           counts: byBatch.get(row.id) ?? noRuns,
@@ -243,6 +251,7 @@ export class ActivityStore extends Context.Service<
               scope_json: encodeScope(batch.scope),
               requested_at: requestedAt,
               finished_at: settled ? requestedAt : null,
+              requested_by_json: batch.requestedBy === null ? null : encodeActor(batch.requestedBy),
             })}`;
             yield* sql`insert into action_runs ${sql.insert(
               batch.runs.map((run) => ({
@@ -345,17 +354,18 @@ export class ActivityStore extends Context.Service<
           // Events have no repository or outcome, so those filters leave only batches.
           const eventRows =
             filter.repositoryKeys.length === 0 && filter.outcomes.length === 0
-              ? yield* sql`select at, event_json from hub_events where ${
+              ? yield* sql`select at, event_json, actor_json from hub_events where ${
                   filter.machineIds.length === 0 ? "1=1" : sql.in("machine_id", filter.machineIds)
                 } order by at desc, id desc limit ${limit + 1}`.pipe(Effect.flatMap(decodeEvents))
               : [];
           const batches = yield* summarise(batchRows);
           const entries: Array<ActivityEntry> = [
             ...batches.map((batch) => ({ _tag: "Batch" as const, batch })),
-            ...eventRows.map(({ at, event_json }) => ({
+            ...eventRows.map(({ at, event_json, actor_json }) => ({
               _tag: "Event" as const,
               at,
               event: event_json,
+              by: actor_json,
             })),
           ];
           const at = (entry: ActivityEntry) =>
@@ -388,7 +398,7 @@ export class ActivityStore extends Context.Service<
           },
           Effect.catchTag(["SqlError", "SchemaError"], Effect.die),
         ),
-        recordEvent: Effect.fn("ActivityStore.recordEvent")(function* (event) {
+        recordEvent: Effect.fn("ActivityStore.recordEvent")(function* (event, by) {
           const machineId = HubEvent.match(event, {
             MachinePaired: ({ machineId: id }) => id,
             MachineRemoved: ({ machineId: id }) => id,
@@ -404,6 +414,7 @@ export class ActivityStore extends Context.Service<
             at: DateTime.formatIso(yield* DateTime.now),
             machine_id: machineId,
             event_json: encodeEvent(event),
+            actor_json: by === null ? null : encodeActor(by),
           })}`;
         }, Effect.orDie),
         prune: Effect.fn("ActivityStore.prune")(function* (cutoff) {

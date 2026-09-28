@@ -4,4 +4,4 @@ Report a vulnerability privately through [GitHub's vulnerability reporting](http
 
 Only the latest release receives fixes while FleetFrog is below 1.0.
 
-The dashboard has no login yet, so anyone who can reach the hub's dashboard port can see every repository and ask agents to run actions. That is a known limit of the beta, not a vulnerability. Agents still run only the named actions they support, never commands from the hub, and refuse any action their owner's policy denies.
+Sign-in is off on a new hub, so until an admin turns it on under **Settings › Authentication**, anyone who can reach the hub's dashboard port can see every repository and ask agents to run actions. That is the intended default for a private network, not a vulnerability. Agents still run only the named actions they support, never commands from the hub, and refuse any action their owner's policy denies.

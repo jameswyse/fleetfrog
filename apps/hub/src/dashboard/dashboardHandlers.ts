@@ -1,4 +1,4 @@
-import { Effect, Stream, SubscriptionRef } from "effect";
+import { Effect, Option, Stream, SubscriptionRef } from "effect";
 
 import {
   CurrentViewer,
@@ -38,6 +38,8 @@ import { IntegrationsStore } from "../settings/integrationsStore.ts";
 import { PollingStore } from "../settings/pollingStore.ts";
 import { DashboardPresence } from "./dashboardPresence.ts";
 
+import type { Actor, HubEvent } from "@fleetfrog/protocol/domain/activity";
+
 export const DashboardHandlers = DashboardRpcs.toLayer(
   Effect.gen(function* () {
     const feed = yield* FleetFeed;
@@ -63,6 +65,25 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
 
       return viewer._tag === "SignedIn" ? viewer : yield* new NotSignedIn();
     });
+    /** Who is calling, as history records them. */
+    const actor: Effect.Effect<Actor, never, CurrentViewer> = Effect.gen(function* () {
+      const viewer = yield* CurrentViewer;
+
+      if (viewer._tag === "Anyone") {
+        return null;
+      }
+
+      const user = yield* users
+        .find(viewer.userId)
+        .pipe(Effect.flatMap(users.describe), Effect.option);
+
+      return Option.match(user, {
+        onNone: () => null,
+        onSome: ({ id, displayName }) => ({ userId: id, name: displayName }),
+      });
+    });
+    const recordChange = (event: HubEvent) =>
+      actor.pipe(Effect.flatMap((by) => activity.recordEvent(event, by)));
     const ownRecord = signedIn.pipe(
       Effect.flatMap(({ userId }) => users.find(userId)),
       Effect.catchTag("UserNotFound", () => Effect.fail(new NotSignedIn())),
@@ -82,7 +103,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
 
           yield* machines.rename(rename);
           yield* feed.invalidate;
-          yield* activity.recordEvent({
+          yield* recordChange({
             _tag: "MachineRenamed",
             machineId: rename.machineId,
             from: machineLabel(before),
@@ -97,7 +118,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
           yield* machines.setDiscoveryRoots(update);
           yield* sessions.reconfigure(update.machineId);
           yield* feed.invalidate;
-          yield* activity.recordEvent({
+          yield* recordChange({
             _tag: "DiscoveryRootsChanged",
             machineId: update.machineId,
             machineName: machineLabel(machine),
@@ -119,7 +140,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
           const outcome = yield* folders.create(machineId, path);
 
           if (outcome._tag === "Created") {
-            yield* activity.recordEvent({
+            yield* recordChange({
               _tag: "ProjectFolderCreated",
               machineId,
               machineName: machineLabel(machine),
@@ -141,7 +162,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
           yield* icons.replace({ machineId, icons: [] });
           yield* sessions.disconnect(machineId);
           yield* feed.invalidate;
-          yield* activity.recordEvent({
+          yield* recordChange({
             _tag: "MachineRemoved",
             machineId,
             machineName: machineLabel(machine),
@@ -151,16 +172,12 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
       UpdatePolling: ({ polling: settings }) =>
         polling
           .update(settings)
-          .pipe(
-            Effect.andThen(activity.recordEvent({ _tag: "PollingChanged", polling: settings })),
-          ),
+          .pipe(Effect.andThen(recordChange({ _tag: "PollingChanged", polling: settings }))),
       UpdateIntegrations: ({ integrations: settings }) =>
         integrations
           .update(settings)
           .pipe(
-            Effect.andThen(
-              activity.recordEvent({ _tag: "IntegrationsChanged", integrations: settings }),
-            ),
+            Effect.andThen(recordChange({ _tag: "IntegrationsChanged", integrations: settings })),
           ),
       SetArchiveFolder: ({ machineId, folder }) =>
         Effect.gen(function* () {
@@ -182,7 +199,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
           yield* sessions.reconfigure(machineId);
           yield* feed.invalidate;
 
-          return yield* activity.recordEvent({
+          return yield* recordChange({
             _tag: "ArchiveFolderChanged",
             machineId,
             machineName: machineLabel(machine),
@@ -196,7 +213,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
             return yield* new Forbidden();
           }
 
-          return { batchId: yield* dispatcher.start(request) };
+          return { batchId: yield* dispatcher.start(request, yield* actor) };
         }),
       Cancel: ({ target }) => dispatcher.cancel(target),
       WatchRuns: () => activity.watchRuns,

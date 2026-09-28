@@ -7,7 +7,7 @@ FleetFrog is a self-hosted dashboard for the computers you develop on. An agent 
 
 From the dashboard you can also fetch, pull and clone repositories on any machine.
 
-FleetFrog is in early beta, so expect rough edges and breaking changes between 0.x versions. The dashboard has no login yet, so run the hub only on a network you trust.
+FleetFrog is in early beta, so expect rough edges and breaking changes between 0.x versions. Sign-in is off until you [turn it on](#sign-in), so until then run the hub only on a network you trust.
 
 ## Run the hub
 
@@ -35,8 +35,24 @@ Open `http://<hub-address>:7420`. Agents connect on port `7421` over TLS using a
 | `FLEETFROG_AGENT_TLS`      | `self-signed` | Set to `none` when a reverse proxy terminates TLS for agents.                      |
 | `FLEETFROG_AGENT_URL`      | unset         | The agent URL to put in pairing strings when it differs from the dashboard's host. |
 | `FLEETFROG_DATA_DIR`       | `data`        | Where the database and certificate are stored. The image uses `/data`.             |
+| `FLEETFROG_AUTH_MODE`      | unset         | Set to `none` to turn sign-in off whatever the settings say, if you're locked out. |
 
 With Compose, `FLEETFROG_VERSION` picks the image tag, such as `0.1` to take only patch releases of 0.1. It defaults to `latest`.
+
+## Sign in
+
+A new hub has sign-in off, so anyone who can reach the dashboard port can use all of it. That suits a private network, or a proxy that signs people in first, such as Pangolin. To turn sign-in on, open **Settings › Authentication** and choose how people sign in:
+
+- **Email and password.** You set your own email and password as you turn it on, and stay signed in as an admin. Add everyone else under **Settings › Users**, where admins also change roles and set new passwords.
+- **Sign-in provider.** An OpenID Connect provider such as Authentik signs people in. Create an OAuth2/OpenID provider for FleetFrog as a confidential client, and register the redirect URI that **Settings › Authentication** shows, which is the dashboard's URL followed by `/auth/oidc/callback`. Enter the provider's issuer URL, client ID and client secret, and save; the hub checks that the provider answers. Then choose **Sign-in provider** and sign in through it once, which turns it on and keeps you an admin.
+
+Turning sign-in on or off signs everyone else out. People who sign in through a provider get an account on their first sign-in, or take over the account with their email. Their name and picture come from the provider. An admin group, if you set one, makes its members admins and everyone else users at each sign-in, and a required group lets only its members sign in. Both read the `groups` claim.
+
+Admins can use everything. Users can see everything and fetch, pull, clone, switch and stash, but can't use Cleanup, cleanup actions or Settings. Activity shows who started each action and made each change.
+
+A session lasts 30 days from the last visit. Behind a reverse proxy that serves the dashboard over HTTPS, have it send `X-Forwarded-Proto: https`, so the session cookie is marked secure. If you're locked out, set `FLEETFROG_AUTH_MODE=none` and restart the hub, which keeps sign-in off until you remove it.
+
+People without a picture get their Gravatar, which each viewer's browser fetches from Gravatar using a hash of the person's email. Admins can turn that off under **Settings › Authentication**.
 
 ## Add a machine
 

@@ -4,13 +4,15 @@ import { DateTime, Effect, Layer } from "effect";
 
 import { BatchId, RunId } from "@fleetfrog/protocol/domain/activity";
 import { MachineId } from "@fleetfrog/protocol/domain/machine";
+import { defaultPollingSettings } from "@fleetfrog/protocol/domain/polling";
 import { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
+import { UserId } from "@fleetfrog/protocol/domain/user";
 
 import { Migrations } from "../persistence/database.ts";
 import { ActivityStore } from "./activityStore.ts";
 
 import type { ActionOutcome } from "@fleetfrog/protocol/domain/action";
-import type { ActivityFilter, ActivityPage } from "@fleetfrog/protocol/domain/activity";
+import type { ActivityFilter, ActivityPage, Actor } from "@fleetfrog/protocol/domain/activity";
 
 import type { NewRun } from "./activityStore.ts";
 
@@ -50,7 +52,7 @@ function newRun(options: {
 const fetched: ActionOutcome = { _tag: "Succeeded", result: { _tag: "Fetched" } };
 
 /** Records a batch of runs requested at the given minute and returns its id and runs. */
-const recordBatch = (minute: number, runs: ReadonlyArray<NewRun>) =>
+const recordBatch = (minute: number, runs: ReadonlyArray<NewRun>, requestedBy: Actor = null) =>
   ActivityStore.use((store) => {
     const batchId = BatchId.make(id());
 
@@ -60,6 +62,7 @@ const recordBatch = (minute: number, runs: ReadonlyArray<NewRun>) =>
         kind: "Fetch",
         scope: { _tag: "All" },
         requestedAt: at(minute),
+        requestedBy,
         runs,
       })
       .pipe(Effect.as({ batchId, runs }));
@@ -184,6 +187,30 @@ describe("ActivityStore", () => {
       expect(yield* matching({ machineIds: [studio], outcomes: ["Failed"] })).toEqual([
         second.batchId,
       ]);
+    }).pipe(Effect.provide(TestStore)),
+  );
+
+  it.effect("records who started each batch and made each change", () =>
+    Effect.gen(function* () {
+      const store = yield* ActivityStore;
+      const ada = { userId: UserId.make("cccccccc-0000-4000-8000-000000000000"), name: "Ada" };
+
+      yield* recordBatch(1, [newRun({ machineId: studio, path: "/a" })], ada);
+      yield* store.recordEvent({ _tag: "PollingChanged", polling: defaultPollingSettings }, ada);
+      yield* store.recordEvent(
+        { _tag: "MachineRenamed", machineId: studio, from: "a", to: "b" },
+        null,
+      );
+
+      const page = yield* store.activity({
+        filter: { machineIds: [], repositoryKeys: [], outcomes: [] },
+        limit: 10,
+      });
+
+      // Newest first: events are stamped by the test clock, long before the batch.
+      expect(
+        page.entries.map((entry) => (entry._tag === "Batch" ? entry.batch.requestedBy : entry.by)),
+      ).toEqual([ada, null, ada]);
     }).pipe(Effect.provide(TestStore)),
   );
 });

@@ -20,7 +20,7 @@ import type {
   RepositoryNotFound,
   CancelTarget,
 } from "@fleetfrog/protocol/dashboard/rpcs";
-import type { BatchRequest } from "@fleetfrog/protocol/domain/activity";
+import type { Actor, BatchRequest } from "@fleetfrog/protocol/domain/activity";
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 
 import type { UnfinishedRun } from "../activity/activityStore.ts";
@@ -31,6 +31,7 @@ export class ActionDispatcher extends Context.Service<
   {
     readonly start: (
       request: BatchRequest,
+      requestedBy: Actor,
     ) => Effect.Effect<
       BatchId,
       MachineNotFound | RepositoryNotFound | NothingToRun | NoCloneSource
@@ -97,7 +98,7 @@ export class ActionDispatcher extends Context.Service<
       );
 
       return {
-        start: Effect.fn("ActionDispatcher.start")(function* (request) {
+        start: Effect.fn("ActionDispatcher.start")(function* (request, requestedBy) {
           const plan = yield* planBatch(request, yield* fleet.current);
           const batchId = BatchId.make(randomUUID());
           const runs = plan.runs.map((run) => ({ ...run, id: RunId.make(randomUUID()) }));
@@ -107,6 +108,7 @@ export class ActionDispatcher extends Context.Service<
             kind: plan.kind,
             scope: plan.scope,
             requestedAt: yield* DateTime.now,
+            requestedBy,
             runs: runs.map((run) => ({
               id: run.id,
               machineId: run.machine.id,

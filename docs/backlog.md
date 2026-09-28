@@ -61,8 +61,8 @@ Agents have the `git` and `cleanup` tiers.
 
 ## Security
 
-- **Dashboard login**, including OAuth through Authentik. Required before the hub is reachable outside a private network.
-- **DNS rebinding.** The dashboard socket's `Origin` check doesn't stop DNS rebinding. A login or a `Host` allowlist would.
+- **DNS rebinding.** With sign-in off, the dashboard socket's `Origin` check doesn't stop DNS rebinding. A `Host` allowlist would.
+- **Trusted-header sign-in.** Behind a proxy that signs people in, such as Pangolin or Authentik's proxy outpost, the hub could read the user from a header such as `Remote-User`, giving roles and Activity attribution without a second sign-in. It's safe only when the hub can't be reached except through the proxy.
 - **Clones checked locally.** Discovery folders and clone URLs come from the hub, so a compromised hub could clone any HTTPS or SSH repository into any non-hidden folder. Writable folders and allowed hosts kept in the agent's local policy would close that.
 
 ## Networking and platforms

@@ -12,6 +12,7 @@ import { MachineId } from "./machine.ts";
 import { PollingSettings } from "./polling.ts";
 import { RepositoryKey } from "./repositoryIdentity.ts";
 import { IntegrationSettings } from "./t3Code.ts";
+import { UserId } from "./user.ts";
 
 export const BatchId = Schema.String.pipe(Schema.check(Schema.isUUID()), Schema.brand("BatchId"));
 export type BatchId = typeof BatchId.Type;
@@ -114,6 +115,13 @@ export const RunCounts = Schema.Struct({
 export type RunCounts = typeof RunCounts.Type;
 export type RunStatus = keyof RunCounts;
 
+/**
+ * Who asked for something, by the name they had then, so history still reads correctly after
+ * they're renamed or deleted. Null when sign-in was off.
+ */
+export const Actor = Schema.NullOr(Schema.Struct({ userId: UserId, name: Schema.String }));
+export type Actor = typeof Actor.Type;
+
 export const ActionBatch = Schema.Struct({
   id: BatchId,
   kind: ActionKind,
@@ -124,6 +132,7 @@ export const ActionBatch = Schema.Struct({
   counts: RunCounts,
   /** The machines its runs went to, by the names they had then, in alphabetical order. */
   machineNames: Schema.Array(Schema.String),
+  requestedBy: Actor,
 });
 export type ActionBatch = typeof ActionBatch.Type;
 
@@ -163,7 +172,7 @@ export type HubEvent = typeof HubEvent.Type;
 
 export const ActivityEntry = Schema.TaggedUnion({
   Batch: { batch: ActionBatch },
-  Event: { at: Schema.DateTimeUtc, event: HubEvent },
+  Event: { at: Schema.DateTimeUtc, event: HubEvent, by: Actor },
 });
 export type ActivityEntry = typeof ActivityEntry.Type;
 

@@ -83,6 +83,8 @@ export function BatchDetailPanel({
           <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
             <p className="text-ink-muted">
               Started <RelativeTime at={detail.value.batch.requestedAt} />
+              {detail.value.batch.requestedBy !== null &&
+                ` by ${detail.value.batch.requestedBy.name}`}
               {" · "}
               {describeCounts(detail.value.batch.counts)}
             </p>

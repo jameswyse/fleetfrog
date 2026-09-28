@@ -34,11 +34,15 @@ export const PairingHandlers = PairingRpcs.toLayer(
             discoveryRoots: suggestedRoots,
           });
           yield* feed.invalidate;
-          yield* activity.recordEvent({
-            _tag: "MachinePaired",
-            machineId,
-            machineName: machineLabel({ customName: null, info }),
-          });
+          yield* activity.recordEvent(
+            {
+              _tag: "MachinePaired",
+              machineId,
+              machineName: machineLabel({ customName: null, info }),
+            },
+            // The agent pairs itself with a code, so no one in the dashboard did this.
+            null,
+          );
           yield* Effect.logInfo("Paired machine").pipe(
             Effect.annotateLogs({ machineId, hostname: info.hostname }),
           );
