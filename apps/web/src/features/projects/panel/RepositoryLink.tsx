@@ -15,11 +15,6 @@ export function RepositoryLink({ identity }: { readonly identity: RepositoryIden
     );
   }
 
-  // The owner is the first part of the path, when there is more than one.
-  const slash = identity.path.indexOf("/");
-  const owner = identity.path.slice(0, Math.max(slash, 0));
-  const name = identity.path.slice(slash + 1);
-
   return (
     <a
       href={`https://${identity.host}/${identity.path}`}
@@ -29,14 +24,7 @@ export function RepositoryLink({ identity }: { readonly identity: RepositoryIden
       className="inline-flex max-w-full items-center gap-1.5 text-accent-text underline-offset-2 hover:underline"
     >
       <HostIcon host={host} />
-      <span className="truncate">
-        {owner !== "" && (
-          <>
-            <span data-personal>{owner}</span>/
-          </>
-        )}
-        {name}
-      </span>
+      <span className="truncate">{identity.path}</span>
       <span className="sr-only"> on {host.name} (opens in a new tab)</span>
     </a>
   );
