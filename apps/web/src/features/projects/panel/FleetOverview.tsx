@@ -196,7 +196,7 @@ export function FleetOverview({
           </ul>
         </PanelSection>
         {agents.length > 0 && (
-          <PanelSection title="T3 Code at work" icon={BotIcon} tone="sync" count={agents.length}>
+          <PanelSection title="T3 Code Status" icon={BotIcon} tone="sync" count={agents.length}>
             <ShortList
               items={agents}
               total={agents.length}
