@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 
+import { startPreferences } from "./features/preferences/preferences.ts";
 import { routeTree } from "./routeTree.gen.ts";
 import { startHubConnection } from "./rpc/hubConnection.ts";
 import { startSession } from "./rpc/session.ts";
@@ -23,6 +24,7 @@ if (root === null) {
   throw new Error("The page is missing its #root element.");
 }
 
+startPreferences();
 startSession();
 startHubConnection();
 createRoot(root).render(

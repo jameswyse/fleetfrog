@@ -7,9 +7,13 @@ import { signOut, useSession } from "@/rpc/session.ts";
 import { Avatar } from "@/ui/Avatar.tsx";
 import { MenuIcon, MenuItem, menuItemClass, Menu } from "@/ui/Menu.tsx";
 
+import { changePreferences } from "../preferences/preferences.ts";
 import { ThemePicker } from "../preferences/ThemePicker.tsx";
 
-/** A quick way to the theme, which Profile & Settings also offers. */
+/**
+ * A quick way to the theme, which Profile & Settings also offers. It doesn't say how saving went:
+ * a save fails only when the hub is out of reach, which the header already shows.
+ */
 function QuickTheme() {
   const labelId = useId();
 
@@ -18,15 +22,18 @@ function QuickTheme() {
       <p id={labelId} className="mb-1.5 text-xs text-ink-muted">
         Theme
       </p>
-      <ThemePicker labelledBy={labelId} />
+      <ThemePicker
+        labelledBy={labelId}
+        onPick={(colorScheme) => void changePreferences({ colorScheme })}
+      />
     </div>
   );
 }
 
 /**
  * The signed-in user's picture, opening the theme, Profile & Settings and sign-out. With sign-in
- * off, or when the hub never said who is signed in, it offers the theme and this browser's
- * settings, under Appearance.
+ * off, or when the hub never said who is signed in, it offers the theme and a link to the rest of
+ * the preferences, under Appearance.
  */
 export function UserMenu() {
   const session = useSession();

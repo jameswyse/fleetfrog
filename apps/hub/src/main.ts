@@ -27,6 +27,7 @@ import { PairingOffers } from "./pairing/pairingOffers.ts";
 import { Database } from "./persistence/database.ts";
 import { IntegrationsStore } from "./settings/integrationsStore.ts";
 import { PollingStore } from "./settings/pollingStore.ts";
+import { PreferencesStore } from "./settings/preferencesStore.ts";
 
 const Hub = Layer.merge(AgentServer, DashboardServer).pipe(
   Layer.provide(ActionDispatcher.layer),
@@ -43,6 +44,7 @@ const Hub = Layer.merge(AgentServer, DashboardServer).pipe(
       ActivityStore.layer,
       PollingStore.layer,
       IntegrationsStore.layer,
+      PreferencesStore.layer,
       ProjectIconStore.layer,
       DashboardPresence.layer,
       LoginThrottle.layer,

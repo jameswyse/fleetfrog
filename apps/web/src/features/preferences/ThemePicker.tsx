@@ -1,10 +1,10 @@
 import { MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
 
-import { setColorScheme, usePreferences } from "./preferences.ts";
+import { usePreferences } from "./preferences.ts";
 
 import type { LucideIcon } from "lucide-react";
 
-import type { ColorScheme } from "./preferences.ts";
+import type { ColorScheme } from "@fleetfrog/protocol/domain/preferences";
 
 const schemes = [
   { value: "system", label: "System", Icon: MonitorIcon },
@@ -16,13 +16,15 @@ const schemes = [
   readonly Icon: LucideIcon;
 }>;
 
-/** This browser's colour scheme as three buttons, applying as soon as one is pressed. */
+/** The colour scheme as three buttons, the current one pressed. */
 export function ThemePicker({
   labelledBy,
+  onPick,
   className = "",
 }: {
   /** The id of the text that labels the group. */
   readonly labelledBy: string;
+  readonly onPick: (colorScheme: ColorScheme) => void;
   readonly className?: string;
 }) {
   const { colorScheme } = usePreferences();
@@ -38,7 +40,7 @@ export function ThemePicker({
           key={value}
           type="button"
           aria-pressed={colorScheme === value}
-          onClick={() => setColorScheme(value)}
+          onClick={() => onPick(value)}
           className="flex min-h-7 items-center justify-center gap-1.5 rounded px-2 text-xs text-ink-muted hover:text-ink aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-sm"
         >
           <Icon aria-hidden="true" className="size-3.5" />

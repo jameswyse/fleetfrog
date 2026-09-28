@@ -13,6 +13,7 @@ import {
 import { Fleet, FolderOutcome } from "../domain/fleet.ts";
 import { MachineId, MachineKind } from "../domain/machine.ts";
 import { PollingSettings } from "../domain/polling.ts";
+import { Preferences } from "../domain/preferences.ts";
 import { RepositoryKey } from "../domain/repositoryIdentity.ts";
 import { IntegrationSettings } from "../domain/t3Code.ts";
 import { InspectionResult } from "../domain/trash.ts";
@@ -273,6 +274,11 @@ export class DashboardRpcs extends RpcGroup.make(
     },
     success: User,
     error: Schema.Union([NotSignedIn, ManagedByProvider, InvalidAvatar]),
+  }).annotate(Access, "user"),
+  /** Saves the signed-in user's preferences, or everyone's while sign-in is off. */
+  Rpc.make("SetPreferences", {
+    payload: { preferences: Preferences },
+    error: NotSignedIn,
   }).annotate(Access, "user"),
   /** Ends the user's other sessions. */
   Rpc.make("ChangePassword", {

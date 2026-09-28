@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 
+import { Preferences } from "../domain/preferences.ts";
 import { DisplayName, Email, Password, User } from "../domain/user.ts";
 
 /** A tailnet user, from the identity headers Tailscale Serve adds to each request. */
@@ -28,12 +29,15 @@ export const SignInMethods = Schema.Struct({
 });
 export type SignInMethods = typeof SignInMethods.Type;
 
-/** `GET /auth/session`: whether the dashboard needs a sign-in, and who is signed in. */
+/**
+ * `GET /auth/session`: whether the dashboard needs a sign-in, who is signed in, and how the
+ * dashboard looks to them.
+ */
 export const Session = Schema.TaggedUnion({
-  /** Sign-in is off, so everyone is an admin. */
-  Open: {},
+  /** Sign-in is off, so everyone is an admin and shares one set of preferences. */
+  Open: { preferences: Preferences },
   SignedOut: { methods: SignInMethods },
-  SignedIn: { methods: SignInMethods, user: User },
+  SignedIn: { methods: SignInMethods, user: User, preferences: Preferences },
 });
 export type Session = typeof Session.Type;
 

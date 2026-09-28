@@ -14,6 +14,7 @@ import { Email, isSignInOn } from "@fleetfrog/protocol/domain/user";
 import { isCrossOrigin } from "../http/sameOrigin.ts";
 import { clientAddress, tailscaleIdentity } from "../http/serveSocket.ts";
 import { HubConfig } from "../hubConfig.ts";
+import { PreferencesStore } from "../settings/preferencesStore.ts";
 import { AuthSettingsStore } from "./authSettingsStore.ts";
 import { DashboardSessions, sessionCookie, sessionLifetime } from "./dashboardSessions.ts";
 import { LoginThrottle } from "./loginThrottle.ts";
@@ -51,6 +52,7 @@ const decodeEmail = Schema.decodeUnknownOption(Email);
 /** Describes the session of the signed-in user, if any, for the dashboard. */
 const describeSession = Effect.fnUntraced(function* (userId: UserId | null) {
   const auth = yield* AuthSettingsStore;
+  const preferences = yield* PreferencesStore;
   const users = yield* UserStore;
   const request = yield* HttpServerRequest.HttpServerRequest;
   const { oidc } = yield* SubscriptionRef.get(auth.settings);
@@ -58,7 +60,7 @@ const describeSession = Effect.fnUntraced(function* (userId: UserId | null) {
   const { passwords, provider, tailscale } = yield* auth.methods;
 
   if (!isSignInOn({ passwords, provider, tailscale })) {
-    return Session.cases.Open.make({});
+    return Session.cases.Open.make({ preferences: yield* preferences.get(null) });
   }
 
   const methods: SignInMethods = {
@@ -74,7 +76,11 @@ const describeSession = Effect.fnUntraced(function* (userId: UserId | null) {
 
   const user = yield* users.find(userId).pipe(Effect.flatMap(users.describe), Effect.orDie);
 
-  return Session.cases.SignedIn.make({ methods, user });
+  return Session.cases.SignedIn.make({
+    methods,
+    user,
+    preferences: yield* preferences.get(userId),
+  });
 });
 
 /** Starts a session for the user and answers with it, setting its cookie. */
@@ -380,7 +386,7 @@ const changeMethods = HttpRouter.add(
         yield* sessions.endAll;
 
         return yield* HttpServerResponse.expireCookie(
-          yield* sessionJson(Session.cases.Open.make({})),
+          yield* sessionJson(yield* describeSession(null)),
           sessionCookie,
           cookieOptions(request),
         );

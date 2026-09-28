@@ -14,6 +14,7 @@ it("opens only the agreed RPCs to users, leaving every other one to admins", () 
     "ChangePassword",
     "Refresh",
     "SetAvatar",
+    "SetPreferences",
     "StartBatch",
     "UpdateProfile",
     "WatchActivity",

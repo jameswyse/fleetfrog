@@ -38,6 +38,11 @@ function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
+/** Calls the listener with each new session state, such as once the hub says who is signed in. */
+export function onSessionChange(listener: (state: SessionState) => void): void {
+  subscribe(() => listener(state));
+}
+
 export function useSession(): SessionState {
   return useSyncExternalStore(subscribe, () => state);
 }

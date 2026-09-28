@@ -56,8 +56,6 @@ export function Avatar({
           src={url}
           alt=""
           referrerPolicy="no-referrer"
-          // Gravatar is another service, so its picture is blurred with other personal details.
-          data-personal={user.avatar._tag === "Gravatar" ? true : undefined}
           onError={() => setFailed(url)}
           className="absolute inset-0 size-full rounded-full object-cover outline -outline-offset-1 outline-[oklch(0_0_0/0.1)] dark:outline-[oklch(1_0_0/0.1)]"
         />

@@ -7,7 +7,7 @@ import { Button } from "@/ui/Button.tsx";
 import { formText } from "@/ui/formText.ts";
 import { minimumPasswordLength } from "@fleetfrog/protocol/domain/user";
 
-import { BrowserSettings } from "../preferences/BrowserSettings.tsx";
+import { PreferenceSettings } from "../preferences/PreferenceSettings.tsx";
 import { SettingsRow, SettingsSection } from "../settings/SettingsSection.tsx";
 import { SaveStatus, useAutoSave } from "../settings/useAutoSave.tsx";
 import { resizeAvatar } from "./resizeAvatar.ts";
@@ -245,8 +245,8 @@ function PasswordSection({ email }: { readonly email: string }) {
 }
 
 /**
- * The signed-in user's profile and password, then this browser's settings. With sign-in off, or
- * when the hub never said who is signed in, this browser's settings alone, under Appearance.
+ * The signed-in user's profile, password and preferences. With sign-in off, or when the hub never
+ * said who is signed in, the preferences everyone shares, under Appearance.
  */
 export function AccountPage() {
   const session = useSession();
@@ -269,7 +269,13 @@ export function AccountPage() {
             )}
           </>
         )}
-        <BrowserSettings />
+        <PreferenceSettings
+          title={
+            session._tag === "Known" && session.session._tag === "Open"
+              ? "For everyone, while sign-in is off"
+              : "Appearance"
+          }
+        />
       </div>
     </>
   );
