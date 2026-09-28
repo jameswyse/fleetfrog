@@ -1,0 +1,542 @@
+@import "tailwindcss";
+@import "@fontsource-variable/fraunces/soft.css";
+@import "@fontsource-variable/fraunces/soft-italic.css";
+@import "@fontsource-variable/instrument-sans/wght.css";
+
+/*
+ * The site is always dark, like a pond at night. Its greens come from the logo. Amber and violet
+ * keep their meanings from the dashboard, uncommitted changes and commits to push or pull, and
+ * colour only the pond's dots. As in the dashboard, the palette names each colour by hue and OKLCH
+ * lightness, and only the roles below it use the palette.
+ */
+:root {
+  --pond-19: #05170f;
+  --pond-23: #0a2118;
+  --pond-26: #0e2a1f;
+  --pond-33: #1b3d2f;
+  --mist-95: #e7f2ea;
+  --mist-77: #a3baab;
+  --mist-66: #7f9a89;
+  --green-81: #78df3e;
+  --green-86: #94eb63;
+  --amber-79: #e8b04f;
+  --violet-76: #bca1ed;
+
+  --canvas: var(--pond-19);
+  --surface: var(--pond-23);
+  --surface-raised: var(--pond-26);
+  --line: var(--pond-33);
+  --ink: var(--mist-95);
+  --ink-muted: var(--mist-77);
+  --ink-faint: var(--mist-66);
+  --frog: var(--green-81);
+  --frog-hover: var(--green-86);
+  /* Text on a frog-green fill. */
+  --frog-ink: var(--pond-19);
+  --changes: var(--amber-79);
+  --sync: var(--violet-76);
+
+  --ease-out-strong: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@theme {
+  --color-*: initial;
+  --font-*: initial;
+  --font-display: "Fraunces Variable", ui-serif, Georgia, serif;
+  --font-sans: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-frog: var(--frog);
+  --color-frog-hover: var(--frog-hover);
+  --color-frog-ink: var(--frog-ink);
+}
+
+@layer base {
+  html {
+    background: var(--canvas);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+
+  ::selection {
+    background: var(--frog);
+    color: var(--frog-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--frog);
+    outline-offset: 3px;
+  }
+}
+
+@layer components {
+  .page-width {
+    margin-inline: auto;
+    max-width: 72rem;
+    padding-inline: max(1.25rem, env(safe-area-inset-left)) max(1.25rem, env(safe-area-inset-right));
+
+    @media (width >= 40rem) {
+      padding-inline: 2rem;
+    }
+  }
+
+  /* Fraunces' soft axis rounds its corners, to suit the frog. */
+  .font-display {
+    font-variation-settings: "SOFT" 100;
+  }
+
+  .icon {
+    width: 1.125rem;
+    height: 1.125rem;
+    flex-shrink: 0;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .nav-link {
+    display: inline-flex;
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    padding-inline: 0.875rem;
+    color: var(--ink-muted);
+    transition: color 150ms var(--ease-out-strong);
+
+    &:hover {
+      color: var(--ink);
+    }
+  }
+
+  .frog-glow {
+    position: absolute;
+    inset: -60%;
+    background: radial-gradient(
+      closest-side,
+      color-mix(in oklab, var(--frog) 22%, transparent),
+      transparent
+    );
+  }
+
+  [data-frog] {
+    filter: drop-shadow(0 14px 28px color-mix(in oklab, var(--frog) 30%, transparent));
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--surface) 80%, transparent);
+    box-shadow: inset 0 0 0 1px var(--line);
+    padding: 0.375rem 0.875rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--ink-muted);
+    white-space: nowrap;
+    backdrop-filter: blur(8px);
+  }
+
+  .badge-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--frog);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--frog) 25%, transparent);
+  }
+
+  .accent {
+    color: var(--frog);
+    font-weight: 500;
+  }
+
+  .button {
+    display: inline-flex;
+    min-height: 3rem;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 999px;
+    padding-inline: 1.375rem;
+    font-weight: 600;
+    white-space: nowrap;
+    transition-property: background-color, color, box-shadow, scale;
+    transition-duration: 150ms;
+    transition-timing-function: var(--ease-out-strong);
+
+    &:active {
+      scale: 0.96;
+    }
+  }
+
+  .button-primary {
+    background: var(--frog);
+    color: var(--frog-ink);
+    box-shadow: 0 8px 24px -8px color-mix(in oklab, var(--frog) 60%, transparent);
+
+    &:hover {
+      background: var(--frog-hover);
+    }
+  }
+
+  .button-secondary {
+    background: color-mix(in oklab, var(--surface) 70%, transparent);
+    color: var(--ink);
+    box-shadow: inset 0 0 0 1px var(--line);
+    backdrop-filter: blur(8px);
+
+    &:hover {
+      background: var(--surface-raised);
+    }
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: clamp(2.25rem, 5vw, 3.25rem);
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  .section-lead {
+    margin-top: 1rem;
+    font-size: 1.125rem;
+    line-height: 1.6;
+    color: var(--ink-muted);
+    text-wrap: pretty;
+  }
+
+  .text-link {
+    color: var(--frog);
+    font-weight: 500;
+    text-decoration-line: underline;
+    text-decoration-color: color-mix(in oklab, var(--frog) 40%, transparent);
+    text-decoration-thickness: from-font;
+    text-underline-offset: 0.2em;
+    transition: text-decoration-color 150ms var(--ease-out-strong);
+
+    &:hover {
+      text-decoration-color: var(--frog);
+    }
+  }
+
+  .footer-link {
+    transition: color 150ms var(--ease-out-strong);
+
+    &:hover {
+      color: var(--ink);
+    }
+  }
+
+  /*
+   * A dashed line runs from each part to the next, moving the way reports travel, from the agents
+   * to the dashboard: across the page on wide screens, and down it on narrow ones.
+   */
+  .flow {
+    --node-size: 3rem;
+    --flow-gap: 2.5rem;
+    display: grid;
+    gap: var(--flow-gap);
+
+    @media (width >= 48rem) {
+      --flow-gap: 2rem;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  .flow-step {
+    position: relative;
+    display: grid;
+    grid-template-columns: var(--node-size) minmax(0, 1fr);
+    column-gap: 1.25rem;
+
+    &:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      top: calc(var(--node-size) + 0.75rem);
+      bottom: calc(0.75rem - var(--flow-gap));
+      left: calc(var(--node-size) / 2 - 1px);
+      width: 2px;
+      background: repeating-linear-gradient(
+        to bottom,
+        color-mix(in oklab, var(--frog) 55%, transparent) 0 6px,
+        transparent 6px 14px
+      );
+    }
+
+    @media (width >= 48rem) {
+      display: block;
+
+      &:not(:last-child)::after {
+        top: calc(var(--node-size) / 2 - 1px);
+        right: calc(0.75rem - var(--flow-gap));
+        bottom: auto;
+        left: calc(var(--node-size) + 0.75rem);
+        width: auto;
+        height: 2px;
+        background: repeating-linear-gradient(
+          to right,
+          color-mix(in oklab, var(--frog) 55%, transparent) 0 6px,
+          transparent 6px 14px
+        );
+      }
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      &:not(:last-child)::after {
+        animation: flow-down 1.2s linear infinite;
+      }
+
+      @media (width >= 48rem) {
+        &:not(:last-child)::after {
+          animation-name: flow-across;
+        }
+      }
+    }
+  }
+
+  .flow-node {
+    grid-row: span 2;
+    display: grid;
+    width: var(--node-size);
+    height: var(--node-size);
+    place-items: center;
+    border-radius: 999px;
+    background: var(--surface-raised);
+    box-shadow: inset 0 0 0 1px var(--line);
+    color: var(--frog);
+
+    .icon {
+      width: 1.375rem;
+      height: 1.375rem;
+      stroke-width: 1.75;
+    }
+  }
+
+  .flow-title {
+    align-self: center;
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+
+    @media (width >= 48rem) {
+      margin-top: 1.5rem;
+    }
+  }
+
+  .flow-text {
+    margin-top: 0.625rem;
+    max-width: 34rem;
+    line-height: 1.6;
+    color: var(--ink-muted);
+    text-wrap: pretty;
+  }
+
+  .step {
+    border-radius: 1.5rem;
+    background: var(--surface);
+    box-shadow:
+      inset 0 0 0 1px var(--line),
+      0 24px 48px -24px oklch(0 0 0 / 0.5);
+    padding: 1.5rem;
+
+    @media (width >= 40rem) {
+      padding: 2rem;
+    }
+  }
+
+  .step-title {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
+
+  .step-number {
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    flex-shrink: 0;
+    place-items: center;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--frog) 14%, transparent);
+    color: var(--frog);
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .step-text {
+    margin-top: 0.75rem;
+    line-height: 1.6;
+    color: var(--ink-muted);
+    text-wrap: pretty;
+  }
+
+  /* The copy button sits beside the command rather than over it, so a long line scrolls clear of it. */
+  .command {
+    display: flex;
+    align-items: flex-start;
+    margin-top: 1.25rem;
+    border-radius: 0.75rem;
+    background: var(--canvas);
+    box-shadow: inset 0 0 0 1px var(--line);
+
+    pre {
+      flex: 1;
+      min-width: 0;
+      overflow-x: auto;
+      padding: 1rem 0.5rem 1rem 1.125rem;
+      font-family: var(--font-mono);
+      font-size: 0.875rem;
+      line-height: 1.8;
+      scrollbar-width: thin;
+      scrollbar-color: var(--line) transparent;
+    }
+  }
+
+  /* The prompt is generated, so selecting or copying a command leaves it out. */
+  .command-line::before {
+    content: "$ " / "";
+    color: var(--ink-faint);
+  }
+
+  .copy-button {
+    display: grid;
+    flex-shrink: 0;
+    margin: 0.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    place-items: center;
+    border-radius: 0.5rem;
+    background: var(--canvas);
+    color: var(--ink-muted);
+    cursor: pointer;
+    transition-property: background-color, color, scale;
+    transition-duration: 150ms;
+    transition-timing-function: var(--ease-out-strong);
+
+    &:hover {
+      background: var(--surface-raised);
+      color: var(--ink);
+    }
+
+    &:active {
+      scale: 0.96;
+    }
+
+    .icon {
+      grid-area: 1 / 1;
+      transition-property: opacity, scale, filter;
+      transition-duration: 200ms;
+      transition-timing-function: var(--ease-out-strong);
+    }
+
+    .copied-icon,
+    &[data-copied] .copy-icon {
+      opacity: 0;
+      scale: 0.25;
+      filter: blur(4px);
+    }
+
+    &[data-copied] {
+      color: var(--frog);
+    }
+
+    &[data-copied] .copied-icon {
+      opacity: 1;
+      scale: 1;
+      filter: blur(0);
+    }
+  }
+
+  .download {
+    display: flex;
+    min-height: 3rem;
+    align-items: center;
+    gap: 0.75rem;
+    border-radius: 0.75rem;
+    background: var(--surface-raised);
+    box-shadow: inset 0 0 0 1px var(--line);
+    padding-inline: 1rem;
+    font-weight: 600;
+    transition-property: background-color, box-shadow, scale;
+    transition-duration: 150ms;
+    transition-timing-function: var(--ease-out-strong);
+
+    .icon {
+      color: var(--frog);
+    }
+
+    &:hover {
+      box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--frog) 45%, transparent);
+    }
+
+    &:active {
+      scale: 0.96;
+    }
+  }
+
+  .download-detail {
+    font-weight: 400;
+    color: var(--ink-muted);
+  }
+
+  .pond {
+    mask-image: radial-gradient(ellipse 75% 70% at 50% 40%, black 35%, transparent 100%);
+  }
+}
+
+@keyframes flow-down {
+  to {
+    background-position: 0 14px;
+  }
+}
+
+@keyframes flow-across {
+  to {
+    background-position: 14px 0;
+  }
+}
+
+/* The hero's one-time entrance, as on the dashboard's sign-in page. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rise-in {
+    animation: rise-in 500ms var(--ease-out-strong) both;
+  }
+}

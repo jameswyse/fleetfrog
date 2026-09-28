@@ -333,6 +333,28 @@ importers:
         specifier: 'catalog:'
         version: 5.0.1(@types/node@26.6.2)(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0))
 
+  apps/site:
+    dependencies:
+      '@fontsource-variable/fraunces':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource-variable/instrument-sans':
+        specifier: 5.3.0
+        version: 5.3.0
+    devDependencies:
+      '@tailwindcss/vite':
+        specifier: 4.3.3
+        version: 4.3.3(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0)(yaml@2.9.1))
+      tailwindcss:
+        specifier: 4.3.3
+        version: 4.3.3
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vite:
+        specifier: 8.3.1
+        version: 8.3.1(@types/node@26.6.2)(jiti@2.7.0)(yaml@2.9.1)
+
   apps/web:
     dependencies:
       '@tanstack/react-router':
@@ -717,6 +739,12 @@ packages:
   '@eslint/plugin-kit@0.7.3':
     resolution: {integrity: sha512-IkO+/KEUvwbVpiURZg+P7zF74z5Jxe0UgJxVni+RtoHQ6IZieXaO02kmadomap/q+l6bc/jdPGGqTjhuZnuz1Q==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
+
+  '@fontsource-variable/fraunces@5.3.0':
+    resolution: {integrity: sha512-9BYGySn4AHEJdgp9Z28tQ3X+laJMEOITXkQarZXeloWQZDq5oOvXJ3kDA8c7MGIfpogIaZfjrQBqmda8POOCKA==}
+
+  '@fontsource-variable/instrument-sans@5.3.0':
+    resolution: {integrity: sha512-u4gKbDBTNFGkg997tfQn3eHOhHuquWUFTRT/rwzuKtrxX5P2ekfs2x+LgBPP4P32+cC+vUwF1Cr+IdRoPQbrGw==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -3370,6 +3398,10 @@ snapshots:
     dependencies:
       '@eslint/core': 1.2.1
       levn: 0.4.1
+
+  '@fontsource-variable/fraunces@5.3.0': {}
+
+  '@fontsource-variable/instrument-sans@5.3.0': {}
 
   '@humanfs/core@0.19.2':
     dependencies:

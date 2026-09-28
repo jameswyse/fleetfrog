@@ -1,0 +1,28 @@
+{
+  "name": "@fleetfrog/site",
+  "version": "0.3.0",
+  "private": true,
+  "description": "The fleetfrog.dev website, which Cloudflare Pages builds and serves.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --list-different .",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix .",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fontsource-variable/fraunces": "5.3.0",
+    "@fontsource-variable/instrument-sans": "5.3.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "tailwindcss": "4.3.3",
+    "typescript": "catalog:",
+    "vite": "8.3.1"
+  }
+}
