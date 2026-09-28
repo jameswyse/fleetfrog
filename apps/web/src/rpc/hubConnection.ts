@@ -33,6 +33,7 @@ import type {
   NoCloneSource,
   NothingToRun,
   NotSignedIn,
+  ProviderRejected,
   RepositoryNotFound,
   UserNotFound,
   WrongPassword,
@@ -62,6 +63,7 @@ export type DashboardError =
   | WrongPassword
   | ManagedByProvider
   | InvalidAvatar
+  | ProviderRejected
   | RpcClientError.RpcClientError;
 
 /** The most recent fleet from the hub and when the dashboard received it. */
@@ -261,15 +263,21 @@ const failureMessages = {
   WrongPassword: "Your current password is wrong.",
   ManagedByProvider: "Your sign-in provider sets this, so change it there.",
   InvalidAvatar: "Choose a PNG, JPEG or WebP image under 512 KB.",
+  ProviderRejected: "The sign-in provider didn't accept those settings.",
   RpcClientError: "The hub did not respond. Check that it is still running.",
 } satisfies Record<DashboardError["_tag"], string>;
 
 export function describeCause(cause: Cause.Cause<DashboardError>): string {
   const error = Cause.findError(cause);
 
-  return Result.isSuccess(error)
-    ? failureMessages[error.success._tag]
-    : "Something went wrong talking to the hub. Try again.";
+  if (Result.isFailure(error)) {
+    return "Something went wrong talking to the hub. Try again.";
+  }
+
+  // The provider's own reason says what to fix.
+  return error.success._tag === "ProviderRejected"
+    ? error.success.message
+    : failureMessages[error.success._tag];
 }
 
 /**

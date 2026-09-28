@@ -100,6 +100,12 @@ function UserRow({
 export function UsersSettings() {
   const session = useSession();
   const users = useHubStream({ key: "users", open: (client) => client.WatchUsers() });
+  const auth = useHubStream({ key: "auth", open: (client) => client.WatchAuthSettings() });
+  // With an admin group, the provider decides the role of everyone who signs in through it.
+  const adminGroup =
+    auth._tag === "Ready" && auth.value.mode === "oidc"
+      ? (auth.value.oidc?.adminGroup ?? null)
+      : null;
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<Editing | null>(null);
   const known = session._tag === "Known" ? session.session : null;
@@ -150,6 +156,7 @@ export function UsersSettings() {
         <EditUserDialog
           user={editing.user}
           isMe={editing.user.id === myId}
+          roleFromGroup={adminGroup}
           onClose={() => setEditing(null)}
         />
       )}

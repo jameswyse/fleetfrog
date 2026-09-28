@@ -1,4 +1,4 @@
-import { Duration, Effect, Layer, Option, Schema, SubscriptionRef } from "effect";
+import { Duration, Effect, Layer, Option, Result, Schema, SubscriptionRef } from "effect";
 import { Headers, HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 
 import {
@@ -13,11 +13,16 @@ import { isCrossOrigin } from "../http/sameOrigin.ts";
 import { AuthSettingsStore } from "./authSettingsStore.ts";
 import { DashboardSessions, sessionCookie, sessionLifetime } from "./dashboardSessions.ts";
 import { LoginThrottle } from "./loginThrottle.ts";
+import { OidcSignIn } from "./oidcSignIn.ts";
 import { checkPassword, hashPassword } from "./passwords.ts";
 import { UserStore } from "./userStore.ts";
 
+import type { Cause } from "effect";
+
 import type { SignInMethod } from "@fleetfrog/protocol/dashboard/auth";
 import type { UserId } from "@fleetfrog/protocol/domain/user";
+
+import type { OidcIntent } from "./oidcSignIn.ts";
 
 const sessionJson = HttpServerResponse.schemaJson(Schema.toCodecJson(Session));
 const failureJson = HttpServerResponse.schemaJson(Schema.toCodecJson(LoginFailure));
@@ -252,6 +257,115 @@ const changeMode = HttpRouter.add(
   }).pipe(Effect.orDie),
 );
 
+/** Binds a provider sign-in to the browser that started it, so a stolen callback link is useless. */
+const oidcStateCookie = "fleetfrog_oidc_state";
+
+/** Only a path on this site, so a crafted link can't send someone elsewhere after signing in. */
+function safeRedirect(redirect: string | null): string {
+  return redirect?.startsWith("/") === true && !redirect.startsWith("//") ? redirect : "/";
+}
+
+/** Where a failed provider sign-in sends the browser, with why. */
+function failed(intent: OidcIntent, message: string) {
+  const page = intent === "Activate" ? "/settings/authentication" : "/login";
+
+  return HttpServerResponse.redirect(
+    `${page}?${new URLSearchParams({ failure: message }).toString()}`,
+  );
+}
+
+/** The dashboard's router doesn't log requests, so a broken provider sign-in says why here. */
+function logSignInFailure(cause: Cause.Cause<unknown>) {
+  return Effect.logError("Sign-in through the provider failed", cause);
+}
+
+const oidcStart = HttpRouter.add(
+  "GET",
+  "/auth/oidc/start",
+  Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const auth = yield* AuthSettingsStore;
+    const sessions = yield* DashboardSessions;
+    const provider = yield* OidcSignIn;
+    const query = new URL(request.url, "http://hub").searchParams;
+    const intent: OidcIntent = query.get("intent") === "activate" ? "Activate" : "SignIn";
+
+    if (intent === "Activate") {
+      const viewer = yield* sessions.viewer(request.headers).pipe(Effect.option);
+
+      if (Option.isNone(viewer) || viewerRole(viewer.value) !== "admin" || auth.overridden) {
+        return forbidden;
+      }
+    } else if ((yield* auth.mode) !== "oidc") {
+      return failed(intent, "Signing in through a provider is off.");
+    }
+
+    return yield* provider
+      .start({
+        intent,
+        redirect:
+          intent === "Activate" ? "/settings/authentication" : safeRedirect(query.get("redirect")),
+      })
+      .pipe(
+        Effect.flatMap(({ url, state }) =>
+          HttpServerResponse.setCookie(HttpServerResponse.redirect(url), oidcStateCookie, state, {
+            ...cookieOptions(request),
+            path: "/auth/oidc",
+            maxAge: Duration.minutes(10),
+          }),
+        ),
+        Effect.catchTag("OidcFailure", ({ message }) => Effect.succeed(failed(intent, message))),
+      );
+  }).pipe(Effect.orDie, Effect.tapCause(logSignInFailure)),
+);
+
+const oidcCallback = HttpRouter.add(
+  "GET",
+  "/auth/oidc/callback",
+  Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const auth = yield* AuthSettingsStore;
+    const sessions = yield* DashboardSessions;
+    const provider = yield* OidcSignIn;
+    const state = new URL(request.url, "http://hub").searchParams.get("state");
+
+    if (state === null || request.cookies[oidcStateCookie] !== state) {
+      return failed("SignIn", "That sign-in didn't start in this browser. Try again.");
+    }
+
+    const finished = yield* provider.finish({ url: request.url }).pipe(Effect.result);
+
+    if (Result.isFailure(finished)) {
+      return failed(finished.failure.intent, finished.failure.message);
+    }
+
+    const { user, roleChanged, intent, redirect } = finished.success;
+
+    if (intent === "Activate") {
+      yield* auth.update({ ...(yield* SubscriptionRef.get(auth.settings)), mode: "oidc" });
+      yield* sessions.endAll;
+    } else if (roleChanged) {
+      // Open sockets carry what the old role could see, so they close.
+      yield* sessions.endForUser(user.id);
+    } else if ((yield* auth.mode) !== "oidc") {
+      return failed(intent, "Signing in through a provider is off.");
+    }
+
+    const token = yield* sessions.start(user.id);
+    const response = yield* HttpServerResponse.setCookie(
+      HttpServerResponse.redirect(redirect),
+      sessionCookie,
+      token,
+      { ...cookieOptions(request), maxAge: sessionLifetime },
+    );
+
+    return yield* HttpServerResponse.expireCookie(response, oidcStateCookie, {
+      ...cookieOptions(request),
+      path: "/auth/oidc",
+    });
+  }).pipe(Effect.orDie, Effect.tapCause(logSignInFailure)),
+);
+
 /**
  * Uploaded pictures by the hash of their bytes, so browsers keep each one for good. Only PNG,
  * JPEG and WebP are accepted, and they're sandboxed like project icons all the same.
@@ -280,4 +394,12 @@ const avatars = HttpRouter.add(
 );
 
 /** Sign-in over plain HTTP, since the dashboard socket needs the session cookie first. */
-export const AuthRoutes = Layer.mergeAll(session, login, logout, changeMode, avatars);
+export const AuthRoutes = Layer.mergeAll(
+  session,
+  login,
+  logout,
+  changeMode,
+  oidcStart,
+  oidcCallback,
+  avatars,
+);

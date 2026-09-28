@@ -8,6 +8,7 @@ import {
   InvalidAvatar,
   ManagedByProvider,
   NotSignedIn,
+  ProviderRejected,
   RefreshTarget,
   viewerRole,
   WrongPassword,
@@ -26,6 +27,7 @@ import { InspectionRequests } from "../agents/inspectionRequests.ts";
 import { AuthSettingsStore } from "../auth/authSettingsStore.ts";
 import { isAvatarImage } from "../auth/avatarImage.ts";
 import { DashboardSessions } from "../auth/dashboardSessions.ts";
+import { OidcSignIn } from "../auth/oidcSignIn.ts";
 import { checkPassword, hashPassword } from "../auth/passwords.ts";
 import { UserStore } from "../auth/userStore.ts";
 import { FleetFeed } from "../catalogue/fleetFeed.ts";
@@ -53,6 +55,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
     const updates = yield* AgentUpdates;
     const users = yield* UserStore;
     const auth = yield* AuthSettingsStore;
+    const oidc = yield* OidcSignIn;
     const dashboardSessions = yield* DashboardSessions;
     /** The signed-in user making the call. With sign-in off there's no one to act as. */
     const signedIn = Effect.gen(function* () {
@@ -270,6 +273,23 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
       DeleteUser: ({ userId }) =>
         users.remove(userId).pipe(Effect.andThen(dashboardSessions.endForUser(userId))),
       WatchAuthSettings: () => auth.watch,
+      SetOidcSettings: ({ settings: input }) =>
+        Effect.gen(function* () {
+          const current = yield* SubscriptionRef.get(auth.settings);
+          const clientSecret = input.clientSecret ?? current.oidc?.clientSecret ?? null;
+
+          if (clientSecret === null) {
+            return yield* new ProviderRejected({ message: "Enter the client secret." });
+          }
+
+          const settings = { ...input, clientSecret };
+
+          yield* oidc
+            .check(settings)
+            .pipe(Effect.mapError(({ message }) => new ProviderRejected({ message })));
+
+          return yield* auth.update({ ...current, oidc: settings });
+        }),
       SetGravatar: ({ enabled }) =>
         SubscriptionRef.get(auth.settings).pipe(
           Effect.flatMap((settings) => auth.update({ ...settings, gravatar: enabled })),

@@ -68,3 +68,48 @@ it.effect("keeps emails unique", () =>
     expect((yield* Effect.flip(create("ada@example.com", "user")))._tag).toBe("EmailTaken");
   }).pipe(Effect.provide(TestStore)),
 );
+
+it.effect(
+  "links a provider sign-in to the account with that email, then follows the provider account",
+  () =>
+    Effect.gen(function* () {
+      const users = yield* UserStore;
+      const local = yield* create("ada@example.com", "admin");
+      const identity = {
+        issuer: "https://auth.example.com",
+        subject: "ada-at-provider",
+        name: "Ada Lovelace",
+        picture: null,
+        role: null,
+      };
+
+      const first = yield* users.signInFromProvider({
+        ...identity,
+        email: Email.make("ada@example.com"),
+      });
+
+      expect(first.user.id).toBe(local.id);
+      expect(first.user.role).toBe("admin");
+      expect(first.user.providerName).toBe("Ada Lovelace");
+
+      // The provider changed their email; the provider account still finds them.
+      const moved = yield* users.signInFromProvider({
+        ...identity,
+        email: Email.make("ada@newmail.example"),
+        role: "user",
+      });
+
+      expect(moved.user.id).toBe(local.id);
+      expect(moved.user.email).toBe("ada@newmail.example");
+      expect(moved.roleChanged).toBe(true);
+
+      const stranger = yield* users.signInFromProvider({
+        ...identity,
+        subject: "someone-else",
+        email: Email.make("bo@example.com"),
+      });
+
+      expect(stranger.user.id).not.toBe(local.id);
+      expect(stranger.user.role).toBe("user");
+    }).pipe(Effect.provide(TestStore)),
+);

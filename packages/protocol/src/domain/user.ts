@@ -102,6 +102,13 @@ export const OidcSettings = Schema.Struct({
 });
 export type OidcSettings = typeof OidcSettings.Type;
 
+/** The provider's settings as an admin saves them. A null client secret keeps the saved one. */
+export const OidcInput = Schema.Struct({
+  ...OidcSettings.fields,
+  clientSecret: Schema.NullOr(OidcSettings.fields.clientSecret),
+});
+export type OidcInput = typeof OidcInput.Type;
+
 /** The provider's settings as admins see them. The client secret never leaves the hub. */
 export const OidcSummary = OidcSettings.mapFields(Struct.omit(["clientSecret"]));
 export type OidcSummary = typeof OidcSummary.Type;

@@ -59,6 +59,15 @@ export interface UserRecord {
   readonly lastSignedInAt: DateTime.Utc | null;
 }
 
+export interface ProviderIdentity {
+  readonly issuer: string;
+  readonly subject: string;
+  readonly email: Email;
+  readonly name: string | null;
+  readonly picture: string | null;
+  readonly role: Role | null;
+}
+
 export interface UploadedAvatar {
   readonly mediaType: AvatarMediaType;
   readonly data: Uint8Array;
@@ -152,6 +161,14 @@ export class UserStore extends Context.Service<
     /** Fails rather than leave the hub without an admin. */
     readonly remove: (userId: UserId) => Effect.Effect<void, UserNotFound | LastAdmin>;
     readonly recordSignIn: (userId: UserId) => Effect.Effect<void>;
+    /**
+     * The user the provider signed in, found by their provider account, then by email, or
+     * created. Their email, name and picture follow the provider's. With a role, it replaces
+     * theirs; without one, a new user is a user.
+     */
+    readonly signInFromProvider: (
+      identity: ProviderIdentity,
+    ) => Effect.Effect<{ readonly user: UserRecord; readonly roleChanged: boolean }, EmailTaken>;
   }
 >()("fleetfrog/UserStore") {
   static readonly layer = Layer.effect(this)(
@@ -319,6 +336,57 @@ export class UserStore extends Context.Service<
                 Effect.asVoid,
               );
             }),
+          ),
+        signInFromProvider: (identity) =>
+          write(
+            Effect.gen(function* () {
+              const all = yield* SubscriptionRef.get(records);
+              const existing =
+                all.find(
+                  ({ oidc }) =>
+                    oidc?.issuer === identity.issuer && oidc.subject === identity.subject,
+                ) ?? all.find(({ email }) => email === identity.email);
+              const fields = {
+                email: identity.email,
+                oidc_issuer: identity.issuer,
+                oidc_subject: identity.subject,
+                provider_name: identity.name,
+                provider_picture: identity.picture,
+              };
+
+              if (yield* emailTaken(identity.email, existing?.id ?? null)) {
+                return yield* new EmailTaken();
+              }
+
+              if (existing === undefined) {
+                const id = UserId.make(randomUUID());
+
+                yield* sql`insert into users ${sql.insert({
+                  ...fields,
+                  id,
+                  display_name: identity.name ?? identity.email.split("@")[0] ?? identity.email,
+                  role: identity.role ?? "user",
+                  created_at: yield* now,
+                })}`.pipe(Effect.orDie);
+
+                return { id, roleChanged: false };
+              }
+
+              const role = identity.role ?? existing.role;
+
+              yield* sql`update users set ${sql.update({ ...fields, role })} where id = ${existing.id}`.pipe(
+                Effect.orDie,
+              );
+
+              return { id: existing.id, roleChanged: role !== existing.role };
+            }),
+          ).pipe(
+            Effect.flatMap(({ id, roleChanged }) =>
+              find(id).pipe(
+                Effect.map((user) => ({ user, roleChanged })),
+                Effect.orDie,
+              ),
+            ),
           ),
         recordSignIn: (userId) =>
           write(

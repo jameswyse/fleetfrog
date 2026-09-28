@@ -176,15 +176,33 @@ export function AddUserDialog({
   );
 }
 
+function roleLockReason({
+  isMe,
+  roleFromGroup,
+}: {
+  readonly isMe: boolean;
+  readonly roleFromGroup: string | null;
+}): string | null {
+  if (roleFromGroup !== null) {
+    return `Members of the ${roleFromGroup} group at the provider are admins, checked at each sign-in.`;
+  }
+
+  return isMe ? "You can't change your own role." : null;
+}
+
 export function EditUserDialog({
   user,
   isMe,
+  roleFromGroup,
   onClose,
 }: {
   readonly user: User;
   readonly isMe: boolean;
+  /** The provider group that makes people admins, when the provider decides roles. */
+  readonly roleFromGroup: string | null;
   readonly onClose: () => void;
 }) {
+  const roleLocked = isMe || roleFromGroup !== null;
   const [errors, setErrors] = useState<ReadonlyArray<FieldError>>([]);
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -202,7 +220,7 @@ export function EditUserDialog({
           const values = new FormData(form);
           const email = decodeEmail(formText(values, "email"));
           // A disabled select isn't submitted, so the role stays as it was.
-          const role = isMe ? Option.some(user.role) : decodeRole(formText(values, "role"));
+          const role = roleLocked ? Option.some(user.role) : decodeRole(formText(values, "role"));
 
           setErrors(found);
 
@@ -253,9 +271,9 @@ export function EditUserDialog({
         />
         <RoleField
           defaultValue={user.role}
-          disabledReason={isMe ? "You can't change your own role." : null}
+          disabledReason={roleLockReason({ isMe, roleFromGroup })}
         />
-        {!isMe && (
+        {!roleLocked && (
           <p className="text-sm text-ink-muted">
             Changing their role signs them out, so they sign in again with it.
           </p>

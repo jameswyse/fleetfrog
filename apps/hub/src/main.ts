@@ -12,6 +12,7 @@ import { InspectionRequests } from "./agents/inspectionRequests.ts";
 import { AuthSettingsStore } from "./auth/authSettingsStore.ts";
 import { DashboardSessions } from "./auth/dashboardSessions.ts";
 import { LoginThrottle } from "./auth/loginThrottle.ts";
+import { OidcSignIn } from "./auth/oidcSignIn.ts";
 import { UserStore } from "./auth/userStore.ts";
 import { CheckoutStore } from "./catalogue/checkoutStore.ts";
 import { FleetFeed } from "./catalogue/fleetFeed.ts";
@@ -46,6 +47,7 @@ const Hub = Layer.merge(AgentServer, DashboardServer).pipe(
       LoginThrottle.layer,
     ),
   ),
+  Layer.provideMerge(OidcSignIn.layer),
   Layer.provideMerge(DashboardSessions.layer),
   Layer.provideMerge(UserStore.layer),
   Layer.provideMerge(AuthSettingsStore.layer),

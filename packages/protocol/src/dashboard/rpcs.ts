@@ -20,6 +20,7 @@ import {
   AuthSettingsView,
   AvatarMediaType,
   DisplayName,
+  OidcInput,
   Email,
   Password,
   Role,
@@ -79,6 +80,11 @@ export class ManagedByProvider extends Schema.TaggedError<ManagedByProvider>()(
   "ManagedByProvider",
   {},
 ) {}
+
+/** The provider didn't answer discovery at its issuer URL, or there's no client secret yet. */
+export class ProviderRejected extends Schema.TaggedError<ProviderRejected>()("ProviderRejected", {
+  message: Schema.String,
+}) {}
 
 /** The file isn't a PNG, JPEG or WebP image, or is too large. */
 export class InvalidAvatar extends Schema.TaggedError<InvalidAvatar>()("InvalidAvatar", {}) {}
@@ -287,4 +293,6 @@ export class DashboardRpcs extends RpcGroup.make(
   /** Streams the sign-in settings on subscribe and after every change. Modes change over HTTP. */
   Rpc.make("WatchAuthSettings", { success: AuthSettingsView, stream: true }),
   Rpc.make("SetGravatar", { payload: { enabled: Schema.Boolean } }),
+  /** Checks the provider answers, then saves its settings. Turning it on happens over HTTP. */
+  Rpc.make("SetOidcSettings", { payload: { settings: OidcInput }, error: ProviderRejected }),
 ).middleware(DashboardAuthentication) {}
