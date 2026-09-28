@@ -1,0 +1,113 @@
+import { Schema, SchemaTransformation } from "effect";
+
+import { actionTiers } from "./action.ts";
+
+import type { ActionKind } from "./action.ts";
+
+export const UserId = Schema.String.pipe(Schema.check(Schema.isUUID()), Schema.brand("UserId"));
+export type UserId = typeof UserId.Type;
+
+/** Admins can use everything. Users can't use Cleanup, cleanup actions or Settings. */
+export const Role = Schema.Literals(["admin", "user"]);
+export type Role = typeof Role.Type;
+
+/** Users can run `git`-tier actions. Cleanup and anything newer is for admins. */
+export function mayRun(role: Role, kind: ActionKind): boolean {
+  return role === "admin" || actionTiers[kind] === "git";
+}
+
+/** How people sign in to the dashboard. With `none`, anyone who can reach it is an admin. */
+export const AuthMode = Schema.Literals(["none", "local", "oidc"]);
+export type AuthMode = typeof AuthMode.Type;
+
+/** Emails are compared without case, so they're stored lowercased. */
+export const Email = Schema.Trim.pipe(
+  Schema.decodeTo(
+    Schema.String.check(
+      Schema.isLowercased(),
+      Schema.makeFilter((email) => /^[^\s@]+@[^\s@]+$/.test(email) || "must be an email address"),
+    ),
+    SchemaTransformation.toLowerCase(),
+  ),
+  Schema.brand("Email"),
+);
+export type Email = typeof Email.Type;
+
+export const DisplayName = Schema.Trim.check(Schema.isMinLength(1), Schema.isMaxLength(80));
+
+export const minimumPasswordLength = 8;
+
+/** The upper bound keeps hashing cheap for anyone sending a huge password. */
+export const Password = Schema.String.check(
+  Schema.isMinLength(minimumPasswordLength),
+  Schema.isMaxLength(256),
+);
+
+/** Where a user's picture comes from. Any of them can fail to load, leaving their initials. */
+export const Avatar = Schema.TaggedUnion({
+  /** Uploaded to the hub, served from `/avatars/:id`. */
+  Uploaded: { id: Schema.String },
+  /** The `picture` claim from the sign-in provider. */
+  Provider: { url: Schema.String },
+  /** The SHA-256 of the user's email, for Gravatar to look up. */
+  Gravatar: { hash: Schema.String },
+  None: {},
+});
+export type Avatar = typeof Avatar.Type;
+
+export const avatarMediaTypes = ["image/png", "image/jpeg", "image/webp"] as const;
+export const AvatarMediaType = Schema.Literals(avatarMediaTypes);
+export const maximumAvatarBytes = 512 * 1024;
+
+export const User = Schema.Struct({
+  id: UserId,
+  email: Schema.String,
+  displayName: Schema.String,
+  role: Role,
+  avatar: Avatar,
+  /** The sign-in provider sets the name on every sign-in, so the user can't change it. */
+  displayNameFromProvider: Schema.Boolean,
+  hasPassword: Schema.Boolean,
+  /** Whether the user has signed in through the provider, which ties them to its account. */
+  linkedToProvider: Schema.Boolean,
+  createdAt: Schema.DateTimeUtc,
+  lastSignedInAt: Schema.NullOr(Schema.DateTimeUtc),
+});
+export type User = typeof User.Type;
+
+const HttpUrl = Schema.Trim.check(
+  Schema.makeFilter(
+    (url) =>
+      (URL.canParse(url) && ["http:", "https:"].includes(new URL(url).protocol)) ||
+      "must be an http:// or https:// URL",
+  ),
+);
+
+const Group = Schema.NullOr(Schema.Trim.check(Schema.isMinLength(1)));
+
+/** An OpenID Connect provider such as Authentik, as the admin configured it. */
+export const OidcSettings = Schema.Struct({
+  /** Shown on the sign-in button, such as "Authentik". */
+  providerName: DisplayName,
+  issuerUrl: HttpUrl,
+  clientId: Schema.Trim.check(Schema.isMinLength(1)),
+  clientSecret: Schema.String.check(Schema.isMinLength(1)),
+  /** Where people open the dashboard, which the provider sends them back to. */
+  dashboardUrl: HttpUrl,
+  /** Members of this group are admins and everyone else is a user, decided on every sign-in. */
+  adminGroup: Group,
+  /** When set, only members of this group can sign in. */
+  requiredGroup: Group,
+});
+export type OidcSettings = typeof OidcSettings.Type;
+
+/** The hub's sign-in settings as stored. */
+export const AuthSettings = Schema.Struct({
+  mode: AuthMode,
+  /** Whether users without a picture get their Gravatar, which their browsers fetch from Gravatar. */
+  gravatar: Schema.Boolean,
+  oidc: Schema.NullOr(OidcSettings),
+});
+export type AuthSettings = typeof AuthSettings.Type;
+
+export const defaultAuthSettings: AuthSettings = { mode: "none", gravatar: true, oidc: null };

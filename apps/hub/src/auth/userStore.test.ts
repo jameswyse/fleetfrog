@@ -1,0 +1,70 @@
+import { SqliteClient } from "@effect/sql-sqlite-node";
+import { expect, it } from "@effect/vitest";
+import { Effect, Layer } from "effect";
+
+import { Email } from "@fleetfrog/protocol/domain/user";
+
+import { HubConfig } from "../hubConfig.ts";
+import { Migrations } from "../persistence/database.ts";
+import { AuthSettingsStore } from "./authSettingsStore.ts";
+import { UserStore } from "./userStore.ts";
+
+import type { Role } from "@fleetfrog/protocol/domain/user";
+
+/** A fresh, fully migrated database for each test. */
+const TestStore = UserStore.layer.pipe(
+  Layer.provideMerge(AuthSettingsStore.layer),
+  Layer.provide(Migrations.pipe(Layer.provideMerge(SqliteClient.layer({ filename: ":memory:" })))),
+  Layer.provide(
+    Layer.succeed(HubConfig)({
+      dataDirectory: "unused",
+      dashboardPort: 7420,
+      agentPort: 7421,
+      agentTls: "self-signed",
+      agentUrl: null,
+      webRoot: null,
+      authModeOverride: null,
+    }),
+  ),
+);
+
+const create = (email: string, role: Role) =>
+  UserStore.use((users) =>
+    users.create({ email: Email.make(email), displayName: email, role, passwordHash: null }),
+  );
+
+it.effect("won't demote or remove the last admin", () =>
+  Effect.gen(function* () {
+    const users = yield* UserStore;
+    const admin = yield* create("ada@example.com", "admin");
+    const user = yield* create("bo@example.com", "user");
+    const demote = users.update({
+      userId: admin.id,
+      email: Email.make(admin.email),
+      displayName: admin.displayName,
+      role: "user",
+    });
+
+    expect((yield* Effect.flip(demote))._tag).toBe("LastAdmin");
+    expect((yield* Effect.flip(users.remove(admin.id)))._tag).toBe("LastAdmin");
+
+    yield* users.update({
+      userId: user.id,
+      email: Email.make(user.email),
+      displayName: user.displayName,
+      role: "admin",
+    });
+    yield* users.remove(admin.id);
+
+    expect((yield* users.find(user.id)).role).toBe("admin");
+    expect((yield* Effect.flip(users.find(admin.id)))._tag).toBe("UserNotFound");
+  }).pipe(Effect.provide(TestStore)),
+);
+
+it.effect("keeps emails unique", () =>
+  Effect.gen(function* () {
+    yield* create("ada@example.com", "admin");
+
+    expect((yield* Effect.flip(create("ada@example.com", "user")))._tag).toBe("EmailTaken");
+  }).pipe(Effect.provide(TestStore)),
+);

@@ -24,6 +24,8 @@ export class HubConfig extends Context.Service<
     readonly agentUrl: string | null;
     /** Built dashboard files. Absent in development, where Vite serves the dashboard. */
     readonly webRoot: string | null;
+    /** `none` turns sign-in off whatever the settings say, for an admin who can't sign in. */
+    readonly authModeOverride: "none" | null;
   }
 >()("fleetfrog/HubConfig") {
   static readonly layer = Layer.effect(this)(
@@ -34,6 +36,9 @@ export class HubConfig extends Context.Service<
       agentTls: AgentTransport.pipe(Config.withDefault("self-signed" as const)),
       agentUrl: Config.schema(WebSocketUrl, "FLEETFROG_AGENT_URL").pipe(Config.withDefault(null)),
       webRoot: Config.NonEmptyString("FLEETFROG_WEB_ROOT").pipe(Config.withDefault(null)),
+      authModeOverride: Config.Literals(["none"], "FLEETFROG_AUTH_MODE").pipe(
+        Config.withDefault(null),
+      ),
     }),
   );
 }

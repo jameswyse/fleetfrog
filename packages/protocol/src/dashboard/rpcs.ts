@@ -1,5 +1,5 @@
-import { Schema } from "effect";
-import { Rpc, RpcGroup } from "effect/unstable/rpc";
+import { Context, Schema } from "effect";
+import { Rpc, RpcGroup, RpcMiddleware } from "effect/unstable/rpc";
 
 import {
   ActivityFilter,
@@ -16,6 +16,71 @@ import { PollingSettings } from "../domain/polling.ts";
 import { RepositoryKey } from "../domain/repositoryIdentity.ts";
 import { IntegrationSettings } from "../domain/t3Code.ts";
 import { InspectionResult } from "../domain/trash.ts";
+import {
+  AvatarMediaType,
+  DisplayName,
+  Email,
+  Password,
+  Role,
+  User,
+  UserId,
+} from "../domain/user.ts";
+
+/**
+ * Who may call an RPC. RPCs are for admins unless marked for users, so a new one starts closed to
+ * users.
+ */
+export const Access = Context.Reference<Role>("fleetfrog/Access", { defaultValue: () => "admin" });
+
+/** Who is calling. With sign-in off, anyone who can reach the dashboard is an admin. */
+export type Viewer =
+  | { readonly _tag: "Anyone" }
+  | {
+      readonly _tag: "SignedIn";
+      readonly userId: UserId;
+      readonly role: Role;
+      /** Identifies the session, so a password change can keep it and end the others. */
+      readonly sessionHash: string;
+    };
+
+export function viewerRole(viewer: Viewer): Role {
+  return viewer._tag === "Anyone" ? "admin" : viewer.role;
+}
+
+export class CurrentViewer extends Context.Service<CurrentViewer, Viewer>()(
+  "fleetfrog/CurrentViewer",
+) {}
+
+/** The session has ended or sign-in was turned on, so the dashboard needs to sign in again. */
+export class NotSignedIn extends Schema.TaggedError<NotSignedIn>()("NotSignedIn", {}) {}
+
+export class Forbidden extends Schema.TaggedError<Forbidden>()("Forbidden", {}) {}
+
+/** Reads the session cookie sent with the WebSocket upgrade, and checks the RPC's `Access`. */
+export class DashboardAuthentication extends RpcMiddleware.Service<
+  DashboardAuthentication,
+  { provides: CurrentViewer }
+>()("fleetfrog/DashboardAuthentication", { error: Schema.Union([NotSignedIn, Forbidden]) }) {}
+
+export class UserNotFound extends Schema.TaggedError<UserNotFound>()("UserNotFound", {
+  userId: UserId,
+}) {}
+
+export class EmailTaken extends Schema.TaggedError<EmailTaken>()("EmailTaken", {}) {}
+
+/** The change would leave the hub without an admin. */
+export class LastAdmin extends Schema.TaggedError<LastAdmin>()("LastAdmin", {}) {}
+
+export class WrongPassword extends Schema.TaggedError<WrongPassword>()("WrongPassword", {}) {}
+
+/** The sign-in provider sets this on every sign-in, so it can't be changed here. */
+export class ManagedByProvider extends Schema.TaggedError<ManagedByProvider>()(
+  "ManagedByProvider",
+  {},
+) {}
+
+/** The file isn't a PNG, JPEG or WebP image, or is too large. */
+export class InvalidAvatar extends Schema.TaggedError<InvalidAvatar>()("InvalidAvatar", {}) {}
 
 export class MachineNotFound extends Schema.TaggedError<MachineNotFound>()("MachineNotFound", {
   machineId: MachineId,
@@ -88,8 +153,11 @@ export type PairingOffer = typeof PairingOffer.Type;
 /** Served over WebSocket on the dashboard port. */
 export class DashboardRpcs extends RpcGroup.make(
   /** Streams the whole fleet on subscribe and after every change. Agents poll faster while any subscription is open. */
-  Rpc.make("WatchFleet", { success: Fleet, stream: true }),
-  Rpc.make("Refresh", { payload: { target: RefreshTarget }, error: MachineNotFound }),
+  Rpc.make("WatchFleet", { success: Fleet, stream: true }).annotate(Access, "user"),
+  Rpc.make("Refresh", { payload: { target: RefreshTarget }, error: MachineNotFound }).annotate(
+    Access,
+    "user",
+  ),
   Rpc.make("RenameMachine", {
     payload: { machineId: MachineId, customName: Schema.NullOr(Schema.NonEmptyString) },
     error: MachineNotFound,
@@ -139,15 +207,22 @@ export class DashboardRpcs extends RpcGroup.make(
     error: Schema.Union([MachineNotFound, InvalidArchiveFolder]),
   }),
   Rpc.make("CreatePairingOffer", { success: PairingOffer }),
+  /** Users can start only `git`-tier actions. */
   Rpc.make("StartBatch", {
     payload: { request: BatchRequest },
     success: Schema.Struct({ batchId: BatchId }),
-    error: Schema.Union([MachineNotFound, RepositoryNotFound, NothingToRun, NoCloneSource]),
-  }),
+    error: Schema.Union([
+      MachineNotFound,
+      RepositoryNotFound,
+      NothingToRun,
+      NoCloneSource,
+      Forbidden,
+    ]),
+  }).annotate(Access, "user"),
   /** Cancelling a run that has already finished does nothing. */
-  Rpc.make("Cancel", { payload: { target: CancelTarget } }),
+  Rpc.make("Cancel", { payload: { target: CancelTarget } }).annotate(Access, "user"),
   /** Streams active runs and each checkout's latest result on subscribe and after every change. */
-  Rpc.make("WatchRuns", { success: RunsSnapshot, stream: true }),
+  Rpc.make("WatchRuns", { success: RunsSnapshot, stream: true }).annotate(Access, "user"),
   Rpc.make("WatchActivity", {
     payload: {
       filter: ActivityFilter,
@@ -155,11 +230,57 @@ export class DashboardRpcs extends RpcGroup.make(
     },
     success: ActivityPage,
     stream: true,
-  }),
+  }).annotate(Access, "user"),
   Rpc.make("WatchBatch", {
     payload: { batchId: BatchId },
     success: BatchDetail,
     error: BatchNotFound,
     stream: true,
+  }).annotate(Access, "user"),
+  /** Changes the signed-in user's own name. */
+  Rpc.make("UpdateProfile", {
+    payload: { displayName: DisplayName },
+    success: User,
+    error: Schema.Union([NotSignedIn, ManagedByProvider]),
+  }).annotate(Access, "user"),
+  /** Replaces or, with null, removes the signed-in user's own picture. */
+  Rpc.make("SetAvatar", {
+    payload: {
+      avatar: Schema.NullOr(Schema.Struct({ mediaType: AvatarMediaType, data: Schema.Uint8Array })),
+    },
+    success: User,
+    error: Schema.Union([NotSignedIn, ManagedByProvider, InvalidAvatar]),
+  }).annotate(Access, "user"),
+  /** Ends the user's other sessions. */
+  Rpc.make("ChangePassword", {
+    payload: { currentPassword: Schema.String, newPassword: Password },
+    error: Schema.Union([NotSignedIn, WrongPassword]),
+  }).annotate(Access, "user"),
+  /** Streams every user on subscribe and after every change. */
+  Rpc.make("WatchUsers", { success: Schema.Array(User), stream: true }),
+  /** A user without a password can sign in only through the provider. */
+  Rpc.make("CreateUser", {
+    payload: {
+      email: Email,
+      displayName: DisplayName,
+      role: Role,
+      password: Schema.NullOr(Password),
+    },
+    success: User,
+    error: EmailTaken,
   }),
-) {}
+  /** A role change ends the user's sessions, so they sign in again with the new role. */
+  Rpc.make("UpdateUser", {
+    payload: { userId: UserId, email: Email, displayName: DisplayName, role: Role },
+    error: Schema.Union([UserNotFound, EmailTaken, LastAdmin]),
+  }),
+  /** Ends the user's sessions. */
+  Rpc.make("SetUserPassword", {
+    payload: { userId: UserId, password: Password },
+    error: UserNotFound,
+  }),
+  Rpc.make("DeleteUser", {
+    payload: { userId: UserId },
+    error: Schema.Union([UserNotFound, LastAdmin]),
+  }),
+).middleware(DashboardAuthentication) {}

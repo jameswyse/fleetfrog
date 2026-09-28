@@ -21,11 +21,19 @@ import type { RpcClientError } from "effect/unstable/rpc";
 import type {
   AgentNotUpdatable,
   BatchNotFound,
+  EmailTaken,
+  Forbidden,
   InvalidArchiveFolder,
+  InvalidAvatar,
+  LastAdmin,
   MachineNotFound,
+  ManagedByProvider,
   NoCloneSource,
   NothingToRun,
+  NotSignedIn,
   RepositoryNotFound,
+  UserNotFound,
+  WrongPassword,
 } from "@fleetfrog/protocol/dashboard/rpcs";
 import type { RunsSnapshot } from "@fleetfrog/protocol/domain/activity";
 import type { Fleet } from "@fleetfrog/protocol/domain/fleet";
@@ -44,6 +52,14 @@ export type DashboardError =
   | BatchNotFound
   | InvalidArchiveFolder
   | AgentNotUpdatable
+  | NotSignedIn
+  | Forbidden
+  | UserNotFound
+  | EmailTaken
+  | LastAdmin
+  | WrongPassword
+  | ManagedByProvider
+  | InvalidAvatar
   | RpcClientError.RpcClientError;
 
 /** The most recent fleet from the hub and when the dashboard received it. */
@@ -217,6 +233,14 @@ const failureMessages = {
     "That folder can't be this machine's Archive folder. It may hold one of its project folders.",
   AgentNotUpdatable:
     "The agent can't update now. It may be offline, not allowed to update, already updating or already on the hub's version.",
+  NotSignedIn: "You've been signed out. Sign in again to continue.",
+  Forbidden: "Only admins can do that.",
+  UserNotFound: "That user no longer exists.",
+  EmailTaken: "Another user already has that email address.",
+  LastAdmin: "The hub needs at least one admin. Make someone else an admin first.",
+  WrongPassword: "Your current password is wrong.",
+  ManagedByProvider: "Your sign-in provider sets this, so change it there.",
+  InvalidAvatar: "Choose a PNG, JPEG or WebP image under 512 KB.",
   RpcClientError: "The hub did not respond. Check that it is still running.",
 } satisfies Record<DashboardError["_tag"], string>;
 

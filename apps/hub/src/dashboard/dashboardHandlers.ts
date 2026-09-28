@@ -1,12 +1,21 @@
 import { Effect, Stream } from "effect";
 
 import {
+  CurrentViewer,
   DashboardRpcs,
+  Forbidden,
   InvalidArchiveFolder,
+  InvalidAvatar,
+  ManagedByProvider,
+  NotSignedIn,
   RefreshTarget,
+  viewerRole,
+  WrongPassword,
 } from "@fleetfrog/protocol/dashboard/rpcs";
+import { batchKind } from "@fleetfrog/protocol/domain/activity";
 import { checkArchiveFolder } from "@fleetfrog/protocol/domain/archiveFolder";
 import { FolderOutcome, machineLabel } from "@fleetfrog/protocol/domain/fleet";
+import { mayRun } from "@fleetfrog/protocol/domain/user";
 
 import { ActionDispatcher } from "../actions/actionDispatcher.ts";
 import { ActivityFeed } from "../activity/activityFeed.ts";
@@ -14,6 +23,10 @@ import { AgentSessions } from "../agents/agentSessions.ts";
 import { AgentUpdates } from "../agents/agentUpdates.ts";
 import { FolderRequests } from "../agents/folderRequests.ts";
 import { InspectionRequests } from "../agents/inspectionRequests.ts";
+import { isAvatarImage } from "../auth/avatarImage.ts";
+import { DashboardSessions } from "../auth/dashboardSessions.ts";
+import { checkPassword, hashPassword } from "../auth/passwords.ts";
+import { UserStore } from "../auth/userStore.ts";
 import { FleetFeed } from "../catalogue/fleetFeed.ts";
 import { ProjectIconStore } from "../catalogue/projectIconStore.ts";
 import { MachineStore } from "../machines/machineStore.ts";
@@ -37,6 +50,18 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
     const folders = yield* FolderRequests;
     const inspections = yield* InspectionRequests;
     const updates = yield* AgentUpdates;
+    const users = yield* UserStore;
+    const dashboardSessions = yield* DashboardSessions;
+    /** The signed-in user making the call. With sign-in off there's no one to act as. */
+    const signedIn = Effect.gen(function* () {
+      const viewer = yield* CurrentViewer;
+
+      return viewer._tag === "SignedIn" ? viewer : yield* new NotSignedIn();
+    });
+    const ownRecord = signedIn.pipe(
+      Effect.flatMap(({ userId }) => users.find(userId)),
+      Effect.catchTag("UserNotFound", () => Effect.fail(new NotSignedIn())),
+    );
 
     return {
       WatchFleet: () => Stream.unwrap(presence.watch.pipe(Effect.as(feed.watch))),
@@ -161,11 +186,87 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
         }),
       CreatePairingOffer: () => offers.create,
       StartBatch: ({ request }) =>
-        dispatcher.start(request).pipe(Effect.map((batchId) => ({ batchId }))),
+        Effect.gen(function* () {
+          if (!mayRun(viewerRole(yield* CurrentViewer), batchKind(request))) {
+            return yield* new Forbidden();
+          }
+
+          return { batchId: yield* dispatcher.start(request) };
+        }),
       Cancel: ({ target }) => dispatcher.cancel(target),
       WatchRuns: () => activity.watchRuns,
       WatchActivity: (query) => activity.watchActivity(query),
       WatchBatch: ({ batchId }) => activity.watchBatch(batchId),
+      UpdateProfile: ({ displayName }) =>
+        Effect.gen(function* () {
+          const record = yield* ownRecord;
+
+          if (record.providerName !== null) {
+            return yield* new ManagedByProvider();
+          }
+
+          yield* users.setDisplayName({ userId: record.id, displayName }).pipe(Effect.orDie);
+
+          return yield* ownRecord.pipe(Effect.flatMap(users.describe));
+        }),
+      SetAvatar: ({ avatar }) =>
+        Effect.gen(function* () {
+          const record = yield* ownRecord;
+
+          if (record.providerPicture !== null) {
+            return yield* new ManagedByProvider();
+          }
+
+          if (avatar !== null && !isAvatarImage(avatar)) {
+            return yield* new InvalidAvatar();
+          }
+
+          yield* users.setAvatar({ userId: record.id, avatar }).pipe(Effect.orDie);
+
+          return yield* ownRecord.pipe(Effect.flatMap(users.describe));
+        }),
+      ChangePassword: ({ currentPassword, newPassword }) =>
+        Effect.gen(function* () {
+          const { sessionHash } = yield* signedIn;
+          const record = yield* ownRecord;
+
+          if (!(yield* checkPassword({ password: currentPassword, hash: record.passwordHash }))) {
+            return yield* new WrongPassword();
+          }
+
+          yield* users
+            .setPasswordHash({ userId: record.id, passwordHash: yield* hashPassword(newPassword) })
+            .pipe(Effect.orDie);
+
+          return yield* dashboardSessions.endForUser(record.id, { except: sessionHash });
+        }),
+      WatchUsers: () => users.watch,
+      CreateUser: ({ password, ...user }) =>
+        Effect.gen(function* () {
+          const passwordHash = password === null ? null : yield* hashPassword(password);
+
+          return yield* users
+            .create({ ...user, passwordHash })
+            .pipe(Effect.flatMap(users.describe));
+        }),
+      UpdateUser: (update) =>
+        Effect.gen(function* () {
+          const before = yield* users.find(update.userId);
+
+          yield* users.update(update);
+
+          // Open sockets carry what the old role could see, so they close.
+          if (before.role !== update.role) {
+            yield* dashboardSessions.endForUser(update.userId);
+          }
+        }),
+      SetUserPassword: ({ userId, password }) =>
+        Effect.gen(function* () {
+          yield* users.setPasswordHash({ userId, passwordHash: yield* hashPassword(password) });
+          yield* dashboardSessions.endForUser(userId);
+        }),
+      DeleteUser: ({ userId }) =>
+        users.remove(userId).pipe(Effect.andThen(dashboardSessions.endForUser(userId))),
     };
   }),
 );

@@ -17,6 +17,7 @@ const TestOffers = PairingOffers.layer.pipe(
       agentTls: "self-signed",
       agentUrl: null,
       webRoot: null,
+      authModeOverride: null,
     }),
     Layer.succeed(AgentCertificate)({
       tls: { certificatePem: "unused", privateKeyPem: "unused", fingerprint: "AB:CD" },

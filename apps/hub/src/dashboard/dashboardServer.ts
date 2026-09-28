@@ -4,7 +4,6 @@ import path from "node:path";
 import { NodeHttpServer } from "@effect/platform-node";
 import { Effect, Layer, Option } from "effect";
 import {
-  Headers,
   HttpRouter,
   HttpServerRequest,
   HttpServerResponse,
@@ -14,31 +13,20 @@ import { RpcSerialization, RpcServer } from "effect/unstable/rpc";
 
 import { DashboardRpcs } from "@fleetfrog/protocol/dashboard/rpcs";
 
+import { AuthRoutes } from "../auth/authRoutes.ts";
+import { DashboardAuthenticationLive } from "../auth/dashboardAuthentication.ts";
+import { DashboardSessions } from "../auth/dashboardSessions.ts";
 import { ProjectIconStore } from "../catalogue/projectIconStore.ts";
+import { isCrossOrigin } from "../http/sameOrigin.ts";
 import { HubConfig } from "../hubConfig.ts";
 import { DashboardHandlers } from "./dashboardHandlers.ts";
 
-/**
- * Browsers let any page open a WebSocket to any address, so without a login the socket only
- * accepts pages served from the same origin. Clients that send no `Origin` are not browsers.
- */
-function isCrossOrigin(headers: Headers.Headers): boolean {
-  const origin = Headers.get(headers, "origin");
-
-  if (Option.isNone(origin)) {
-    return false;
-  }
-
-  return (
-    !URL.canParse(origin.value) ||
-    new URL(origin.value).host !== Headers.get(headers, "host").pipe(Option.getOrElse(() => ""))
-  );
-}
-
-const sameOriginProtocol = Layer.effect(RpcServer.Protocol)(
+/** The RPC socket, for signed-in pages served from the same origin. */
+const dashboardProtocol = Layer.effect(RpcServer.Protocol)(
   Effect.gen(function* () {
     const { protocol, httpEffect } = yield* RpcServer.makeProtocolWithHttpEffectWebsocket;
     const router = yield* HttpRouter.HttpRouter;
+    const sessions = yield* DashboardSessions;
 
     yield* router.add(
       "GET",
@@ -46,9 +34,21 @@ const sameOriginProtocol = Layer.effect(RpcServer.Protocol)(
       Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest;
 
-        return isCrossOrigin(request.headers)
-          ? HttpServerResponse.text("Cross-origin connections are not accepted.", { status: 403 })
-          : yield* httpEffect;
+        if (isCrossOrigin(request.headers)) {
+          return HttpServerResponse.text("Cross-origin connections are not accepted.", {
+            status: 403,
+          });
+        }
+
+        const viewer = yield* sessions.viewer(request.headers).pipe(Effect.option);
+
+        if (Option.isNone(viewer)) {
+          return HttpServerResponse.text("Sign in first.", { status: 401 });
+        }
+
+        yield* sessions.connect(viewer.value, httpEffect);
+
+        return HttpServerResponse.empty();
       }),
     );
 
@@ -106,10 +106,10 @@ export const DashboardServer = Layer.unwrap(
     // A defect fails only its own request. By default it ends every stream on the socket, and the
     // dashboard reads that as the hub going away.
     const rpc = RpcServer.layer(DashboardRpcs, { disableFatalDefects: true }).pipe(
-      Layer.provide(sameOriginProtocol),
-      Layer.provide([DashboardHandlers, RpcSerialization.layerJson]),
+      Layer.provide(dashboardProtocol),
+      Layer.provide([DashboardHandlers, DashboardAuthenticationLive, RpcSerialization.layerJson]),
     );
-    const api = Layer.merge(rpc, projectIcons);
+    const api = Layer.mergeAll(rpc, projectIcons, AuthRoutes);
     const routes = config.webRoot === null ? api : Layer.merge(api, dashboardFiles(config.webRoot));
 
     return HttpRouter.serve(routes, { disableLogger: true }).pipe(

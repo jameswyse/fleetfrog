@@ -57,6 +57,10 @@ export const BatchRequest = Schema.TaggedUnion({
 });
 export type BatchRequest = typeof BatchRequest.Type;
 
+export function batchKind(request: BatchRequest): ActionKind {
+  return request._tag === "Targeted" ? request.runs[0].request._tag : request._tag;
+}
+
 /**
  * What a batch covered, with the names as they were when it ran, so history still reads correctly
  * after a machine is renamed or removed.

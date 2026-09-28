@@ -9,6 +9,10 @@ import { AgentSessions } from "./agents/agentSessions.ts";
 import { AgentUpdates } from "./agents/agentUpdates.ts";
 import { FolderRequests } from "./agents/folderRequests.ts";
 import { InspectionRequests } from "./agents/inspectionRequests.ts";
+import { AuthSettingsStore } from "./auth/authSettingsStore.ts";
+import { DashboardSessions } from "./auth/dashboardSessions.ts";
+import { LoginThrottle } from "./auth/loginThrottle.ts";
+import { UserStore } from "./auth/userStore.ts";
 import { CheckoutStore } from "./catalogue/checkoutStore.ts";
 import { FleetFeed } from "./catalogue/fleetFeed.ts";
 import { ProjectIconStore } from "./catalogue/projectIconStore.ts";
@@ -39,8 +43,12 @@ const Hub = Layer.merge(AgentServer, DashboardServer).pipe(
       IntegrationsStore.layer,
       ProjectIconStore.layer,
       DashboardPresence.layer,
+      LoginThrottle.layer,
     ),
   ),
+  Layer.provideMerge(DashboardSessions.layer),
+  Layer.provideMerge(UserStore.layer),
+  Layer.provideMerge(AuthSettingsStore.layer),
   Layer.provideMerge(PairingOffers.layer),
   Layer.provideMerge(AgentCertificate.layer),
   Layer.provideMerge(Database),
