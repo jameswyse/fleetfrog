@@ -4,6 +4,8 @@ FleetFrog is in beta, so versions stay below 1.0. Every package shares one versi
 
 Agents update to their hub's version and never past it, so every release ships the hub image and the agent binaries together, even when only one of them changed. `fleetfrog update` and the dashboard's update buttons download the agent from the GitHub release named after the hub's version.
 
+To show what changed, `fleetfrog update` reads `apps/agent-rs/CHANGELOG.md` at the hub's version tag from GitHub and lists each `## <version>` section after the installed version. The dashboard links to the same file. Updates still work if the changelog moves or changes format, but `fleetfrog update` can no longer list the changes, and a move also breaks the dashboard's link.
+
 ## Versions
 
 Describe each change people will notice in a changeset, naming the packages it changes:

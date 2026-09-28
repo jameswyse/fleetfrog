@@ -4,6 +4,8 @@ This is the FleetFrog agent as a single native binary. It does everything the Ty
 
 Both agents read and write the same files on a machine: the pairing in `~/.config/fleetfrog`, the policy, the audit log, the trash and the archive records. Both also install the same service, so installing one replaces the other and keeps its pairing.
 
+An agent run with `FLEETFROG_INSTANCE` set, such as `dev`, is a separate instance. It keeps its pairing and policy in `~/.config/fleetfrog-dev`, writes its own action log and installs its own service, so it runs beside the default agent. It still shares the machine's checkouts, archive records and trash. The [main README](../../README.md#develop) explains how to set one up.
+
 ## Build and install
 
 Each [release](https://github.com/jameswyse/fleetfrog/releases) includes this agent for Linux and macOS, and the [main README](../../README.md#add-a-machine) explains how to install it. Build it yourself to work on it.
@@ -29,6 +31,7 @@ Change both agents together when the protocol or an agent's behaviour changes, a
 
 ## Differences from the TypeScript agent
 
+- A release build of this agent updates itself to its hub's version, with `fleetfrog update` or when the hub asks. The TypeScript agent always runs from source, so it never updates itself, and its `fleetfrog update` says to update it with Git.
 - Git remotes with non-ASCII host names are not recognised, because the URL parser is built without Unicode host support to keep the binary small. Such a checkout falls back to its root commit for its identity and has no clone URL.
 - T3 Code's default monogram colour skips Unicode NFKC normalisation of the project title, which only changes the colour for titles with compatibility characters such as full-width letters.
 - The icons in a `ProjectIcons` report are in project order rather than the order their files were read.
