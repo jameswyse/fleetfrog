@@ -1,5 +1,13 @@
 # @fleetfrog/web
 
+## 0.2.0
+
+### Minor Changes
+
+- 45cdda0: Add sign-in provider settings, with a test sign-in that turns the provider on.
+- e0311c6: Show who started each action and made each change in Activity.
+- 25bb9d5: Add a sign-in page, a profile page with pictures and passwords, and Users and Authentication settings for admins.
+
 ## 0.1.1
 
 ### Patch Changes
