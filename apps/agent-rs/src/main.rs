@@ -527,11 +527,16 @@ fn update_command(arguments: &[String]) -> ExitCode {
     }
 }
 
-/// Prints what a discovery walk of `roots` finds, as the hub would receive it. Used to compare
-/// this agent's readings with the TypeScript agent's.
+/// Prints what a discovery walk of the roots, and any Archive folder given with `--archive`, finds,
+/// as the hub would receive it. Used to compare this agent's readings with the TypeScript agent's.
 fn scan(arguments: &[String]) -> ExitCode {
+    let (archive, roots) = match arguments {
+        [flag, archive, roots @ ..] if flag == "--archive" => (Some(archive.as_str()), roots),
+        roots => (None, roots),
+    };
+
     runtime().block_on(async {
-        let locations = discovery::discover_checkouts(arguments, None, &[]).await;
+        let locations = discovery::discover_checkouts(roots, archive, &[]).await;
         let mut checkouts = Vec::new();
 
         for location in locations {

@@ -62,8 +62,14 @@ interface CheckoutCatalogue {
   readonly discovered: Effect.Effect<void>;
   readonly locate: (path: string) => CheckoutLocation | undefined;
   readonly rescanRepository: (commonDirectory: string) => Effect.Effect<void, unknown>;
-  readonly track: (path: string) => Effect.Effect<void, unknown>;
-  readonly forget: (path: string) => Effect.Effect<void, unknown>;
+  /**
+   * Drops the checkouts of the repository whose Git directory was `left`, and reads the main
+   * checkout at `main` with its linked worktrees where they are now.
+   */
+  readonly followRepository: (
+    left: string | null,
+    main: string | null,
+  ) => Effect.Effect<void, unknown>;
   /** Sends the hub everything in the trash. */
   readonly reportTrash: Effect.Effect<void, unknown>;
 }
@@ -180,8 +186,8 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
   };
 
   /**
-   * An action that moves a checkout in or out of the archive. Afterwards the agent forgets the old
-   * path and reads the checkout at its new one.
+   * An action that moves a checkout in or out of the archive. Afterwards the agent follows the
+   * checkout and its worktrees to where they are now.
    */
   const movePlan = (
     path: string,
@@ -206,25 +212,11 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
       lockKey: location.commonDirectory,
       network: "Local",
       perform: (output) => move(location, { ...options.folders(), home }, output),
-      afterwards: (outcome) => {
-        if (
-          outcome._tag !== "Succeeded" ||
-          (outcome.result._tag !== "Archived" && outcome.result._tag !== "Unarchived")
-        ) {
-          return options.catalogue.rescanRepository(location.commonDirectory);
-        }
-
-        // The main checkout goes first, so its worktrees are read once it's in its new place.
-        const moves = [{ from: path, to: outcome.result.path }, ...outcome.result.worktrees];
-
-        return Effect.forEach(moves, (moved) => options.catalogue.forget(moved.from), {
-          discard: true,
-        }).pipe(
-          Effect.andThen(
-            Effect.forEach(moves, (moved) => options.catalogue.track(moved.to), { discard: true }),
-          ),
-        );
-      },
+      afterwards: (outcome) =>
+        outcome._tag === "Succeeded" &&
+        (outcome.result._tag === "Archived" || outcome.result._tag === "Unarchived")
+          ? options.catalogue.followRepository(location.commonDirectory, outcome.result.path)
+          : options.catalogue.rescanRepository(location.commonDirectory),
     };
   };
 
@@ -241,7 +233,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
 
   /**
    * An action that removes a checkout from where it is, archived or not. Afterwards the agent
-   * forgets its path and reports the trash, which may have gained it.
+   * forgets it and its worktrees, and reports the trash, which may have gained them.
    */
   const removalPlan = (
     path: string,
@@ -259,7 +251,9 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
           perform: (output) => remove(location, output),
           afterwards: (outcome) =>
             outcome._tag === "Succeeded"
-              ? options.catalogue.forget(path).pipe(Effect.andThen(options.catalogue.reportTrash))
+              ? options.catalogue
+                  .followRepository(location.commonDirectory, null)
+                  .pipe(Effect.andThen(options.catalogue.reportTrash))
               : options.catalogue.rescanRepository(location.commonDirectory),
         };
   };
@@ -286,15 +280,14 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
   };
 
   /**
-   * Removing a linked worktree of the main checkout at `path`. Afterwards the agent forgets the
-   * worktree and reads the clone again, which lists its worktrees.
+   * Removing a linked worktree of the main checkout at `path`. Afterwards the agent reads the
+   * checkout's worktrees again, which no longer include the removed one.
    */
   const worktreeRemovalPlan = (
     path: string,
     removal: { readonly worktree: string; readonly fingerprint: string },
   ): Plan => {
     const location = mainLocation(path, removal.worktree);
-    const { worktree } = removal;
 
     return location === undefined
       ? { _tag: "Refused", message: `This machine has no checkout at ${path}.` }
@@ -304,9 +297,9 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
           network: "Local",
           perform: (output) => removeWorktree(location, removal, output),
           afterwards: (outcome) =>
-            (outcome._tag === "Succeeded" ? options.catalogue.forget(worktree) : Effect.void).pipe(
-              Effect.andThen(options.catalogue.rescanRepository(location.commonDirectory)),
-            ),
+            outcome._tag === "Succeeded"
+              ? options.catalogue.followRepository(location.commonDirectory, location.path)
+              : options.catalogue.rescanRepository(location.commonDirectory),
         };
   };
 
@@ -324,7 +317,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
       outcome.result._tag === "Restored" &&
       outcome.result.path !== null
         ? options.catalogue
-            .track(outcome.result.path)
+            .followRepository(null, outcome.result.path)
             .pipe(Effect.andThen(options.catalogue.reportTrash))
         : options.catalogue.reportTrash,
   });
@@ -403,7 +396,9 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
             ),
           // Only a clone this agent made is added, so a refused one can't point it elsewhere.
           afterwards: (outcome) =>
-            outcome._tag === "Succeeded" ? options.catalogue.track(checked.path) : Effect.void,
+            outcome._tag === "Succeeded"
+              ? options.catalogue.followRepository(null, checked.path)
+              : Effect.void,
         };
       },
     });

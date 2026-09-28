@@ -73,3 +73,9 @@ git init -q deps/node_modules/repo && commit deps/node_modules/repo "Dependency"
 git init -q a/b/c/d/e/f/deep && commit a/b/c/d/e/f/deep "Deep"
 git init -q a/b/c/d/e/shallow && commit a/b/c/d/e/shallow "Shallow enough"
 ln -s "$root/detached" linked
+
+# An Archive folder beside the project folder, holding a checkout whose linked worktree is inside it.
+archive="$(dirname "$root")/Archive"
+mkdir -p "$archive"
+git init -q -b main "$archive/kept" && commit "$archive/kept" "Kept"
+git -C "$archive/kept" worktree add -q nested-tree -b nested

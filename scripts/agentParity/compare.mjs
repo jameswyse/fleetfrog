@@ -53,7 +53,12 @@ function compare(label, { typeScript, rust }) {
   console.log(`  Rust:       ${JSON.stringify(rust)}`);
 }
 
-const scans = readBoth(["scan", projects]);
+const scans = readBoth([
+  "scan",
+  "--archive",
+  path.join(path.dirname(projects), "Archive"),
+  projects,
+]);
 const byPath = (checkouts) =>
   checkouts.toSorted((left, right) => left.path.localeCompare(right.path));
 

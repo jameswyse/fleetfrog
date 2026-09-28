@@ -41,7 +41,6 @@ Ideas for after phase 2. They're captured, not planned: an entry doesn't mean it
 - **Archives off the machine.** Move an archived checkout to TrueNAS as a tarball and a `git bundle`, stored once for the whole fleet. It needs file transfer, like the `files` tier.
 - **Preserving on GitHub.** Push every branch of a checkout whose remote is gone to a new private repository, so it can be cloned again.
 - **Emptying the trash automatically.** Purge trashed checkouts after a set time, such as 30 days.
-- **Following nested worktrees.** A linked worktree inside the checkout's own folder moves with it when the checkout is archived, unarchived, trashed or restored, but both agents keep reporting it at its old path until the next status pass, and at its new one only after the next discovery walk. Each could forget and track it like the worktrees that move on their own.
 - **Trash on another disk.** The trash lives in the home directory, so moving a checkout on another disk to the trash fails. A trash folder on each disk would need its own records.
 - **Restoring a branch's upstream.** A branch restored from the trash comes back without its upstream, because deleting it also removes its settings.
 

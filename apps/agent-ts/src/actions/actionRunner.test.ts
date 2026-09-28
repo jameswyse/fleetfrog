@@ -10,18 +10,18 @@ import { TestClock } from "effect/testing";
 import { RunId } from "@fleetfrog/protocol/domain/activity";
 import { nothingUnique, TrashId } from "@fleetfrog/protocol/domain/trash";
 
-import { placeLocation } from "../discovery/discoverCheckouts.ts";
 import { locateCheckout } from "../git/readCheckout.ts";
 import { readLinkedWorktrees } from "../git/worktrees.ts";
+import { makeScanner } from "../scheduling/scanner.ts";
 import { temporaryDirectory } from "../testing/temporaryDirectory.ts";
 import { listTrash } from "../trash/trashFolder.ts";
 import { makeActionRunner } from "./actionRunner.ts";
 
+import type { ScanReport } from "@fleetfrog/protocol/agent/rpcs";
 import type { ActionRequest, ActionUpdate } from "@fleetfrog/protocol/domain/action";
 
 import type { AuditEntry } from "../audit/auditLog.ts";
 import type { AgentPolicy } from "../config/agentPolicy.ts";
-import type { CheckoutLocation } from "../git/readCheckout.ts";
 
 // The agent's own Git commands, such as the commit a stash makes, need an identity too.
 beforeAll(() => {
@@ -71,20 +71,38 @@ const runIds = {
   second: RunId.make("00000000-0000-4000-8000-000000000002"),
 };
 
-/** A runner over one checkout, recording what it reports and audits. */
+/** The checkouts the hub holds once it has applied these reports, by path. */
+function pathsHeldByHub(reports: ReadonlyArray<ScanReport>): Array<string> {
+  const paths = new Set<string>();
+
+  for (const report of reports) {
+    if (report._tag === "Discovery") {
+      paths.clear();
+      report.checkouts.forEach((checkout) => paths.add(checkout.path));
+    } else if (report._tag === "Status") {
+      report.removedPaths.forEach((removed) => paths.delete(removed));
+      report.changed.forEach((checkout) => paths.add(checkout.path));
+    }
+  }
+
+  return [...paths].toSorted();
+}
+
+/**
+ * A runner over the checkouts a scanner finds in the roots, recording what they report and audit.
+ * The scanner's first discovery walk is done already unless `discovered` is given.
+ */
 const makeHarness = Effect.fn("makeHarness")(function* (options: {
-  readonly location: CheckoutLocation;
   readonly roots: ReadonlyArray<string>;
   readonly archiveFolder: string | null;
   readonly trashDirectory: string;
   readonly policy: AgentPolicy;
   /** Waits for the scanner's first discovery walk, which is done already unless given. */
-  readonly discovered?: Effect.Effect<void>;
+  readonly discovered?: Effect.Effect<void> | undefined;
 }) {
   const updates = new Map<RunId, Array<ActionUpdate>>();
-  const known = new Map([[options.location.path, options.location]]);
+  const reports: Array<ScanReport> = [];
   const audit: Array<AuditEntry> = [];
-  const tracked: Array<string> = [];
   /** For each rescan, whether it came before any run reported its outcome. */
   const rescannedBeforeFinishing: Array<boolean> = [];
   const signals = new Map<string, Deferred.Deferred<ActionUpdate>>();
@@ -105,31 +123,35 @@ const makeHarness = Effect.fn("makeHarness")(function* (options: {
     return created;
   };
 
+  const folders = () => ({ roots: options.roots, archiveFolder: options.archiveFolder });
+  const scanner = makeScanner({
+    githubLogin: null,
+    trashDirectory: options.trashDirectory,
+    folders,
+    report: (report) => Effect.sync(() => reports.push(report)),
+  });
+  const discover = scanner.discover({
+    ...folders(),
+    githubMaximumAge: Duration.zero,
+    t3Code: null,
+  });
+
+  if (options.discovered === undefined) {
+    yield* discover;
+  }
+
   const runner = yield* makeActionRunner({
     catalogue: {
-      discovered: options.discovered ?? Effect.void,
-      locate: (checkoutPath) => known.get(checkoutPath),
-      rescanRepository: () =>
+      ...scanner,
+      discovered: options.discovered ?? scanner.discovered,
+      rescanRepository: (commonDirectory) =>
         Effect.sync(() => {
           rescannedBeforeFinishing.push(
             [...updates.values()].every((sent) => sent.every(({ _tag }) => _tag !== "Finished")),
           );
-        }),
-      // Like the scanner, reads a checkout that appears, archived or not, and drops one that goes.
-      track: (trackedPath) =>
-        Effect.gen(function* () {
-          tracked.push(trackedPath);
-
-          const found = yield* locateCheckout(trackedPath);
-
-          if (Option.isSome(found)) {
-            known.set(trackedPath, yield* placeLocation(found.value, options.archiveFolder));
-          }
-        }),
-      forget: (forgottenPath) => Effect.sync(() => known.delete(forgottenPath)),
-      reportTrash: Effect.void,
+        }).pipe(Effect.andThen(scanner.rescanRepository(commonDirectory))),
     },
-    folders: () => ({ roots: options.roots, archiveFolder: options.archiveFolder }),
+    folders,
     trashDirectory: options.trashDirectory,
     loadPolicy: Effect.succeed(options.policy),
     report: (runId, update) =>
@@ -147,10 +169,11 @@ const makeHarness = Effect.fn("makeHarness")(function* (options: {
 
   return {
     runner,
-    known,
+    discover,
     audit,
-    tracked,
     rescannedBeforeFinishing,
+    /** The checkouts the hub holds from the scanner's reports so far. */
+    reportedPaths: () => pathsHeldByHub(reports),
     updates: (runId: RunId) => (updates.get(runId) ?? []).map(({ _tag }) => _tag),
     /** Starts an action and waits for its outcome. */
     run: (request: ActionRequest, runId: RunId = runIds.first) =>
@@ -187,18 +210,11 @@ const withCleanup: AgentPolicy = { allowedTiers: ["git", "cleanup"] };
 const setUp = (
   policy: AgentPolicy = { allowedTiers: ["git"] },
   archiveFolder: string | null = null,
-  discovered: Effect.Effect<void> = Effect.void,
+  discovered?: Effect.Effect<void>,
 ) =>
   Effect.gen(function* () {
     const fixture = createFixture(yield* temporaryDirectory("fleetfrog-actions-"));
-    const location = yield* locateCheckout(fixture.clone);
-
-    if (Option.isNone(location)) {
-      return yield* Effect.die(new Error("The fixture clone is not a checkout."));
-    }
-
     const harness = yield* makeHarness({
-      location: location.value,
       roots: [path.join(fixture.root, "projects")],
       archiveFolder: archiveFolder === null ? null : path.join(fixture.root, archiveFolder),
       trashDirectory: path.join(fixture.root, "trash"),
@@ -213,23 +229,16 @@ describe("action runner", () => {
   it.effect("waits for the first discovery walk before looking for the checkout", () =>
     Effect.gen(function* () {
       const walk = yield* Deferred.make<void>();
-      const { runner, clone, known, updates, outcome } = yield* setUp(
+      const { runner, discover, clone, updates, outcome } = yield* setUp(
         undefined,
         null,
         Deferred.await(walk),
       );
-      const location = known.get(clone);
 
-      // Like the scanner, the runner knows no checkouts until the walk finds them.
-      known.delete(clone);
       yield* runner.run(runIds.first, { _tag: "Fetch", path: clone });
       yield* Effect.yieldNow;
       expect(updates(runIds.first)).toEqual([]);
-
-      if (location !== undefined) {
-        known.set(clone, location);
-      }
-
+      yield* discover;
       yield* Deferred.succeed(walk, undefined);
       expect(yield* outcome(runIds.first)).toMatchObject({
         outcome: { _tag: "Succeeded", result: { _tag: "Fetched" } },
@@ -340,7 +349,7 @@ describe("action runner", () => {
 
   it.effect("never adds a refused clone's destination to the known checkouts", () =>
     Effect.gen(function* () {
-      const { run, tracked, root } = yield* setUp();
+      const { run, reportedPaths, clone, root } = yield* setUp();
       const hidden = path.join(root, "projects", ".dotfiles");
 
       git(root, "init", "-q", hidden);
@@ -348,7 +357,7 @@ describe("action runner", () => {
       expect(
         yield* run({ _tag: "Clone", url: "https://github.com/acme/shop.git", destination: hidden }),
       ).toMatchObject({ outcome: { _tag: "Failed" } });
-      expect(tracked).toEqual([]);
+      expect(reportedPaths()).toEqual([clone]);
     }),
   );
 
@@ -568,13 +577,14 @@ describe("action runner", () => {
 
   it.effect("archives a checkout with its worktrees, inside and out, and brings them back", () =>
     Effect.gen(function* () {
-      const { run, clone, root } = yield* setUp(withCleanup, "Archive");
+      const { run, discover, reportedPaths, clone, root } = yield* setUp(withCleanup, "Archive");
       const outside = path.join(root, "projects", "clone-feature");
       const nested = path.join(clone, "worktrees", "fix");
       const archived = path.join(root, "Archive", "clone");
 
       git(clone, "worktree", "add", "-q", "-b", "feature", outside);
       git(clone, "worktree", "add", "-q", "-b", "fix", nested);
+      yield* discover;
 
       expect(yield* run({ _tag: "Archive", path: clone })).toMatchObject({
         outcome: {
@@ -592,6 +602,16 @@ describe("action runner", () => {
         "feature",
       );
       expect(git(path.join(archived, "worktrees", "fix"), "branch", "--show-current")).toBe("fix");
+      // The hub already holds all three where they are now, as the next discovery walk finds them.
+      const everyArchived = [
+        archived,
+        path.join(archived, "worktrees", "fix"),
+        path.join(root, "Archive", "clone-feature"),
+      ].toSorted();
+
+      expect(reportedPaths()).toEqual(everyArchived);
+      yield* discover;
+      expect(reportedPaths()).toEqual(everyArchived);
       expect(yield* run({ _tag: "Unarchive", path: archived }, runIds.second)).toMatchObject({
         outcome: {
           _tag: "Succeeded",
@@ -601,6 +621,7 @@ describe("action runner", () => {
       expect(git(outside, "branch", "--show-current")).toBe("feature");
       expect(git(nested, "branch", "--show-current")).toBe("fix");
       expect(git(clone, "worktree", "list", "--porcelain")).not.toContain("prunable");
+      expect(reportedPaths()).toEqual([clone, outside, nested].toSorted());
     }),
   );
 
@@ -716,7 +737,6 @@ describe("action runner", () => {
 
       const location = Option.getOrThrow(yield* locateCheckout(main));
       const harness = yield* makeHarness({
-        location,
         roots: [path.join(root, "projects")],
         archiveFolder: null,
         trashDirectory: path.join(root, "trash"),
@@ -833,10 +853,11 @@ describe("action runner", () => {
 
   it.effect("moves a checkout to the trash with its worktree but not its caches, and back", () =>
     Effect.gen(function* () {
-      const { run, inspect, clone, root } = yield* setUp(withCleanup);
+      const { run, inspect, discover, reportedPaths, clone, root } = yield* setUp(withCleanup);
       const worktree = path.join(root, "projects", "clone-feature");
 
       git(clone, "worktree", "add", "-q", "-b", "feature", worktree);
+      yield* discover;
 
       writeFileSync(path.join(clone, ".git", "info", "exclude"), "node_modules/\n");
       mkdirSync(path.join(clone, "node_modules", "left-pad"), { recursive: true });
@@ -848,6 +869,7 @@ describe("action runner", () => {
         yield* run({ _tag: "Trash", path: clone, fingerprint, removeCaches: true }),
       ).toMatchObject({ outcome: { _tag: "Succeeded", result: { _tag: "Trashed" } } });
       expect(existsSync(clone)).toBe(false);
+      expect(reportedPaths()).toEqual([]);
 
       const [item] = yield* listTrash(path.join(root, "trash"));
 
@@ -867,6 +889,7 @@ describe("action runner", () => {
       expect(git(clone, "status", "--porcelain")).toBe("");
       expect(git(worktree, "branch", "--show-current")).toBe("feature");
       expect(yield* listTrash(path.join(root, "trash"))).toEqual([]);
+      expect(reportedPaths()).toEqual([clone, worktree]);
     }),
   );
 

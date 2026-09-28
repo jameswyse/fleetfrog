@@ -2,8 +2,8 @@
  * Prints what this agent reads from checkouts, for `scripts/agentParity/compare.mjs` to compare
  * with the Rust agent's `__scan` and `__inspect` output.
  *
- * `node src/parity/readings.ts scan <root>...` prints every checkout discovery finds with its
- * status, and `node src/parity/readings.ts inspect <path> [<worktree>]` prints an inspection that
+ * `node src/parity/readings.ts scan [--archive <folder>] <root>...` prints every checkout discovery
+ * finds with its status, and `node src/parity/readings.ts inspect <path> [<worktree>]` prints an inspection that
  * doesn't fetch. `node src/parity/readings.ts t3code <database>` prints what the agent reads from T3
  * Code, with project icons. `node src/parity/readings.ts github <login> <path>` prints what the agent
  * reads from GitHub about the checkout at the path.
@@ -26,8 +26,8 @@ const encodeInspection = Schema.encodeSync(Schema.toCodecJson(InspectionResult))
 const encodeT3CodeStatus = Schema.encodeSync(Schema.toCodecJson(T3CodeStatus));
 const encodeGithubState = Schema.encodeSync(Schema.toCodecJson(Schema.NullOr(GithubState)));
 
-const scan = (roots: ReadonlyArray<string>) =>
-  discoverCheckouts({ roots, archiveFolder: null, projectFolders: [] }).pipe(
+const scan = (roots: ReadonlyArray<string>, archiveFolder: string | null) =>
+  discoverCheckouts({ roots, archiveFolder, projectFolders: [] }).pipe(
     Effect.flatMap((locations) =>
       Effect.forEach(locations, (location) =>
         readGitStatus(location).pipe(
@@ -111,7 +111,7 @@ function read(): Effect.Effect<unknown, unknown> {
     case "github":
       return github(first, second ?? "");
     default:
-      return scan(rest);
+      return first === "--archive" ? scan(rest.slice(2), second ?? null) : scan(rest, null);
   }
 }
 

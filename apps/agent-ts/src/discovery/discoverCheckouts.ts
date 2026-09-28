@@ -112,35 +112,21 @@ export const placeLocation = (location: CheckoutLocation, archive: string | null
     : Effect.succeed(location);
 
 /**
- * Finds every checkout under the discovery roots and at the other project folders, plus linked
- * worktrees stored elsewhere, and every checkout in the Archive folder. The Archive folder is left
- * out of the discovery roots it's in.
+ * Locates each candidate that is a checkout, placed by whether it's in the Archive folder. A
+ * candidate listed twice is located once.
  */
-export const discoverCheckouts = Effect.fn("discoverCheckouts")(function* (options: {
-  readonly roots: ReadonlyArray<string>;
-  readonly archiveFolder: string | null;
-  /** Folders that each hold one project, such as T3 Code's, checked without searching inside. */
-  readonly projectFolders: ReadonlyArray<string>;
-}) {
-  const archive = archivePath(options);
-  const underRoots = yield* Effect.promise(() =>
-    Promise.all(options.roots.map((root) => findRepositoryDirectories(rootPath(root), archive))),
-  );
-  const directories = [...underRoots.flat(), ...options.projectFolders];
-  const archived =
-    archive === null ? [] : yield* Effect.promise(() => findRepositoryDirectories(archive, null));
-  const worktrees = yield* Effect.forEach(directories, linkedWorktreePaths, {
-    concurrency: gitConcurrency,
-  });
-  const candidates = [...new Set([...directories, ...worktrees.flat(), ...archived])];
+const locateAll = Effect.fnUntraced(function* (
+  candidates: ReadonlyArray<string>,
+  archive: string | null,
+) {
   const located = yield* Effect.forEach(
-    candidates,
+    [...new Set(candidates)],
     (candidate) =>
       locateCheckout(candidate).pipe(
         Effect.flatMap((found) =>
           Option.isNone(found)
             ? Effect.succeed(found)
-            : placeLocation(found.value, archive).pipe(Effect.map(Option.some)),
+            : placeLocation(found.value, archive).pipe(Effect.asSome),
         ),
       ),
     { concurrency: gitConcurrency },
@@ -154,4 +140,40 @@ export const discoverCheckouts = Effect.fn("discoverCheckouts")(function* (optio
   }
 
   return [...byPath.values()];
+});
+
+/**
+ * The main checkout at `main` and its linked worktrees, wherever they live, as a discovery walk
+ * would find them.
+ */
+export const repositoryCheckouts = Effect.fn("repositoryCheckouts")(function* (
+  main: string,
+  archive: string | null,
+) {
+  return yield* locateAll([main, ...(yield* linkedWorktreePaths(main))], archive);
+});
+
+/**
+ * Finds every checkout under the discovery roots, at the other project folders and in the Archive
+ * folder, plus the linked worktrees of each, wherever they live. The Archive folder is left out of
+ * the discovery roots it's in.
+ */
+export const discoverCheckouts = Effect.fn("discoverCheckouts")(function* (options: {
+  readonly roots: ReadonlyArray<string>;
+  readonly archiveFolder: string | null;
+  /** Folders that each hold one project, such as T3 Code's, checked without searching inside. */
+  readonly projectFolders: ReadonlyArray<string>;
+}) {
+  const archive = archivePath(options);
+  const underRoots = yield* Effect.promise(() =>
+    Promise.all(options.roots.map((root) => findRepositoryDirectories(rootPath(root), archive))),
+  );
+  const archived =
+    archive === null ? [] : yield* Effect.promise(() => findRepositoryDirectories(archive, null));
+  const directories = [...underRoots.flat(), ...options.projectFolders, ...archived];
+  const worktrees = yield* Effect.forEach(directories, linkedWorktreePaths, {
+    concurrency: gitConcurrency,
+  });
+
+  return yield* locateAll([...directories, ...worktrees.flat()], archive);
 });

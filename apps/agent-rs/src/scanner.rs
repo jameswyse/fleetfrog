@@ -11,7 +11,7 @@ use serde_json::json;
 use tokio::sync::watch;
 
 use crate::actions::archive::Folders;
-use crate::discovery::{archive_path, discover_checkouts, place_location, root_path};
+use crate::discovery::{archive_path, discover_checkouts, repository_checkouts, root_path};
 use crate::git::{self, CheckoutLocation};
 use crate::github::GithubReader;
 use crate::hub::rpc::HubClient;
@@ -217,8 +217,12 @@ impl Scanner {
             .await
     }
 
-    /// Reports rereads that changed since they were last sent.
-    async fn report_changed(&self, checkouts: Vec<Checkout>) -> Result<(), String> {
+    /// Reports rereads that changed since they were last sent, and checkouts that went.
+    async fn report_changed(
+        &self,
+        checkouts: Vec<Checkout>,
+        removed_paths: Vec<String>,
+    ) -> Result<(), String> {
         let changed: Vec<Checkout> = {
             let state = self.state.lock().unwrap();
 
@@ -228,7 +232,7 @@ impl Scanner {
                 .collect()
         };
 
-        if changed.is_empty() {
+        if changed.is_empty() && removed_paths.is_empty() {
             return Ok(());
         }
 
@@ -239,11 +243,24 @@ impl Scanner {
 
         self.report(ScanReport::Status {
             changed,
-            removed_paths: Vec::new(),
+            removed_paths: removed_paths.clone(),
             completed_at: Utc::now(),
         })
         .await?;
-        self.state.lock().unwrap().sent.extend(keys);
+
+        // Only a delivered report retires checkouts that went, so a failed one leaves them for the
+        // next status pass, which finds them gone.
+        let mut state = self.state.lock().unwrap();
+
+        state
+            .locations
+            .retain(|location| !removed_paths.contains(&location.path));
+
+        for path in &removed_paths {
+            state.sent.remove(path);
+        }
+
+        state.sent.extend(keys);
 
         Ok(())
     }
@@ -429,67 +446,54 @@ impl Scanner {
             .collect();
         let checkouts = self.read_all(&targets, Duration::ZERO).await;
 
-        self.report_changed(checkouts).await
+        self.report_changed(checkouts, Vec::new()).await
     }
 
-    /// Adds a checkout created outside a discovery walk, such as a fresh clone or a moved one.
-    pub async fn track(&self, path: &str) -> Result<(), String> {
+    /// Follows a repository whose checkouts moved, arrived or went, as archiving, trashing,
+    /// restoring, deleting, cloning and removing a worktree do. Drops the checkouts of the
+    /// repository whose Git directory was `left`, and reads the main checkout at `main` with its
+    /// linked worktrees wherever they are now. Both go in one report, so the hub never holds the
+    /// repository half moved.
+    pub async fn follow_repository(
+        &self,
+        left: Option<&str>,
+        main: Option<&str>,
+    ) -> Result<(), String> {
         let _pass = self.pass.lock().await;
-        let Some(found) = git::locate_checkout(path).await else {
-            return Ok(());
+        let found = match main {
+            None => Vec::new(),
+            Some(main) => {
+                let folders = self.folders.lock().unwrap().clone();
+                let archive = archive_path(folders.archive_folder.as_deref(), &folders.roots);
+
+                repository_checkouts(main, archive.as_deref()).await
+            }
         };
+        let removed_paths: Vec<String> = {
+            let mut state = self.state.lock().unwrap();
+            let removed_paths = state
+                .locations
+                .iter()
+                .filter(|known| Some(known.common_directory.as_str()) == left)
+                .filter(|known| !found.iter().any(|location| location.path == known.path))
+                .map(|known| known.path.clone())
+                .collect();
 
-        if self
-            .state
-            .lock()
-            .unwrap()
-            .locations
-            .iter()
-            .any(|known| known.path == path)
-        {
-            return Ok(());
-        }
+            for location in &found {
+                match state
+                    .locations
+                    .iter_mut()
+                    .find(|known| known.path == location.path)
+                {
+                    Some(known) => *known = location.clone(),
+                    None => state.locations.push(location.clone()),
+                }
+            }
 
-        let folders = self.folders.lock().unwrap().clone();
-        let location = place_location(
-            found,
-            archive_path(folders.archive_folder.as_deref(), &folders.roots).as_deref(),
-        );
+            removed_paths
+        };
+        let checkouts = self.read_all(&found, Duration::ZERO).await;
 
-        self.state.lock().unwrap().locations.push(location.clone());
-
-        let checkouts = self.read_all(&[location], Duration::ZERO).await;
-
-        self.report_changed(checkouts).await
-    }
-
-    /// Drops a checkout that moved away, such as into the archive or the trash.
-    pub async fn forget(&self, path: &str) -> Result<(), String> {
-        let _pass = self.pass.lock().await;
-
-        if !self
-            .state
-            .lock()
-            .unwrap()
-            .locations
-            .iter()
-            .any(|known| known.path == path)
-        {
-            return Ok(());
-        }
-
-        self.report(ScanReport::Status {
-            changed: Vec::new(),
-            removed_paths: vec![path.to_string()],
-            completed_at: Utc::now(),
-        })
-        .await?;
-
-        let mut state = self.state.lock().unwrap();
-
-        state.locations.retain(|known| known.path != path);
-        state.sent.remove(path);
-
-        Ok(())
+        self.report_changed(checkouts, removed_paths).await
     }
 }

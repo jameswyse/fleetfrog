@@ -102,9 +102,49 @@ pub fn place_location(mut location: CheckoutLocation, archive: Option<&str>) -> 
     location
 }
 
-/// Finds every checkout under the discovery roots and at the other project folders, plus linked
-/// worktrees stored elsewhere, and every checkout in the Archive folder. The Archive folder is left
-/// out of the discovery roots it's in.
+/// Locates each candidate that is a checkout, placed by whether it's in the Archive folder. A
+/// candidate listed twice is located once.
+async fn locate_all(
+    candidates: impl IntoIterator<Item = String>,
+    archive: Option<&str>,
+) -> Vec<CheckoutLocation> {
+    let mut seen = HashSet::new();
+    let candidates: Vec<String> = candidates
+        .into_iter()
+        .filter(|candidate| seen.insert(candidate.clone()))
+        .collect();
+    let located: Vec<Option<CheckoutLocation>> = stream::iter(candidates)
+        .map(|candidate| async move {
+            git::locate_checkout(&candidate)
+                .await
+                .map(|location| place_location(location, archive))
+        })
+        .buffered(GIT_CONCURRENCY)
+        .collect()
+        .await;
+    let mut by_path: Vec<CheckoutLocation> = Vec::new();
+
+    for location in located.into_iter().flatten() {
+        match by_path.iter_mut().find(|known| known.path == location.path) {
+            Some(known) => *known = location,
+            None => by_path.push(location),
+        }
+    }
+
+    by_path
+}
+
+/// The main checkout at `main` and its linked worktrees, wherever they live, as a discovery walk
+/// would find them.
+pub async fn repository_checkouts(main: &str, archive: Option<&str>) -> Vec<CheckoutLocation> {
+    let worktrees = linked_worktree_paths(main).await;
+
+    locate_all(std::iter::once(main.to_string()).chain(worktrees), archive).await
+}
+
+/// Finds every checkout under the discovery roots, at the other project folders and in the Archive
+/// folder, plus the linked worktrees of each, wherever they live. The Archive folder is left out of
+/// the discovery roots it's in.
 pub async fn discover_checkouts(
     roots: &[String],
     archive_folder: Option<&str>,
@@ -123,40 +163,18 @@ pub async fn discover_checkouts(
         None => Vec::new(),
         Some(archive) => find_in_background(archive.clone(), None).await,
     };
+    let directories: Vec<String> = directories.into_iter().chain(archived).collect();
     let worktrees: Vec<Vec<String>> = stream::iter(directories.clone())
         .map(|directory| async move { linked_worktree_paths(&directory).await })
         .buffered(GIT_CONCURRENCY)
         .collect()
         .await;
-    let mut seen = HashSet::new();
-    let candidates: Vec<String> = directories
-        .iter()
-        .cloned()
-        .chain(worktrees.into_iter().flatten())
-        .chain(archived)
-        .filter(|candidate| seen.insert(candidate.clone()))
-        .collect();
-    let located: Vec<Option<CheckoutLocation>> = stream::iter(candidates)
-        .map(|candidate| {
-            let archive = archive.clone();
 
-            async move {
-                git::locate_checkout(&candidate)
-                    .await
-                    .map(|location| place_location(location, archive.as_deref()))
-            }
-        })
-        .buffered(GIT_CONCURRENCY)
-        .collect()
-        .await;
-    let mut by_path: Vec<CheckoutLocation> = Vec::new();
-
-    for location in located.into_iter().flatten() {
-        match by_path.iter_mut().find(|known| known.path == location.path) {
-            Some(known) => *known = location,
-            None => by_path.push(location),
-        }
-    }
-
-    by_path
+    locate_all(
+        directories
+            .into_iter()
+            .chain(worktrees.into_iter().flatten()),
+        archive.as_deref(),
+    )
+    .await
 }

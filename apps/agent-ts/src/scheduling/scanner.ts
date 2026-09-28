@@ -10,10 +10,10 @@ import { T3CodeStatus } from "@fleetfrog/protocol/domain/t3Code";
 import {
   archivePath,
   discoverCheckouts,
-  placeLocation,
+  repositoryCheckouts,
   rootPath,
 } from "../discovery/discoverCheckouts.ts";
-import { locateCheckout, readGitStatus } from "../git/readCheckout.ts";
+import { readGitStatus } from "../git/readCheckout.ts";
 import { makeGithubReader } from "../github/githubReader.ts";
 import { readT3Code, t3CodeDatabasePath } from "../t3Code/readT3Code.ts";
 import { listTrash } from "../trash/trashFolder.ts";
@@ -188,24 +188,34 @@ export function makeScanner<ReportError>(options: {
       concurrency: readConcurrency,
     });
 
-  /** Reports rereads that changed since they were last sent. */
-  const reportChanged = (checkouts: ReadonlyArray<Checkout>) =>
+  /** Reports rereads that changed since they were last sent, and checkouts that went. */
+  const reportChanged = (
+    checkouts: ReadonlyArray<Checkout>,
+    removedPaths: ReadonlyArray<string> = [],
+  ) =>
     Effect.gen(function* () {
       const changed = checkouts.filter(
         (checkout) => sent.get(checkout.path) !== contentKey(checkout),
       );
 
-      if (changed.length === 0) {
+      if (changed.length === 0 && removedPaths.length === 0) {
         return;
       }
 
       yield* options.report(
         ScanReport.cases.Status.make({
           changed,
-          removedPaths: [],
+          removedPaths,
           completedAt: yield* DateTime.now,
         }),
       );
+      // Only a delivered report retires checkouts that went, so a failed one leaves them for the
+      // next status pass, which finds them gone.
+      locations = locations.filter((location) => !removedPaths.includes(location.path));
+
+      for (const path of removedPaths) {
+        sent.delete(path);
+      }
 
       for (const checkout of changed) {
         sent.set(checkout.path, contentKey(checkout));
@@ -332,37 +342,24 @@ export function makeScanner<ReportError>(options: {
         yield* reportChanged(yield* readAll(targets, Duration.zero));
       }).pipe(lock.withPermits(1)),
 
-    /** Adds a checkout created outside a discovery walk, such as a fresh clone or a moved one. */
-    track: (path: string) =>
+    /**
+     * Follows a repository whose checkouts moved, arrived or went, as archiving, trashing,
+     * restoring, deleting, cloning and removing a worktree do. Drops the checkouts of the
+     * repository whose Git directory was `left`, and reads the main checkout at `main` with its
+     * linked worktrees wherever they are now. Both go in one report, so the hub never holds the
+     * repository half moved.
+     */
+    followRepository: (left: string | null, main: string | null) =>
       Effect.gen(function* () {
-        const found = yield* locateCheckout(path);
+        const found =
+          main === null ? [] : yield* repositoryCheckouts(main, archivePath(options.folders()));
+        const foundPaths = new Set(found.map(({ path }) => path));
+        const removedPaths = locations
+          .filter(({ commonDirectory, path }) => commonDirectory === left && !foundPaths.has(path))
+          .map(({ path }) => path);
 
-        if (Option.isNone(found) || locations.some((known) => known.path === path)) {
-          return;
-        }
-
-        const location = yield* placeLocation(found.value, archivePath(options.folders()));
-
-        locations = [...locations, location];
-        yield* reportChanged(yield* readAll([location], Duration.zero));
-      }).pipe(lock.withPermits(1)),
-
-    /** Drops a checkout that moved away, such as into the archive or the trash. */
-    forget: (path: string) =>
-      Effect.gen(function* () {
-        if (!locations.some((known) => known.path === path)) {
-          return;
-        }
-
-        yield* options.report(
-          ScanReport.cases.Status.make({
-            changed: [],
-            removedPaths: [path],
-            completedAt: yield* DateTime.now,
-          }),
-        );
-        locations = locations.filter((known) => known.path !== path);
-        sent.delete(path);
+        locations = [...locations.filter(({ path }) => !foundPaths.has(path)), ...found];
+        yield* reportChanged(yield* readAll(found, Duration.zero), removedPaths);
       }).pipe(lock.withPermits(1)),
   };
 }

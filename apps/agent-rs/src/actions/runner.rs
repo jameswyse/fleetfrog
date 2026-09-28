@@ -532,62 +532,48 @@ impl ActionRunner {
         match work {
             Work::Archive(location) | Work::Unarchive(location) => match result {
                 Some(
-                    ActionResult::Archived { path, worktrees }
-                    | ActionResult::Unarchived { path, worktrees },
+                    ActionResult::Archived { path, .. } | ActionResult::Unarchived { path, .. },
                 ) => {
-                    // The main checkout goes first, so its worktrees are read once it's in its new
-                    // place.
-                    let mut moves = vec![(location.path.clone(), path.clone())];
-
-                    moves.extend(
-                        worktrees
-                            .iter()
-                            .map(|moved| (moved.from.clone(), moved.to.clone())),
-                    );
-
-                    for (from, _) in &moves {
-                        scanner.forget(from).await?;
-                    }
-
-                    for (_, to) in &moves {
-                        scanner.track(to).await?;
-                    }
-
-                    Ok(())
+                    scanner
+                        .follow_repository(Some(&location.common_directory), Some(path))
+                        .await
                 }
                 _ => scanner.rescan_repository(&location.common_directory).await,
             },
             Work::Trash { location, .. } | Work::Delete { location, .. } => match result {
                 Some(_) => {
-                    scanner.forget(&location.path).await?;
+                    scanner
+                        .follow_repository(Some(&location.common_directory), None)
+                        .await?;
                     scanner.report_trash().await
                 }
                 None => scanner.rescan_repository(&location.common_directory).await,
             },
             Work::RemoveWorktree {
+                path,
                 common_directory,
-                worktree,
                 ..
-            } => {
-                if result.is_some() {
-                    scanner.forget(worktree).await?;
+            } => match result {
+                Some(_) => {
+                    scanner
+                        .follow_repository(Some(common_directory), Some(path))
+                        .await
                 }
-
-                scanner.rescan_repository(common_directory).await
-            }
+                None => scanner.rescan_repository(common_directory).await,
+            },
             Work::RestoreCheckout(_) | Work::PurgeCheckout(_) => {
                 if let Some(ActionResult::Restored {
                     path: Some(path), ..
                 }) = result
                 {
-                    scanner.track(path).await?;
+                    scanner.follow_repository(None, Some(path)).await?;
                 }
 
                 scanner.report_trash().await
             }
             // Only a clone this agent made is added, so a refused one can't point it elsewhere.
             Work::Clone { path, .. } => match result {
-                Some(_) => scanner.track(path).await,
+                Some(_) => scanner.follow_repository(None, Some(path)).await,
                 None => Ok(()),
             },
             Work::Fetch(location)
