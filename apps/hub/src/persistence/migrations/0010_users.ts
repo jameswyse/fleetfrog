@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { SqlClient } from "effect/unstable/sql";
+import { SqlClient } from "effect/sql";
 
 /** Dashboard users, their sessions and pictures, and the hub's sign-in settings. */
 export default Effect.gen(function* () {

@@ -1,5 +1,5 @@
 import { Console, Effect } from "effect";
-import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Argument, Command, Flag } from "effect/cli";
 
 import { Tier } from "@fleetfrog/protocol/domain/action";
 import { pairingCodeLifetimeMinutes } from "@fleetfrog/protocol/pairing/pairingString";

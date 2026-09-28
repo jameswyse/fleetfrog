@@ -1,5 +1,5 @@
 import { Effect, Layer, Option } from "effect";
-import { Headers } from "effect/unstable/http";
+import { Headers } from "effect/http";
 
 import { AgentAuthentication, CurrentMachine, Unauthorised } from "@fleetfrog/protocol/agent/rpcs";
 

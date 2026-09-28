@@ -1,5 +1,5 @@
 import { Context, Schema } from "effect";
-import { Rpc, RpcGroup, RpcMiddleware } from "effect/unstable/rpc";
+import { Rpc, RpcGroup, RpcMiddleware } from "effect/rpc";
 
 import {
   ActivityFilter,

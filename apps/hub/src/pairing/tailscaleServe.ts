@@ -1,7 +1,7 @@
 import { NodeHttpClient } from "@effect/platform-node";
 import { Agent } from "@effect/platform-node/Undici";
 import { Effect, Layer, Schema } from "effect";
-import { HttpClient, HttpClientResponse } from "effect/unstable/http";
+import { HttpClient, HttpClientResponse } from "effect/http";
 
 import { TailscaleServeUnavailable } from "@fleetfrog/protocol/dashboard/rpcs";
 

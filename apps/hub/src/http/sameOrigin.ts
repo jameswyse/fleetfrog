@@ -1,9 +1,9 @@
 import { Option } from "effect";
-import { Headers } from "effect/unstable/http";
+import { Headers } from "effect/http";
 
 import { requestHost } from "./serveSocket.ts";
 
-import type { HttpServerRequest } from "effect/unstable/http";
+import type { HttpServerRequest } from "effect/http";
 
 /**
  * Whether a browser sent the request from a page on another origin. Browsers let any page open a

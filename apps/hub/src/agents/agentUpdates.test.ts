@@ -1,7 +1,7 @@
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer, Stream, SubscriptionRef } from "effect";
-import { SqlClient } from "effect/unstable/sql";
+import { SqlClient } from "effect/sql";
 
 import { AgentNotUpdatable } from "@fleetfrog/protocol/dashboard/rpcs";
 import { MachineId } from "@fleetfrog/protocol/domain/machine";

@@ -1,4 +1,4 @@
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 
 import { runsFromSource } from "../machine/machineInfo.ts";
 import { reportFailure } from "./reportFailure.ts";

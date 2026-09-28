@@ -1,5 +1,5 @@
 import { Context, Effect, Layer, Schema, SubscriptionRef } from "effect";
-import { SqlClient } from "effect/unstable/sql";
+import { SqlClient } from "effect/sql";
 
 import { defaultPollingSettings, PollingSettings } from "@fleetfrog/protocol/domain/polling";
 import { defaultIntegrationSettings, IntegrationSettings } from "@fleetfrog/protocol/domain/t3Code";

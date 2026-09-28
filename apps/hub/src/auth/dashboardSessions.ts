@@ -1,8 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import { Context, DateTime, Deferred, Duration, Effect, Layer, Option, Schema } from "effect";
-import { Cookies, Headers } from "effect/unstable/http";
-import { SqlClient } from "effect/unstable/sql";
+import { Cookies, Headers } from "effect/http";
+import { SqlClient } from "effect/sql";
 
 import { NotSignedIn } from "@fleetfrog/protocol/dashboard/rpcs";
 import { isSignInOn, UserId } from "@fleetfrog/protocol/domain/user";

@@ -1,5 +1,5 @@
 import { Effect, Option, Schema } from "effect";
-import { SqlClient } from "effect/unstable/sql";
+import { SqlClient } from "effect/sql";
 
 /** The settings as 0.3 stored them, before Tailscale sign-in. */
 const WithoutTailscale = Schema.fromJsonString(

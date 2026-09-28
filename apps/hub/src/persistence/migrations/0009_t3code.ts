@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { SqlClient } from "effect/unstable/sql";
+import { SqlClient } from "effect/sql";
 
 /** The T3 Code integration: each machine's last reading, its project icons and the settings. */
 export default Effect.gen(function* () {

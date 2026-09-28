@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { Context, Effect, Layer, Option, Schema, SubscriptionRef } from "effect";
-import { SqlClient } from "effect/unstable/sql";
+import { SqlClient } from "effect/sql";
 
 import { ProviderIconSource } from "@fleetfrog/protocol/domain/user";
 

@@ -1,5 +1,5 @@
 import { Context, DateTime, Effect, Layer, Option, Schema } from "effect";
-import { SqlClient } from "effect/unstable/sql";
+import { SqlClient } from "effect/sql";
 
 import { ReportedRoot } from "@fleetfrog/protocol/agent/rpcs";
 import { MachineNotFound } from "@fleetfrog/protocol/dashboard/rpcs";
@@ -14,7 +14,7 @@ import { TrashedCheckout } from "@fleetfrog/protocol/domain/trash";
 
 import { JsonColumn } from "../persistence/database.ts";
 
-import type { SqlError } from "effect/unstable/sql";
+import type { SqlError } from "effect/sql";
 
 const Timestamp = Schema.DateTimeUtcFromString;
 

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { Context, Effect, Layer, Option, Schema } from "effect";
-import { SqlClient } from "effect/unstable/sql";
+import { SqlClient } from "effect/sql";
 
 import type { ProjectIconFile } from "@fleetfrog/protocol/agent/rpcs";
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";

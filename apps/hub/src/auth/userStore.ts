@@ -11,7 +11,7 @@ import {
   Stream,
   SubscriptionRef,
 } from "effect";
-import { SqlClient } from "effect/unstable/sql";
+import { SqlClient } from "effect/sql";
 
 import { EmailTaken, LastAdmin, UserNotFound } from "@fleetfrog/protocol/dashboard/rpcs";
 import { AvatarMediaType, Role, UserId } from "@fleetfrog/protocol/domain/user";

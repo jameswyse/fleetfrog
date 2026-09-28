@@ -2,13 +2,8 @@ import { createServer } from "node:http";
 import path from "node:path";
 
 import { Effect, Layer, Option } from "effect";
-import {
-  HttpRouter,
-  HttpServerRequest,
-  HttpServerResponse,
-  HttpStaticServer,
-} from "effect/unstable/http";
-import { RpcSerialization, RpcServer } from "effect/unstable/rpc";
+import { HttpRouter, HttpServerRequest, HttpServerResponse, HttpStaticServer } from "effect/http";
+import { RpcSerialization, RpcServer } from "effect/rpc";
 
 import { DashboardRpcs } from "@fleetfrog/protocol/dashboard/rpcs";
 

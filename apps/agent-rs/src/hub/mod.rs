@@ -1,6 +1,6 @@
 //! Talking to the hub with Effect RPC's JSON protocol: WebSocket for a paired agent, and one HTTPS
 //! request for pairing. Requests, stream chunks, acknowledgements and pings follow
-//! `effect/unstable/rpc` as the hub serves it.
+//! `effect/rpc` as the hub serves it.
 
 pub mod rpc;
 pub mod tls;

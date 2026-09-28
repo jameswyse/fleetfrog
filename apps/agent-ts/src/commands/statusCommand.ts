@@ -1,5 +1,5 @@
 import { Console, Effect, Option } from "effect";
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 
 import { auditLogPath } from "../audit/auditLog.ts";
 import { configPath, loadAgentConfig } from "../config/agentConfig.ts";

@@ -1,5 +1,5 @@
 import { Duration, Effect, Layer, Option, Result, Schema, SubscriptionRef } from "effect";
-import { Headers, HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
+import { Headers, HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 
 import {
   localPath,

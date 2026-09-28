@@ -11,14 +11,14 @@ import {
   Result,
   Stream,
 } from "effect";
-import { RpcClient, RpcSerialization } from "effect/unstable/rpc";
-import { Socket } from "effect/unstable/socket";
+import { RpcClient, RpcSerialization } from "effect/rpc";
+import { Socket } from "effect/socket";
 
 import { DashboardRpcs } from "@fleetfrog/protocol/dashboard/rpcs";
 
 import { refreshSession, whenAccessible } from "./session.ts";
 
-import type { RpcClientError } from "effect/unstable/rpc";
+import type { RpcClientError } from "effect/rpc";
 
 import type {
   AgentNotUpdatable,

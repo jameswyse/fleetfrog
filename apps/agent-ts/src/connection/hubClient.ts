@@ -1,14 +1,14 @@
 import { NodeHttpClient, NodeSocket } from "@effect/platform-node";
 import { Deferred, Effect, Layer, Schema } from "effect";
-import { RpcClient, RpcSerialization } from "effect/unstable/rpc";
-import { Socket } from "effect/unstable/socket";
+import { RpcClient, RpcSerialization } from "effect/rpc";
+import { Socket } from "effect/socket";
 
 import { AgentRpcs } from "@fleetfrog/protocol/agent/rpcs";
 import { PairingRpcs } from "@fleetfrog/protocol/pairing/rpcs";
 
 import { pinnedTlsOptions } from "./hubTls.ts";
 
-import type { Rpc, RpcGroup } from "effect/unstable/rpc";
+import type { Rpc, RpcGroup } from "effect/rpc";
 
 import type { AgentConfig } from "../config/agentConfig.ts";
 

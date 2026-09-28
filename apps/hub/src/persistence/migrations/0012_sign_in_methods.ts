@@ -1,5 +1,5 @@
 import { Effect, Option, Schema } from "effect";
-import { SqlClient } from "effect/unstable/sql";
+import { SqlClient } from "effect/sql";
 
 /** The settings as 0.2.0 stored them, with one mode for how people sign in. */
 const SingleMode = Schema.fromJsonString(

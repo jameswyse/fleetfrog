@@ -3,12 +3,12 @@ import { createServer } from "node:net";
 
 import { NodeHttpServerRequest } from "@effect/platform-node";
 import { Effect, Option, Schema } from "effect";
-import { Headers } from "effect/unstable/http";
+import { Headers } from "effect/http";
 
 import type { Server } from "node:http";
 import type { Socket } from "node:net";
 
-import type { HttpServerRequest } from "effect/unstable/http";
+import type { HttpServerRequest } from "effect/http";
 
 import type { TailscaleIdentity } from "@fleetfrog/protocol/dashboard/auth";
 

@@ -2,7 +2,7 @@ import { createServer, request } from "node:http";
 
 import { expect, it } from "@effect/vitest";
 import { Clock, Context, Duration, Effect, Exit, Layer, Scope } from "effect";
-import { HttpRouter, HttpServer, HttpServerRequest } from "effect/unstable/http";
+import { HttpRouter, HttpServer, HttpServerRequest } from "effect/http";
 
 import { nodeServer } from "./nodeServer.ts";
 

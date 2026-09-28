@@ -1,5 +1,5 @@
 import { Console, Effect } from "effect";
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 
 import { runAgent } from "../scheduling/runAgent.ts";
 import { logRotation } from "../service/agentService.ts";
