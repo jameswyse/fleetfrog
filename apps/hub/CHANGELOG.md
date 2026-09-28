@@ -1,5 +1,16 @@
 # @fleetfrog/hub
 
+## 0.4.0
+
+### Minor Changes
+
+- 5c76c49: Sign people in through Tailscale when the hub runs behind Tailscale Serve, as compose.tailscale.yaml sets up.
+- dc7f86e: Run the hub on a tailnet with compose.tailscale.yaml, whose Tailscale sidecar serves it over HTTPS and gives pairing codes its tailnet address.
+
+### Patch Changes
+
+- 8df8a24: Stop within a few seconds while agents or dashboards are connected, instead of waiting until Docker kills the hub.
+
 ## 0.3.1
 
 No changes in this release.

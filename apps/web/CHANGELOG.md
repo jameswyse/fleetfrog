@@ -1,5 +1,15 @@
 # @fleetfrog/web
 
+## 0.4.0
+
+### Minor Changes
+
+- 5c76c49: Add Tailscale as a way of signing in, with a one-click Continue button on the sign-in page and a switch under Settings › Authentication.
+
+### Patch Changes
+
+- 680bf44: Show a lost hub connection in the top bar's status, with a short-lived bubble saying how old the page is, in place of the banner that pushed the page down. The account menu no longer disappears while the hub is unreachable.
+
 ## 0.3.1
 
 ### Patch Changes

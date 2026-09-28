@@ -1,5 +1,11 @@
 # @fleetfrog/site
 
+## 0.4.0
+
+### Patch Changes
+
+- ae8c2fb: Serve the site at www.fleetfrog.dev as well as fleetfrog.dev.
+
 ## 0.3.1
 
 ### Patch Changes
