@@ -1,5 +1,11 @@
 # @fleetfrog/web
 
+## 0.3.1
+
+### Patch Changes
+
+- e61d702: Open Projects after signing in, rather than the page you signed out from.
+
 ## 0.3.0
 
 ### Minor Changes
