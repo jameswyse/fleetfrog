@@ -7,11 +7,11 @@
     "directory": "./dist",
     "not_found_handling": "404-page",
   },
-  // fleetfrog.dev is the only address for production. Each pull request's preview gets its own
-  // workers.dev address, which Cloudflare's GitHub app comments on the pull request.
+  // Production is served only at fleetfrog.dev. Each branch's preview is served at a subdomain of
+  // it, such as my-branch.fleetfrog.dev, which Cloudflare's GitHub app comments on the pull request.
   "workers_dev": false,
   "preview_urls": true,
   // `wrangler preview`, which Workers Builds runs for each branch, needs this block even when empty.
   "previews": {},
-  "routes": [{ "pattern": "fleetfrog.dev", "custom_domain": true }],
+  "routes": [{ "pattern": "fleetfrog.dev", "custom_domain": true, "previews_enabled": true }],
 }

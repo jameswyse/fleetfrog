@@ -9,11 +9,11 @@ pnpm --filter @fleetfrog/site build
 pnpm --filter @fleetfrog/site preview
 ```
 
-The page shows the version in this package's `package.json`. Every package shares one version, so it matches the hub and agent released from the same commit. The download links point at the latest GitHub release, so they never need updating.
+The download links point at the latest GitHub release, so they never need updating.
 
 ## Deploying
 
-Cloudflare Workers serves the site as static assets, and Workers Builds builds it from GitHub. Pushes to `main` deploy fleetfrog.dev. A push to any other branch that changes the site builds a preview, and Cloudflare's GitHub app comments its address on the pull request. [`wrangler.jsonc`](wrangler.jsonc) configures the Worker, including its custom domain. The Worker's build settings are:
+Cloudflare Workers serves the site as static assets, and Workers Builds builds it from GitHub. Pushes to `main` deploy fleetfrog.dev. A push to any other branch that changes the site builds a preview at a subdomain, such as `my-branch.fleetfrog.dev`, and Cloudflare's GitHub app comments its address on the pull request. [`wrangler.jsonc`](wrangler.jsonc) configures the Worker, including its custom domain. The Worker's build settings are:
 
 | Setting           | Value                                             |
 | ----------------- | ------------------------------------------------- |

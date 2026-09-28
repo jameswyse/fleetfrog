@@ -6,6 +6,10 @@
   Referrer-Policy: strict-origin-when-cross-origin
   X-Content-Type-Options: nosniff
 
+# Cloudflare marks previews on workers.dev as noindex, but not those on fleetfrog.dev subdomains.
+https://:preview.fleetfrog.dev/*
+  X-Robots-Tag: noindex
+
 # Vite names each built asset after a hash of its contents, so a changed asset gets a new URL.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
