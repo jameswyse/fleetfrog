@@ -1,5 +1,12 @@
 # @fleetfrog/web
 
+## 0.5.1
+
+### Patch Changes
+
+- 123eada: Show repository owners unblurred when blurring emails and usernames is on.
+- 123eada: Rename the "T3 Code at work" section in the Projects overview to "T3 Code Status".
+
 ## 0.5.0
 
 ### Minor Changes
