@@ -12,7 +12,10 @@ COPY . .
 # The build context keeps its owner's file modes; a strict umask would leave the dashboard
 # unreadable by the unprivileged runtime user.
 RUN chmod -R u=rwX,go=rX .
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+# .dockerignore leaves out the projects the image doesn't build, and a frozen install of the whole
+# workspace fails on their missing directories, so install only the hub and its dashboard.
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter @fleetfrog/hub... --filter @fleetfrog/web...
 RUN pnpm --filter @fleetfrog/web build && pnpm --filter @fleetfrog/hub build
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm --filter @fleetfrog/hub deploy --prod --legacy /deploy
