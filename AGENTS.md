@@ -14,7 +14,7 @@
 
 ## Learning more about Effect
 
-This repository uses the Effect TypeScript library, pinned to a 4.0 release candidate. Its APIs differ from Effect 3: RPC, HTTP, SQL, sockets, processes and the CLI have their own modules, such as `effect/rpc` and `effect/cli`, which were under `effect/unstable/*` before 4.0.0-rc.118.
+This repository uses the Effect TypeScript library, version 4. Its APIs differ from Effect 3: RPC, HTTP, SQL, sockets, processes and the CLI have their own modules, such as `effect/rpc` and `effect/cli`, which were under `effect/unstable/*` before 4.0.0-rc.118.
 
 Before writing any Effect code, first read `node_modules/effect/AGENTS.md` **completely**, and follow the links in the file when required.
 

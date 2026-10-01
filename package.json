@@ -42,13 +42,13 @@
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "7.0.2003",
-    "turbo": "2.11.4",
+    "turbo": "2.11.5",
     "typescript": "catalog:"
   },
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "12.6.0"
+      "version": "12.8.1"
     },
     "runtime": {
       "name": "node",
@@ -56,5 +56,5 @@
       "onFail": "download"
     }
   },
-  "packageManager": "pnpm@12.6.0"
+  "packageManager": "pnpm@12.8.1"
 }

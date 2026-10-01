@@ -6,20 +6,20 @@ cargo:
   enabled: true
 
 catalog:
-  "@effect/platform-node": 4.0.0-rc.118
-  "@effect/sql-sqlite-node": 4.0.0-rc.118
-  "@effect/tsgo": 0.46.1
-  "@effect/vitest": 4.0.0-rc.118
-  "@oxlint/plugins": 1.85.0
+  "@effect/platform-node": 4.0.0
+  "@effect/sql-sqlite-node": 4.0.0
+  "@effect/tsgo": 0.47.1
+  "@effect/vitest": 4.0.0
+  "@oxlint/plugins": 1.86.0
   "@types/node": 26.6.3
   "@types/react": 19.3.0
   "@types/react-dom": 19.3.0
-  effect: 4.0.0-rc.118
+  effect: 4.0.0
   openid-client: 6.8.8
   oxfmt: 0.71.0
   # The root prepare script runs `effect-tsgo patch --oxlint`, which fails on oxlint versions newer
   # than the pinned @effect/tsgo supports. Move oxlint and @oxlint/plugins only as far as it allows.
-  oxlint: 1.85.0
+  oxlint: 1.86.0
   react: 19.3.0
   react-dom: 19.3.0
   tsdown: 0.23.0
@@ -30,11 +30,11 @@ minimumReleaseAge: 1440
 # Exact versions approved before they were a day old. pnpm prunes each entry once the lockfile
 # stops resolving that version.
 minimumReleaseAgeExclude:
-  - "@effect/platform-node@4.0.0-rc.118"
-  - "@effect/platform-node-shared@4.0.0-rc.118"
-  - "@effect/sql-sqlite-node@4.0.0-rc.118"
-  - "@effect/vitest@4.0.0-rc.118"
-  - "effect@4.0.0-rc.118"
+  - "@effect/platform-node@4.0.0"
+  - "@effect/platform-node-shared@4.0.0"
+  - "@effect/sql-sqlite-node@4.0.0"
+  - "@effect/vitest@4.0.0"
+  - "effect@4.0.0"
   - "@oxfmt/binding-android-arm-eabi@0.71.0"
   - "@oxfmt/binding-android-arm64@0.71.0"
   - "@oxfmt/binding-darwin-arm64@0.71.0"
@@ -55,7 +55,6 @@ minimumReleaseAgeExclude:
   - "@oxfmt/binding-win32-ia32-msvc@0.71.0"
   - "@oxfmt/binding-win32-x64-msvc@0.71.0"
   - "oxfmt@0.71.0"
-  - "wrangler@4.143.0"
 minimumReleaseAgeExcludePrune: true
 strictDepBuilds: true
 # Wrangler, for the website, runs without these packages' install scripts: pnpm installs their

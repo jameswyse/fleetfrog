@@ -30,7 +30,8 @@
           "globalDateInEffect": "error",
           "globalRandomInEffect": "error",
           "globalTimersInEffect": "error",
-          "processEnvInEffect": "error"
+          "processEnvInEffect": "error",
+          "unstableApiUsage": "off"
         }
       }
     ]

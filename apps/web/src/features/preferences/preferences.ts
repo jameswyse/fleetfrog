@@ -54,7 +54,7 @@ function apply({ colorScheme, blurPersonal }: Preferences): void {
   const root = document.documentElement;
 
   if (colorScheme === "system") {
-    delete root.dataset.colorScheme;
+    root.removeAttribute("data-color-scheme");
   } else {
     root.dataset.colorScheme = colorScheme;
   }
