@@ -133,8 +133,10 @@
 
 @theme {
   --color-*: initial;
-  /* The Projects grid and its toolbar stretch to this width, then stop. */
-  --container-grid: 1800px;
+  /* The Projects grid and its toolbar stretch to this width, then stop. Tailwind also makes an
+     `inline-<name>` size utility from each container, so a name like `grid` would give
+     `inline-grid` an 1800px width. */
+  --container-projects: 1800px;
 }
 
 @theme inline {

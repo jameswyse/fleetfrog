@@ -274,7 +274,7 @@ export function ProjectGrid({
     // Scrolls both ways under its pinned header row and repository column, which the scroll padding
     // keeps a focused cell clear of. Positioned so screen-reader text in the cells is clipped here
     // instead of widening the page.
-    <div className="relative min-h-0 w-full max-w-grid scroll-pt-[3.0625rem] scroll-ps-[min(24rem,40%)] overflow-auto rounded-lg border border-line bg-surface">
+    <div className="relative min-h-0 w-full max-w-projects scroll-pt-[3.0625rem] scroll-ps-[min(24rem,40%)] overflow-auto rounded-lg border border-line bg-surface">
       <table className="w-full border-separate border-spacing-0 text-sm">
         <caption className="sr-only">
           Repositories by machine. Choose a repository or a cell to see its details.
