@@ -42,7 +42,7 @@
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "7.0.2003",
-    "turbo": "2.11.5",
+    "turbo": "2.11.6",
     "typescript": "catalog:"
   },
   "devEngines": {

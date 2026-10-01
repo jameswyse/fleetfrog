@@ -8,7 +8,7 @@ cargo:
 catalog:
   "@effect/platform-node": 4.0.0
   "@effect/sql-sqlite-node": 4.0.0
-  "@effect/tsgo": 0.47.1
+  "@effect/tsgo": 0.47.2
   "@effect/vitest": 4.0.0
   "@oxlint/plugins": 1.86.0
   "@types/node": 26.6.3
@@ -24,7 +24,7 @@ catalog:
   react-dom: 19.3.0
   tsdown: 0.23.0
   typescript: 7.0.2
-  vitest: 5.0.2
+  vitest: 5.0.3
 
 minimumReleaseAge: 1440
 # Exact versions approved before they were a day old. pnpm prunes each entry once the lockfile
@@ -55,6 +55,37 @@ minimumReleaseAgeExclude:
   - "@oxfmt/binding-win32-ia32-msvc@0.71.0"
   - "@oxfmt/binding-win32-x64-msvc@0.71.0"
   - "oxfmt@0.71.0"
+  - "@cloudflare/workerd-darwin-64@1.20260930.2"
+  - "@cloudflare/workerd-darwin-arm64@1.20260930.2"
+  - "@cloudflare/workerd-linux-64@1.20260930.2"
+  - "@cloudflare/workerd-linux-arm64@1.20260930.2"
+  - "@cloudflare/workerd-windows-64@1.20260930.2"
+  - "@effect/tsgo-darwin-arm64@0.47.2"
+  - "@effect/tsgo-darwin-x64@0.47.2"
+  - "@effect/tsgo-linux-arm@0.47.2"
+  - "@effect/tsgo-linux-arm64@0.47.2"
+  - "@effect/tsgo-linux-x64@0.47.2"
+  - "@effect/tsgo-win32-arm64@0.47.2"
+  - "@effect/tsgo-win32-x64@0.47.2"
+  - "@effect/tsgo@0.47.2"
+  - "miniflare@5.20260930.0-alpha"
+  - "@tanstack/react-router@1.170.41"
+  - "@tanstack/router-cli@1.167.40"
+  - "@tanstack/router-core@1.171.34"
+  - "@tanstack/router-generator@1.167.40"
+  - "@tanstack/router-plugin@1.168.42"
+  - "turbo@2.11.6"
+  - "@turbo/darwin-64@2.11.6"
+  - "@turbo/darwin-arm64@2.11.6"
+  - "@turbo/linux-64@2.11.6"
+  - "@turbo/linux-arm64@2.11.6"
+  - "@turbo/windows-64@2.11.6"
+  - "@turbo/windows-arm64@2.11.6"
+  - "vitest@5.0.3"
+  - "@vitest/mocker@5.0.3"
+  - "@vitest/spy@5.0.3"
+  - "workerd@1.20260930.2"
+  - "wrangler@4.145.0"
 minimumReleaseAgeExcludePrune: true
 strictDepBuilds: true
 # Wrangler, for the website, runs without these packages' install scripts: pnpm installs their
