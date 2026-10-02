@@ -28,7 +28,7 @@ import type { Cause } from "effect";
 import type { SignInMethods } from "@fleetfrog/protocol/dashboard/auth";
 import type { AuthSettings, SignInSwitches, UserId } from "@fleetfrog/protocol/domain/user";
 
-import type { OidcIntent } from "./oidcSignIn.ts";
+import type { OidcFailure, OidcIntent } from "./oidcSignIn.ts";
 import type { UserRecord } from "./userStore.ts";
 
 const sessionJson = HttpServerResponse.schemaJson(Schema.toCodecJson(Session));
@@ -485,16 +485,18 @@ const changeMethods = HttpRouter.add(
 /** Binds a provider sign-in to the browser that started it, so a stolen callback link is useless. */
 const oidcStateCookie = "fleetfrog_oidc_state";
 
-/** Where a failed provider sign-in sends the browser, with why, logged for the admin too. */
-function failed(intent: OidcIntent, message: string) {
+/**
+ * Where a failed provider sign-in sends the browser, with the kind of failure for the dashboard to
+ * explain. The details, which can name groups, emails and the provider's own words, go only to
+ * the log.
+ */
+function failed({ intent, kind, detail }: Pick<OidcFailure, "intent" | "kind" | "detail">) {
   const page = intent === "Activate" ? "/settings/authentication" : "/login";
 
   return Effect.logWarning("Sign-in through the provider didn't work").pipe(
-    Effect.annotateLogs({ intent, reason: message }),
+    Effect.annotateLogs({ intent, kind, reason: detail }),
     Effect.as(
-      HttpServerResponse.redirect(
-        `${page}?${new URLSearchParams({ failure: message }).toString()}`,
-      ),
+      HttpServerResponse.redirect(`${page}?${new URLSearchParams({ failure: kind }).toString()}`),
     ),
   );
 }
@@ -522,7 +524,7 @@ const toProvider = Effect.fnUntraced(function* (request: {
         { ...cookieOptions(incoming), path: "/auth/oidc", maxAge: Duration.minutes(10) },
       ),
     ),
-    Effect.catchTag("OidcFailure", ({ message }) => failed(request.intent, message)),
+    Effect.catchTag("OidcFailure", failed),
   );
 });
 
@@ -534,7 +536,11 @@ const oidcStart = HttpRouter.add(
     const request = yield* HttpServerRequest.HttpServerRequest;
 
     if (!(yield* AuthSettingsStore.use((auth) => auth.methods)).provider) {
-      return yield* failed("SignIn", "Signing in through a provider is off.");
+      return yield* failed({
+        intent: "SignIn",
+        kind: "ProviderOff",
+        detail: "Signing in through a provider is off.",
+      });
     }
 
     return yield* toProvider({
@@ -582,20 +588,28 @@ const oidcCallback = HttpRouter.add(
     const state = new URL(request.url, "http://hub").searchParams.get("state");
 
     if (state === null || request.cookies[oidcStateCookie] !== state) {
-      return yield* failed("SignIn", "That sign-in didn't start in this browser. Try again.");
+      return yield* failed({
+        intent: "SignIn",
+        kind: "OtherBrowser",
+        detail: "The state cookie didn't match the callback's state.",
+      });
     }
 
     const finished = yield* provider.finish({ url: request.url }).pipe(Effect.result);
 
     if (Result.isFailure(finished)) {
-      return yield* failed(finished.failure.intent, finished.failure.message);
+      return yield* failed(finished.failure);
     }
 
     const { user, roleChanged, intent, redirect } = finished.success;
 
     if (intent === "Activate") {
       if (auth.overridden) {
-        return yield* failed(intent, "FLEETFROG_AUTH_MODE on the hub keeps sign-in off.");
+        return yield* failed({
+          intent,
+          kind: "SignInOff",
+          detail: "FLEETFROG_AUTH_MODE on the hub keeps sign-in off.",
+        });
       }
 
       const settings = yield* SubscriptionRef.get(auth.settings);

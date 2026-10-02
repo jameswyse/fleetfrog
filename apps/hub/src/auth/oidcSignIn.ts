@@ -1,6 +1,7 @@
 import { Clock, Context, Duration, Effect, Layer, Option, Schema, SubscriptionRef } from "effect";
 import * as oidc from "openid-client";
 
+import { SignInFailure } from "@fleetfrog/protocol/dashboard/auth";
 import { Email, isHttpUrl } from "@fleetfrog/protocol/domain/user";
 
 import { AuthSettingsStore } from "./authSettingsStore.ts";
@@ -17,9 +18,13 @@ import type { UserRecord } from "./userStore.ts";
 export const OidcIntent = Schema.Literals(["SignIn", "Activate"]);
 export type OidcIntent = typeof OidcIntent.Type;
 
-/** Why signing in through the provider didn't work, in words for the person trying. */
+/**
+ * Why signing in through the provider didn't work: the kind the dashboard explains, and the
+ * details for the hub's log.
+ */
 export class OidcFailure extends Schema.TaggedError<OidcFailure>()("OidcFailure", {
-  message: Schema.String,
+  kind: SignInFailure,
+  detail: Schema.String,
   /** What the failed attempt was for, which decides where to explain it. */
   intent: OidcIntent,
 }) {}
@@ -70,14 +75,14 @@ function roleFromGroups(adminGroup: string | null, groups: ReadonlyArray<string>
   return groups.includes(adminGroup) ? "admin" : "user";
 }
 
-function failure(message: string) {
-  return new OidcFailure({ message, intent: "SignIn" });
+function failure(kind: SignInFailure, detail: string) {
+  return new OidcFailure({ kind, detail, intent: "SignIn" });
 }
 
 /** Marks a failure as belonging to what the attempt was for. */
 function during(intent: OidcIntent) {
   return Effect.mapError(
-    (error: OidcFailure) => new OidcFailure({ message: error.message, intent }),
+    (error: OidcFailure) => new OidcFailure({ kind: error.kind, detail: error.detail, intent }),
   );
 }
 
@@ -138,6 +143,7 @@ export class OidcSignIn extends Context.Service<
               ),
             catch: (cause) =>
               failure(
+                "ProviderUnreachable",
                 `FleetFrog couldn't read the provider's details from ${settings.issuerUrl}. Check the issuer URL. (${describe(cause)})`,
               ),
           });
@@ -150,7 +156,7 @@ export class OidcSignIn extends Context.Service<
       const configured = SubscriptionRef.get(auth.settings).pipe(
         Effect.flatMap(({ oidc: settings }) =>
           settings === null
-            ? Effect.fail(failure("No sign-in provider is set up."))
+            ? Effect.fail(failure("NotSetUp", "No sign-in provider is set up."))
             : Effect.succeed(settings),
         ),
       );
@@ -208,19 +214,19 @@ export class OidcSignIn extends Context.Service<
               started === undefined ||
               now - started.startedAt > Duration.toMillis(pendingLifetime)
             ) {
-              return yield* failure("That sign-in took too long or was already used. Try again.");
+              return yield* failure("Expired", "That sign-in took too long or was already used.");
             }
 
             // Sign-in may have moved away from the provider while this one was at it.
             if (started.intent === "SignIn" && !(yield* auth.methods).provider) {
-              return yield* failure("Signing in through a provider is off.");
+              return yield* failure("ProviderOff", "Signing in through a provider is off.");
             }
 
             return yield* Effect.gen(function* () {
               const providerError = current.searchParams.get("error_description");
 
               if (providerError !== null) {
-                return yield* failure(`The provider said: ${providerError}`);
+                return yield* failure("ProviderRefused", `The provider said: ${providerError}`);
               }
 
               const tokens = yield* Effect.tryPromise({
@@ -232,7 +238,10 @@ export class OidcSignIn extends Context.Service<
                     idTokenExpected: true,
                   }),
                 catch: (cause) =>
-                  failure(`The provider didn't complete the sign-in. (${describe(cause)})`),
+                  failure(
+                    "Incomplete",
+                    `The provider didn't complete the sign-in. (${describe(cause)})`,
+                  ),
               });
               const fromToken = tokens.claims();
               // Some providers put the profile only in the ID token, others only behind userinfo.
@@ -248,12 +257,15 @@ export class OidcSignIn extends Context.Service<
                           fromToken?.sub ?? oidc.skipSubjectCheck,
                         ),
                       catch: (cause) =>
-                        failure(`The provider didn't share the profile. (${describe(cause)})`),
+                        failure(
+                          "Incomplete",
+                          `The provider didn't share the profile. (${describe(cause)})`,
+                        ),
                     });
               const claims = decodeClaims({ ...fromToken, ...fromUserInfo });
 
               if (Option.isNone(claims)) {
-                return yield* failure("The provider didn't say who signed in.");
+                return yield* failure("NoIdentity", "The provider didn't say who signed in.");
               }
 
               const { sub, email, name, preferred_username, picture, groups = [] } = claims.value;
@@ -261,12 +273,14 @@ export class OidcSignIn extends Context.Service<
 
               if (Option.isNone(address)) {
                 return yield* failure(
+                  "NoEmail",
                   "The provider didn't share an email address. Allow FleetFrog the email scope.",
                 );
               }
 
               if (settings.requiredGroup !== null && !groups.includes(settings.requiredGroup)) {
                 return yield* failure(
+                  "NotInRequiredGroup",
                   `Only members of the ${settings.requiredGroup} group can sign in to FleetFrog.`,
                 );
               }
@@ -276,6 +290,7 @@ export class OidcSignIn extends Context.Service<
 
               if (started.intent === "Activate" && groupRole === "user") {
                 return yield* failure(
+                  "NotInAdminGroup",
                   `You aren't in the ${settings.adminGroup} group, which makes people admins, so turning this on would lock you out of Settings.`,
                 );
               }
@@ -295,6 +310,7 @@ export class OidcSignIn extends Context.Service<
                   Effect.catchTag("EmailTaken", () =>
                     Effect.fail(
                       failure(
+                        "EmailTaken",
                         `Another FleetFrog user already has ${address.value} as their email. If it's yours, ask your provider's admin to mark it verified.`,
                       ),
                     ),

@@ -7,7 +7,7 @@ import { localPath } from "@fleetfrog/protocol/dashboard/auth";
 
 const LoginSearch = Schema.Struct({
   redirect: Schema.optionalKey(Schema.String),
-  /** Set by the hub when a sign-in through the provider didn't work. */
+  /** A `SignInFailure` the hub set when a sign-in through the provider didn't work. Anything else is ignored rather than refused, so an old link still opens the page. */
   failure: Schema.optionalKey(Schema.String),
 });
 

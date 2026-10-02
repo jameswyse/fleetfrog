@@ -11,6 +11,7 @@ import { TailscaleMark } from "@/ui/TailscaleMark.tsx";
 import { localPath } from "@fleetfrog/protocol/dashboard/auth";
 
 import { ProviderButtonContent, providerButtonClass } from "./ProviderButton.tsx";
+import { signInFailureMessage } from "./signInFailures.ts";
 
 import type { SignInMethods, TailscaleIdentity } from "@fleetfrog/protocol/dashboard/auth";
 
@@ -168,13 +169,13 @@ function SignInCard({
 }: {
   readonly methods: SignInMethods;
   readonly redirect: string;
-  readonly failure: string | undefined;
+  readonly failure: string | null;
 }) {
   const tailscale = methods.tailscale?.identity ?? null;
 
   return (
     <div className="rise-in space-y-5 rounded-2xl bg-surface p-6 shadow-[0_0_0_1px_var(--line),0_1px_2px_oklch(0_0_0/0.04),0_12px_32px_-8px_oklch(0_0_0/0.12)] [animation-delay:200ms] sm:p-8">
-      {failure !== undefined && (
+      {failure !== null && (
         <p role="alert" className="text-sm text-danger">
           {failure}
         </p>
@@ -224,7 +225,11 @@ export function LoginPage() {
           Sign in to FleetFrog
         </h1>
         <div className="mt-8">
-          <SignInCard methods={session.session.methods} redirect={target} failure={failure} />
+          <SignInCard
+            methods={session.session.methods}
+            redirect={target}
+            failure={signInFailureMessage(failure)}
+          />
         </div>
       </div>
     </main>

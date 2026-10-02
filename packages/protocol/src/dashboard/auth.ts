@@ -61,6 +61,41 @@ export function localPath(redirect: string | null | undefined): string {
 }
 
 /**
+ * Why a sign-in through the provider didn't work. The hub sends the browser back with one of these
+ * in the address and logs the details. The dashboard shows each in its own words and ignores
+ * anything else, so a link can't put other text on the sign-in page.
+ */
+export const SignInFailure = Schema.Literals([
+  /** Signing in through the provider is off. */
+  "ProviderOff",
+  /** No provider is set up. */
+  "NotSetUp",
+  /** The callback came to a browser that didn't start the sign-in. */
+  "OtherBrowser",
+  /** The sign-in took too long or was already used. */
+  "Expired",
+  /** `FLEETFROG_AUTH_MODE` keeps sign-in off. */
+  "SignInOff",
+  /** The hub couldn't read the provider's discovery document. */
+  "ProviderUnreachable",
+  /** The provider sent back an error instead of signing the person in. */
+  "ProviderRefused",
+  /** Exchanging the code or reading the profile failed. */
+  "Incomplete",
+  /** The provider's claims didn't name the person. */
+  "NoIdentity",
+  /** The provider didn't share an email address. */
+  "NoEmail",
+  /** The person isn't in the group that may sign in. */
+  "NotInRequiredGroup",
+  /** An admin's test sign-in, from someone outside the admin group. */
+  "NotInAdminGroup",
+  /** Another account already has the email, and the provider hasn't verified it. */
+  "EmailTaken",
+]);
+export type SignInFailure = typeof SignInFailure.Type;
+
+/**
  * `POST /auth/login`, answered with the new `Session` or a `LoginFailure`. A password longer than
  * any that could have been set is refused before it's hashed.
  */

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link, useSearch } from "@tanstack/react-router";
 import { Option, Schema } from "effect";
 
+import { signInFailureMessage } from "@/features/account/signInFailures.ts";
 import { requestHub } from "@/rpc/hubConnection.ts";
 import { changeMethods, useSession } from "@/rpc/session.ts";
 import { useHubStream } from "@/rpc/useHubStream.ts";
@@ -502,7 +503,9 @@ function GravatarSection({ settings }: { readonly settings: AuthSettingsView }) 
 /** How people sign in to the dashboard, for admins. */
 export function AuthenticationSettings() {
   // Set by the hub when a test sign-in through the provider didn't work.
-  const { failure } = useSearch({ from: "/_app/settings/authentication/" });
+  const failure = signInFailureMessage(
+    useSearch({ from: "/_app/settings/authentication/" }).failure,
+  );
   const settings = useHubStream({ key: "auth", open: (client) => client.WatchAuthSettings() });
 
   return (
@@ -521,7 +524,7 @@ export function AuthenticationSettings() {
               to choose here.
             </p>
           )}
-          {failure !== undefined && (
+          {failure !== null && (
             <p
               role="alert"
               className="rounded-xl border border-danger/30 bg-danger-soft px-5 py-4 text-sm text-danger"

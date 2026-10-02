@@ -358,7 +358,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
 
           yield* oidc
             .check(settings)
-            .pipe(Effect.mapError(({ message }) => new ProviderRejected({ message })));
+            .pipe(Effect.mapError(({ detail }) => new ProviderRejected({ message: detail })));
 
           yield* auth.update({ ...current, oidc: settings });
 
