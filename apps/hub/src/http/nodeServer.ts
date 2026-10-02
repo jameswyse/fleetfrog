@@ -13,7 +13,12 @@ import type { Socket } from "node:net";
  */
 export function nodeServer(
   server: Server,
-  options: { readonly port: number; readonly shutdownGrace?: Duration.Duration },
+  options: {
+    readonly port: number;
+    readonly shutdownGrace?: Duration.Duration;
+    /** The largest WebSocket message a client may send, so one can't take the hub's memory. */
+    readonly maximumMessageBytes: number;
+  },
 ) {
   // Node's own list of connections leaves out upgraded ones, which are the ones that linger.
   const connections = new Set<Socket>();
@@ -43,7 +48,11 @@ export function nodeServer(
 
   return cutOff.pipe(
     Layer.provideMerge(
-      NodeHttpServer.layer(() => server, { port: options.port, disablePreemptiveShutdown: true }),
+      NodeHttpServer.layer(() => server, {
+        port: options.port,
+        disablePreemptiveShutdown: true,
+        websocket: { maxPayload: options.maximumMessageBytes },
+      }),
     ),
   );
 }

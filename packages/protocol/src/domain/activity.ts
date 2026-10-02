@@ -40,14 +40,21 @@ export type CloneTarget = typeof CloneTarget.Type;
 export const TargetedRun = Schema.Struct({ machineId: MachineId, request: TargetedRequest });
 export type TargetedRun = typeof TargetedRun.Type;
 
+/** The most runs one batch names: far more than a fleet has machines or a page lists checkouts. */
+export const maximumBatchRuns = 1000;
+
 /** What the dashboard asks for. The hub expands it into one run per machine and checkout. */
 export const BatchRequest = Schema.TaggedUnion({
   Fetch: { scope: ActionScope },
   Pull: { scope: ActionScope },
-  Clone: { repositoryKey: RepositoryKey, targets: Schema.NonEmptyArray(CloneTarget) },
+  Clone: {
+    repositoryKey: RepositoryKey,
+    targets: Schema.NonEmptyArray(CloneTarget).check(Schema.isMaxLength(maximumBatchRuns)),
+  },
   /** Actions of one kind, each on its own target. */
   Targeted: {
     runs: Schema.NonEmptyArray(TargetedRun).check(
+      Schema.isMaxLength(maximumBatchRuns),
       Schema.makeFilter(
         ([first, ...rest]) =>
           rest.every(({ request }) => request._tag === first.request._tag) ||

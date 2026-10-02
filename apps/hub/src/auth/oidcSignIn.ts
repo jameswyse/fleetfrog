@@ -1,7 +1,7 @@
 import { Clock, Context, Duration, Effect, Layer, Option, Schema, SubscriptionRef } from "effect";
 import * as oidc from "openid-client";
 
-import { Email } from "@fleetfrog/protocol/domain/user";
+import { Email, isHttpUrl } from "@fleetfrog/protocol/domain/user";
 
 import { AuthSettingsStore } from "./authSettingsStore.ts";
 import { UserStore } from "./userStore.ts";
@@ -286,7 +286,8 @@ export class OidcSignIn extends Context.Service<
                   subject: sub,
                   email: address.value,
                   name: name ?? preferred_username ?? null,
-                  picture: picture ?? null,
+                  // Every viewer's browser fetches the picture, so it must be a plain web address.
+                  picture: picture !== undefined && isHttpUrl(picture) ? picture : null,
                   emailVerified: claims.value.email_verified ?? null,
                   role: started.intent === "Activate" ? "admin" : groupRole,
                 })

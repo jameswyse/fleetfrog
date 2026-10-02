@@ -21,7 +21,11 @@ export const Email = Schema.Trim.pipe(
   Schema.decodeTo(
     Schema.String.check(
       Schema.isLowercased(),
-      Schema.makeFilter((email) => /^[^\s@]+@[^\s@]+$/.test(email) || "must be an email address"),
+      // The longest address the mail standards allow, and no control or invisible characters.
+      Schema.isMaxLength(254),
+      Schema.makeFilter(
+        (email) => /^[^\s@\p{C}]+@[^\s@\p{C}]+$/u.test(email) || "must be an email address",
+      ),
     ),
     SchemaTransformation.toLowerCase(),
   ),
@@ -33,11 +37,16 @@ export const DisplayName = Schema.Trim.check(Schema.isMinLength(1), Schema.isMax
 
 export const minimumPasswordLength = 8;
 
+export const maximumPasswordLength = 256;
+
 /** The upper bound keeps hashing cheap for anyone sending a huge password. */
 export const Password = Schema.String.check(
   Schema.isMinLength(minimumPasswordLength),
-  Schema.isMaxLength(256),
+  Schema.isMaxLength(maximumPasswordLength),
 );
+
+/** A password someone is trying, which can't be right if it's longer than any that could be set. */
+export const PasswordAttempt = Schema.String.check(Schema.isMaxLength(maximumPasswordLength));
 
 /** Where a user's picture comes from. Any of them can fail to load, leaving their initials. */
 export const Avatar = Schema.TaggedUnion({
@@ -74,12 +83,13 @@ export const User = Schema.Struct({
 });
 export type User = typeof User.Type;
 
+/** Whether the text is an http:// or https:// URL, which a browser can fetch like any other. */
+export function isHttpUrl(url: string): boolean {
+  return URL.canParse(url) && ["http:", "https:"].includes(new URL(url).protocol);
+}
+
 const HttpUrl = Schema.Trim.check(
-  Schema.makeFilter(
-    (url) =>
-      (URL.canParse(url) && ["http:", "https:"].includes(new URL(url).protocol)) ||
-      "must be an http:// or https:// URL",
-  ),
+  Schema.makeFilter((url) => isHttpUrl(url) || "must be an http:// or https:// URL"),
 );
 
 const Group = Schema.NullOr(Schema.Trim.check(Schema.isMinLength(1)));

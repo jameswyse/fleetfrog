@@ -2,8 +2,11 @@ import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 
 import { Effect } from "effect";
 
-/** scrypt at the cost OWASP recommends. 128 × N × r bytes is exactly 32 MiB, Node's default limit. */
-const cost = { N: 2 ** 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
+/**
+ * scrypt at a cost OWASP recommends: N = 2^15 with p = 3 does the work of N = 2^17 in 32 MiB,
+ * Node's default memory limit, rather than 128 MiB.
+ */
+const cost = { N: 2 ** 15, r: 8, p: 3, maxmem: 64 * 1024 * 1024 };
 const keyLength = 32;
 
 function derive(

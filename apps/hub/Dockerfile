@@ -33,10 +33,13 @@ COPY --from=build /deploy/node /usr/local/bin/node
 COPY --from=build /deploy/node_modules ./node_modules
 COPY --from=build /repo/apps/hub/dist ./dist
 COPY --from=build /repo/apps/web/dist ./web
+# The base image puts pnpm's world-writable bin folder first on PATH. The hub runs its own Node
+# by its full path and leaves that folder off PATH, so nothing written there is ever run.
 ENV NODE_ENV=production \
     FLEETFROG_DATA_DIR=/data \
-    FLEETFROG_WEB_ROOT=/app/web
+    FLEETFROG_WEB_ROOT=/app/web \
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 USER node
 VOLUME /data
 EXPOSE 7420 7421
-CMD ["node", "dist/main.mjs"]
+CMD ["/usr/local/bin/node", "dist/main.mjs"]

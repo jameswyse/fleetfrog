@@ -1,7 +1,8 @@
+import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import path from "node:path";
 
-import { Effect, Layer, Option } from "effect";
+import { ByteSize, Effect, Layer, Option } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse, HttpStaticServer } from "effect/http";
 import { RpcSerialization, RpcServer } from "effect/rpc";
 
@@ -11,8 +12,10 @@ import { AuthRoutes } from "../auth/authRoutes.ts";
 import { DashboardAuthenticationLive } from "../auth/dashboardAuthentication.ts";
 import { DashboardSessions } from "../auth/dashboardSessions.ts";
 import { ProjectIconStore } from "../catalogue/projectIconStore.ts";
+import { bodyLimit } from "../http/bodyLimit.ts";
 import { nodeServer } from "../http/nodeServer.ts";
 import { isCrossOrigin } from "../http/sameOrigin.ts";
+import { inlineScriptHashes, securityHeaders } from "../http/securityHeaders.ts";
 import { listenOnServeSocket } from "../http/serveSocket.ts";
 import { HubConfig } from "../hubConfig.ts";
 import { DashboardHandlers } from "./dashboardHandlers.ts";
@@ -95,21 +98,41 @@ const projectIcons = HttpRouter.add(
   }),
 );
 
+/** Sign-in and settings bodies are small; the dashboard sends everything else over its socket. */
+const maximumBodyBytes = ByteSize.kibibytes(64);
+/** An uploaded picture is at most 512 KB, which JSON carries as base64. */
+const maximumMessageBytes = 4 * 1024 * 1024;
+
 /** The dashboard port, and the socket for Tailscale Serve: the built dashboard plus its RPC WebSocket. */
 export const DashboardServer = Layer.unwrap(
   Effect.gen(function* () {
     const config = yield* HubConfig;
+    const { webRoot } = config;
+    // The page's own inline script is the only one the policy allows. In development Vite serves
+    // the page, so there is none to allow.
+    const scriptHashes =
+      webRoot === null
+        ? []
+        : inlineScriptHashes(
+            yield* Effect.promise(() => readFile(path.join(webRoot, "index.html"), "utf8")),
+          );
     // A defect fails only its own request. By default it ends every stream on the socket, and the
     // dashboard reads that as the hub going away.
     const rpc = RpcServer.layer(DashboardRpcs, { disableFatalDefects: true }).pipe(
       Layer.provide(dashboardProtocol),
       Layer.provide([DashboardHandlers, DashboardAuthenticationLive, RpcSerialization.layerJson]),
     );
-    const api = Layer.mergeAll(rpc, projectIcons, AuthRoutes);
-    const routes = config.webRoot === null ? api : Layer.merge(api, dashboardFiles(config.webRoot));
+    const api = Layer.mergeAll(
+      rpc,
+      projectIcons,
+      AuthRoutes,
+      securityHeaders({ scriptHashes }),
+      bodyLimit(maximumBodyBytes),
+    );
+    const routes = webRoot === null ? api : Layer.merge(api, dashboardFiles(webRoot));
     const server = createServer();
     const dashboard = HttpRouter.serve(routes, { disableLogger: true }).pipe(
-      Layer.provide(nodeServer(server, { port: config.dashboardPort })),
+      Layer.provide(nodeServer(server, { port: config.dashboardPort, maximumMessageBytes })),
     );
 
     // The socket opens once the server has its routes, so Serve never reaches it without them.

@@ -11,6 +11,10 @@ describe("localPath", () => {
     "//evil.example",
     "/\\evil.example",
     "/\t/evil.example",
+    "/.//evil.example",
+    "/..//evil.example",
+    "/a/..//evil.example",
+    "/%2e%2e//evil.example",
     "https://evil.example/",
     "javascript:alert(1)",
   ])("sends %j home instead of off-site", (redirect) => {

@@ -59,7 +59,11 @@ it.live("stops promptly with WebSockets open, closing them cleanly", () =>
     const context = yield* Layer.buildWithScope(
       HttpRouter.serve(socketRoute).pipe(
         Layer.provideMerge(
-          nodeServer(createServer(), { port: 0, shutdownGrace: Duration.millis(200) }),
+          nodeServer(createServer(), {
+            port: 0,
+            shutdownGrace: Duration.millis(200),
+            maximumMessageBytes: 1024,
+          }),
         ),
       ),
       scope,

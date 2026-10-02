@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 
 import { Preferences } from "../domain/preferences.ts";
-import { DisplayName, Email, Password, User } from "../domain/user.ts";
+import { DisplayName, Email, Password, PasswordAttempt, User } from "../domain/user.ts";
 
 /** A tailnet user, from the identity headers Tailscale Serve adds to each request. */
 export const TailscaleIdentity = Schema.Struct({
@@ -43,7 +43,9 @@ export type Session = typeof Session.Type;
 
 /**
  * Where to go after signing in, as a path on this site. Anything that resolves to another origin,
- * such as `//evil.example` or `/\evil.example`, becomes the dashboard's home.
+ * such as `//evil.example` or `/\evil.example`, becomes the dashboard's home. So does a path that
+ * would once it's followed, such as `/.//evil.example`, whose `.` segment collapses to leave
+ * `//evil.example`.
  */
 export function localPath(redirect: string | null | undefined): string {
   const base = "http://dashboard.invalid";
@@ -53,12 +55,16 @@ export function localPath(redirect: string | null | undefined): string {
   }
 
   const url = new URL(redirect, base);
+  const path = `${url.pathname}${url.search}${url.hash}`;
 
-  return url.origin === base ? `${url.pathname}${url.search}${url.hash}` : "/";
+  return url.origin === base && new URL(path, base).origin === base ? path : "/";
 }
 
-/** `POST /auth/login`, answered with the new `Session` or a `LoginFailure`. */
-export const LoginRequest = Schema.Struct({ email: Email, password: Schema.String });
+/**
+ * `POST /auth/login`, answered with the new `Session` or a `LoginFailure`. A password longer than
+ * any that could have been set is refused before it's hashed.
+ */
+export const LoginRequest = Schema.Struct({ email: Email, password: PasswordAttempt });
 export type LoginRequest = typeof LoginRequest.Type;
 
 export const LoginFailure = Schema.TaggedUnion({

@@ -24,6 +24,7 @@ import {
   OidcInput,
   Email,
   Password,
+  PasswordAttempt,
   Role,
   User,
   UserId,
@@ -282,7 +283,7 @@ export class DashboardRpcs extends RpcGroup.make(
   }).annotate(Access, "user"),
   /** Ends the user's other sessions. */
   Rpc.make("ChangePassword", {
-    payload: { currentPassword: Schema.String, newPassword: Password },
+    payload: { currentPassword: PasswordAttempt, newPassword: Password },
     error: Schema.Union([NotSignedIn, WrongPassword, TooManyAttempts]),
   }).annotate(Access, "user"),
   /** Streams every user on subscribe and after every change. */

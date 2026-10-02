@@ -15,15 +15,27 @@ import { TrashId } from "./trash.ts";
 export const Tier = Schema.Literals(["git", "cleanup", "update"]);
 export type Tier = typeof Tier.Type;
 
-export const BranchAtCommit = Schema.Struct({ name: Schema.String, sha: Schema.String });
+/**
+ * A branch or ref name as Git allows them: never an option, since none starts with `-`, and never
+ * holding whitespace or control characters.
+ */
+export const RefName = Schema.String.check(
+  Schema.isMaxLength(1024),
+  Schema.makeFilter((name) => /^[^\s\p{C}-][^\s\p{C}]*$/u.test(name) || "must be a ref name"),
+);
+
+/** The most branches or stashes one request names, far past what a dashboard selection holds. */
+export const maximumListedItems = 1000;
+
+export const BranchAtCommit = Schema.Struct({ name: RefName, sha: Schema.String });
 export type BranchAtCommit = typeof BranchAtCommit.Type;
 
 /** Something in a machine's trash. */
 export const TrashTarget = Schema.TaggedUnion({
   /** A deleted branch, kept as `ref` in the repository of the checkout at `path`. */
-  Branch: { path: Schema.String, ref: Schema.String },
+  Branch: { path: Schema.String, ref: RefName },
   /** A dropped stash, kept as `ref` in the repository of the checkout at `path`. */
-  Stash: { path: Schema.String, ref: Schema.String },
+  Stash: { path: Schema.String, ref: RefName },
   Checkout: { id: TrashId },
 });
 export type TrashTarget = typeof TrashTarget.Type;
@@ -47,7 +59,7 @@ export const ActionRequest = Schema.TaggedUnion({
    */
   Switch: {
     path: Schema.String,
-    branch: Schema.String,
+    branch: RefName,
     stashChanges: Schema.Boolean.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(false))),
   },
   /** Stashes every change in the checkout at `path`, including untracked files. */
@@ -56,7 +68,10 @@ export const ActionRequest = Schema.TaggedUnion({
    * Moves local branches of the checkout at `path` to the trash, each only if its tip is still the
    * commit the dashboard showed and no worktree has it checked out. The rest are left alone.
    */
-  DeleteBranches: { path: Schema.String, branches: Schema.NonEmptyArray(BranchAtCommit) },
+  DeleteBranches: {
+    path: Schema.String,
+    branches: Schema.NonEmptyArray(BranchAtCommit).check(Schema.isMaxLength(maximumListedItems)),
+  },
   /**
    * Removes a linked worktree of the main checkout at `path`, keeping its branch, if it still
    * matches the inspection that produced `fingerprint`. Its changes are stashed and commits only
@@ -70,7 +85,9 @@ export const ActionRequest = Schema.TaggedUnion({
    */
   DropStashes: {
     path: Schema.String,
-    stashes: Schema.NonEmptyArray(Schema.Struct({ index: Count, sha: Schema.String })),
+    stashes: Schema.NonEmptyArray(Schema.Struct({ index: Count, sha: Schema.String })).check(
+      Schema.isMaxLength(maximumListedItems),
+    ),
   },
   /**
    * Moves the checkout at `path` into the Archive folder, keeping its path below its project
