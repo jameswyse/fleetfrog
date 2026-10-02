@@ -59,11 +59,7 @@ Agents have the `git` and `cleanup` tiers.
 - **DNS rebinding.** With sign-in off, the dashboard socket's `Origin` check doesn't stop DNS rebinding. A `Host` allowlist would.
 - **Trusted-header sign-in.** Behind a proxy that signs people in, such as Pangolin or Authentik's proxy outpost, the hub could read the user from a header such as `Remote-User`, giving roles and Activity attribution without a second sign-in. It's safe only when the hub can't be reached except through the proxy. Tailscale sign-in does this for Tailscale Serve, trusting its headers only on the hub's dashboard socket.
 - **Clones checked locally.** Discovery folders and clone URLs come from the hub, so a compromised hub could clone any HTTPS or SSH repository into any non-hidden folder. Writable folders and allowed hosts kept in the agent's local policy would close that.
-- **Signed releases.** The install script and `fleetfrog update` check each download against `SHA256SUMS` from the same release, which catches corruption but not a replaced release. A detached signature over the checksums, with the public key built into the script and the agent, or `gh attestation verify` when `gh` is signed in, would catch that too.
-- **Bind address.** The hub listens on every interface. A `FLEETFROG_HOST` for bare-metal hubs behind a proxy would keep the ports off the LAN.
-- **Bounds on agent reports.** Paths, commit subjects, pull request titles, stash messages and the like arrive as unbounded strings and reach every dashboard. A shared bounded string type and a cap on each list would stop one compromised agent from filling the hub's database and every browser's memory.
 - **Stricter tier defaults.** A newly paired machine allows every tier until its owner runs `fleetfrog deny`. Denying `cleanup` and `update` by default would make the hub ask before it can delete checkouts or replace the agent; existing machines keep their recorded policy.
-- **Sign-in failure messages by kind.** `/login?failure=` shows whatever text the link carries, which a crafted link could use to put misleading copy on the real sign-in page. Named failure kinds with fixed copy would close that.
 
 ## Networking and platforms
 
