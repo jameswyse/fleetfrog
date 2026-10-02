@@ -28,16 +28,17 @@ docker run -d --name fleetfrog-hub --restart unless-stopped \
 
 Open `http://<hub-address>:7420`. Agents connect on port `7421` over TLS using a certificate the hub generates on first start. The database and certificate live in the `fleetfrog-data` volume.
 
-| Variable                     | Default       | Purpose                                                                                          |
-| ---------------------------- | ------------- | ------------------------------------------------------------------------------------------------ |
-| `FLEETFROG_DASHBOARD_PORT`   | `7420`        | Dashboard and its WebSocket.                                                                     |
-| `FLEETFROG_AGENT_PORT`       | `7421`        | Agent pairing and connections.                                                                   |
-| `FLEETFROG_AGENT_TLS`        | `self-signed` | Set to `none` when a reverse proxy terminates TLS for agents.                                    |
-| `FLEETFROG_AGENT_URL`        | unset         | The agent URL to put in pairing strings when it differs from the dashboard's host.               |
-| `FLEETFROG_TAILSCALE_SOCKET` | unset         | The socket of a Tailscale sidecar whose Serve settings give agents the hub's tailnet address.    |
-| `FLEETFROG_DASHBOARD_SOCKET` | unset         | A Unix socket the dashboard also listens on, for Tailscale Serve, which Tailscale sign-in needs. |
-| `FLEETFROG_DATA_DIR`         | `data`        | Where the database and certificate are stored. The image uses `/data`.                           |
-| `FLEETFROG_AUTH_MODE`        | unset         | Set to `none` to turn sign-in off whatever the settings say, if you're locked out.               |
+| Variable                     | Default       | Purpose                                                                                                                          |
+| ---------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `FLEETFROG_DASHBOARD_PORT`   | `7420`        | Dashboard and its WebSocket.                                                                                                     |
+| `FLEETFROG_AGENT_PORT`       | `7421`        | Agent pairing and connections.                                                                                                   |
+| `FLEETFROG_AGENT_TLS`        | `self-signed` | Set to `none` when a reverse proxy terminates TLS for agents.                                                                    |
+| `FLEETFROG_AGENT_URL`        | unset         | The agent URL to put in pairing strings when it differs from the dashboard's host.                                               |
+| `FLEETFROG_TAILSCALE_SOCKET` | unset         | The socket of a Tailscale sidecar whose Serve settings give agents the hub's tailnet address.                                    |
+| `FLEETFROG_DASHBOARD_SOCKET` | unset         | A Unix socket the dashboard also listens on, for Tailscale Serve, which Tailscale sign-in needs.                                 |
+| `FLEETFROG_HOST`             | unset         | The address both ports listen on, such as `127.0.0.1` behind a reverse proxy on the same host. Unset listens on every interface. |
+| `FLEETFROG_DATA_DIR`         | `data`        | Where the database and certificate are stored. The image uses `/data`.                                                           |
+| `FLEETFROG_AUTH_MODE`        | unset         | Set to `none` to turn sign-in off whatever the settings say, if you're locked out.                                               |
 
 With Compose, `FLEETFROG_VERSION` picks the image tag, such as `0.1` to take only patch releases of 0.1. It defaults to `latest`.
 

@@ -15,6 +15,8 @@ export function nodeServer(
   server: Server,
   options: {
     readonly port: number;
+    /** The address to listen on. Without one, the server listens on every interface. */
+    readonly host?: string | undefined;
     readonly shutdownGrace?: Duration.Duration;
     /** The largest WebSocket message a client may send, so one can't take the hub's memory. */
     readonly maximumMessageBytes: number;
@@ -50,6 +52,7 @@ export function nodeServer(
     Layer.provideMerge(
       NodeHttpServer.layer(() => server, {
         port: options.port,
+        host: options.host,
         disablePreemptiveShutdown: true,
         websocket: { maxPayload: options.maximumMessageBytes },
       }),

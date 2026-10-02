@@ -16,6 +16,8 @@ export class HubConfig extends Context.Service<
   HubConfig,
   {
     readonly dataDirectory: string;
+    /** The address both ports listen on, or null for every interface. */
+    readonly host: string | null;
     readonly dashboardPort: number;
     readonly agentPort: number;
     /** `none` serves agents over plain WebSocket for a reverse proxy that terminates TLS. */
@@ -38,6 +40,7 @@ export class HubConfig extends Context.Service<
   static readonly layer = Layer.effect(this)(
     Config.all({
       dataDirectory: Config.String("FLEETFROG_DATA_DIR").pipe(Config.withDefault("data")),
+      host: Config.NonEmptyString("FLEETFROG_HOST").pipe(Config.withDefault(null)),
       dashboardPort: Config.Port("FLEETFROG_DASHBOARD_PORT").pipe(Config.withDefault(7420)),
       agentPort: Config.Port("FLEETFROG_AGENT_PORT").pipe(Config.withDefault(7421)),
       agentTls: AgentTransport.pipe(Config.withDefault("self-signed" as const)),

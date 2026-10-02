@@ -132,7 +132,13 @@ export const DashboardServer = Layer.unwrap(
     const routes = webRoot === null ? api : Layer.merge(api, dashboardFiles(webRoot));
     const server = createServer();
     const dashboard = HttpRouter.serve(routes, { disableLogger: true }).pipe(
-      Layer.provide(nodeServer(server, { port: config.dashboardPort, maximumMessageBytes })),
+      Layer.provide(
+        nodeServer(server, {
+          port: config.dashboardPort,
+          host: config.host ?? undefined,
+          maximumMessageBytes,
+        }),
+      ),
     );
 
     // The socket opens once the server has its routes, so Serve never reaches it without them.

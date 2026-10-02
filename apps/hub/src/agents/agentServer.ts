@@ -45,7 +45,13 @@ export const AgentServer = Layer.unwrap(
         : createHttpsServer({ cert: tls.certificatePem, key: tls.privateKeyPem });
 
     return HttpRouter.serve(routes, { disableLogger: true }).pipe(
-      Layer.provide(nodeServer(server, { port: config.agentPort, maximumMessageBytes })),
+      Layer.provide(
+        nodeServer(server, {
+          port: config.agentPort,
+          host: config.host ?? undefined,
+          maximumMessageBytes,
+        }),
+      ),
     );
   }),
 );

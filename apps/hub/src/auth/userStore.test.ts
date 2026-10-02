@@ -18,6 +18,7 @@ const TestStore = UserStore.layer.pipe(
   Layer.provide(
     Layer.succeed(HubConfig)({
       dataDirectory: "unused",
+      host: null,
       dashboardPort: 7420,
       agentPort: 7421,
       agentTls: "self-signed",
