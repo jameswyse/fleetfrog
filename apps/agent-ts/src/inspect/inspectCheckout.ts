@@ -66,6 +66,8 @@ function isCache(entry: string): boolean {
 /** How many ignored entries the dashboard lists by name. */
 export const ignoredListLimit = 100;
 const fetchTimeout = Duration.seconds(90);
+/** A remote's tag listing stops here, so it can't grow without limit. */
+const listingLimit = 8 * 1024 * 1024;
 
 /** Ignored files and folders, each folder once rather than everything inside it. */
 const listIgnored = (location: Pick<CheckoutLocation, "path">) =>
@@ -185,7 +187,10 @@ const countUnpushedTags = (location: CheckoutLocation) =>
       return 0;
     }
 
-    const remotes = (yield* runGit(location.path, ["remote"])).split("\n").filter(Boolean);
+    // A remote named like an option, which editing `.git/config` allows, would be read as one.
+    const remotes = (yield* runGit(location.path, ["remote"]))
+      .split("\n")
+      .filter((remote) => remote !== "" && !remote.startsWith("-"));
     const onRemotes = new Set<string>();
 
     for (const remote of remotes) {
@@ -194,8 +199,12 @@ const countUnpushedTags = (location: CheckoutLocation) =>
       yield* runGitAction({
         cwd: location.path,
         args: ["ls-remote", "--tags", "--refs", remote],
+        // The listing stops at its limit, so a remote can't grow it without bound. Tags past the
+        // limit count as unpushed.
         onOutput: (text) => {
-          listing += text;
+          if (listing.length < listingLimit) {
+            listing += text.slice(0, listingLimit - listing.length);
+          }
         },
       });
 

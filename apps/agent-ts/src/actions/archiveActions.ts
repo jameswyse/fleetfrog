@@ -4,7 +4,7 @@ import { DateTime, Effect, Option } from "effect";
 
 import { ActionResult, SkipReason } from "@fleetfrog/protocol/domain/action";
 import { archiveDestination, unarchiveDestination } from "@fleetfrog/protocol/domain/archiveFolder";
-import { isWithin } from "@fleetfrog/protocol/domain/cloneDestination";
+import { checkFolderPath, expandHome, isWithin } from "@fleetfrog/protocol/domain/cloneDestination";
 
 import {
   readArchiveRecord,
@@ -100,6 +100,26 @@ export const archiveCheckout = Effect.fn("archiveCheckout")(
 );
 
 /**
+ * The recorded path of an archived worktree, when it's a place inside a project folder. The record
+ * is a file in the checkout, so a worktree's path is checked as the main checkout's is.
+ */
+function returnablePath(originalPath: string, folders: Folders): string | null {
+  const checked = checkFolderPath({ path: originalPath, home: folders.home });
+
+  if (checked._tag !== "Valid") {
+    return null;
+  }
+
+  return folders.roots.some((candidate) => {
+    const root = expandHome(candidate, folders.home).replace(/\/+$/, "");
+
+    return isWithin(checked.path, root) && checked.path !== root;
+  })
+    ? checked.path
+    : null;
+}
+
+/**
  * Moves an archived checkout back where it was archived from, or below the first project folder
  * when that place is no longer in one, with a number added when something is there now. The
  * worktrees archived alongside it go back likewise. Every worktree is relinked, including ones
@@ -135,7 +155,7 @@ export const unarchiveCheckout = Effect.fn("unarchiveCheckout")(
       Option.isSome(record)
         ? record.value.worktrees.map(({ originalPath, archivedPath }) => [
             archivedPath,
-            originalPath,
+            returnablePath(originalPath, folders),
           ])
         : [],
     );

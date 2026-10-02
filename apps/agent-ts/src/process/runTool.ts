@@ -2,11 +2,19 @@ import { execFile, spawn } from "node:child_process";
 
 import { Duration, Effect, Schema } from "effect";
 
+import { redactCredentials } from "./redactCredentials.ts";
+
 export class CommandFailed extends Schema.TaggedError<CommandFailed>()("CommandFailed", {
   args: Schema.Array(Schema.String),
   cwd: Schema.String,
   message: Schema.String,
 }) {}
+
+/**
+ * Settings every Git command runs with, so a repository's own configuration can't run programs: no
+ * file system monitor and no hooks. Actions add `core.askPass=` for the remotes they reach.
+ */
+const gitConfigArgs = ["-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null"];
 
 // Git status reads must not take the index lock and race the developer's own Git commands. The
 // same environment suits the other tools: no prompts and untranslated output.
@@ -14,6 +22,8 @@ const toolEnvironment = {
   ...process.env,
   GIT_OPTIONAL_LOCKS: "0",
   GIT_TERMINAL_PROMPT: "0",
+  // The transports Git may use, so a remote helper such as `ext::` never runs. Clones allow fewer.
+  GIT_ALLOW_PROTOCOL: "file:git:http:https:ssh",
   LC_ALL: "C",
 };
 
@@ -51,7 +61,7 @@ export function runTool(
   return Effect.callback<string, CommandFailed>((resume, signal) => {
     execFile(
       tool,
-      args,
+      tool === "git" ? [...gitConfigArgs, ...args] : args,
       {
         cwd,
         env: toolEnvironment,
@@ -65,7 +75,11 @@ export function runTool(
           error === null
             ? Effect.succeed(stdout)
             : Effect.fail(
-                new CommandFailed({ args, cwd, message: stderr.trim() || error.message }),
+                new CommandFailed({
+                  args,
+                  cwd,
+                  message: redactCredentials(stderr.trim()) || error.message,
+                }),
               ),
         );
       },
@@ -95,7 +109,7 @@ export function runGitAction(options: {
   /** Written to Git's standard input, such as commands for `update-ref --stdin`. */
   readonly input?: string;
 }) {
-  const args = ["-c", "core.hooksPath=/dev/null", "-c", "core.askPass=", ...options.args];
+  const args = [...gitConfigArgs, "-c", "core.askPass=", ...options.args];
 
   return Effect.callback<void, CommandFailed>((resume) => {
     let errorOutput = "";
@@ -141,7 +155,8 @@ export function runGitAction(options: {
         .join("\n");
 
       fail(
-        lastLines || `git exited with ${code === null ? `signal ${exitSignal}` : `code ${code}`}`,
+        redactCredentials(lastLines) ||
+          `git exited with ${code === null ? `signal ${exitSignal}` : `code ${code}`}`,
       );
     });
 

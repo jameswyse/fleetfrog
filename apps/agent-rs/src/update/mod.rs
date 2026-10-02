@@ -14,6 +14,7 @@ use std::io::Write;
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
+use ring::rand::SecureRandom;
 use serde_json::Value;
 use url::Url;
 
@@ -33,8 +34,18 @@ pub const BUILT_FROM_SOURCE: &str = "This agent was built from source, so it can
 
 const RELEASES: &str = "https://github.com/jameswyse/fleetfrog/releases/download";
 
-/// The download's name, as `install.sh` names it, so either cleans up after the other.
-const DOWNLOAD_NAME: &str = ".fleetfrog.download";
+/// The start of the download's name, as `install.sh` names it. The rest is random, and the file is
+/// created new, so nothing can plant a file or link there first.
+const DOWNLOAD_PREFIX: &str = ".fleetfrog.download.";
+
+fn random_suffix() -> String {
+    let mut bytes = [0u8; 8];
+
+    ring::rand::SystemRandom::new()
+        .fill(&mut bytes)
+        .expect("the system has randomness");
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}
 
 /// A version's first three numbers, or zeros when it doesn't start with them.
 fn version_numbers(version: &str) -> [u64; 3] {
@@ -129,34 +140,39 @@ struct Download {
 
 impl Download {
     fn write(directory: &Path, contents: &[u8]) -> Result<Download, String> {
+        let path = directory.join(format!("{DOWNLOAD_PREFIX}{}", random_suffix()));
+        let failed = |error: std::io::Error| {
+            if error.kind() == std::io::ErrorKind::PermissionDenied {
+                format!(
+                    "The agent can't write to {}, where it's installed. Update it as the user who installed it.",
+                    directory.display()
+                )
+            } else {
+                format!(
+                    "Could not save the new agent to {}: {error}.",
+                    path.display()
+                )
+            }
+        };
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o755)
+            .open(&path)
+            .map_err(failed)?;
+        // From here the file is the download's, so a failed write still removes it.
         let download = Download {
-            path: directory.join(DOWNLOAD_NAME),
+            path: path.clone(),
             installed: false,
         };
-        let written = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .mode(0o755)
-            .open(&download.path)
-            .and_then(|mut file| {
-                file.write_all(contents)?;
-                // The mode above passes through the umask, and the binary must be executable.
-                file.set_permissions(std::fs::Permissions::from_mode(0o755))?;
-                file.sync_all()
-            });
 
-        match written {
-            Ok(()) => Ok(download),
-            Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied => Err(format!(
-                "The agent can't write to {}, where it's installed. Update it as the user who installed it.",
-                directory.display()
-            )),
-            Err(error) => Err(format!(
-                "Could not save the new agent to {}: {error}.",
-                download.path.display()
-            )),
-        }
+        file.write_all(contents)
+            // The mode above passes through the umask, and the binary must be executable.
+            .and_then(|()| file.set_permissions(std::fs::Permissions::from_mode(0o755)))
+            .and_then(|()| file.sync_all())
+            .map_err(failed)?;
+
+        Ok(download)
     }
 
     fn install(mut self, executable: &Path) -> Result<(), String> {

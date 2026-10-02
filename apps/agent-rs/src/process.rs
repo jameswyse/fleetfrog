@@ -8,7 +8,19 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 use tokio::sync::watch;
 
-use crate::output::ActionOutput;
+use crate::output::{ActionOutput, redact_credentials};
+
+/// Settings every Git command runs with, so a repository's own configuration can't run programs:
+/// no file system monitor and no hooks. Actions add `core.askPass=` for the remotes they reach.
+const GIT_CONFIG_ARGS: [&str; 4] = [
+    "-c",
+    "core.fsmonitor=false",
+    "-c",
+    "core.hooksPath=/dev/null",
+];
+
+/// The transports Git may use, so a remote helper such as `ext::` never runs. Clones allow fewer.
+const GIT_PROTOCOLS: &str = "file:git:http:https:ssh";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CommandFailed {
@@ -99,9 +111,15 @@ fn tool_command(tool: &str, cwd: &str) -> Command {
         .current_dir(cwd)
         .env("GIT_OPTIONAL_LOCKS", "0")
         .env("GIT_TERMINAL_PROMPT", "0")
+        .env("GIT_ALLOW_PROTOCOL", GIT_PROTOCOLS)
         .env("LC_ALL", "C")
         .stdin(Stdio::null())
         .kill_on_drop(true);
+
+    if tool == "git" {
+        command.args(GIT_CONFIG_ARGS);
+    }
+
     command
 }
 
@@ -151,7 +169,7 @@ pub async fn run_tool(tool: &str, cwd: &str, args: &[&str]) -> Result<String, Co
         message: if stderr.is_empty() {
             format!("Command failed: {}", command_line())
         } else {
-            stderr.to_string()
+            redact_credentials(stderr)
         },
     })
 }
@@ -272,9 +290,7 @@ pub async fn run_git_action(action: GitAction<'_>, cancel: &Cancel) -> Result<()
         return Err(GitError::Interrupted);
     }
 
-    let mut args: Vec<String> = ["-c", "core.hooksPath=/dev/null", "-c", "core.askPass="]
-        .map(String::from)
-        .to_vec();
+    let mut args: Vec<String> = ["-c", "core.askPass="].map(String::from).to_vec();
 
     args.extend(action.args);
 
@@ -387,7 +403,7 @@ pub async fn run_git_action(action: GitAction<'_>, cancel: &Cancel) -> Result<()
     let last = lines[lines.len().saturating_sub(ERROR_LINES)..].join("\n");
 
     Err(GitError::Failed(if !last.is_empty() {
-        last
+        redact_credentials(&last)
     } else if let Some(code) = status.code() {
         format!("git exited with code {code}")
     } else {

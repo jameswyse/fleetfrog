@@ -107,6 +107,24 @@ pub async fn archive_checkout(
     }))
 }
 
+/// The recorded path of an archived worktree, when it's a place inside a project folder. The record
+/// is a file in the checkout, so a worktree's path is checked as the main checkout's is.
+fn returnable_path(original_path: &str, home: &str, roots: &[String]) -> Option<String> {
+    let paths::FolderPathCheck::Valid(path) = paths::check_folder_path(original_path, home) else {
+        return None;
+    };
+
+    roots
+        .iter()
+        .map(|root| {
+            paths::expand_home(root, home)
+                .trim_end_matches('/')
+                .to_string()
+        })
+        .any(|root| paths::is_within(&path, &root) && path != root)
+        .then_some(path)
+}
+
 /// Moves an archived checkout back where it was archived from, or below the first project folder
 /// when that place is no longer in one, with a number added when something is there now. The
 /// worktrees archived alongside it go back likewise. Every worktree is relinked, including ones
@@ -153,7 +171,7 @@ pub async fn unarchive_checkout(
             returning
                 .iter()
                 .find(|entry| entry.archived_path == worktree)
-                .map(|entry| entry.original_path.clone())
+                .and_then(|entry| returnable_path(&entry.original_path, home, &folders.roots))
         },
         WhenTaken::Number,
     )

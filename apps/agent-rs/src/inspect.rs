@@ -222,7 +222,11 @@ async fn count_unpushed_tags(
     let remotes = run_git(&location.path, &["remote"]).await?;
     let mut on_remotes = std::collections::HashSet::new();
 
-    for remote in remotes.split('\n').filter(|remote| !remote.is_empty()) {
+    // A remote named like an option, which editing `.git/config` allows, would be read as one.
+    for remote in remotes
+        .split('\n')
+        .filter(|remote| !remote.is_empty() && !remote.starts_with('-'))
+    {
         let output = crate::output::ActionOutput::capturing();
 
         run_git_action(

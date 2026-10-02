@@ -70,9 +70,11 @@ export const planCheckoutMove = Effect.fn("planCheckoutMove")(function* (options
   const wanted: Array<Move> = [];
   const staying: Array<string> = [];
 
-  for (const { path: worktree } of linked) {
+  for (const { path: worktree, state } of linked) {
     if (!isWithin(worktree, location.path)) {
-      const to = options.worktreeDestination(worktree);
+      // A worktree whose `.git` file no longer leads here may belong to another repository, so it
+      // stays where it is.
+      const to = state === "Present" ? options.worktreeDestination(worktree) : null;
 
       if (to === null) {
         staying.push(worktree);

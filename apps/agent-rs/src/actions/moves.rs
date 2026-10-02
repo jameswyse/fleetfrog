@@ -5,7 +5,8 @@ use crate::git::{self, CheckoutLocation};
 use crate::paths;
 use crate::process::{GitAction, GitError, run_git_action};
 use crate::protocol::{
-    ActionOutcome, MovedFolder, SkipReason, Worktree, WorktreeState, failed, skipped,
+    ActionOutcome, LinkedWorktree, MovedFolder, SkipReason, Worktree, WorktreeState, failed,
+    skipped,
 };
 
 use super::Context;
@@ -139,23 +140,30 @@ pub async fn plan_checkout_move(
     when_taken: WhenTaken,
 ) -> Result<Result<CheckoutMove, ActionOutcome>, GitError> {
     // A worktree whose folder is gone has nothing to move, and Git can prune it later.
-    let linked: Vec<String> = git::read_linked_worktrees(path, common_directory)
+    let linked: Vec<LinkedWorktree> = git::read_linked_worktrees(path, common_directory)
         .await?
         .into_iter()
         .filter(|worktree| worktree.state != WorktreeState::Missing)
-        .map(|worktree| worktree.path)
         .collect();
     let mut wanted = Vec::new();
     let mut staying = Vec::new();
 
     for worktree in linked
         .iter()
-        .filter(|worktree| !paths::is_within(worktree, path))
+        .filter(|worktree| !paths::is_within(&worktree.path, path))
     {
-        match worktree_destination(worktree) {
-            None => staying.push(worktree.clone()),
+        // A worktree whose `.git` file no longer leads here may belong to another repository, so
+        // it stays where it is.
+        let destination = if worktree.state == WorktreeState::Present {
+            worktree_destination(&worktree.path)
+        } else {
+            None
+        };
+
+        match destination {
+            None => staying.push(worktree.path.clone()),
             Some(to) => wanted.push(MovedFolder {
-                from: worktree.clone(),
+                from: worktree.path.clone(),
                 to,
             }),
         }
@@ -180,10 +188,10 @@ pub async fn plan_checkout_move(
 
     let nested = linked
         .iter()
-        .filter(|worktree| paths::is_within(worktree, path))
+        .filter(|worktree| paths::is_within(&worktree.path, path))
         .map(|worktree| MovedFolder {
-            from: worktree.clone(),
-            to: paths::join(&main, &paths::relative(path, worktree)),
+            from: worktree.path.clone(),
+            to: paths::join(&main, &paths::relative(path, &worktree.path)),
         })
         .collect();
 
