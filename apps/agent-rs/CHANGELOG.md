@@ -1,5 +1,15 @@
 # @fleetfrog/agent-rs
 
+## 0.5.3
+
+### Patch Changes
+
+- 015d547: Sign each release's checksums, and check that signature in the install script and before the agent updates itself.
+- db83ce2: Run Git with the repository's file system monitor and hooks turned off and with remote helpers such as ext:: disallowed, so a repository on disk can't run programs through the agent. Skip a remote whose name starts with a dash when counting unpushed tags.
+- db83ce2: Strip credentials from remote URLs in Git output before it reaches the hub, cap captured output, and download updates to a fresh file name each time.
+- 2562d33: The install script downloads only over HTTPS, writes to a fresh file name each time, and runs nothing until the whole script has arrived. Releases also attest SHA256SUMS and install.sh.
+- db83ce2: Archive and Trash move only worktrees that still link back to the checkout, and Unarchive puts a worktree back only at a place inside a project folder, so a record written into a repository can't move another folder.
+
 ## 0.5.2
 
 No changes in this release.

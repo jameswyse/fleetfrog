@@ -1,5 +1,18 @@
 # @fleetfrog/hub
 
+## 0.5.3
+
+### Patch Changes
+
+- 1632469: Refuse a batch of more than 1000 runs, a request naming more than 1000 branches or stashes, a branch name that could pass as a Git option, a password longer than 256 characters, or an email longer than 254.
+- 818f708: Cut text an agent reports to 4096 characters and lists to 5000 items, and keep at most 5000 checkouts for a machine, so one compromised agent can't fill the hub's database or every dashboard's memory.
+- 1632469: Run the hub image's Node by its full path, with pnpm's writable folder off PATH.
+- 1632469: Hash passwords at the scrypt cost OWASP recommends. Existing passwords still work and move to the new cost when they're next set.
+- 1632469: Limit request bodies and WebSocket messages, so a flood of large ones can't take the hub's memory.
+- 355f646: Add FLEETFROG_HOST, the address the dashboard and agent ports listen on, such as 127.0.0.1 behind a reverse proxy on the same host.
+- 1632469: Ignore a sign-in provider's picture unless it's a web address, since every viewer's browser fetches it.
+- 1632469: Send security headers with every dashboard response: a Content-Security-Policy that runs only the dashboard's own scripts, no framing by other sites, no referrer, and no content sniffing.
+
 ## 0.5.2
 
 No changes in this release.

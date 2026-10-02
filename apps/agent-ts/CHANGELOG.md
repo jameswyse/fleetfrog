@@ -1,5 +1,11 @@
 # @fleetfrog/agent-ts
 
+## 0.5.3
+
+### Patch Changes
+
+- db83ce2: The same Git hardening, worktree move checks, output redaction and output caps as the Rust agent.
+
 ## 0.5.2
 
 No changes in this release.

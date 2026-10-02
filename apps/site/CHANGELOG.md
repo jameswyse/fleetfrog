@@ -1,5 +1,11 @@
 # @fleetfrog/site
 
+## 0.5.3
+
+### Patch Changes
+
+- cccaccd: Send Strict-Transport-Security.
+
 ## 0.5.2
 
 No changes in this release.

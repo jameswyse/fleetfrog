@@ -1,5 +1,12 @@
 # @fleetfrog/web
 
+## 0.5.3
+
+### Patch Changes
+
+- 2a14fb2: Explain a failed sign-in through the provider in the dashboard's own words, and show nothing for any other text a link puts in the address. The hub's log keeps the details.
+- 1632469: Send people home after sign-in when the redirect would leave the site through a path such as /.//evil.example.
+
 ## 0.5.2
 
 ### Patch Changes
