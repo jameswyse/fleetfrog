@@ -2,6 +2,7 @@ import { Effect, Schema, SchemaGetter } from "effect";
 
 import { Operation } from "./checkout.ts";
 import { Count } from "./count.ts";
+import { ReportedList, ReportedText } from "./reported.ts";
 import { TrashId } from "./trash.ts";
 
 /**
@@ -244,12 +245,12 @@ export const SkipReason = Schema.TaggedUnion({
   BranchInUse: {},
   NoSuchBranch: {},
   /** The branch has new commits since the dashboard showed it, so it was left alone. */
-  BranchChanged: { branch: Schema.String },
+  BranchChanged: { branch: ReportedText },
   /** A branch to delete is checked out in one of the clone's worktrees. */
-  BranchCheckedOut: { branch: Schema.String },
-  DefaultBranch: { branch: Schema.String },
+  BranchCheckedOut: { branch: ReportedText },
+  DefaultBranch: { branch: ReportedText },
   /** A branch to restore has the name of one that exists now. */
-  BranchExists: { branch: Schema.String },
+  BranchExists: { branch: ReportedText },
   /** The item is no longer in the trash. */
   NotInTrash: {},
   NoArchiveFolder: {},
@@ -263,9 +264,9 @@ export const SkipReason = Schema.TaggedUnion({
   /** A linked worktree moves with its main checkout, not on its own. */
   IsWorktree: {},
   /** Something is already where the checkout would move to. */
-  DestinationTaken: { path: Schema.String },
+  DestinationTaken: { path: ReportedText },
   /** Two of the folders moving together would land at or inside the same place. */
-  DestinationsClash: { path: Schema.String },
+  DestinationsClash: { path: ReportedText },
   /** A detached HEAD holds commits no branch, tag or remote has, which removing it would lose. */
   UnreachableCommits: { commits: Count },
   /** Files Git ignores that aren't caches, such as `.env`, which removing it would delete. */
@@ -288,7 +289,7 @@ export const ActionResult = Schema.TaggedUnion({
   Cloned: {},
   /** `stashedFiles` were stashed first, and `savedCommits` from a detached HEAD went to the trash. */
   Switched: {
-    branch: Schema.String,
+    branch: ReportedText,
     stashedFiles: Count.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(0))),
     savedCommits: Count.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(0))),
   },
@@ -296,20 +297,20 @@ export const ActionResult = Schema.TaggedUnion({
   /** `skipped` names the requested branches left alone, each with why. */
   BranchesDeleted: {
     branches: Count,
-    skipped: Schema.Array(Schema.Struct({ branch: Schema.String, reason: SkipReason })).pipe(
+    skipped: ReportedList(Schema.Struct({ branch: ReportedText, reason: SkipReason })).pipe(
       Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
     ),
   },
   /** `path` is where the checkout is now, and `worktrees` where each linked worktree went. */
   Archived: {
-    path: Schema.String,
-    worktrees: Schema.Array(Schema.Struct({ from: Schema.String, to: Schema.String })).pipe(
+    path: ReportedText,
+    worktrees: ReportedList(Schema.Struct({ from: ReportedText, to: ReportedText })).pipe(
       Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
     ),
   },
   Unarchived: {
-    path: Schema.String,
-    worktrees: Schema.Array(Schema.Struct({ from: Schema.String, to: Schema.String })).pipe(
+    path: ReportedText,
+    worktrees: ReportedList(Schema.Struct({ from: ReportedText, to: ReportedText })).pipe(
       Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
     ),
   },
@@ -335,10 +336,8 @@ export const ActionResult = Schema.TaggedUnion({
    * restored branch came back as, and null otherwise.
    */
   Restored: {
-    path: Schema.NullOr(Schema.String).pipe(
-      Schema.withDecodingDefaultTypeKey(Effect.succeed(null)),
-    ),
-    branch: Schema.NullOr(Schema.String).pipe(
+    path: Schema.NullOr(ReportedText).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(null))),
+    branch: Schema.NullOr(ReportedText).pipe(
       Schema.withDecodingDefaultTypeKey(Effect.succeed(null)),
     ),
   },
@@ -349,7 +348,7 @@ export type ActionResult = typeof ActionResult.Type;
 export const ActionOutcome = Schema.TaggedUnion({
   Succeeded: { result: ActionResult },
   /** The action ran and failed. `message` is usually Git's own error. */
-  Failed: { message: Schema.String },
+  Failed: { message: ReportedText },
   Skipped: { reason: SkipReason },
   Cancelled: {},
   /** The agent disconnected before reporting a result, so what happened is unknown. */
@@ -373,8 +372,8 @@ export const ActionUpdate = Schema.TaggedUnion({
   /** The action has its locks and is running. */
   Started: {},
   /** Git's latest progress line. */
-  Progress: { line: Schema.String },
+  Progress: { line: ReportedText },
   /** The last lines of Git's output travel with the outcome. */
-  Finished: { outcome: ActionOutcome, output: Schema.Array(Schema.String) },
+  Finished: { outcome: ActionOutcome, output: ReportedList(ReportedText) },
 });
 export type ActionUpdate = typeof ActionUpdate.Type;

@@ -1,13 +1,14 @@
 import { Effect, Schema } from "effect";
 
 import { Count } from "./count.ts";
+import { ReportedList, ReportedText } from "./reported.ts";
 
 /**
  * A version of T3 Code's database schema, named by its newest migration. T3 Code changes its schema
  * often and publishes no stable interface, so agents compare what they find with the version
  * FleetFrog was built against.
  */
-export const T3CodeSchema = Schema.Struct({ migration: Schema.Int, name: Schema.String });
+export const T3CodeSchema = Schema.Struct({ migration: Schema.Int, name: ReportedText });
 export type T3CodeSchema = typeof T3CodeSchema.Type;
 
 /**
@@ -54,19 +55,19 @@ export type ProjectIconColor = typeof ProjectIconColor.Type;
 /** A project's icon in T3 Code: one picked there, or an image found in the repository. */
 export const ProjectIcon = Schema.TaggedUnion({
   /** A Lucide icon by its kebab-case name, such as `git-branch`. */
-  Lucide: { name: Schema.String, color: ProjectIconColor },
-  Emoji: { emoji: Schema.String },
-  Monogram: { text: Schema.String, color: ProjectIconColor },
+  Lucide: { name: ReportedText, color: ProjectIconColor },
+  Emoji: { emoji: ReportedText },
+  Monogram: { text: ReportedText, color: ProjectIconColor },
   /** An image from the repository, served by the hub at `/project-icons/<id>`. */
-  Image: { id: Schema.String },
+  Image: { id: ReportedText },
 });
 export type ProjectIcon = typeof ProjectIcon.Type;
 
 export const T3CodeProject = Schema.Struct({
-  id: Schema.String,
-  title: Schema.String,
+  id: ReportedText,
+  title: ReportedText,
   /** The folder T3 Code opens, which is usually a clone's main worktree. */
-  path: Schema.String,
+  path: ReportedText,
   icon: Schema.NullOr(ProjectIcon),
   /** T3 Code pulls the default branch itself. */
   autoPull: Schema.Boolean,
@@ -82,11 +83,11 @@ export const T3CodeThreadState = Schema.Literals(["Working", "Waiting", "Idle"])
 export type T3CodeThreadState = typeof T3CodeThreadState.Type;
 
 export const T3CodeThread = Schema.Struct({
-  id: Schema.String,
-  projectId: Schema.String,
-  title: Schema.String,
+  id: ReportedText,
+  projectId: ReportedText,
+  title: ReportedText,
   /** The checkout the thread works in: its own worktree, or its project's folder. */
-  path: Schema.String,
+  path: ReportedText,
   /** Set when T3 Code made a worktree for the thread. */
   worktree: Schema.Boolean,
   state: T3CodeThreadState,
@@ -102,16 +103,16 @@ export const T3CodeReading = Schema.TaggedUnion({
    * The database couldn't be read, or lacks something FleetFrog reads. `schema` is null when even
    * the version couldn't be read.
    */
-  Unreadable: { message: Schema.String, schema: Schema.NullOr(T3CodeSchema) },
+  Unreadable: { message: ReportedText, schema: Schema.NullOr(T3CodeSchema) },
   /** Projects T3 Code still has, and the threads of theirs that FleetFrog shows. */
   Read: {
     schema: T3CodeSchema,
-    projects: Schema.Array(T3CodeProject),
+    projects: ReportedList(T3CodeProject),
     /**
      * Threads in progress, threads with their own worktree, and others changed in the last two
      * weeks, newest first.
      */
-    threads: Schema.Array(T3CodeThread),
+    threads: ReportedList(T3CodeThread),
     /** Every thread that isn't archived or deleted. */
     threadCount: Count,
     /**
@@ -126,7 +127,7 @@ export type T3CodeReading = typeof T3CodeReading.Type;
 /** T3 Code's server, which its app starts or which runs as a service. */
 export const T3CodeServer = Schema.Struct({
   /** Such as `0.0.43-nightly.20260927.2331`, or null when the running program doesn't say. */
-  version: Schema.NullOr(Schema.String),
+  version: Schema.NullOr(ReportedText),
   startedAt: Schema.DateTimeUtc,
   port: Schema.Int,
 });
@@ -134,10 +135,10 @@ export type T3CodeServer = typeof T3CodeServer.Type;
 
 /** A coding agent T3 Code runs, such as Claude or Codex, as T3 Code last checked it. */
 export const T3CodeProvider = Schema.Struct({
-  name: Schema.String,
-  version: Schema.NullOr(Schema.String),
+  name: ReportedText,
+  version: Schema.NullOr(ReportedText),
   /** A newer version T3 Code knows of, or null when it's up to date or can't tell. */
-  latestVersion: Schema.NullOr(Schema.String),
+  latestVersion: Schema.NullOr(ReportedText),
   /** Installed and working, as far as T3 Code can tell. */
   ready: Schema.Boolean,
   signedIn: Schema.Boolean,
@@ -147,12 +148,12 @@ export type T3CodeProvider = typeof T3CodeProvider.Type;
 /** What an agent last found of T3 Code on its machine, which it reads on every scan. */
 export const T3CodeStatus = Schema.Struct({
   /** Where the agent looked. */
-  database: Schema.String,
+  database: ReportedText,
   reading: T3CodeReading,
   /** Null while T3 Code isn't running, and from agents that predate reporting it. */
   server: Schema.NullOr(T3CodeServer).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(null))),
   /** The coding agents turned on in T3 Code. Empty from agents that predate reporting them. */
-  providers: Schema.Array(T3CodeProvider).pipe(
+  providers: ReportedList(T3CodeProvider).pipe(
     Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
   ),
 });

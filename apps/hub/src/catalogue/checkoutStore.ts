@@ -3,6 +3,7 @@ import { SqlClient } from "effect/sql";
 
 import { Checkout } from "@fleetfrog/protocol/domain/checkout";
 import { MachineCheckout } from "@fleetfrog/protocol/domain/fleet";
+import { maximumReportedItems } from "@fleetfrog/protocol/domain/reported";
 
 import { JsonColumn } from "../persistence/database.ts";
 
@@ -10,6 +11,9 @@ import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 
 const CheckoutJson = JsonColumn(Checkout);
 const encodeCheckout = Schema.encodeSync(CheckoutJson);
+const decodePaths = Schema.decodeUnknownEffect(
+  Schema.Array(Schema.Struct({ path: Schema.String })),
+);
 const decodeRows = Schema.decodeUnknownEffect(
   Schema.Array(
     Schema.Struct({ machine_id: MachineCheckout.fields.machineId, checkout_json: CheckoutJson }),
@@ -26,7 +30,10 @@ export class CheckoutStore extends Context.Service<
       readonly machineId: MachineId;
       readonly checkouts: ReadonlyArray<Checkout>;
     }) => Effect.Effect<void>;
-    /** Upserts changed checkouts and drops removed ones after a status pass. */
+    /**
+     * Upserts changed checkouts and drops removed ones after a status pass. A checkout the hub
+     * doesn't hold yet is added only while the machine has fewer than `maximumReportedItems`.
+     */
     readonly apply: (changes: {
       readonly machineId: MachineId;
       readonly changed: ReadonlyArray<Checkout>;
@@ -72,7 +79,23 @@ export class CheckoutStore extends Context.Service<
               yield* sql`delete from checkouts where machine_id = ${machineId} and ${sql.in("path", removedPaths)}`;
             }
 
-            yield* upsert(machineId, changed);
+            const held = new Set(
+              (yield* sql`select path from checkouts where machine_id = ${machineId}`.pipe(
+                Effect.flatMap(decodePaths),
+              )).map(({ path }) => path),
+            );
+            let room = maximumReportedItems - held.size;
+            const kept = changed.filter((checkout) => {
+              if (held.has(checkout.path)) {
+                return true;
+              }
+
+              room -= 1;
+
+              return room >= 0;
+            });
+
+            yield* upsert(machineId, kept);
           },
           sql.withTransaction,
           Effect.orDie,

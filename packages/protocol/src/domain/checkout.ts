@@ -1,6 +1,7 @@
 import { Effect, Schema } from "effect";
 
 import { Count } from "./count.ts";
+import { ReportedList, ReportedText } from "./reported.ts";
 import { RepositoryIdentity } from "./repositoryIdentity.ts";
 
 /** Git's porcelain status letters for one side (index or worktree) of a changed path. */
@@ -8,9 +9,9 @@ export const FileState = Schema.Literals([".", "M", "T", "A", "D", "R", "C", "U"
 export type FileState = typeof FileState.Type;
 
 export const ChangedFile = Schema.Struct({
-  path: Schema.String,
+  path: ReportedText,
   /** The path before a rename or copy. */
-  originalPath: Schema.NullOr(Schema.String),
+  originalPath: Schema.NullOr(ReportedText),
   staged: FileState,
   unstaged: FileState,
 });
@@ -18,11 +19,11 @@ export type ChangedFile = typeof ChangedFile.Type;
 
 /** A list truncated to a fixed length, with the full count kept so the dashboard can say "and N more". */
 function Capped<S extends Schema.Top>(item: S) {
-  return Schema.Struct({ items: Schema.Array(item), total: Count });
+  return Schema.Struct({ items: ReportedList(item), total: Count });
 }
 
 export const Upstream = Schema.Struct({
-  name: Schema.String,
+  name: ReportedText,
   ahead: Count,
   behind: Count,
   /** The upstream branch was deleted on the remote. */
@@ -31,24 +32,24 @@ export const Upstream = Schema.Struct({
 export type Upstream = typeof Upstream.Type;
 
 export const Head = Schema.TaggedUnion({
-  Branch: { name: Schema.String, upstream: Schema.NullOr(Upstream) },
+  Branch: { name: ReportedText, upstream: Schema.NullOr(Upstream) },
   Detached: {},
   /** A branch with no commits yet. */
-  Unborn: { name: Schema.String },
+  Unborn: { name: ReportedText },
 });
 export type Head = typeof Head.Type;
 
 export const Commit = Schema.Struct({
-  sha: Schema.String,
-  subject: Schema.String,
+  sha: ReportedText,
+  subject: ReportedText,
   committedAt: Schema.DateTimeUtc,
 });
 export type Commit = typeof Commit.Type;
 
 /** Where a local branch's newest commit is, which says what deleting the branch would lose. */
 export const BranchTip = Schema.Struct({
-  sha: Schema.String,
-  subject: Schema.String,
+  sha: ReportedText,
+  subject: ReportedText,
   committedAt: Schema.DateTimeUtc,
   /** The tip is in the default branch as last fetched from `origin`. */
   merged: Schema.Boolean,
@@ -60,7 +61,7 @@ export const BranchTip = Schema.Struct({
 export type BranchTip = typeof BranchTip.Type;
 
 export const LocalBranch = Schema.Struct({
-  name: Schema.String,
+  name: ReportedText,
   upstream: Schema.NullOr(Upstream),
   /** Null from agents that predate reporting it. */
   tip: Schema.NullOr(BranchTip).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(null))),
@@ -69,9 +70,9 @@ export type LocalBranch = typeof LocalBranch.Type;
 
 export const Stash = Schema.Struct({
   index: Count,
-  message: Schema.String,
+  message: ReportedText,
   /** The stash's commit. Null from agents that predate reporting it. */
-  sha: Schema.NullOr(Schema.String).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(null))),
+  sha: Schema.NullOr(ReportedText).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(null))),
 });
 export type Stash = typeof Stash.Type;
 
@@ -84,11 +85,11 @@ export type Operation = typeof Operation.Type;
  * Refs are shared by every worktree of a clone, so only the main worktree reports them.
  */
 export const DeletedBranch = Schema.Struct({
-  name: Schema.String,
+  name: ReportedText,
   /** `refs/fleetfrog/deleted/<epoch milliseconds>/<name>`. */
-  ref: Schema.String,
-  sha: Schema.String,
-  subject: Schema.String,
+  ref: ReportedText,
+  sha: ReportedText,
+  subject: ReportedText,
   deletedAt: Schema.DateTimeUtc,
 });
 export type DeletedBranch = typeof DeletedBranch.Type;
@@ -99,10 +100,10 @@ export type DeletedBranch = typeof DeletedBranch.Type;
  */
 export const DroppedStash = Schema.Struct({
   /** `refs/fleetfrog/stashes/<epoch milliseconds>/<index>`. */
-  ref: Schema.String,
-  sha: Schema.String,
+  ref: ReportedText,
+  sha: ReportedText,
   /** The stash's message, such as `On main: half-done refactor`. */
-  message: Schema.String,
+  message: ReportedText,
   droppedAt: Schema.DateTimeUtc,
 });
 export type DroppedStash = typeof DroppedStash.Type;
@@ -124,8 +125,8 @@ export function parseDroppedStashRef(ref: string): { readonly droppedAtMillis: n
  * and `Broken` that its folder no longer links back to this clone, such as after the clone moved.
  */
 export const LinkedWorktree = Schema.Struct({
-  path: Schema.String,
-  branch: Schema.NullOr(Schema.String),
+  path: ReportedText,
+  branch: Schema.NullOr(ReportedText),
   state: Schema.Literals(["Present", "Missing", "Broken"]),
 });
 export type LinkedWorktree = typeof LinkedWorktree.Type;
@@ -154,17 +155,17 @@ export const GitStatus = Schema.Struct({
   operation: Schema.NullOr(Operation).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(null))),
   lastCommit: Schema.NullOr(Commit),
   changed: Capped(ChangedFile),
-  untracked: Capped(Schema.String),
+  untracked: Capped(ReportedText),
   stashes: Capped(Stash),
   branches: Capped(LocalBranch),
   /** The branch `origin/HEAD` points at, or null when the clone doesn't record one. */
-  defaultBranch: Schema.NullOr(Schema.String).pipe(
+  defaultBranch: Schema.NullOr(ReportedText).pipe(
     Schema.withDecodingDefaultTypeKey(Effect.succeed(null)),
   ),
   deletedBranches: Capped(DeletedBranch).pipe(Schema.withDecodingDefaultTypeKey(noneYet)),
   droppedStashes: Capped(DroppedStash).pipe(Schema.withDecodingDefaultTypeKey(noneYet)),
   /** The clone's linked worktrees, reported only by its main worktree. */
-  worktrees: Schema.Array(LinkedWorktree).pipe(
+  worktrees: ReportedList(LinkedWorktree).pipe(
     Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
   ),
   /** When this checkout last fetched, from the modification time of `FETCH_HEAD`. */
@@ -175,31 +176,31 @@ export type GitStatus = typeof GitStatus.Type;
 /** A merged pull request from a local branch, with the commit it was merged at. */
 export const MergedPullRequest = Schema.Struct({
   number: Count,
-  url: Schema.String,
-  branch: Schema.String,
-  sha: Schema.String,
+  url: ReportedText,
+  branch: ReportedText,
+  sha: ReportedText,
 });
 export type MergedPullRequest = typeof MergedPullRequest.Type;
 
 export const PullRequest = Schema.Struct({
   number: Count,
-  title: Schema.String,
-  url: Schema.String,
-  branch: Schema.String,
+  title: ReportedText,
+  url: ReportedText,
+  branch: ReportedText,
   draft: Schema.Boolean,
 });
 export type PullRequest = typeof PullRequest.Type;
 
 /** Remote state read through the GitHub CLI without fetching into the checkout. */
 export const GithubState = Schema.Struct({
-  defaultBranch: Schema.String,
+  defaultBranch: ReportedText,
   /** The default branch's head on GitHub. */
-  remoteSha: Schema.String,
+  remoteSha: ReportedText,
   /** The local remote-tracking ref for the default branch, when present. */
-  trackingSha: Schema.NullOr(Schema.String),
-  pullRequests: Schema.Array(PullRequest),
+  trackingSha: Schema.NullOr(ReportedText),
+  pullRequests: ReportedList(PullRequest),
   /** Recently merged pull requests from branches that still exist locally. */
-  mergedPullRequests: Schema.Array(MergedPullRequest).pipe(
+  mergedPullRequests: ReportedList(MergedPullRequest).pipe(
     Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
   ),
   checkedAt: Schema.DateTimeUtc,
@@ -208,13 +209,13 @@ export type GithubState = typeof GithubState.Type;
 
 export const CheckoutStatus = Schema.TaggedUnion({
   Read: { git: GitStatus },
-  Failed: { message: Schema.String },
+  Failed: { message: ReportedText },
 });
 export type CheckoutStatus = typeof CheckoutStatus.Type;
 
 export const Worktree = Schema.TaggedUnion({
   Main: {},
-  Linked: { mainPath: Schema.String },
+  Linked: { mainPath: ReportedText },
 });
 export type Worktree = typeof Worktree.Type;
 
@@ -223,7 +224,7 @@ export const Placement = Schema.TaggedUnion({
   Projects: {},
   Archive: {
     /** Where FleetFrog moved it from, or null for a checkout put in the archive by hand. */
-    originalPath: Schema.NullOr(Schema.String),
+    originalPath: Schema.NullOr(ReportedText),
     archivedAt: Schema.NullOr(Schema.DateTimeUtc),
   },
 });
@@ -231,17 +232,17 @@ export type Placement = typeof Placement.Type;
 
 /** One working tree on one machine, as last observed by its agent. */
 export const Checkout = Schema.Struct({
-  path: Schema.String,
+  path: ReportedText,
   identity: RepositoryIdentity,
   /**
    * The `origin` URL that other machines clone from, with any credentials removed. Null without an
    * HTTPS or SSH origin, and from agents that predate cloning.
    */
-  originUrl: Schema.NullOr(Schema.String).pipe(
+  originUrl: Schema.NullOr(ReportedText).pipe(
     Schema.withDecodingDefaultTypeKey(Effect.succeed(null)),
   ),
   /** The main worktree's directory name, used when the identity has no readable name. */
-  directoryName: Schema.String,
+  directoryName: ReportedText,
   worktree: Worktree,
   placement: Placement.pipe(
     Schema.withDecodingDefaultTypeKey(Effect.succeed(Placement.cases.Projects.make({}))),

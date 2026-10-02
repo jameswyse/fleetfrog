@@ -5,6 +5,7 @@ import { AgentUpdate } from "./agentUpdate.ts";
 import { Checkout } from "./checkout.ts";
 import { MachineId, MachineInfo, MachineKind, SystemUsage } from "./machine.ts";
 import { PollingSettings } from "./polling.ts";
+import { ReportedText } from "./reported.ts";
 import { RepositoryIdentity, RepositoryKey } from "./repositoryIdentity.ts";
 import { IntegrationSettings, ProjectIcon, T3CodeStatus } from "./t3Code.ts";
 import { TrashedCheckout } from "./trash.ts";
@@ -20,7 +21,7 @@ export const FolderOutcome = Schema.TaggedUnion({
   Created: {},
   /** A folder was there already, so nothing changed. */
   AlreadyThere: {},
-  Failed: { message: Schema.String },
+  Failed: { message: ReportedText },
 });
 export type FolderOutcome = typeof FolderOutcome.Type;
 

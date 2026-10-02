@@ -2,6 +2,7 @@ import { Effect, Schema } from "effect";
 
 import { Commit, Operation } from "./checkout.ts";
 import { Count } from "./count.ts";
+import { ReportedList, ReportedText } from "./reported.ts";
 import { RepositoryIdentity } from "./repositoryIdentity.ts";
 
 export const TrashId = Schema.String.pipe(Schema.check(Schema.isUUID()), Schema.brand("TrashId"));
@@ -11,30 +12,30 @@ export type TrashId = typeof TrashId.Type;
 export const TrashedCheckout = Schema.Struct({
   id: TrashId,
   /** Where it was, and where restoring it puts it back. */
-  originalPath: Schema.String,
+  originalPath: ReportedText,
   identity: RepositoryIdentity,
-  directoryName: Schema.String,
-  branch: Schema.NullOr(Schema.String),
+  directoryName: ReportedText,
+  branch: Schema.NullOr(ReportedText),
   lastCommit: Schema.NullOr(Commit),
   trashedAt: Schema.DateTimeUtc,
   /** What it takes up in the trash, after any caches were removed. */
   sizeBytes: Count,
   /** Linked worktrees trashed with it, which restoring puts back too. */
-  worktrees: Schema.Array(
-    Schema.Struct({ originalPath: Schema.String, trashedPath: Schema.String }),
+  worktrees: ReportedList(
+    Schema.Struct({ originalPath: ReportedText, trashedPath: ReportedText }),
   ).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed([]))),
 });
 export type TrashedCheckout = typeof TrashedCheckout.Type;
 
 /** A file or folder inside a checkout, relative to it, with what it takes up on disk. */
-export const SizedPath = Schema.Struct({ path: Schema.String, sizeBytes: Count });
+export const SizedPath = Schema.Struct({ path: ReportedText, sizeBytes: Count });
 export type SizedPath = typeof SizedPath.Type;
 
 /** Whether the checkout's remotes could be fetched just before it was inspected. */
 export const RemoteCheck = Schema.TaggedUnion({
   Fetched: {},
   NoRemote: {},
-  Unreachable: { message: Schema.String },
+  Unreachable: { message: ReportedText },
 });
 export type RemoteCheck = typeof RemoteCheck.Type;
 
@@ -45,11 +46,11 @@ export type RemoteCheck = typeof RemoteCheck.Type;
  * has changed that way since.
  */
 export const Inspection = Schema.Struct({
-  fingerprint: Schema.String,
+  fingerprint: ReportedText,
   sizeBytes: Count,
   remote: RemoteCheck,
   /** Local branches with commits no remote-tracking branch has. */
-  unpushedBranches: Schema.Array(Schema.Struct({ name: Schema.String, commits: Count })),
+  unpushedBranches: ReportedList(Schema.Struct({ name: ReportedText, commits: Count })),
   /** Commits on any ref or HEAD that no remote-tracking branch has, stashes included. */
   unpushedCommits: Count,
   /** Tags no remote has, even when their commits are pushed. */
@@ -62,9 +63,9 @@ export const Inspection = Schema.Struct({
   changedFiles: Count,
   untrackedFiles: Count,
   /** Ignored files and folders that aren't known caches, largest first. */
-  ignored: Schema.Struct({ items: Schema.Array(SizedPath), total: Count }),
+  ignored: Schema.Struct({ items: ReportedList(SizedPath), total: Count }),
   /** Ignored dependency and build folders, such as `node_modules`, which can be rebuilt. */
-  caches: Schema.Array(SizedPath),
+  caches: ReportedList(SizedPath),
   linkedWorktrees: Count,
 });
 export type Inspection = typeof Inspection.Type;
@@ -75,27 +76,27 @@ export type Inspection = typeof Inspection.Type;
  * are lost. The fingerprint changes when its HEAD, changes or ignored entries do.
  */
 export const WorktreeInspection = Schema.Struct({
-  fingerprint: Schema.String,
-  path: Schema.String,
+  fingerprint: ReportedText,
+  path: ReportedText,
   /** The folder is gone, and `parentMissing` says whether the folder above it is too. */
   missing: Schema.NullOr(Schema.Struct({ parentMissing: Schema.Boolean })),
-  branch: Schema.NullOr(Schema.String),
+  branch: Schema.NullOr(ReportedText),
   /** Why Git was told to keep the worktree, when it was locked, or an empty reason. */
-  locked: Schema.NullOr(Schema.String),
+  locked: Schema.NullOr(ReportedText),
   changedFiles: Count,
   untrackedFiles: Count,
   /** Commits only its detached HEAD holds. */
   unreachableCommits: Count,
   /** Ignored files and folders that aren't known caches, largest first. */
-  ignored: Schema.Struct({ items: Schema.Array(SizedPath), total: Count }),
-  caches: Schema.Array(SizedPath),
+  ignored: Schema.Struct({ items: ReportedList(SizedPath), total: Count }),
+  caches: ReportedList(SizedPath),
 });
 export type WorktreeInspection = typeof WorktreeInspection.Type;
 
 export const InspectionResult = Schema.TaggedUnion({
   Inspected: { inspection: Inspection },
   WorktreeInspected: { inspection: WorktreeInspection },
-  Failed: { message: Schema.String },
+  Failed: { message: ReportedText },
 });
 export type InspectionResult = typeof InspectionResult.Type;
 

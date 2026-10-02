@@ -11,6 +11,7 @@ import { RunId } from "../domain/activity.ts";
 import { Checkout } from "../domain/checkout.ts";
 import { FolderOutcome, FolderStatus } from "../domain/fleet.ts";
 import { MachineInfo, SystemUsage } from "../domain/machine.ts";
+import { ReportedList, ReportedText } from "../domain/reported.ts";
 import { T3CodeStatus } from "../domain/t3Code.ts";
 import { InspectionResult, TrashedCheckout } from "../domain/trash.ts";
 
@@ -47,8 +48,9 @@ export type T3CodeAgentSettings = typeof T3CodeAgentSettings.Type;
 
 /** An image a project uses as its icon, named by a hash of its bytes. */
 export const ProjectIconFile = Schema.Struct({
-  id: Schema.String,
-  mediaType: Schema.String,
+  id: ReportedText,
+  mediaType: ReportedText,
+  /** Not cut like other text: the hub refuses an icon larger than its limit or not matching `id`. */
   base64: Schema.String,
 });
 export type ProjectIconFile = typeof ProjectIconFile.Type;
@@ -114,30 +116,30 @@ export const ReceivedCommand = Schema.Union([
   Schema.Struct({ _tag: Schema.String, runId: Schema.optionalKey(RunId) }),
 ]);
 
-export const ReportedRoot = Schema.Struct({ path: Schema.String, status: FolderStatus });
+export const ReportedRoot = Schema.Struct({ path: ReportedText, status: FolderStatus });
 export type ReportedRoot = typeof ReportedRoot.Type;
 
 export const ScanReport = Schema.TaggedUnion({
   /** A completed discovery walk. Replaces every checkout the hub holds for the machine. */
   Discovery: {
-    checkouts: Schema.Array(Checkout),
+    checkouts: ReportedList(Checkout),
     /**
      * What the walk found at each discovery folder and at the Archive folder. Absent from agents
      * that predate it.
      */
-    roots: Schema.Array(ReportedRoot).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed([]))),
+    roots: ReportedList(ReportedRoot).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed([]))),
     completedAt: Schema.DateTimeUtc,
   },
   /** Everything in the machine's trash. Replaces what the hub holds. */
-  Trash: { items: Schema.Array(TrashedCheckout) },
+  Trash: { items: ReportedList(TrashedCheckout) },
   /** What T3 Code has on the machine, sent after each scan while the integration is on. */
   T3Code: { status: T3CodeStatus },
   /** Every image the projects in the last `T3Code` report use as icons. Replaces what the hub holds. */
-  ProjectIcons: { icons: Schema.Array(ProjectIconFile) },
+  ProjectIcons: { icons: ReportedList(ProjectIconFile) },
   /** A status pass. Carries only checkouts that changed or disappeared since the last report. */
   Status: {
-    changed: Schema.Array(Checkout),
-    removedPaths: Schema.Array(Schema.String),
+    changed: ReportedList(Checkout),
+    removedPaths: ReportedList(ReportedText),
     completedAt: Schema.DateTimeUtc,
   },
 });
@@ -155,7 +157,7 @@ export const ReceivedReport = Schema.Union([ScanReport, Schema.Struct({ _tag: Sc
  */
 export const ReceivedUpdate = Schema.Union([
   ActionUpdate,
-  Schema.Struct({ _tag: Schema.Literal("Finished"), output: Schema.Array(Schema.String) }),
+  Schema.Struct({ _tag: Schema.Literal("Finished"), output: ReportedList(ReportedText) }),
   Schema.Struct({ _tag: Schema.String }),
 ]);
 
@@ -190,7 +192,7 @@ export class AgentRpcs extends RpcGroup.make(
   Rpc.make("TargetVersion", { success: Schema.Struct({ version: Schema.String }) }),
   /** Answers an `Update` command that failed. The agent carries on with its current version. */
   Rpc.make("ReportUpdateFailure", {
-    payload: { version: Schema.String, message: Schema.String },
+    payload: { version: ReportedText, message: ReportedText },
   }),
 ).middleware(AgentAuthentication) {}
 
