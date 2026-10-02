@@ -223,11 +223,33 @@ jobs:
         run: |
           cp ../scripts/release/install.sh .
           sha256sum fleetfrog-* install.sh > SHA256SUMS
+      # Signs the checksums, which install.sh and the agent check before trusting them. The
+      # signature is then checked against the key in install.sh, so a wrong secret fails the
+      # release before anything is published.
+      - working-directory: assets
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+        run: |
+          if [ -z "$RELEASE_SIGNING_KEY" ]; then
+            echo "::error::The RELEASE_SIGNING_KEY secret is empty."
+            exit 1
+          fi
+          umask 077
+          key=$(mktemp "$RUNNER_TEMP/signing-key.XXXXXX")
+          trap 'rm -f "$key"' EXIT
+          printf '%s\n' "$RELEASE_SIGNING_KEY" > "$key"
+          ssh-keygen -Y sign -f "$key" -n fleetfrog-release SHA256SUMS
+          rm -f "$key"
+          release_key=$(sed -n 's/^release_key="\(.*\)"$/\1/p' install.sh)
+          echo "releases@fleetfrog.dev $release_key" > "$RUNNER_TEMP/allowed_signers"
+          ssh-keygen -Y verify -f "$RUNNER_TEMP/allowed_signers" -I releases@fleetfrog.dev \
+            -n fleetfrog-release -s SHA256SUMS.sig < SHA256SUMS
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
             assets/fleetfrog-*
             assets/SHA256SUMS
+            assets/SHA256SUMS.sig
             assets/install.sh
       # Creating the release creates its tag, so a failed build leaves nothing to clean up.
       - env:

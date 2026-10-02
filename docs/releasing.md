@@ -25,7 +25,7 @@ Merging it releases the version. The workflow then:
 1. Builds the agent for Linux on x86-64 and ARM, linked statically against musl so it runs on any distribution, and for macOS on Apple silicon. It sets `FLEETFROG_RELEASE`, which marks the build as one that can update itself.
 2. Builds the hub image for `linux/amd64` and `linux/arm64`.
 3. Once every build passes, tags the image `ghcr.io/jameswyse/fleetfrog-hub` with the version, such as `0.1.3`, its minor version, such as `0.1`, and `latest`.
-4. Creates the GitHub release and its `v0.1.3` tag, with the three agent binaries, `install.sh` and `SHA256SUMS`. Its notes merge the version's sections from every changelog.
+4. Signs `SHA256SUMS` with the release signing key, then creates the GitHub release and its `v0.1.3` tag, with the three agent binaries, `install.sh`, `SHA256SUMS` and its signature, `SHA256SUMS.sig`. Its notes merge the version's sections from every changelog.
 
 Releases are never marked as pre-releases, because `releases/latest` skips them and the install script downloads from there.
 
@@ -40,6 +40,28 @@ The workflow attests where each binary and the image came from. Check them with 
 ```sh
 gh attestation verify fleetfrog-linux-x86_64 --repo jameswyse/fleetfrog
 gh attestation verify oci://ghcr.io/jameswyse/fleetfrog-hub:0.1.3 --repo jameswyse/fleetfrog
+```
+
+## The signing key
+
+Each release signs its `SHA256SUMS` with an OpenSSH ed25519 key, in the namespace `fleetfrog-release`. The install script and the agent check that signature before they trust the checksums, so someone who can replace a release's files still can't make them install another binary. Releases from before 0.5.3 aren't signed, and the install script skips the check when `FLEETFROG_VERSION` names one of them.
+
+The private key is the repository secret `RELEASE_SIGNING_KEY`, which holds the contents of the private key file. The public key is:
+
+```
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGEsrE7jwC7DdJ4pIDehO+UYjB5F4GRznUVT8S4iHmse
+```
+
+It's embedded in [`install.sh`](../scripts/release/install.sh) as `release_key` and in the agent as `RELEASE_KEY` in [`apps/agent-rs/src/update/signature.rs`](../apps/agent-rs/src/update/signature.rs). The workflow checks each new signature against the copy in `install.sh`, so a wrong secret fails the release before anything is published.
+
+Keep a backup of the private key. If it's lost, agents already installed can't check a release signed with a new key, so they can't update themselves until they're installed again with the install script that carries the new key.
+
+To check a release by hand, download `SHA256SUMS` and `SHA256SUMS.sig` from it, then run:
+
+```sh
+echo 'releases@fleetfrog.dev ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGEsrE7jwC7DdJ4pIDehO+UYjB5F4GRznUVT8S4iHmse' > allowed_signers
+ssh-keygen -Y verify -f allowed_signers -I releases@fleetfrog.dev -n fleetfrog-release -s SHA256SUMS.sig < SHA256SUMS
+sha256sum --check --ignore-missing SHA256SUMS
 ```
 
 ## Setting up the release app

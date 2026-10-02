@@ -87,7 +87,7 @@ The agent is a single binary for Linux on x86-64 or ARM, and for macOS on Apple 
 curl -fsSL https://github.com/jameswyse/fleetfrog/releases/latest/download/install.sh | sh
 ```
 
-The script downloads the agent for your system, checks it against the release's checksums and installs it at `~/.local/bin/fleetfrog`. Set `FLEETFROG_VERSION` to install a particular release, or `FLEETFROG_INSTALL_DIR` to install it elsewhere.
+The script downloads the agent for your system, checks it against the release's checksums, whose signature it checks with `ssh-keygen` from OpenSSH, and installs it at `~/.local/bin/fleetfrog`. Set `FLEETFROG_VERSION` to install a particular release, or `FLEETFROG_INSTALL_DIR` to install it elsewhere.
 
 In the dashboard, open **Settings › Fleet**, choose **Pair a machine** and create a pairing code. Run the command it shows on the new machine, then start the agent as a service:
 
@@ -112,7 +112,7 @@ Then update the agents to the hub's version. The hub and agents share one versio
 fleetfrog update
 ```
 
-It asks the hub for its version, lists the agent's changes since the installed version and asks before updating. Pass `--yes` to skip the question. It downloads the release, checks it against the release's checksums, replaces the agent and restarts its service. Each [release](https://github.com/jameswyse/fleetfrog/releases) lists what changed.
+It asks the hub for its version, lists the agent's changes since the installed version and asks before updating. Pass `--yes` to skip the question. It downloads the release, checks it against the release's signed checksums, replaces the agent and restarts its service. Each [release](https://github.com/jameswyse/fleetfrog/releases) lists what changed.
 
 Agents from 0.1.0 and earlier can't update themselves, so run the install script again on those machines once. An agent built from source updates with Git instead.
 

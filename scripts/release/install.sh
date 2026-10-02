@@ -7,6 +7,9 @@
 # to install somewhere other than ~/.local/bin.
 set -eu
 
+# The key releases are signed with, which docs/releasing.md describes. The agent carries it too.
+release_key="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGEsrE7jwC7DdJ4pIDehO+UYjB5F4GRznUVT8S4iHmse"
+
 fail() {
   echo "fleetfrog: $1" >&2
   exit 1
@@ -15,6 +18,39 @@ fail() {
 # Downloads over HTTPS only, and refuses a redirect to anything else.
 fetch() {
   curl -fsSL --proto '=https' --proto-redir '=https' -o "$1" "$2"
+}
+
+# Whether a version such as 0.5.2 or v0.5.2 names a release from before 0.5.3, the first one
+# signed. Anything else, such as a version that isn't three numbers, must be signed.
+predates_signing() {
+  numbers=${1#v}
+
+  case "$numbers" in
+    *.*.*) ;;
+    *) return 1 ;;
+  esac
+
+  major=${numbers%%.*}
+  numbers=${numbers#*.}
+  minor=${numbers%%.*}
+  patch=${numbers#*.}
+
+  for number in "$major" "$minor" "$patch"; do
+    case "$number" in
+      '' | *[!0-9]*) return 1 ;;
+    esac
+  done
+
+  if [ "$major" -ne 0 ]; then
+    return 1
+  fi
+
+  if [ "$minor" -ne 5 ]; then
+    [ "$minor" -lt 5 ]
+    return
+  fi
+
+  [ "$patch" -lt 3 ]
 }
 
 main() {
@@ -45,16 +81,40 @@ main() {
     downloads="https://github.com/jameswyse/fleetfrog/releases/download/v${version#v}"
   fi
 
+  if [ "$version" != latest ] && predates_signing "$version"; then
+    signed=false
+  else
+    signed=true
+    command -v ssh-keygen >/dev/null 2>&1 ||
+      fail "needs ssh-keygen, from OpenSSH, to check the release's signature"
+  fi
+
   mkdir -p "$install_dir"
   # Downloaded beside the installed binary, so moving it into place is a rename. A running agent
   # keeps its old copy, and macOS runs the new one instead of refusing a binary changed in place.
   # A fresh name each time, so nothing left there beforehand, such as a link, is written through.
   download=$(mktemp "$install_dir/.fleetfrog.download.XXXXXX")
   checksums=$(mktemp)
-  trap 'rm -f "$download" "$checksums"' EXIT
+  signature=$(mktemp)
+  allowed_signers=$(mktemp)
+  trap 'rm -f "$download" "$checksums" "$signature" "$allowed_signers"' EXIT
+
+  fetch "$checksums" "$downloads/SHA256SUMS"
+
+  if [ "$signed" = true ]; then
+    fetch "$signature" "$downloads/SHA256SUMS.sig" ||
+      fail "couldn't download the release's signature, so its checksums can't be trusted"
+    echo "releases@fleetfrog.dev $release_key" >"$allowed_signers"
+
+    if ! ssh-keygen -Y verify -f "$allowed_signers" -I releases@fleetfrog.dev \
+      -n fleetfrog-release -s "$signature" <"$checksums" >/dev/null; then
+      fail "the release's signature didn't check out, so its checksums can't be trusted"
+    fi
+  else
+    echo "FleetFrog ${version#v} predates signed releases, so its signature isn't checked."
+  fi
 
   fetch "$download" "$downloads/$asset"
-  fetch "$checksums" "$downloads/SHA256SUMS"
 
   expected=$(awk -v name="$asset" '$2 == name { print $1 }' "$checksums")
 

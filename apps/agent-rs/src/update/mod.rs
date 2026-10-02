@@ -3,11 +3,12 @@
 //! release to install. An agent never installs a version older than or the same as its own.
 //!
 //! Installing follows `scripts/release/install.sh`: the new binary is downloaded beside the
-//! installed one and checked against the release's `SHA256SUMS`, then renamed into place. A
-//! running agent keeps its old copy, and macOS runs the new one instead of refusing a binary
-//! changed in place.
+//! installed one and checked against the release's `SHA256SUMS`, whose signature is checked
+//! first, then renamed into place. A running agent keeps its old copy, and macOS runs the new one
+//! instead of refusing a binary changed in place.
 
 pub mod changelog;
+mod signature;
 
 use std::cmp::Ordering;
 use std::io::Write;
@@ -33,6 +34,10 @@ pub const UPDATES_ITSELF: bool = cfg!(fleetfrog_release);
 pub const BUILT_FROM_SOURCE: &str = "This agent was built from source, so it can't update itself. Update it with Git and build it again.";
 
 const RELEASES: &str = "https://github.com/jameswyse/fleetfrog/releases/download";
+
+/// The release workflow's signature over `SHA256SUMS`. Every release the agent can update to has
+/// one, since releases are signed from before the first agent that checks.
+const SIGNATURE: &str = "SHA256SUMS.sig";
 
 /// The start of the download's name, as `install.sh` names it. The rest is random, and the file is
 /// created new, so nothing can plant a file or link there first.
@@ -126,6 +131,9 @@ async fn download(version: &str, name: &str) -> Result<Vec<u8>, String> {
         GetError::Status(404) if name == "SHA256SUMS" => {
             format!("There is no FleetFrog {version} release on GitHub.")
         }
+        GetError::Status(404) if name == SIGNATURE => format!(
+            "FleetFrog {version} has no {SIGNATURE}, so the release's signature didn't check out and it wasn't installed."
+        ),
         GetError::Status(404) => format!("FleetFrog {version} has no {name} to download."),
         error => format!("Could not download {name} for FleetFrog {version}: {error}."),
     })
@@ -227,6 +235,19 @@ pub async fn install(version: &str) -> Result<PathBuf, String> {
         .parent()
         .ok_or_else(|| format!("{} has no folder.", executable.display()))?;
     let sums = download(version, "SHA256SUMS").await?;
+    let sums_signature = download(version, SIGNATURE).await?;
+
+    signature::verify(
+        signature::RELEASE_KEY,
+        &sums,
+        &String::from_utf8_lossy(&sums_signature),
+    )
+    .map_err(|reason| {
+        format!(
+            "The release's signature didn't check out ({reason}), so FleetFrog {version} wasn't installed."
+        )
+    })?;
+
     let checksum = listed_checksum(&String::from_utf8_lossy(&sums), asset)
         .map(str::to_ascii_lowercase)
         .ok_or_else(|| format!("FleetFrog {version} lists no checksum for {asset}."))?;
