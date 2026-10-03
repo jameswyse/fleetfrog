@@ -1,6 +1,6 @@
 {
   "name": "@fleetfrog/agent-ts",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "private": true,
   "description": "The FleetFrog agent: reports a development machine's repositories to a FleetFrog hub.",
   "license": "MIT",

@@ -1,5 +1,11 @@
 # @fleetfrog/agent-ts
 
+## 0.5.4
+
+### Patch Changes
+
+- 366cc12: Read T3 Code's threads from `statev2.sqlite`, where T3 Code keeps them from migration 55, so threads and what their agents are doing stay current after T3 Code updates. Machines on an older T3 Code are still read from `state.sqlite`.
+
 ## 0.5.3
 
 ### Patch Changes
