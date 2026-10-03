@@ -163,22 +163,40 @@ docker compose -f compose.yaml -f compose.build.yaml up -d --build
 
 ## Develop
 
+Install Git, [pnpm](https://pnpm.io/installation) 12.8.1, [rustup](https://rustup.rs/), and a C compiler and linker. Use `build-essential` on Debian or Ubuntu, or Xcode Command Line Tools on macOS. Rustup uses the toolchain pinned in `apps/agent-rs/rust-toolchain.toml`.
+
+Clone the repository and start the hub, dashboard and website:
+
 ```sh
+git clone https://github.com/jameswyse/fleetfrog.git
+cd fleetfrog
 pnpm install
 pnpm dev
 ```
 
-`pnpm dev` starts the hub on port 7420 with its data in `./data` and the dashboard on Vite's port 5173, which forwards RPC to the hub. `pnpm verify` runs formatting, lint, typecheck, build and unit tests across the repository.
+`pnpm install` downloads the Node version pinned in `package.json`. Use `pnpm exec node` for scripts so they use that version.
 
-To test an agent you built on a machine that already runs a released one, give it an instance name with `FLEETFROG_INSTANCE`. A named instance has its own pairing, policy, action log and service, so it can pair with a development hub while the released agent stays paired with yours:
+Open the dashboard URL printed by Vite, normally `http://localhost:5173`. Vite proxies requests to the hub on port 7420. Agents connect on port 7421. The hub stores its database and certificate in `./data` and listens only on loopback. To pair an agent on another machine, start it with `FLEETFROG_HOST=0.0.0.0 pnpm dev`.
+
+To populate the dashboard, build the native agent in another terminal:
+
+```sh
+pnpm --filter @fleetfrog/agent-rs build
+```
+
+In the dashboard, open **Settings › Fleet › Pair a machine** and create a pairing code. Replace `<pairing-string>` below with the code:
 
 ```sh
 export FLEETFROG_INSTANCE=dev
 apps/agent-rs/dist/fleetfrog pair <pairing-string>
-apps/agent-rs/dist/fleetfrog service install
+apps/agent-rs/dist/fleetfrog run
 ```
 
-The `dev` instance keeps its pairing and policy in `~/.config/fleetfrog-dev`, and its action log in a `fleetfrog-dev` folder beside the released agent's. Its service is `fleetfrog-dev.service` on Linux and `net.fleetfrog.agent-dev` on macOS. Both agents act on the same checkouts and share the machine's trash.
+Choose project folders under the machine's settings. The `dev` instance has separate pairing, policy, and logs, so it can run alongside an installed agent. Both instances still act on the same files and share trash. For disposable repositories, use `pnpm test:e2e:serve` instead.
+
+Ctrl+C stops each foreground process. After changing the Rust agent, rebuild it and run it again.
+
+Run `pnpm verify` for formatting, lint, typecheck, builds, and unit tests. [Local end-to-end tests](docs/e2e.md) explains Chromium setup and browser tests against an isolated hub, two native agents, and temporary repositories.
 
 Describe each change people will notice in a changeset with `pnpm changeset`. [Releasing](docs/releasing.md) explains how changesets become a release.
 
