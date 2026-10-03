@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "tsdown",
-    "dev": "FLEETFROG_DATA_DIR=../../data node --watch src/main.ts",
+    "dev": "FLEETFROG_HOST=${FLEETFROG_HOST:-127.0.0.1} FLEETFROG_DATA_DIR=../../data node --watch src/main.ts",
     "format": "oxfmt .",
     "format:check": "oxfmt --list-different .",
     "lint": "oxlint .",

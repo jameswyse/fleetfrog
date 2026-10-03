@@ -22,6 +22,7 @@
     },
     "dev": {
       "cache": false,
+      "passThroughEnv": ["FLEETFROG_*"],
       "persistent": true
     },
     "format": {
