@@ -110,7 +110,10 @@
         "$TURBO_ROOT$/tsconfig.tooling.json",
         "$TURBO_ROOT$/oxfmt.config.ts",
         "$TURBO_ROOT$/oxlint.config.ts",
-        "$TURBO_ROOT$/.vscode/**"
+        "$TURBO_ROOT$/.vscode/**",
+        "$TURBO_ROOT$/tests/e2e/**",
+        "$TURBO_ROOT$/e2e.config.ts",
+        "$TURBO_ROOT$/package.json"
       ],
       "outputLogs": "errors-only",
       "outputs": []
@@ -128,7 +131,10 @@
         "$TURBO_ROOT$/tsconfig.base.json",
         "$TURBO_ROOT$/tsconfig.node.json",
         "$TURBO_ROOT$/oxfmt.config.ts",
-        "$TURBO_ROOT$/oxlint.config.ts"
+        "$TURBO_ROOT$/oxlint.config.ts",
+        "$TURBO_ROOT$/tests/e2e/**",
+        "$TURBO_ROOT$/e2e.config.ts",
+        "$TURBO_ROOT$/package.json"
       ],
       "outputLogs": "errors-only",
       "outputs": []
@@ -140,7 +146,10 @@
         "$TURBO_ROOT$/tools/**",
         "$TURBO_ROOT$/tsconfig.base.json",
         "$TURBO_ROOT$/tsconfig.node.json",
-        "$TURBO_ROOT$/tsconfig.tooling.json"
+        "$TURBO_ROOT$/tsconfig.tooling.json",
+        "$TURBO_ROOT$/tests/e2e/**",
+        "$TURBO_ROOT$/e2e.config.ts",
+        "$TURBO_ROOT$/package.json"
       ],
       "outputLogs": "errors-only",
       "outputs": []

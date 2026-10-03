@@ -6,6 +6,7 @@ node_modules/
 .turbo/
 .pnpm-store/
 .playwright-cli/
+.e2e/
 .tanstack/
 .wrangler/
 dist/
