@@ -194,17 +194,18 @@ export function createRepositories(directory: string): void {
   const userdata = path.join(directory, "t3code/userdata");
   mkdirSync(userdata, { recursive: true });
   mkdirSync(path.join(directory, "t3-no-repository"));
-  const database = new DatabaseSync(path.join(userdata, "state.sqlite"));
+  const database = new DatabaseSync(path.join(userdata, "statev2.sqlite"));
 
   try {
     database.exec(`
       CREATE TABLE effect_sql_migrations (migration_id INTEGER PRIMARY KEY, created_at TEXT, name TEXT);
       CREATE TABLE projection_projects (project_id TEXT PRIMARY KEY, title TEXT, workspace_root TEXT,
         project_icon_json TEXT, favicon_path TEXT, auto_pull INTEGER, updated_at TEXT, deleted_at TEXT);
-      CREATE TABLE projection_threads (thread_id TEXT PRIMARY KEY, project_id TEXT, title TEXT,
-        worktree_path TEXT, archived_at TEXT, deleted_at TEXT, updated_at TEXT,
-        pending_approval_count INTEGER, pending_user_input_count INTEGER);
-      CREATE TABLE projection_thread_sessions (thread_id TEXT PRIMARY KEY, status TEXT, active_turn_id TEXT);
+      CREATE TABLE orchestration_v2_projection_threads (thread_id TEXT PRIMARY KEY, project_id TEXT,
+        title TEXT, payload_json TEXT, archived_at TEXT, deleted_at TEXT, updated_at TEXT);
+      CREATE TABLE orchestration_v2_projection_runs (run_id TEXT PRIMARY KEY, thread_id TEXT, status TEXT);
+      CREATE TABLE orchestration_v2_projection_runtime_requests (runtime_request_id TEXT PRIMARY KEY,
+        thread_id TEXT, kind TEXT, status TEXT);
     `);
     const now = new Date().toISOString();
     database
@@ -228,11 +229,17 @@ export function createRepositories(directory: string): void {
       now,
     );
     database
-      .prepare("INSERT INTO projection_threads VALUES (?, ?, ?, NULL, NULL, NULL, ?, 0, 0)")
-      .run("e2e-thread", "e2e-project", "E2E coding thread", now);
+      .prepare("INSERT INTO orchestration_v2_projection_threads VALUES (?, ?, ?, ?, NULL, NULL, ?)")
+      .run(
+        "e2e-thread",
+        "e2e-project",
+        "E2E coding thread",
+        JSON.stringify({ worktreePath: null }),
+        now,
+      );
     database
-      .prepare("INSERT INTO projection_thread_sessions VALUES (?, ?, ?)")
-      .run("e2e-thread", "running", "e2e-turn");
+      .prepare("INSERT INTO orchestration_v2_projection_runs VALUES (?, ?, ?)")
+      .run("e2e-run", "e2e-thread", "running");
   } finally {
     database.close();
   }

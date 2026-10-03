@@ -15,16 +15,27 @@ use crate::protocol::{
 };
 use crate::time::Utc;
 
+const V2_DATABASE: &str = "statev2.sqlite";
+
 /// Where T3 Code keeps its database, following its `T3CODE_HOME` setting.
 pub fn database_path() -> String {
-    paths::join(
+    let userdata = paths::join(
         &paths::env("T3CODE_HOME").unwrap_or_else(|| paths::join(&paths::home(), ".t3")),
-        "userdata/state.sqlite",
-    )
+        "userdata",
+    );
+    let v2 = paths::join(&userdata, V2_DATABASE);
+
+    if std::fs::metadata(&v2).is_ok() {
+        v2
+    } else {
+        paths::join(&userdata, "state.sqlite")
+    }
 }
 
+type Columns = &'static [(&'static str, &'static [&'static str])];
+
 /// Every column read below, checked first so a changed schema is named rather than misread.
-const REQUIRED_COLUMNS: [(&str, &[&str]); 4] = [
+const REQUIRED_COLUMNS: Columns = &[
     ("effect_sql_migrations", &["migration_id", "name"]),
     (
         "projection_projects",
@@ -39,25 +50,82 @@ const REQUIRED_COLUMNS: [(&str, &[&str]); 4] = [
             "deleted_at",
         ],
     ),
-    (
-        "projection_threads",
-        &[
-            "thread_id",
-            "project_id",
-            "title",
-            "worktree_path",
-            "archived_at",
-            "deleted_at",
-            "updated_at",
-            "pending_approval_count",
-            "pending_user_input_count",
-        ],
-    ),
-    (
-        "projection_thread_sessions",
-        &["thread_id", "status", "active_turn_id"],
-    ),
 ];
+
+struct Layout {
+    columns: Columns,
+    threads: &'static str,
+    worktree_in_payload: bool,
+}
+
+const V1_LAYOUT: Layout = Layout {
+    columns: &[
+        (
+            "projection_threads",
+            &[
+                "thread_id",
+                "project_id",
+                "title",
+                "worktree_path",
+                "archived_at",
+                "deleted_at",
+                "updated_at",
+                "pending_approval_count",
+                "pending_user_input_count",
+            ],
+        ),
+        (
+            "projection_thread_sessions",
+            &["thread_id", "status", "active_turn_id"],
+        ),
+    ],
+    threads: "select thread.thread_id, thread.project_id, thread.title, thread.worktree_path,
+          thread.archived_at is not null as archived, thread.updated_at,
+          thread.pending_approval_count > 0 or thread.pending_user_input_count > 0 as waiting,
+          session.active_turn_id is not null
+            or ifnull(session.status, '') in ('starting', 'running') as working
+        from projection_threads as thread
+        left join projection_thread_sessions as session on session.thread_id = thread.thread_id
+        where thread.deleted_at is null",
+    worktree_in_payload: false,
+};
+
+const V2_LAYOUT: Layout = Layout {
+    columns: &[
+        (
+            "orchestration_v2_projection_threads",
+            &[
+                "thread_id",
+                "project_id",
+                "title",
+                "payload_json",
+                "archived_at",
+                "deleted_at",
+                "updated_at",
+            ],
+        ),
+        (
+            "orchestration_v2_projection_runtime_requests",
+            &["thread_id", "kind", "status"],
+        ),
+        ("orchestration_v2_projection_runs", &["thread_id", "status"]),
+    ],
+    threads: "select thread.thread_id, thread.project_id, thread.title, thread.payload_json,
+          thread.archived_at is not null as archived, thread.updated_at,
+          exists (
+            select 1 from orchestration_v2_projection_runtime_requests as request
+            where request.thread_id = thread.thread_id and request.status = 'pending'
+              and request.kind <> 'auth_refresh'
+          ) as waiting,
+          exists (
+            select 1 from orchestration_v2_projection_runs as run
+            where run.thread_id = thread.thread_id
+              and run.status in ('preparing', 'starting', 'running', 'waiting')
+          ) as working
+        from orchestration_v2_projection_threads as thread
+        where thread.deleted_at is null",
+    worktree_in_payload: true,
+};
 
 /// The colours T3 Code offers for project icons.
 const COLOURS: [&str; 18] = [
@@ -82,10 +150,8 @@ struct ThreadRow {
     worktree_path: Option<String>,
     archived: i64,
     updated_at: Utc,
-    pending_approval_count: i64,
-    pending_user_input_count: i64,
-    session_status: Option<String>,
-    active_turn_id: Option<String>,
+    waiting: i64,
+    working: i64,
 }
 
 /// A row's columns as the TypeScript agent's schemas read them: a row with a value of the wrong
@@ -137,18 +203,31 @@ fn decode_project(row: &Row) -> Option<ProjectRow> {
     })
 }
 
-fn decode_thread(row: &Row) -> Option<ThreadRow> {
+fn worktree_from_payload(json: &str) -> Option<Option<String>> {
+    match serde_json::from_str::<serde_json::Value>(json)
+        .ok()?
+        .get("worktreePath")?
+    {
+        serde_json::Value::Null => Some(None),
+        serde_json::Value::String(path) => Some(Some(path.clone())),
+        _ => None,
+    }
+}
+
+fn decode_thread(row: &Row, layout: &Layout) -> Option<ThreadRow> {
     Some(ThreadRow {
         thread_id: row.text(0)?,
         project_id: row.text(1)?,
         title: row.text(2)?,
-        worktree_path: row.nullable_text(3)?,
+        worktree_path: if layout.worktree_in_payload {
+            worktree_from_payload(&row.text(3)?)?
+        } else {
+            row.nullable_text(3)?
+        },
         archived: row.integer(4)?,
         updated_at: row.time(5)?,
-        pending_approval_count: row.integer(6)?,
-        pending_user_input_count: row.integer(7)?,
-        session_status: row.nullable_text(8)?,
-        active_turn_id: row.nullable_text(9)?,
+        waiting: row.integer(6)?,
+        working: row.integer(7)?,
     })
 }
 
@@ -341,11 +420,9 @@ fn find_favicon(folder: &str, favicon_path: Option<&str>) -> Option<ProjectIconF
 }
 
 fn thread_state(row: &ThreadRow) -> T3CodeThreadState {
-    if row.pending_approval_count > 0 || row.pending_user_input_count > 0 {
+    if row.waiting != 0 {
         T3CodeThreadState::Waiting
-    } else if row.active_turn_id.is_some()
-        || matches!(row.session_status.as_deref(), Some("starting" | "running"))
-    {
+    } else if row.working != 0 {
         T3CodeThreadState::Working
     } else {
         T3CodeThreadState::Idle
@@ -401,6 +478,12 @@ fn read_rows(file: &str) -> Result<Rows, Unreadable> {
         .map_err(failed)?;
     database.execute_batch("begin").map_err(failed)?;
 
+    let layout = if paths::basename(file) == V2_DATABASE {
+        &V2_LAYOUT
+    } else {
+        &V1_LAYOUT
+    };
+
     let schema = query(
         &database,
         "select migration_id, name from effect_sql_migrations order by migration_id desc",
@@ -415,7 +498,7 @@ fn read_rows(file: &str) -> Result<Rows, Unreadable> {
     });
     let mut missing = Vec::new();
 
-    for (table, columns) in REQUIRED_COLUMNS {
+    for (table, columns) in REQUIRED_COLUMNS.iter().chain(layout.columns) {
         let mut statement = database
             .prepare("select name from pragma_table_info(?)")
             .map_err(failed)?;
@@ -452,22 +535,15 @@ fn read_rows(file: &str) -> Result<Rows, Unreadable> {
         from projection_projects where deleted_at is null",
     )
     .map_err(failed)?;
-    let threads = query(
-        &database,
-        "select thread.thread_id, thread.project_id, thread.title, thread.worktree_path,
-          thread.archived_at is not null as archived, thread.updated_at,
-          thread.pending_approval_count, thread.pending_user_input_count,
-          session.status as session_status, session.active_turn_id
-        from projection_threads as thread
-        left join projection_thread_sessions as session on session.thread_id = thread.thread_id
-        where thread.deleted_at is null",
-    )
-    .map_err(failed)?;
+    let threads = query(&database, layout.threads).map_err(failed)?;
 
     database.execute_batch("commit").map_err(failed)?;
 
     let decoded_projects: Vec<ProjectRow> = projects.iter().filter_map(decode_project).collect();
-    let decoded_threads: Vec<ThreadRow> = threads.iter().filter_map(decode_thread).collect();
+    let decoded_threads: Vec<ThreadRow> = threads
+        .iter()
+        .filter_map(|row| decode_thread(row, layout))
+        .collect();
 
     Ok(Rows {
         schema,

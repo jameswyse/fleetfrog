@@ -16,8 +16,8 @@ export type T3CodeSchema = typeof T3CodeSchema.Type;
  * move this to its newest migration.
  */
 export const supportedT3CodeSchema: T3CodeSchema = {
-  migration: 54,
-  name: "ProjectionThreadsAutoSettleDisabledAt",
+  migration: 56,
+  name: "RemoveRedundantProjectionIndexes",
 };
 
 /** How a machine's T3 Code schema compares with the one FleetFrog was built against. */

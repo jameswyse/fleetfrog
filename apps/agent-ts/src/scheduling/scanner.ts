@@ -112,7 +112,6 @@ export function makeScanner<ReportError>(options: {
     });
   let locations: ReadonlyArray<CheckoutLocation> = [];
   const sent = new Map<string, string>();
-  const t3CodeDatabase = t3CodeDatabasePath();
   /** Each T3 Code project's favicon, looked for again on every discovery walk. */
   const favicons = new Map<string, ProjectIconFile | null>();
   /** What was last sent about T3 Code, so an unchanged reading isn't resent every pass. */
@@ -124,7 +123,11 @@ export function makeScanner<ReportError>(options: {
   const readIntegration = (settings: T3CodeAgentSettings | null) =>
     settings === null
       ? Effect.succeed(null)
-      : readT3Code({ database: t3CodeDatabase, projectIcons: settings.projectIcons, favicons });
+      : readT3Code({
+          database: t3CodeDatabasePath(),
+          projectIcons: settings.projectIcons,
+          favicons,
+        });
 
   const reportIntegration = Effect.fnUntraced(function* (
     read: Effect.Success<ReturnType<typeof readIntegration>>,

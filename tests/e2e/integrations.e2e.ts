@@ -91,7 +91,7 @@ test("[deterministic] T3 Code discovers a real checkout outside the configured p
   writeFileSync(path.join(checkout, "README.md"), "Outside the project folders\n");
   git(checkout, "add", ".");
   git(checkout, "commit", "-m", "T3 discovery fixture");
-  const database = new DatabaseSync(path.join(directory, "t3code/userdata/state.sqlite"));
+  const database = new DatabaseSync(path.join(directory, "t3code/userdata/statev2.sqlite"));
 
   try {
     database

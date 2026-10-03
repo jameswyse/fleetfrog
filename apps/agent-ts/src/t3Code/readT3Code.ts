@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
 import { readFile, realpath, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -24,13 +25,14 @@ import type {
   T3CodeThreadState,
 } from "@fleetfrog/protocol/domain/t3Code";
 
+const v2Database = "statev2.sqlite";
+
 /** Where T3 Code keeps its database, following its `T3CODE_HOME` setting. */
 export function t3CodeDatabasePath(): string {
-  return path.join(
-    process.env.T3CODE_HOME ?? path.join(homedir(), ".t3"),
-    "userdata",
-    "state.sqlite",
-  );
+  const userdata = path.join(process.env.T3CODE_HOME ?? path.join(homedir(), ".t3"), "userdata");
+  const v2 = path.join(userdata, v2Database);
+
+  return existsSync(v2) ? v2 : path.join(userdata, "state.sqlite");
 }
 
 /** Every column read below, checked first so a changed schema is named rather than misread. */
@@ -46,19 +48,7 @@ const requiredColumns = {
     "updated_at",
     "deleted_at",
   ],
-  projection_threads: [
-    "thread_id",
-    "project_id",
-    "title",
-    "worktree_path",
-    "archived_at",
-    "deleted_at",
-    "updated_at",
-    "pending_approval_count",
-    "pending_user_input_count",
-  ],
-  projection_thread_sessions: ["thread_id", "status", "active_turn_id"],
-} as const;
+};
 
 const MigrationRow = Schema.Struct({ migration_id: Schema.Int, name: Schema.String });
 
@@ -73,24 +63,102 @@ const ProjectRow = Schema.Struct({
 });
 type ProjectRow = typeof ProjectRow.Type;
 
-const ThreadRow = Schema.Struct({
+const threadColumns = {
   thread_id: Schema.String,
   project_id: Schema.String,
   title: Schema.String,
-  worktree_path: Schema.NullOr(Schema.String),
   archived: Schema.Int,
   updated_at: Schema.DateTimeUtcFromString,
-  pending_approval_count: Schema.Int,
-  pending_user_input_count: Schema.Int,
-  session_status: Schema.NullOr(Schema.String),
-  active_turn_id: Schema.NullOr(Schema.String),
+  waiting: Schema.Int,
+  working: Schema.Int,
+};
+const ThreadRow = Schema.Struct({
+  ...threadColumns,
+  worktree_path: Schema.NullOr(Schema.String),
 });
 type ThreadRow = typeof ThreadRow.Type;
+const V2ThreadRow = Schema.Struct({
+  ...threadColumns,
+  payload_json: Schema.fromJsonString(
+    Schema.Struct({ worktreePath: Schema.NullOr(Schema.String) }),
+  ),
+});
 
 /** A row T3 Code wrote in a shape this agent doesn't expect is left out, not the whole read. */
 const decodeProject = Schema.decodeUnknownOption(ProjectRow);
-const decodeThread = Schema.decodeUnknownOption(ThreadRow);
+const decodeV1Thread = Schema.decodeUnknownOption(ThreadRow);
+const decodeV2Thread = (row: unknown) =>
+  Option.map(
+    Schema.decodeUnknownOption(V2ThreadRow)(row),
+    ({ payload_json, ...thread }): ThreadRow => ({
+      ...thread,
+      worktree_path: payload_json.worktreePath,
+    }),
+  );
 const decodeMigration = Schema.decodeUnknownOption(MigrationRow);
+
+interface Layout {
+  readonly columns: Readonly<Record<string, ReadonlyArray<string>>>;
+  readonly threads: string;
+  readonly decodeThread: (row: unknown) => Option.Option<ThreadRow>;
+}
+
+const v1Layout: Layout = {
+  columns: {
+    projection_threads: [
+      "thread_id",
+      "project_id",
+      "title",
+      "worktree_path",
+      "archived_at",
+      "deleted_at",
+      "updated_at",
+      "pending_approval_count",
+      "pending_user_input_count",
+    ],
+    projection_thread_sessions: ["thread_id", "status", "active_turn_id"],
+  },
+  threads: `select thread.thread_id, thread.project_id, thread.title, thread.worktree_path,
+      thread.archived_at is not null as archived, thread.updated_at,
+      thread.pending_approval_count > 0 or thread.pending_user_input_count > 0 as waiting,
+      session.active_turn_id is not null
+        or ifnull(session.status, '') in ('starting', 'running') as working
+    from projection_threads as thread
+    left join projection_thread_sessions as session on session.thread_id = thread.thread_id
+    where thread.deleted_at is null`,
+  decodeThread: decodeV1Thread,
+};
+
+const v2Layout: Layout = {
+  columns: {
+    orchestration_v2_projection_threads: [
+      "thread_id",
+      "project_id",
+      "title",
+      "payload_json",
+      "archived_at",
+      "deleted_at",
+      "updated_at",
+    ],
+    orchestration_v2_projection_runtime_requests: ["thread_id", "kind", "status"],
+    orchestration_v2_projection_runs: ["thread_id", "status"],
+  },
+  threads: `select thread.thread_id, thread.project_id, thread.title, thread.payload_json,
+      thread.archived_at is not null as archived, thread.updated_at,
+      exists (
+        select 1 from orchestration_v2_projection_runtime_requests as request
+        where request.thread_id = thread.thread_id and request.status = 'pending'
+          and request.kind <> 'auth_refresh'
+      ) as waiting,
+      exists (
+        select 1 from orchestration_v2_projection_runs as run
+        where run.thread_id = thread.thread_id
+          and run.status in ('preparing', 'starting', 'running', 'waiting')
+      ) as working
+    from orchestration_v2_projection_threads as thread
+    where thread.deleted_at is null`,
+  decodeThread: decodeV2Thread,
+};
 
 /** T3 Code's own icon format. A Lucide icon with monogram text shows as the monogram. */
 const StoredIcon = Schema.Union([
@@ -247,15 +315,11 @@ async function findFavicon(
 }
 
 function threadState(row: ThreadRow): T3CodeThreadState {
-  if (row.pending_approval_count > 0 || row.pending_user_input_count > 0) {
+  if (row.waiting !== 0) {
     return "Waiting";
   }
 
-  return row.active_turn_id !== null ||
-    row.session_status === "starting" ||
-    row.session_status === "running"
-    ? "Working"
-    : "Idle";
+  return row.working !== 0 ? "Working" : "Idle";
 }
 
 /** How long an idle thread stays in the reading after it last changed. */
@@ -284,22 +348,28 @@ function readRows(file: string) {
   try {
     database.exec("begin");
 
+    const layout = path.basename(file) === v2Database ? v2Layout : v1Layout;
+
     const [latest] = database
       .prepare("select migration_id, name from effect_sql_migrations order by migration_id desc")
       .all()
       .flatMap((row) => Option.toArray(decodeMigration(row)));
     const schema =
       latest === undefined ? null : { migration: latest.migration_id, name: latest.name };
-    const missing = Object.entries(requiredColumns).flatMap(([table, columns]) => {
-      const present = new Set(
-        database
-          .prepare("select name from pragma_table_info(?)")
-          .all(table)
-          .map((row) => row.name),
-      );
+    const missing = Object.entries({ ...requiredColumns, ...layout.columns }).flatMap(
+      ([table, columns]) => {
+        const present = new Set(
+          database
+            .prepare("select name from pragma_table_info(?)")
+            .all(table)
+            .map((row) => row.name),
+        );
 
-      return columns.filter((column) => !present.has(column)).map((column) => `${table}.${column}`);
-    });
+        return columns
+          .filter((column) => !present.has(column))
+          .map((column) => `${table}.${column}`);
+      },
+    );
 
     if (missing.length > 0) {
       throw new Unreadable({ message: `T3 Code's database has no ${missing.join(", ")}.`, schema });
@@ -319,20 +389,7 @@ function readRows(file: string) {
         .all(),
       decodeProject,
     );
-    const threads = decodeRows(
-      database
-        .prepare(
-          `select thread.thread_id, thread.project_id, thread.title, thread.worktree_path,
-            thread.archived_at is not null as archived, thread.updated_at,
-            thread.pending_approval_count, thread.pending_user_input_count,
-            session.status as session_status, session.active_turn_id
-          from projection_threads as thread
-          left join projection_thread_sessions as session on session.thread_id = thread.thread_id
-          where thread.deleted_at is null`,
-        )
-        .all(),
-      decodeThread,
-    );
+    const threads = decodeRows(database.prepare(layout.threads).all(), layout.decodeThread);
 
     database.exec("commit");
 

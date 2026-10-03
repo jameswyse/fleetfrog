@@ -48,9 +48,30 @@ function createDatabase(file: string, options: { readonly withoutColumn?: string
   return database;
 }
 
-const readIn = (home: string) =>
+function createV2Database(file: string) {
+  const database = new DatabaseSync(file);
+
+  database.exec(`
+    pragma journal_mode = wal;
+    create table effect_sql_migrations (migration_id integer primary key, created_at text, name text);
+    insert into effect_sql_migrations values
+      (55, '2026-10-03', 'OrchestrationV2'),
+      (56, '2026-10-03', 'RemoveRedundantProjectionIndexes');
+    create table projection_projects (project_id text primary key, title text, workspace_root text,
+      project_icon_json text, favicon_path text, auto_pull integer, updated_at text, deleted_at text);
+    create table orchestration_v2_projection_threads (thread_id text primary key, project_id text,
+      title text, payload_json text, archived_at text, deleted_at text, updated_at text);
+    create table orchestration_v2_projection_runs (run_id text primary key, thread_id text, status text);
+    create table orchestration_v2_projection_runtime_requests (runtime_request_id text primary key,
+      thread_id text, kind text, status text);
+  `);
+
+  return database;
+}
+
+const readIn = (home: string, file = "state.sqlite") =>
   readT3Code({
-    database: path.join(home, "state.sqlite"),
+    database: path.join(home, file),
     projectIcons: true,
     favicons: new Map(),
   });
@@ -162,6 +183,70 @@ describe("readT3Code", () => {
       ]);
       expect(status.reading.threadCount).toBe(4);
       expect(status.reading.unreadRecords).toBe(0);
+    }),
+  );
+
+  it.effect("reads threads from the database T3 Code moved them to at migration 55", () =>
+    Effect.gen(function* () {
+      const home = yield* temporaryDirectory("fleetfrog-t3code-");
+      const shop = path.join(home, "shop");
+      const worktree = path.join(home, "worktrees", "shop-fix");
+      const database = createV2Database(path.join(home, "statev2.sqlite"));
+      const payload = (worktreePath: string | null) => JSON.stringify({ worktreePath });
+
+      yield* TestClock.setTime(now);
+      mkdirSync(worktree, { recursive: true });
+      mkdirSync(shop);
+      database.exec(`
+        insert into projection_projects values
+          ('p1', 'Shop', '${shop}', null, null, 0, '2026-09-26T01:00:00.000Z', null);
+        insert into orchestration_v2_projection_threads values
+          ('t1', 'p1', 'Fix checkout', '${payload(worktree)}', null, null, '2026-09-26T05:00:00.000Z'),
+          ('t2', 'p1', 'Ask first', '${payload(null)}', null, null, '2026-09-26T06:00:00.000Z'),
+          ('t3', 'p1', 'Signed out', '${payload(null)}', null, null, '2026-09-26T04:00:00.000Z'),
+          ('t4', 'p1', 'Wrapping up', '${payload(null)}', null, null, '2026-09-26T03:00:00.000Z'),
+          ('t5', 'p1', 'Archived', '${payload(null)}', '2026-09-26T07:00:00.000Z', null, '2026-09-26T07:00:00.000Z'),
+          ('t6', 'p1', 'Deleted', '${payload(null)}', null, '2026-09-26T08:00:00.000Z', '2026-09-26T08:00:00.000Z'),
+          ('t7', 'p1', 'Changed shape', '{}', null, null, '2026-09-26T09:00:00.000Z');
+        insert into orchestration_v2_projection_runs values
+          ('r1', 't1', 'running'),
+          ('r2', 't2', 'completed'),
+          ('r3', 't3', 'completed'),
+          ('r4', 't4', 'waiting');
+        insert into orchestration_v2_projection_runtime_requests values
+          ('q1', 't2', 'user_input', 'pending'),
+          ('q2', 't3', 'auth_refresh', 'pending'),
+          ('q3', 't1', 'permission', 'resolved');
+      `);
+      database.close();
+
+      const { status } = yield* readIn(home, "statev2.sqlite");
+
+      expect(status.reading._tag).toBe("Read");
+
+      if (status.reading._tag !== "Read") {
+        return;
+      }
+
+      expect(status.reading.schema).toEqual({
+        migration: 56,
+        name: "RemoveRedundantProjectionIndexes",
+      });
+      expect(
+        status.reading.threads.map(({ title, path: folder, worktree: own, state }) => ({
+          title,
+          folder,
+          own,
+          state,
+        })),
+      ).toEqual([
+        { title: "Ask first", folder: shop, own: false, state: "Waiting" },
+        { title: "Fix checkout", folder: worktree, own: true, state: "Working" },
+        { title: "Signed out", folder: shop, own: false, state: "Idle" },
+        { title: "Wrapping up", folder: shop, own: false, state: "Working" },
+      ]);
+      expect(status.reading.threadCount).toBe(4);
+      expect(status.reading.unreadRecords).toBe(1);
     }),
   );
 

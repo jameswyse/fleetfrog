@@ -53,7 +53,6 @@ pub struct Scanner {
     trash_directory: String,
     /// The project folders and Archive folder the hub last configured.
     folders: Arc<Mutex<Folders>>,
-    t3code_database: String,
     /// Held for the length of each pass, and by the actions' rescans.
     pass: tokio::sync::Mutex<Favicons>,
     state: Mutex<State>,
@@ -102,7 +101,6 @@ impl Scanner {
             github: github_login.map(GithubReader::new),
             trash_directory,
             folders,
-            t3code_database: t3code::database_path(),
             pass: tokio::sync::Mutex::new(Favicons::new()),
             state: Mutex::new(State::default()),
             first_walk: watch::channel(false).0,
@@ -132,7 +130,7 @@ impl Scanner {
         settings: Option<T3CodeAgentSettings>,
         favicons: &mut Favicons,
     ) -> Option<T3CodeRead> {
-        Some(t3code::read_t3code(&self.t3code_database, settings?.project_icons, favicons).await)
+        Some(t3code::read_t3code(&t3code::database_path(), settings?.project_icons, favicons).await)
     }
 
     async fn report_integration(&self, read: Option<T3CodeRead>) -> Result<(), String> {

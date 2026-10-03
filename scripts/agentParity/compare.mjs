@@ -72,11 +72,11 @@ for (const checkout of scans.typeScript) {
   }
 }
 
-// T3 Code's database has no fixture, so this compares readings of this machine's own, if it has one.
-const t3CodeDatabase = path.join(
+// T3 Code's database has no fixture, so this compares readings of this machine's own, in each layout
+// it has.
+const t3CodeUserdata = path.join(
   process.env.T3CODE_HOME ?? path.join(homedir(), ".t3"),
   "userdata",
-  "state.sqlite",
 );
 
 // The TypeScript agent lists icons in the order its reads finish, and the hub keeps them as a set.
@@ -89,7 +89,12 @@ function withSortedIcons({ typeScript, rust }) {
   return { typeScript: sorted(typeScript), rust: sorted(rust) };
 }
 
-compare(`T3 Code at ${t3CodeDatabase}`, withSortedIcons(readBoth(["t3code", t3CodeDatabase])));
+for (const file of ["state.sqlite", "statev2.sqlite"]) {
+  const database = path.join(t3CodeUserdata, file);
+
+  compare(`T3 Code at ${database}`, withSortedIcons(readBoth(["t3code", database])));
+}
+
 compare(
   "T3 Code without a database",
   withSortedIcons(readBoth(["t3code", path.join(projects, "state.sqlite")])),
