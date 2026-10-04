@@ -1,0 +1,6 @@
+# style: apply @jameswyse/oxc-config lint fixes
+b38aa5e08d00df0a74335e98d9f53dea5ecae65e
+# style: remove code comments
+c5ee1ad51515eda63c13442710faf82bd3ff101f
+# refactor: resolve the remaining oxc-config lint findings
+68fa87eab64d1da91da995561bc704c8b8bc4b82
