@@ -1,30 +1,10 @@
-import { defineConfig } from "oxfmt";
+import { formatConfig } from "@jameswyse/oxc-config/oxfmt";
 
-export default defineConfig({
-  ignorePatterns: ["coverage", "dist", "apps/web/src/routeTree.gen.ts"],
+export default {
+  ...formatConfig,
+  ignorePatterns: [...formatConfig.ignorePatterns, "apps/web/src/routeTree.gen.ts"],
   sortImports: {
-    internalPattern: ["@/", "@fleetfrog/", "#"],
-    groups: [
-      "value-builtin",
-      "react-libs",
-      "value-external",
-      "value-internal",
-      ["value-parent", "value-sibling", "value-index"],
-      "type-builtin",
-      "type-external",
-      "type-internal",
-      ["type-parent", "type-sibling", "type-index"],
-      "unknown",
-      "style",
-    ],
-    customGroups: [
-      {
-        groupName: "react-libs",
-        elementNamePattern: ["react", "react-dom", "react-dom/*"],
-        modifiers: ["value"],
-        selector: "external",
-      },
-    ],
+    ...formatConfig.sortImports,
+    internalPattern: [...(formatConfig.sortImports.internalPattern ?? []), "@fleetfrog/"],
   },
-  sortPackageJson: { sortScripts: true },
-});
+};

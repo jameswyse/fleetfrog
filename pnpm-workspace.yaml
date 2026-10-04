@@ -10,7 +10,6 @@ catalog:
   "@effect/sql-sqlite-node": 4.0.0
   "@effect/tsgo": 0.47.2
   "@effect/vitest": 4.0.0
-  "@oxlint/plugins": 1.86.0
   "@types/node": 26.6.3
   "@types/react": 19.3.0
   "@types/react-dom": 19.3.0
@@ -18,7 +17,7 @@ catalog:
   openid-client: 6.8.8
   oxfmt: 0.71.0
   # The root prepare script runs `effect-tsgo patch --oxlint`, which fails on oxlint versions newer
-  # than the pinned @effect/tsgo supports. Move oxlint and @oxlint/plugins only as far as it allows.
+  # than the pinned @effect/tsgo supports. Move oxlint only as far as it allows.
   oxlint: 1.86.0
   react: 19.3.0
   react-dom: 19.3.0
@@ -30,6 +29,7 @@ minimumReleaseAge: 1440
 # Exact versions approved before they were a day old. pnpm prunes each entry once the lockfile
 # stops resolving that version.
 minimumReleaseAgeExclude:
+  - "@jameswyse/oxc-config@0.1.0"
   - "@effect/platform-node@4.0.0"
   - "@effect/platform-node-shared@4.0.0"
   - "@effect/sql-sqlite-node@4.0.0"
@@ -101,3 +101,5 @@ update:
   ignoreDeps:
     # Node types follow the pinned Node major rather than DefinitelyTyped's latest major.
     - "@types/node"
+patchedDependencies:
+  "@jameswyse/oxc-config@0.1.0": patches/@jameswyse__oxc-config@0.1.0.patch

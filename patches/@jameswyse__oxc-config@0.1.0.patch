@@ -1,0 +1,15 @@
+diff --git a/dist/format.d.ts b/dist/format.d.ts
+index 31d295839e8812d68e7ed76c5908aab3b42359cc..20b250bc8485354d7eeb961635bd81e2e455c901 100644
+--- a/dist/format.d.ts
++++ b/dist/format.d.ts
+@@ -1,5 +1,7 @@
+-import type { OxfmtConfig, SortImportsConfig } from "oxfmt";
+-export declare const formatConfig: OxfmtConfig & {
++import type { OxfmtConfig, SortImportsOptions } from "oxfmt";
++export declare const formatConfig: {
++    [Key in keyof OxfmtConfig as Key extends "ignorePatterns" | "sortImports" ? never : Key]: OxfmtConfig[Key];
++} & {
+     ignorePatterns: string[];
+-    sortImports: SortImportsConfig;
++    sortImports: SortImportsOptions;
+ };
