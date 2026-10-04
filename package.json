@@ -37,7 +37,7 @@
     "@changesets/cli": "3.0.3",
     "@e2e-dev/web": "0.11.1",
     "@effect/tsgo": "catalog:",
-    "@jameswyse/oxc-config": "0.1.0",
+    "@jameswyse/oxc-config": "0.2.0",
     "@types/node": "catalog:",
     "ai": "7.0.127",
     "e2e": "0.15.1",

@@ -180,7 +180,6 @@ export function TidyBranchesDialog({
 
                     return (
                       <li key={candidate.name}>
-                        {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- The branch name labels the checkbox from inside nested layout spans, which the rule does not search. */}
                         <label className="flex items-start gap-2.5 px-3 py-2">
                           <input
                             type="checkbox"

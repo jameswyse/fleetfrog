@@ -29,7 +29,7 @@ minimumReleaseAge: 1440
 # Exact versions approved before they were a day old. pnpm prunes each entry once the lockfile
 # stops resolving that version.
 minimumReleaseAgeExclude:
-  - "@jameswyse/oxc-config@0.1.0"
+  - "@jameswyse/oxc-config@0.2.0"
   - "@effect/platform-node@4.0.0"
   - "@effect/platform-node-shared@4.0.0"
   - "@effect/sql-sqlite-node@4.0.0"
@@ -101,5 +101,3 @@ update:
   ignoreDeps:
     # Node types follow the pinned Node major rather than DefinitelyTyped's latest major.
     - "@types/node"
-patchedDependencies:
-  "@jameswyse/oxc-config@0.1.0": patches/@jameswyse__oxc-config@0.1.0.patch
