@@ -64,7 +64,7 @@ for (const changelog of changelogs) {
 }
 
 const sections = kinds.flatMap((heading, index) => {
-  const entries = [...changes].filter(([, kind]) => kind === index).map(([text]) => text);
+  const entries = [...changes].flatMap(([text, kind]) => (kind === index ? [text] : []));
 
   return entries.length === 0
     ? []

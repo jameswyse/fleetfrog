@@ -109,6 +109,7 @@ export function ProjectsPage() {
   };
 
   return (
+    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- Escape closes the side panel from anywhere on the page outside a dialog or popover.
     <div
       data-fills-viewport
       className="flex min-h-0 flex-1 flex-col lg:flex-row"

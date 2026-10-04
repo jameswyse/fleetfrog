@@ -341,9 +341,9 @@ export class ActivityStore extends Context.Service<
             ["status", filter.outcomes],
           ] as const;
 
-          const matching = runConditions
-            .filter(([, values]) => values.length > 0)
-            .map(([column, values]) => sql.in(column, values));
+          const matching = runConditions.flatMap(([column, values]) =>
+            values.length > 0 ? [sql.in(column, values)] : [],
+          );
 
           const batchRows = yield* sql`select * from action_batches as batch where ${
             matching.length === 0

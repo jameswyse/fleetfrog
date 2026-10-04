@@ -4,13 +4,15 @@ import { createServer } from "node:http";
 
 import { Predicate, Schema } from "effect";
 
+import type { IncomingMessage, ServerResponse } from "node:http";
+
 export async function startIdentityProvider() {
   const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
   const key = { ...publicKey.export({ format: "jwk" }), kid: "e2e", use: "sig", alg: "RS256" };
   const codes = new Map<string, { nonce: string; challenge: string; redirect: string }>();
   let issuer = "";
 
-  const server = createServer(async (request, response) => {
+  const respond = async (request: IncomingMessage, response: ServerResponse) => {
     try {
       const url = new URL(request.url ?? "/", issuer);
       response.setHeader("Content-Type", "application/json");
@@ -139,7 +141,9 @@ export async function startIdentityProvider() {
     } catch {
       response.writeHead(500).end(JSON.stringify({ error: "provider_error" }));
     }
-  });
+  };
+
+  const server = createServer((request, response) => void respond(request, response));
 
   server.listen(0, "127.0.0.1");
   await once(server, "listening");

@@ -9,7 +9,7 @@ const WithoutTailscale = Schema.fromJsonString(
 
 const decodeWithoutTailscale = Schema.decodeUnknownOption(WithoutTailscale);
 
-export default Effect.gen(function* () {
+export const tailscaleSignIn = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 
   const rows = yield* sql<{ readonly auth_json: string | null }>`

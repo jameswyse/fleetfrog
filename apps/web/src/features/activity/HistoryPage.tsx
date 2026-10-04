@@ -98,7 +98,9 @@ function EventRow({ entry }: { readonly entry: Extract<ActivityEntry, { _tag: "E
         )}
       </th>
       <td className={`${cellClass} text-ink-muted`}>{eventMachine(entry.event)}</td>
+      {/* oxlint-disable-next-line jsx-a11y/control-has-associated-label -- Events have no result or duration. */}
       <td className={cellClass} />
+      {/* oxlint-disable-next-line jsx-a11y/control-has-associated-label -- Events have no result or duration. */}
       <td className={cellClass} />
     </tr>
   );

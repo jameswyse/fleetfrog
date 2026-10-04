@@ -11,6 +11,7 @@ function isAvatarMediaType(type: string): type is AvatarMediaType {
 export async function resizeAvatar(
   file: File,
 ): Promise<{ readonly mediaType: AvatarMediaType; readonly data: Uint8Array } | null> {
+  // oxlint-disable-next-line wyse/no-swallowed-errors -- The file isn't an image the browser can read.
   const bitmap = await createImageBitmap(file).catch(() => null);
 
   if (bitmap === null) {

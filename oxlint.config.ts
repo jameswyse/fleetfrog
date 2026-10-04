@@ -11,6 +11,18 @@ const base = createLintConfig({
 export default {
   ...base,
   ignorePatterns: [...base.ignorePatterns, "apps/web/src/routeTree.gen.ts"],
+  overrides: [
+    ...base.overrides,
+    {
+      files: ["apps/web/src/routes/**/*.tsx"],
+      rules: {
+        "typescript/only-throw-error": [
+          "error",
+          { allow: [{ from: "package", package: "@tanstack/router-core", name: "Redirect" }] },
+        ],
+      },
+    },
+  ],
   settings: {
     react: { version: "19.3.0" },
   },

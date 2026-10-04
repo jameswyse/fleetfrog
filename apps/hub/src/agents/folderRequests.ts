@@ -3,6 +3,7 @@ import { Context, Duration, Effect, Layer, SubscriptionRef } from "effect";
 import { HubCommand } from "@fleetfrog/protocol/agent/rpcs";
 import { FolderOutcome } from "@fleetfrog/protocol/domain/fleet";
 
+// oxlint-disable-next-line wyse/no-service-constructor-imports -- Each request kind builds queries with its own timeout.
 import { makeAgentQueries } from "./agentQueries.ts";
 import { AgentSessions } from "./agentSessions.ts";
 

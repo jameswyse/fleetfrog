@@ -140,6 +140,18 @@ function MatrixCell({
           cell.entries.map(({ checkout }) => checkout.path),
         );
 
+  const agentActivity =
+    agent === undefined ? null : (
+      <span
+        className="mt-0.5 flex items-center justify-center gap-1 text-xs text-sync"
+        title={`T3 Code: ${agent.title}`}
+      >
+        <BotIcon aria-hidden="true" className="size-3.5" />
+        <span className="sr-only">T3 Code </span>
+        {agent.state === "Waiting" ? "Waiting for you" : "Working"}
+      </span>
+    );
+
   const selection = { repository: repository.key, machine: machine.id };
 
   return (
@@ -163,16 +175,7 @@ function MatrixCell({
               align="Center"
               activity={
                 active === undefined ? (
-                  agent === undefined ? null : (
-                    <span
-                      className="mt-0.5 flex items-center justify-center gap-1 text-xs text-sync"
-                      title={`T3 Code: ${agent.title}`}
-                    >
-                      <BotIcon aria-hidden="true" className="size-3.5" />
-                      <span className="sr-only">T3 Code </span>
-                      {agent.state === "Waiting" ? "Waiting for you" : "Working"}
-                    </span>
-                  )
+                  agentActivity
                 ) : (
                   <span className="mt-0.5 block text-xs">
                     <RunActivity run={active} layout="Inline" align="Center" />
@@ -256,6 +259,7 @@ export function ProjectGrid({
             ))}
           </tr>
         </thead>
+        {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Arrow keys move focus between the grid buttons inside the table body. */}
         <tbody onKeyDown={moveFocus}>
           {repositories.map((repository, row) => {
             const rowSelection = { repository: repository.key, machine: null };

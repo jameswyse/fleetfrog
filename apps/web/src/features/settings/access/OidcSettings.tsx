@@ -16,6 +16,8 @@ import { SettingsSection } from "../SettingsSection.tsx";
 import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
 import { TextField } from "./TextField.tsx";
 
+import type { FormEvent } from "react";
+
 import type { AuthSettingsView } from "@fleetfrog/protocol/domain/user";
 
 const decodeOidcInput = Schema.decodeUnknownOption(OidcInput);
@@ -147,85 +149,81 @@ function ProviderForm({
     }
   };
 
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const values = new FormData(form);
+    const optional = (field: string) => formText(values, field).trim() || null;
+
+    const input = decodeOidcInput({
+      providerName: formText(values, "providerName"),
+      issuerUrl: formText(values, "issuerUrl"),
+      clientId: formText(values, "clientId"),
+      clientSecret: formText(values, "clientSecret") || null,
+      dashboardUrl: formText(values, "dashboardUrl"),
+      adminGroup: optional("adminGroup"),
+      requiredGroup: optional("requiredGroup"),
+    });
+
+    const found = requiredFields.flatMap(([field, message]) => {
+      const value = formText(values, field).trim();
+      const url = field === "issuerUrl" || field === "dashboardUrl";
+
+      return value === "" || (url && !URL.canParse(value)) ? [{ field, message }] : [];
+    });
+
+    const first = found[0] === undefined ? null : form.elements.namedItem(found[0].field);
+
+    setErrors(found);
+    setResult(null);
+
+    if (first instanceof HTMLInputElement) {
+      first.focus();
+    }
+
+    if (found.length > 0) {
+      return;
+    }
+
+    if (Option.isNone(input)) {
+      setResult({
+        ok: false,
+        message:
+          "Check the details: URLs start with http:// or https://, and the name is at most 80 characters.",
+      });
+
+      return;
+    }
+
+    setPending(true);
+
+    const outcome = await requestHub((client) => client.SetOidcSettings({ settings: input.value }));
+
+    setPending(false);
+
+    if (outcome._tag === "Failure") {
+      setResult({ ok: false, message: outcome.message });
+
+      return;
+    }
+
+    const secret = form.elements.namedItem("clientSecret");
+
+    if (secret instanceof HTMLInputElement) {
+      secret.value = "";
+    }
+
+    if (turningOn) {
+      await turnOn();
+    } else {
+      setResult({ ok: true, message: "Saved. The provider answered." });
+    }
+  };
+
   return (
     <>
-      <form
-        noValidate
-        className="space-y-8"
-        onSubmit={async (event) => {
-          event.preventDefault();
-
-          const form = event.currentTarget;
-          const values = new FormData(form);
-          const optional = (field: string) => formText(values, field).trim() || null;
-
-          const input = decodeOidcInput({
-            providerName: formText(values, "providerName"),
-            issuerUrl: formText(values, "issuerUrl"),
-            clientId: formText(values, "clientId"),
-            clientSecret: formText(values, "clientSecret") || null,
-            dashboardUrl: formText(values, "dashboardUrl"),
-            adminGroup: optional("adminGroup"),
-            requiredGroup: optional("requiredGroup"),
-          });
-
-          const found = requiredFields.flatMap(([field, message]) => {
-            const value = formText(values, field).trim();
-            const url = field === "issuerUrl" || field === "dashboardUrl";
-
-            return value === "" || (url && !URL.canParse(value)) ? [{ field, message }] : [];
-          });
-
-          const first = found[0] === undefined ? null : form.elements.namedItem(found[0].field);
-
-          setErrors(found);
-          setResult(null);
-
-          if (first instanceof HTMLInputElement) {
-            first.focus();
-          }
-
-          if (found.length > 0) {
-            return;
-          }
-
-          if (Option.isNone(input)) {
-            setResult({
-              ok: false,
-              message:
-                "Check the details: URLs start with http:// or https://, and the name is at most 80 characters.",
-            });
-
-            return;
-          }
-
-          setPending(true);
-
-          const outcome = await requestHub((client) =>
-            client.SetOidcSettings({ settings: input.value }),
-          );
-
-          setPending(false);
-
-          if (outcome._tag === "Failure") {
-            setResult({ ok: false, message: outcome.message });
-
-            return;
-          }
-
-          const secret = form.elements.namedItem("clientSecret");
-
-          if (secret instanceof HTMLInputElement) {
-            secret.value = "";
-          }
-
-          if (turningOn) {
-            await turnOn();
-          } else {
-            setResult({ ok: true, message: "Saved. The provider answered." });
-          }
-        }}
-      >
+      <form noValidate className="space-y-8" onSubmit={(event) => void submit(event)}>
         {turningOn && (
           <p className="rounded-xl border border-line bg-surface px-5 py-4 text-sm">
             {signInOn

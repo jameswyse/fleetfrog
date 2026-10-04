@@ -5,20 +5,20 @@ import { SqliteClient, SqliteMigrator } from "@effect/sql-sqlite-node";
 import { Effect, Layer, Schema } from "effect";
 
 import { HubConfig } from "../hubConfig.ts";
-import initial from "./migrations/0001_initial.ts";
-import actions from "./migrations/0002_actions.ts";
-import machineUsage from "./migrations/0003_machine_usage.ts";
-import machineKind from "./migrations/0004_machine_kind.ts";
-import archiveFolder from "./migrations/0005_archive_folder.ts";
-import machineArchiveFolder from "./migrations/0006_machine_archive_folder.ts";
-import machineTrash from "./migrations/0007_machine_trash.ts";
-import machineArchiveEvents from "./migrations/0008_machine_archive_events.ts";
-import t3Code from "./migrations/0009_t3code.ts";
-import users from "./migrations/0010_users.ts";
-import activityActors from "./migrations/0011_activity_actors.ts";
-import signInMethods from "./migrations/0012_sign_in_methods.ts";
-import tailscaleSignIn from "./migrations/0013_tailscale_sign_in.ts";
-import preferences from "./migrations/0014_preferences.ts";
+import { initial } from "./migrations/0001_initial.ts";
+import { actions } from "./migrations/0002_actions.ts";
+import { machineUsage } from "./migrations/0003_machine_usage.ts";
+import { machineKind } from "./migrations/0004_machine_kind.ts";
+import { archiveFolder } from "./migrations/0005_archive_folder.ts";
+import { machineArchiveFolder } from "./migrations/0006_machine_archive_folder.ts";
+import { machineTrash } from "./migrations/0007_machine_trash.ts";
+import { machineArchiveEvents } from "./migrations/0008_machine_archive_events.ts";
+import { t3Code } from "./migrations/0009_t3code.ts";
+import { users } from "./migrations/0010_users.ts";
+import { activityActors } from "./migrations/0011_activity_actors.ts";
+import { signInMethods } from "./migrations/0012_sign_in_methods.ts";
+import { tailscaleSignIn } from "./migrations/0013_tailscale_sign_in.ts";
+import { preferences } from "./migrations/0014_preferences.ts";
 
 const client = Layer.unwrap(
   Effect.gen(function* () {

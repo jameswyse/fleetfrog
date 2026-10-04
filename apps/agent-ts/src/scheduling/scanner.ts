@@ -14,6 +14,7 @@ import {
   rootPath,
 } from "../discovery/discoverCheckouts.ts";
 import { readGitStatus } from "../git/readCheckout.ts";
+// oxlint-disable-next-line wyse/no-service-constructor-imports -- The scanner builds a reader for the machine's GitHub login.
 import { makeGithubReader } from "../github/githubReader.ts";
 import { readT3Code, t3CodeDatabasePath } from "../t3Code/readT3Code.ts";
 import { listTrash } from "../trash/trashFolder.ts";

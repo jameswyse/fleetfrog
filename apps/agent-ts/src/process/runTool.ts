@@ -145,6 +145,7 @@ export function runGitAction(options: {
       if (!exited && child.pid !== undefined) {
         try {
           process.kill(-child.pid, "SIGTERM");
+          // oxlint-disable-next-line eslint/no-empty -- The process group has already exited.
         } catch {}
       }
 

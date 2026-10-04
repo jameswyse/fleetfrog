@@ -97,6 +97,7 @@ compare(
 function githubLogin() {
   try {
     return execFileSync("gh", ["api", "user", "--jq", ".login"], { encoding: "utf8" }).trim();
+    // oxlint-disable-next-line wyse/no-swallowed-errors -- The GitHub comparison is skipped when gh isn't signed in.
   } catch {
     return null;
   }

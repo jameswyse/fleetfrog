@@ -6,6 +6,7 @@ import { InspectionResult } from "@fleetfrog/protocol/domain/trash";
 
 import { discoverCheckouts } from "../discovery/discoverCheckouts.ts";
 import { locateCheckout, readGitStatus } from "../git/readCheckout.ts";
+// oxlint-disable-next-line wyse/no-service-constructor-imports -- The parity check builds a reader for the login it compares.
 import { makeGithubReader } from "../github/githubReader.ts";
 import { inspectCheckout } from "../inspect/inspectCheckout.ts";
 import { inspectWorktree } from "../inspect/inspectWorktree.ts";

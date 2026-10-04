@@ -142,73 +142,76 @@ export function TidyBranchesDialog({
           Activity page says which.
         </p>
         <div className="max-h-[55vh] space-y-4 overflow-y-auto">
-          {groups
-            .filter(({ candidates: members }) => members.length > 0)
-            .map((group) => {
-              const names = group.candidates.map(({ name }) => name);
-              const allChosen = names.every((name) => chosen.has(name));
+          {groups.flatMap((group) => {
+            if (group.candidates.length === 0) {
+              return [];
+            }
 
-              return (
-                <fieldset key={group.title} className="min-w-0">
-                  <legend className="sr-only">{group.title}</legend>
-                  <div className="mb-2 flex items-baseline gap-2">
-                    <span
-                      aria-hidden="true"
-                      className={`font-medium ${group.tone === "warning" ? "text-changes" : ""}`}
-                    >
-                      {group.title}
-                    </span>
-                    <span className="text-xs text-ink-muted tabular-nums">
-                      {group.candidates.length}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => toggle(names, !allChosen)}
-                      aria-label={`${allChosen ? "Select none" : "Select all"} in ${group.title}`}
-                      className="ms-auto text-xs text-accent-text underline-offset-2 hover:underline"
-                    >
-                      {allChosen ? "Select none" : "Select all"}
-                    </button>
-                  </div>
-                  <p className="mb-2 text-ink-muted">{group.description}</p>
-                  <ul className="divide-y divide-line rounded-md border border-line">
-                    {group.candidates.map((candidate) => {
-                      const caution = warning(candidate);
-                      const extra = caution ?? detail(candidate);
+            const names = group.candidates.map(({ name }) => name);
+            const allChosen = names.every((name) => chosen.has(name));
 
-                      return (
-                        <li key={candidate.name}>
-                          <label className="flex items-start gap-2.5 px-3 py-2">
-                            <input
-                              type="checkbox"
-                              checked={chosen.has(candidate.name)}
-                              onChange={(event) =>
-                                toggle([candidate.name], event.currentTarget.checked)
-                              }
-                              className="mt-0.5 size-4 shrink-0 accent-accent"
-                            />
-                            <span className="min-w-0 flex-1">
-                              <span className="block font-mono text-[13px] break-all">
-                                {candidate.name}
-                              </span>
-                              <span className="block truncate text-xs text-ink-muted">
-                                {extra !== null && (
-                                  <span className={caution === null ? "" : "text-changes"}>
-                                    {extra} ·{" "}
-                                  </span>
-                                )}
-                                {candidate.tip.subject} ·{" "}
-                                <RelativeTime at={candidate.tip.committedAt} />
-                              </span>
+            return [
+              <fieldset key={group.title} className="min-w-0">
+                <legend className="sr-only">{group.title}</legend>
+                <div className="mb-2 flex items-baseline gap-2">
+                  <span
+                    aria-hidden="true"
+                    className={`font-medium ${group.tone === "warning" ? "text-changes" : ""}`}
+                  >
+                    {group.title}
+                  </span>
+                  <span className="text-xs text-ink-muted tabular-nums">
+                    {group.candidates.length}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => toggle(names, !allChosen)}
+                    aria-label={`${allChosen ? "Select none" : "Select all"} in ${group.title}`}
+                    className="ms-auto text-xs text-accent-text underline-offset-2 hover:underline"
+                  >
+                    {allChosen ? "Select none" : "Select all"}
+                  </button>
+                </div>
+                <p className="mb-2 text-ink-muted">{group.description}</p>
+                <ul className="divide-y divide-line rounded-md border border-line">
+                  {group.candidates.map((candidate) => {
+                    const caution = warning(candidate);
+                    const extra = caution ?? detail(candidate);
+
+                    return (
+                      <li key={candidate.name}>
+                        {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- The branch name labels the checkbox from inside nested layout spans, which the rule does not search. */}
+                        <label className="flex items-start gap-2.5 px-3 py-2">
+                          <input
+                            type="checkbox"
+                            checked={chosen.has(candidate.name)}
+                            onChange={(event) =>
+                              toggle([candidate.name], event.currentTarget.checked)
+                            }
+                            className="mt-0.5 size-4 shrink-0 accent-accent"
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block font-mono text-[13px] break-all">
+                              {candidate.name}
                             </span>
-                          </label>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </fieldset>
-              );
-            })}
+                            <span className="block truncate text-xs text-ink-muted">
+                              {extra !== null && (
+                                <span className={caution === null ? "" : "text-changes"}>
+                                  {extra} ·{" "}
+                                </span>
+                              )}
+                              {candidate.tip.subject} ·{" "}
+                              <RelativeTime at={candidate.tip.committedAt} />
+                            </span>
+                          </span>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </fieldset>,
+            ];
+          })}
           {kept.length > 0 && (
             <section aria-labelledby="tidy-kept" className="min-w-0">
               <h3 id="tidy-kept" className="mb-2 font-medium">

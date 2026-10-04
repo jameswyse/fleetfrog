@@ -5,7 +5,7 @@ export function enableCopyButtons(status: HTMLElement): void {
     const code = button.closest(".command")?.querySelector("code");
     let hideTick = 0;
 
-    button.addEventListener("click", async () => {
+    const copy = async () => {
       if (code === null || code === undefined) {
         return;
       }
@@ -22,6 +22,8 @@ export function enableCopyButtons(status: HTMLElement): void {
       } catch {
         status.textContent = "Unable to copy. Select the command and copy it instead.";
       }
-    });
+    };
+
+    button.addEventListener("click", () => void copy());
   }
 }

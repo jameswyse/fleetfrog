@@ -106,6 +106,7 @@ async function download(url: URL, limit: number): Promise<{ url: URL; data: Uint
 export const fetchProviderIcon = (issuerUrl: string) =>
   Effect.promise(async () => {
     const site = new URL("/", issuerUrl);
+    // oxlint-disable-next-line wyse/no-swallowed-errors -- A site that can't be reached has no icon.
     const page = await download(site, maximumPageBytes).catch(() => null);
 
     const candidates = [
@@ -116,6 +117,7 @@ export const fetchProviderIcon = (issuerUrl: string) =>
     ];
 
     for (const candidate of candidates) {
+      // oxlint-disable-next-line wyse/no-swallowed-errors -- A candidate that can't be downloaded isn't the provider's icon.
       const data = (await download(candidate, maximumIconBytes).catch(() => null))?.data ?? null;
       const mediaType = data === null ? null : iconType(data);
 

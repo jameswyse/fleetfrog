@@ -12,6 +12,7 @@ const blurPersonalKey = "fleetfrog.blurPersonal";
 function readItem(key: string): string | null {
   try {
     return localStorage.getItem(key);
+    // oxlint-disable-next-line wyse/no-swallowed-errors -- Browsers that block site data throw on any use of storage.
   } catch {
     return null;
   }
@@ -24,6 +25,7 @@ function writeItem(key: string, value: string | null): void {
     } else {
       localStorage.setItem(key, value);
     }
+    // oxlint-disable-next-line eslint/no-empty -- The hub keeps the preferences, so the next page load applies them once it answers.
   } catch {}
 }
 

@@ -12,6 +12,8 @@ import { minimumPasswordLength, Role } from "@fleetfrog/protocol/domain/user";
 import { TextField } from "./TextField.tsx";
 import { checkFields, decodeEmail, messageFor } from "./userForm.ts";
 
+import type { FormEvent } from "react";
+
 import type { User } from "@fleetfrog/protocol/domain/user";
 
 import type { FieldError } from "./userForm.ts";
@@ -91,53 +93,51 @@ export function AddUserDialog({
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+
+    const found = checkFields(form, ["displayName", "email", "password"], {
+      passwordOptional: !passwordsOn,
+    });
+
+    const values = new FormData(form);
+    const email = decodeEmail(formText(values, "email"));
+    const role = decodeRole(formText(values, "role"));
+
+    setErrors(found);
+
+    if (found.length > 0 || Option.isNone(email) || Option.isNone(role)) {
+      return;
+    }
+
+    const password = formText(values, "password");
+
+    setPending(true);
+    setFailure(null);
+
+    const outcome = await requestHub((client) =>
+      client.CreateUser({
+        displayName: formText(values, "displayName").trim(),
+        email: email.value,
+        role: role.value,
+        password: password === "" ? null : password,
+      }),
+    );
+
+    setPending(false);
+
+    if (outcome._tag === "Failure") {
+      setFailure(outcome.message);
+    } else {
+      onClose();
+    }
+  };
+
   return (
     <Dialog title="Add a user" onClose={onClose}>
-      <form
-        noValidate
-        className="space-y-4"
-        onSubmit={async (event) => {
-          event.preventDefault();
-
-          const form = event.currentTarget;
-
-          const found = checkFields(form, ["displayName", "email", "password"], {
-            passwordOptional: !passwordsOn,
-          });
-
-          const values = new FormData(form);
-          const email = decodeEmail(formText(values, "email"));
-          const role = decodeRole(formText(values, "role"));
-
-          setErrors(found);
-
-          if (found.length > 0 || Option.isNone(email) || Option.isNone(role)) {
-            return;
-          }
-
-          const password = formText(values, "password");
-
-          setPending(true);
-          setFailure(null);
-
-          const outcome = await requestHub((client) =>
-            client.CreateUser({
-              displayName: formText(values, "displayName").trim(),
-              email: email.value,
-              role: role.value,
-              password: password === "" ? null : password,
-            }),
-          );
-
-          setPending(false);
-
-          if (outcome._tag === "Failure") {
-            setFailure(outcome.message);
-          } else {
-            onClose();
-          }
-        }}
-      >
+      <form noValidate className="space-y-4" onSubmit={(event) => void submit(event)}>
         <TextField
           label="Name"
           name="displayName"
@@ -207,49 +207,47 @@ export function EditUserDialog({
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const found = checkFields(form, ["displayName", "email"]);
+    const values = new FormData(form);
+    const email = decodeEmail(formText(values, "email"));
+    const role = roleLocked ? Option.some(user.role) : decodeRole(formText(values, "role"));
+
+    setErrors(found);
+
+    if (found.length > 0 || Option.isNone(email) || Option.isNone(role)) {
+      return;
+    }
+
+    setPending(true);
+    setFailure(null);
+
+    const outcome = await requestHub((client) =>
+      client.UpdateUser({
+        userId: user.id,
+        displayName: user.displayNameFromProvider
+          ? user.displayName
+          : formText(values, "displayName").trim(),
+        email: email.value,
+        role: role.value,
+      }),
+    );
+
+    setPending(false);
+
+    if (outcome._tag === "Failure") {
+      setFailure(outcome.message);
+    } else {
+      onClose();
+    }
+  };
+
   return (
     <Dialog title={`Edit ${user.displayName}`} onClose={onClose}>
-      <form
-        noValidate
-        className="space-y-4"
-        onSubmit={async (event) => {
-          event.preventDefault();
-
-          const form = event.currentTarget;
-          const found = checkFields(form, ["displayName", "email"]);
-          const values = new FormData(form);
-          const email = decodeEmail(formText(values, "email"));
-          const role = roleLocked ? Option.some(user.role) : decodeRole(formText(values, "role"));
-
-          setErrors(found);
-
-          if (found.length > 0 || Option.isNone(email) || Option.isNone(role)) {
-            return;
-          }
-
-          setPending(true);
-          setFailure(null);
-
-          const outcome = await requestHub((client) =>
-            client.UpdateUser({
-              userId: user.id,
-              displayName: user.displayNameFromProvider
-                ? user.displayName
-                : formText(values, "displayName").trim(),
-              email: email.value,
-              role: role.value,
-            }),
-          );
-
-          setPending(false);
-
-          if (outcome._tag === "Failure") {
-            setFailure(outcome.message);
-          } else {
-            onClose();
-          }
-        }}
-      >
+      <form noValidate className="space-y-4" onSubmit={(event) => void submit(event)}>
         <TextField
           label="Name"
           name="displayName"
@@ -300,41 +298,39 @@ export function SetPasswordDialog({
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const found = checkFields(form, ["password"]);
+
+    setErrors(found);
+
+    if (found.length > 0) {
+      return;
+    }
+
+    setPending(true);
+    setFailure(null);
+
+    const password = formText(new FormData(form), "password");
+
+    const outcome = await requestHub((client) =>
+      client.SetUserPassword({ userId: user.id, password }),
+    );
+
+    setPending(false);
+
+    if (outcome._tag === "Failure") {
+      setFailure(outcome.message);
+    } else {
+      onClose();
+    }
+  };
+
   return (
     <Dialog title={`Set ${user.displayName}'s password`} onClose={onClose}>
-      <form
-        noValidate
-        className="space-y-4"
-        onSubmit={async (event) => {
-          event.preventDefault();
-
-          const form = event.currentTarget;
-          const found = checkFields(form, ["password"]);
-
-          setErrors(found);
-
-          if (found.length > 0) {
-            return;
-          }
-
-          setPending(true);
-          setFailure(null);
-
-          const password = formText(new FormData(form), "password");
-
-          const outcome = await requestHub((client) =>
-            client.SetUserPassword({ userId: user.id, password }),
-          );
-
-          setPending(false);
-
-          if (outcome._tag === "Failure") {
-            setFailure(outcome.message);
-          } else {
-            onClose();
-          }
-        }}
-      >
+      <form noValidate className="space-y-4" onSubmit={(event) => void submit(event)}>
         <p className="text-sm">
           They're signed out everywhere and sign in again with the new password. Share it with them,
           and they can change it from their profile.
@@ -368,6 +364,20 @@ export function DeleteUserDialog({
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
+  const removeUser = async () => {
+    setPending(true);
+
+    const outcome = await requestHub((client) => client.DeleteUser({ userId: user.id }));
+
+    setPending(false);
+
+    if (outcome._tag === "Failure") {
+      setFailure(outcome.message);
+    } else {
+      onClose();
+    }
+  };
+
   return (
     <Dialog title={`Delete ${user.displayName}?`} onClose={onClose}>
       <div className="space-y-4 text-sm">
@@ -383,23 +393,7 @@ export function DeleteUserDialog({
         </p>
         <div className="flex justify-end gap-3">
           <Button onClick={onClose}>Cancel</Button>
-          <Button
-            tone="danger"
-            disabled={pending}
-            onClick={async () => {
-              setPending(true);
-
-              const outcome = await requestHub((client) => client.DeleteUser({ userId: user.id }));
-
-              setPending(false);
-
-              if (outcome._tag === "Failure") {
-                setFailure(outcome.message);
-              } else {
-                onClose();
-              }
-            }}
-          >
+          <Button tone="danger" disabled={pending} onClick={() => void removeUser()}>
             {pending ? "Deleting…" : "Delete user"}
           </Button>
         </div>

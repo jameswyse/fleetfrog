@@ -89,6 +89,7 @@ test("[deterministic] clone validates destination and creates a real checkout on
     .poll(() => {
       try {
         return git(checkout, "branch", "--show-current");
+        // oxlint-disable-next-line wyse/no-swallowed-errors -- The clone hasn't created the checkout yet.
       } catch {
         return null;
       }

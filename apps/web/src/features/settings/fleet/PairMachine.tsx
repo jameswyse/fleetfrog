@@ -202,6 +202,7 @@ export function PairMachine() {
           {paired !== undefined && (
             <Button
               tone="primary"
+              // oxlint-disable-next-line jsx-a11y/no-autofocus -- Pairing replaces the controls that had focus, so focus moves to the only next step.
               autoFocus
               onClick={() => {
                 void navigate({

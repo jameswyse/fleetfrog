@@ -11,7 +11,7 @@ const SingleMode = Schema.fromJsonString(
 
 const decodeSingleMode = Schema.decodeUnknownOption(SingleMode);
 
-export default Effect.gen(function* () {
+export const signInMethods = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 
   const rows = yield* sql<{ readonly auth_json: string | null }>`

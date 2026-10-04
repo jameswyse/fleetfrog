@@ -12,6 +12,8 @@ import { SettingsRow, SettingsSection } from "../settings/SettingsSection.tsx";
 import { SaveStatus, useAutoSave } from "../settings/useAutoSave.tsx";
 import { resizeAvatar } from "./resizeAvatar.ts";
 
+import type { FormEvent } from "react";
+
 import type { User } from "@fleetfrog/protocol/domain/user";
 
 const inputClass =
@@ -157,53 +159,55 @@ function PasswordSection({ email }: { readonly email: string }) {
   const [invalid, setInvalid] = useState<"current" | "new" | "confirm" | null>(null);
   const field = (name: "current" | "new" | "confirm") => `${formId}-${name}`;
 
+  const submitPasswordChange = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const values = new FormData(form);
+    const currentPassword = formText(values, "current");
+    const newPassword = formText(values, "new");
+
+    const fail = (name: "current" | "new" | "confirm", message: string) => {
+      setInvalid(name);
+      setResult({ ok: false, message });
+      document.getElementById(field(name))?.focus();
+    };
+
+    if (newPassword.length < minimumPasswordLength) {
+      return fail("new", `Use at least ${minimumPasswordLength} characters.`);
+    }
+
+    if (newPassword !== values.get("confirm")) {
+      return fail("confirm", "The new passwords don't match.");
+    }
+
+    setPending(true);
+    setInvalid(null);
+
+    const outcome = await requestHub((client) =>
+      client.ChangePassword({ currentPassword, newPassword }),
+    );
+
+    setPending(false);
+
+    if (outcome._tag === "Failure") {
+      return fail("current", outcome.message);
+    }
+
+    form.reset();
+
+    return setResult({
+      ok: true,
+      message: "Password changed. Anywhere else you were signed in has been signed out.",
+    });
+  };
+
   return (
     <SettingsSection title="Password">
       <form
         noValidate
         className="space-y-4 px-5 py-4"
-        onSubmit={async (event) => {
-          event.preventDefault();
-
-          const form = event.currentTarget;
-          const values = new FormData(form);
-          const currentPassword = formText(values, "current");
-          const newPassword = formText(values, "new");
-
-          const fail = (name: "current" | "new" | "confirm", message: string) => {
-            setInvalid(name);
-            setResult({ ok: false, message });
-            document.getElementById(field(name))?.focus();
-          };
-
-          if (newPassword.length < minimumPasswordLength) {
-            return fail("new", `Use at least ${minimumPasswordLength} characters.`);
-          }
-
-          if (newPassword !== values.get("confirm")) {
-            return fail("confirm", "The new passwords don't match.");
-          }
-
-          setPending(true);
-          setInvalid(null);
-
-          const outcome = await requestHub((client) =>
-            client.ChangePassword({ currentPassword, newPassword }),
-          );
-
-          setPending(false);
-
-          if (outcome._tag === "Failure") {
-            return fail("current", outcome.message);
-          }
-
-          form.reset();
-
-          return setResult({
-            ok: true,
-            message: "Password changed. Anywhere else you were signed in has been signed out.",
-          });
-        }}
+        onSubmit={(event) => void submitPasswordChange(event)}
       >
         <input hidden readOnly name="username" autoComplete="username" value={email} />
         {(

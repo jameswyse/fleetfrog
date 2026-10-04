@@ -8,11 +8,12 @@ import { requestHost } from "./serveSocket.ts";
 const hostPattern = /^[\w.:[\]-]+$/u;
 
 export function inlineScriptHashes(html: string): ReadonlyArray<string> {
-  return [...html.matchAll(/<script(\s[^>]*)?>([\s\S]*?)<\/script>/giu)]
-    .filter(([, attributes = ""]) => !/\bsrc\s*=/iu.test(attributes))
-    .map(
-      ([, , body = ""]) => `'sha256-${createHash("sha256").update(body, "utf8").digest("base64")}'`,
-    );
+  return [...html.matchAll(/<script(\s[^>]*)?>([\s\S]*?)<\/script>/giu)].flatMap(
+    ([, attributes = "", body = ""]) =>
+      /\bsrc\s*=/iu.test(attributes)
+        ? []
+        : [`'sha256-${createHash("sha256").update(body, "utf8").digest("base64")}'`],
+  );
 }
 
 function contentSecurityPolicy(

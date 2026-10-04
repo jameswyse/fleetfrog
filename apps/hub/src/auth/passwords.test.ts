@@ -3,6 +3,7 @@ import { Effect } from "effect";
 
 import { checkPassword, hashPassword } from "./passwords.ts";
 
+// oxlint-disable-next-line wyse/no-test-timeout-overrides -- Each hash costs scrypt's full work, and CI runs every package's tests at once, so five can outlast Vitest's default limit.
 it.effect(
   "accepts only the password that was hashed",
   () =>

@@ -5,8 +5,7 @@ import { Access, DashboardRpcs } from "./rpcs.ts";
 
 it("opens only the agreed RPCs to users, leaving every other one to admins", () => {
   const forUsers = [...DashboardRpcs.requests.values()]
-    .filter((rpc) => Context.get(rpc.annotations, Access) === "user")
-    .map((rpc) => rpc._tag)
+    .flatMap((rpc) => (Context.get(rpc.annotations, Access) === "user" ? [rpc._tag] : []))
     .toSorted();
 
   expect(forUsers).toEqual([

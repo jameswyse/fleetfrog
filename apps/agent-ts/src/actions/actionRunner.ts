@@ -16,6 +16,7 @@ import { InspectionResult } from "@fleetfrog/protocol/domain/trash";
 
 import { inspectCheckout } from "../inspect/inspectCheckout.ts";
 import { inspectWorktree } from "../inspect/inspectWorktree.ts";
+// oxlint-disable-next-line wyse/no-service-constructor-imports -- Each action run collects its own output.
 import { makeActionOutput } from "./actionOutput.ts";
 import { archiveCheckout, unarchiveCheckout } from "./archiveActions.ts";
 import {

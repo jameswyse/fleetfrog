@@ -74,25 +74,30 @@ export function AppShell() {
           </Link>
           <nav aria-label="Main">
             <ul className="flex gap-1">
-              {navigation
-                .filter(({ adminOnly }) => role === "admin" || !adminOnly)
-                .map(({ to, label }) => (
-                  <li key={to}>
-                    <Link
-                      to={to}
-                      activeOptions={{ exact: to === "/", includeSearch: false }}
-                      className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-ink-muted hover:bg-surface-raised hover:text-ink aria-[current=page]:bg-surface-raised aria-[current=page]:text-ink"
-                    >
-                      {label}
-                      {to === "/settings" && settingsAttention && (
-                        <>
-                          <span aria-hidden="true" className="size-1.5 rounded-full bg-danger" />
-                          <span className="sr-only">, needs attention</span>
-                        </>
-                      )}
-                    </Link>
-                  </li>
-                ))}
+              {navigation.flatMap(({ to, label, adminOnly }) =>
+                adminOnly && role !== "admin"
+                  ? []
+                  : [
+                      <li key={to}>
+                        <Link
+                          to={to}
+                          activeOptions={{ exact: to === "/", includeSearch: false }}
+                          className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-ink-muted hover:bg-surface-raised hover:text-ink aria-[current=page]:bg-surface-raised aria-[current=page]:text-ink"
+                        >
+                          {label}
+                          {to === "/settings" && settingsAttention && (
+                            <>
+                              <span
+                                aria-hidden="true"
+                                className="size-1.5 rounded-full bg-danger"
+                              />
+                              <span className="sr-only">, needs attention</span>
+                            </>
+                          )}
+                        </Link>
+                      </li>,
+                    ],
+              )}
             </ul>
           </nav>
           <div className="ms-auto flex flex-wrap items-center gap-x-4 gap-y-2">

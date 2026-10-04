@@ -11,7 +11,7 @@ export class VitestProgressReporter {
     this.#completedTests += 1;
 
     if (this.#completedTests % progressLineWidth === 0) {
-      console.log(".".repeat(progressLineWidth));
+      process.stdout.write(`${".".repeat(progressLineWidth)}\n`);
     }
   }
 
@@ -19,7 +19,7 @@ export class VitestProgressReporter {
     const remainingTests = this.#completedTests % progressLineWidth;
 
     if (remainingTests !== 0) {
-      console.log(".".repeat(remainingTests));
+      process.stdout.write(`${".".repeat(remainingTests)}\n`);
     }
   }
 }

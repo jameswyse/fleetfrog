@@ -221,6 +221,7 @@ export async function signInWithTailscale(): Promise<Outcome> {
 }
 
 export async function signOut(): Promise<void> {
+  // oxlint-disable-next-line wyse/no-swallowed-errors -- The sign-in page loads afresh whether or not the hub answers.
   await fetch("/auth/logout", { method: "POST" }).catch(() => undefined);
   window.location.assign("/login");
 }

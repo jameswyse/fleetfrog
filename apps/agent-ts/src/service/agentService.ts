@@ -139,6 +139,7 @@ function rotateLog(): void {
       copyFileSync(logPath, `${logPath}.1`);
       ftruncateSync(process.stdout.fd, 0);
     }
+    // oxlint-disable-next-line eslint/no-empty -- A failed rotation only leaves the log longer, and the next line retries it.
   } catch {}
 }
 

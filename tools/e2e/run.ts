@@ -26,11 +26,11 @@ try {
     controller.signal,
   );
   environment = await startEnvironment(controller.signal);
-  console.log(`E2E dashboard: ${environment.url}`);
-  console.log(`E2E sandbox retained at: ${environment.directory}`);
+  process.stdout.write(`E2E dashboard: ${environment.url}\n`);
+  process.stdout.write(`E2E sandbox retained at: ${environment.directory}\n`);
 
   if (process.argv.includes("--serve")) {
-    console.log("Press Ctrl+C to stop the test hub and agent. The files will be kept.");
+    process.stdout.write("Press Ctrl+C to stop the test hub and agent. The files will be kept.\n");
     await once(controller.signal, "abort");
   } else {
     const runner = spawn(pnpmPath, ["exec", "e2e", "run", ...process.argv.slice(2)], {

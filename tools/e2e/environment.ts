@@ -175,6 +175,7 @@ export async function startEnvironment(signal: AbortSignal) {
         if (response.ok) {
           ready = true;
         }
+        // oxlint-disable-next-line eslint/no-empty -- The hub has started but its HTTP listener isn't ready yet.
       } catch {}
 
       if (!ready && Date.now() >= deadline) {

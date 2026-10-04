@@ -216,9 +216,9 @@ const countPhrases = {
 export function countParts(
   counts: RunCounts,
 ): ReadonlyArray<{ readonly status: RunStatus; readonly text: string }> {
-  return summaryOrder
-    .filter((status) => counts[status] > 0)
-    .map((status) => ({ status, text: countPhrases[status](counts[status]) }));
+  return summaryOrder.flatMap((status) =>
+    counts[status] > 0 ? [{ status, text: countPhrases[status](counts[status]) }] : [],
+  );
 }
 
 export function describeCounts(counts: RunCounts): string {

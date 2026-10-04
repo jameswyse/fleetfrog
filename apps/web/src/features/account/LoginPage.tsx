@@ -13,6 +13,8 @@ import { localPath } from "@fleetfrog/protocol/dashboard/auth";
 import { ProviderButtonContent, providerButtonClass } from "./ProviderButton.tsx";
 import { signInFailureMessage } from "./signInFailures.ts";
 
+import type { FormEvent } from "react";
+
 import type { SignInMethods, TailscaleIdentity } from "@fleetfrog/protocol/dashboard/auth";
 
 const inputClass =
@@ -26,33 +28,31 @@ function PasswordForm({ redirect }: { readonly redirect: string }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const submitPassword = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const form = new FormData(event.currentTarget);
+
+    setPending(true);
+    setError(null);
+
+    const outcome = await signIn({
+      email: formText(form, "email"),
+      password: formText(form, "password"),
+    });
+
+    setPending(false);
+
+    if (outcome._tag === "Failure") {
+      setError(outcome.message);
+      email.current?.focus();
+    } else {
+      window.location.assign(redirect);
+    }
+  };
+
   return (
-    <form
-      noValidate
-      className="space-y-4"
-      onSubmit={async (event) => {
-        event.preventDefault();
-
-        const form = new FormData(event.currentTarget);
-
-        setPending(true);
-        setError(null);
-
-        const outcome = await signIn({
-          email: formText(form, "email"),
-          password: formText(form, "password"),
-        });
-
-        setPending(false);
-
-        if (outcome._tag === "Failure") {
-          setError(outcome.message);
-          email.current?.focus();
-        } else {
-          window.location.assign(redirect);
-        }
-      }}
-    >
+    <form noValidate className="space-y-4" onSubmit={(event) => void submitPassword(event)}>
       <div className="space-y-1.5">
         <label htmlFor={emailId} className="block text-sm font-medium">
           Email
@@ -125,6 +125,20 @@ function TailscaleButton({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const continueWithTailscale = async () => {
+    setPending(true);
+    setError(null);
+
+    const outcome = await signInWithTailscale();
+
+    if (outcome._tag === "Failure") {
+      setPending(false);
+      setError(outcome.message);
+    } else {
+      window.location.assign(redirect);
+    }
+  };
+
   return (
     <div className="space-y-2">
       <button
@@ -132,19 +146,7 @@ function TailscaleButton({
         disabled={pending}
         aria-describedby={errorId}
         className={providerButtonClass}
-        onClick={async () => {
-          setPending(true);
-          setError(null);
-
-          const outcome = await signInWithTailscale();
-
-          if (outcome._tag === "Failure") {
-            setPending(false);
-            setError(outcome.message);
-          } else {
-            window.location.assign(redirect);
-          }
-        }}
+        onClick={() => void continueWithTailscale()}
       >
         {pending ? <Spinner /> : <TailscaleMark className="size-5" />}
         Continue as {identity.name}

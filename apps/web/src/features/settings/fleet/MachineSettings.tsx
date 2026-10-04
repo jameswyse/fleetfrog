@@ -196,7 +196,7 @@ function ConfigurationSection({
           <MachineKindPicker
             machine={machine}
             onChange={(kind) =>
-              save(() =>
+              void save(() =>
                 requestHub((client) => client.SetMachineKind({ machineId: machine.id, kind })),
               )
             }

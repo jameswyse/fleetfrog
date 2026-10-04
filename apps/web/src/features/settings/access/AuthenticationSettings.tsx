@@ -20,6 +20,8 @@ import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
 import { TextField } from "./TextField.tsx";
 import { checkFields, messageFor } from "./userForm.ts";
 
+import type { FormEvent } from "react";
+
 import type { AuthSettingsView } from "@fleetfrog/protocol/domain/user";
 
 import type { FieldError } from "./userForm.ts";
@@ -42,53 +44,49 @@ function TurnOnPasswordsDialog({
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const values = new FormData(form);
+    const found = checkFields(form, ["displayName", "email", "password", "confirm"]);
+
+    const change = decodeMethodChange({
+      _tag: "EnablePasswords",
+      email: formText(values, "email"),
+      displayName: formText(values, "displayName").trim(),
+      password: formText(values, "password"),
+    });
+
+    setErrors(found);
+
+    if (found.length > 0) {
+      return;
+    }
+
+    if (Option.isNone(change)) {
+      setFailure("Check the details: a name is at most 80 characters, a password at most 256.");
+
+      return;
+    }
+
+    setPending(true);
+    setFailure(null);
+
+    const outcome = await changeMethods(change.value);
+
+    setPending(false);
+
+    if (outcome._tag === "Failure") {
+      setFailure(outcome.message);
+    } else {
+      onClose();
+    }
+  };
+
   return (
     <Dialog title="Turn on password sign-in" onClose={onClose}>
-      <form
-        noValidate
-        className="space-y-4 text-sm"
-        onSubmit={async (event) => {
-          event.preventDefault();
-
-          const form = event.currentTarget;
-          const values = new FormData(form);
-          const found = checkFields(form, ["displayName", "email", "password", "confirm"]);
-
-          const change = decodeMethodChange({
-            _tag: "EnablePasswords",
-            email: formText(values, "email"),
-            displayName: formText(values, "displayName").trim(),
-            password: formText(values, "password"),
-          });
-
-          setErrors(found);
-
-          if (found.length > 0) {
-            return;
-          }
-
-          if (Option.isNone(change)) {
-            setFailure(
-              "Check the details: a name is at most 80 characters, a password at most 256.",
-            );
-
-            return;
-          }
-
-          setPending(true);
-          setFailure(null);
-
-          const outcome = await changeMethods(change.value);
-
-          setPending(false);
-
-          if (outcome._tag === "Failure") {
-            setFailure(outcome.message);
-          } else {
-            onClose();
-          }
-        }}
-      >
+      <form noValidate className="space-y-4 text-sm" onSubmit={(event) => void submit(event)}>
         <p>
           {signInOn
             ? "People can also sign in with an email address and password. Set yours now, and add accounts for others under Users."
@@ -145,6 +143,20 @@ function TurnOffDialog({ onClose }: { readonly onClose: () => void }) {
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
+  const turnOff = async () => {
+    setPending(true);
+
+    const outcome = await changeMethods({ _tag: "TurnOff" });
+
+    setPending(false);
+
+    if (outcome._tag === "Failure") {
+      setFailure(outcome.message);
+    } else {
+      onClose();
+    }
+  };
+
   return (
     <Dialog title="Turn off sign-in?" onClose={onClose}>
       <div className="space-y-4 text-sm">
@@ -158,23 +170,7 @@ function TurnOffDialog({ onClose }: { readonly onClose: () => void }) {
         </p>
         <div className="flex justify-end gap-3">
           <Button onClick={onClose}>Cancel</Button>
-          <Button
-            tone="danger"
-            disabled={pending}
-            onClick={async () => {
-              setPending(true);
-
-              const outcome = await changeMethods({ _tag: "TurnOff" });
-
-              setPending(false);
-
-              if (outcome._tag === "Failure") {
-                setFailure(outcome.message);
-              } else {
-                onClose();
-              }
-            }}
-          >
+          <Button tone="danger" disabled={pending} onClick={() => void turnOff()}>
             {pending ? "Turning off…" : "Turn off sign-in"}
           </Button>
         </div>
@@ -212,6 +208,20 @@ function TurnOffMethodDialog({
     ] as const
   ).filter((other): other is TurningOff => other !== false && other !== change);
 
+  const applyChange = async () => {
+    setPending(true);
+
+    const outcome = await changeMethods({ _tag: change });
+
+    setPending(false);
+
+    if (outcome._tag === "Failure") {
+      setFailure(outcome.message);
+    } else {
+      onClose();
+    }
+  };
+
   return (
     <Dialog title={`Turn off ${method[change].name}?`} onClose={onClose}>
       <div className="space-y-4 text-sm">
@@ -226,23 +236,7 @@ function TurnOffMethodDialog({
         </p>
         <div className="flex justify-end gap-3">
           <Button onClick={onClose}>Cancel</Button>
-          <Button
-            tone="danger"
-            disabled={pending}
-            onClick={async () => {
-              setPending(true);
-
-              const outcome = await changeMethods({ _tag: change });
-
-              setPending(false);
-
-              if (outcome._tag === "Failure") {
-                setFailure(outcome.message);
-              } else {
-                onClose();
-              }
-            }}
-          >
+          <Button tone="danger" disabled={pending} onClick={() => void applyChange()}>
             Turn off {method[change].name}
           </Button>
         </div>
@@ -261,6 +255,20 @@ function TurnOnTailscaleDialog({
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
+  const enableTailscale = async () => {
+    setPending(true);
+
+    const outcome = await changeMethods({ _tag: "EnableTailscale" });
+
+    setPending(false);
+
+    if (outcome._tag === "Failure") {
+      setFailure(outcome.message);
+    } else {
+      onClose();
+    }
+  };
+
   return (
     <Dialog title="Turn on Tailscale sign-in?" onClose={onClose}>
       <div className="space-y-4 text-sm">
@@ -274,23 +282,7 @@ function TurnOnTailscaleDialog({
         </p>
         <div className="flex justify-end gap-3">
           <Button onClick={onClose}>Cancel</Button>
-          <Button
-            tone="primary"
-            disabled={pending}
-            onClick={async () => {
-              setPending(true);
-
-              const outcome = await changeMethods({ _tag: "EnableTailscale" });
-
-              setPending(false);
-
-              if (outcome._tag === "Failure") {
-                setFailure(outcome.message);
-              } else {
-                onClose();
-              }
-            }}
-          >
+          <Button tone="primary" disabled={pending} onClick={() => void enableTailscale()}>
             {pending ? "Turning on…" : "Turn on"}
           </Button>
         </div>

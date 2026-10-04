@@ -3,15 +3,18 @@ import { Clock, Duration, Effect, Fiber, FiberHandle, Option, Schema, Stream } f
 import { HubCommand, heartbeatSeconds } from "@fleetfrog/protocol/agent/rpcs";
 import { ActionKind, ActionOutcome, ActionUpdate } from "@fleetfrog/protocol/domain/action";
 
+// oxlint-disable-next-line wyse/no-service-constructor-imports -- runAgent is the agent's composition root.
 import { makeActionRunner } from "../actions/actionRunner.ts";
 import { writeAuditEntry } from "../audit/auditLog.ts";
 import { loadAgentConfig } from "../config/agentConfig.ts";
 import { loadPolicy, policyPath, recordPolicyDefaults } from "../config/agentPolicy.ts";
+// oxlint-disable-next-line wyse/no-service-constructor-imports -- runAgent is the agent's composition root.
 import { makeHubClient } from "../connection/hubClient.ts";
 import { createProjectFolder } from "../folders/createProjectFolder.ts";
 import { readMachineInfo, runsFromSource } from "../machine/machineInfo.ts";
 import { readSystemUsage } from "../machine/systemInfo.ts";
 import { defaultTrashDirectory } from "../trash/trashFolder.ts";
+// oxlint-disable-next-line wyse/no-service-constructor-imports -- runAgent is the agent's composition root.
 import { makeScanner } from "./scanner.ts";
 
 import type { AgentCapabilities } from "@fleetfrog/protocol/domain/action";
@@ -319,9 +322,8 @@ export const runAgent = Effect.gen(function* () {
 
     yield* Effect.scoped(runSession(config.value)).pipe(
       Effect.andThen(Effect.logInfo("The hub closed the connection")),
-      Effect.catchIf(
-        (error) => error._tag !== "MachineRemoved",
-        (error) => Effect.logWarning("Disconnected from hub", error),
+      Effect.catchTag("MachineRemoved", Effect.fail, (error) =>
+        Effect.logWarning("Disconnected from hub", error),
       ),
       Effect.catchDefect((defect) => Effect.logError("Agent session crashed", defect)),
     );

@@ -67,6 +67,7 @@ export function HubStatus() {
 
   return (
     <>
+      {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Hover and focus show how old the fleet is while the hub is unreachable, and the status is focusable only then. */}
       <p
         role="status"
         tabIndex={stale === null ? undefined : 0}
