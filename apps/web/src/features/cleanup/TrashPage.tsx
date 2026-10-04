@@ -59,10 +59,12 @@ function PurgeDialog({
   const [first, ...rest] = purgeRuns(entries);
   const only = entries.length === 1 ? entries[0] : undefined;
   const confirmLabel = only === undefined ? "Empty the trash" : "Delete permanently";
+
   const checkoutBytes = entries.reduce(
     (total, { item }) => total + (item._tag === "Checkout" ? item.checkout.sizeBytes : 0),
     0,
   );
+
   const hasRefs = entries.some(({ item }) => item._tag !== "Checkout");
 
   return (
@@ -105,6 +107,7 @@ function PurgeDialog({
 /** What the row says about the entry under its name. */
 function EntryDetails({ entry }: { readonly entry: TrashEntry }) {
   const { item } = entry;
+
   const where = (
     <>
       <MachineKindIcon kind={machineKind(entry.machine)} />
@@ -176,6 +179,7 @@ function TrashRow({
 }) {
   const { start, pending, failure } = useStartBatch();
   const blocked = machineBlocker(entry.machine, "Restore");
+
   const Icon = { Branch: GitBranchIcon, Stash: ArchiveIcon, Checkout: FolderGit2Icon }[
     entry.item._tag
   ];

@@ -34,6 +34,7 @@ export async function startGitRemote(directory: string) {
     { stdio: "pipe" },
   );
   const children = new Set<ReturnType<typeof spawn>>();
+
   const server = createServer(
     { key: readFileSync(key), cert: readFileSync(certificate) },
     (request, response) => {
@@ -58,6 +59,7 @@ export async function startGitRemote(directory: string) {
         },
         stdio: ["pipe", "pipe", "ignore"],
       });
+
       children.add(child);
       const output: Buffer[] = [];
       child.stdout.on("data", (chunk: Buffer) => output.push(chunk));
@@ -96,6 +98,7 @@ export async function startGitRemote(directory: string) {
       });
     },
   );
+
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   const address = server.address();

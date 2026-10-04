@@ -124,12 +124,14 @@ const makeHarness = Effect.fn("makeHarness")(function* (options: {
   };
 
   const folders = () => ({ roots: options.roots, archiveFolder: options.archiveFolder });
+
   const scanner = makeScanner({
     githubLogin: null,
     trashDirectory: options.trashDirectory,
     folders,
     report: (report) => Effect.sync(() => reports.push(report)),
   });
+
   const discover = scanner.discover({
     ...folders(),
     githubMaximumAge: Duration.zero,
@@ -214,6 +216,7 @@ const setUp = (
 ) =>
   Effect.gen(function* () {
     const fixture = createFixture(yield* temporaryDirectory("fleetfrog-actions-"));
+
     const harness = yield* makeHarness({
       roots: [path.join(fixture.root, "projects")],
       archiveFolder: archiveFolder === null ? null : path.join(fixture.root, archiveFolder),
@@ -229,6 +232,7 @@ describe("action runner", () => {
   it.effect("waits for the first discovery walk before looking for the checkout", () =>
     Effect.gen(function* () {
       const walk = yield* Deferred.make<void>();
+
       const { runner, discover, clone, updates, outcome } = yield* setUp(
         undefined,
         null,
@@ -602,6 +606,7 @@ describe("action runner", () => {
         "feature",
       );
       expect(git(path.join(archived, "worktrees", "fix"), "branch", "--show-current")).toBe("fix");
+
       // The hub already holds all three where they are now, as the next discovery walk finds them.
       const everyArchived = [
         archived,
@@ -736,6 +741,7 @@ describe("action runner", () => {
       renameSync(path.join(root, "projects", "before"), main);
 
       const location = Option.getOrThrow(yield* locateCheckout(main));
+
       const harness = yield* makeHarness({
         roots: [path.join(root, "projects")],
         archiveFolder: null,
@@ -752,6 +758,7 @@ describe("action runner", () => {
         [broken, "Broken"],
         [dirty, "Broken"],
       ]);
+
       const remove = Effect.fn(function* (worktree: string, runId: RunId) {
         const { fingerprint } = yield* harness.inspectWorktree(main, worktree);
 

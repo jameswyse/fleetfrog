@@ -72,11 +72,13 @@ const threadColumns = {
   waiting: Schema.Int,
   working: Schema.Int,
 };
+
 const ThreadRow = Schema.Struct({
   ...threadColumns,
   worktree_path: Schema.NullOr(Schema.String),
 });
 type ThreadRow = typeof ThreadRow.Type;
+
 const V2ThreadRow = Schema.Struct({
   ...threadColumns,
   payload_json: Schema.fromJsonString(
@@ -87,6 +89,7 @@ const V2ThreadRow = Schema.Struct({
 /** A row T3 Code wrote in a shape this agent doesn't expect is left out, not the whole read. */
 const decodeProject = Schema.decodeUnknownOption(ProjectRow);
 const decodeV1Thread = Schema.decodeUnknownOption(ThreadRow);
+
 const decodeV2Thread = (row: unknown) =>
   Option.map(
     Schema.decodeUnknownOption(V2ThreadRow)(row),
@@ -95,6 +98,7 @@ const decodeV2Thread = (row: unknown) =>
       worktree_path: payload_json.worktreePath,
     }),
   );
+
 const decodeMigration = Schema.decodeUnknownOption(MigrationRow);
 
 interface Layout {
@@ -172,6 +176,7 @@ const StoredIcon = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("emoji"), emoji: Schema.String }),
   Schema.Struct({ kind: Schema.Literal("monogram"), text: Schema.String, color: ProjectIconColor }),
 ]);
+
 const decodeStoredIcon = Schema.decodeUnknownOption(Schema.fromJsonString(StoredIcon));
 
 /** The icon picked in T3 Code, null for none, or `Unreadable` for one stored in a form this can't read. */
@@ -213,12 +218,15 @@ export function defaultMonogram(title: string): ProjectIcon {
   const first = words[0];
   const characters = Array.from(first ?? "");
   const start = characters[0] ?? "P";
+
   const second =
     characters.slice(1).find((character) => /\p{N}/u.test(character)) ??
     (words.length > 1 ? Array.from(words.at(-1) ?? "")[0] : characters.at(-1)) ??
     start;
+
   const text =
     first === undefined ? "PR" : Array.from(`${start}${second}`.toUpperCase()).slice(0, 2).join("");
+
   const colours = ProjectIconColor.literals;
   let hash = 0;
 
@@ -354,8 +362,10 @@ function readRows(file: string) {
       .prepare("select migration_id, name from effect_sql_migrations order by migration_id desc")
       .all()
       .flatMap((row) => Option.toArray(decodeMigration(row)));
+
     const schema =
       latest === undefined ? null : { migration: latest.migration_id, name: latest.name };
+
     const missing = Object.entries({ ...requiredColumns, ...layout.columns }).flatMap(
       ([table, columns]) => {
         const present = new Set(
@@ -389,6 +399,7 @@ function readRows(file: string) {
         .all(),
       decodeProject,
     );
+
     const threads = decodeRows(database.prepare(layout.threads).all(), layout.decodeThread);
 
     database.exec("commit");
@@ -418,12 +429,14 @@ export const readT3Code = Effect.fn("readT3Code")(function* (options: {
   const userdata = path.dirname(options.database);
   const server = yield* readT3CodeServer(userdata);
   const providers = yield* readT3CodeProviders(path.join(path.dirname(userdata), "caches"));
+
   const status = (reading: T3CodeReading): T3CodeStatus => ({
     database: options.database,
     reading,
     server,
     providers,
   });
+
   const exists = yield* Effect.promise(() =>
     stat(options.database).then(
       (found) => found.isFile(),
@@ -488,6 +501,7 @@ export const readT3Code = Effect.fn("readT3Code")(function* (options: {
 
         // An icon that can't be read falls back to what T3 Code shows for a project without one.
         const own = picked === "Unreadable" ? null : picked;
+
         const image =
           own === null && options.projectIcons ? await favicon(folder, row.favicon_path) : null;
 
@@ -509,10 +523,12 @@ export const readT3Code = Effect.fn("readT3Code")(function* (options: {
       }),
     ),
   );
+
   const folders = new Map(projects.map((project) => [project.id, project.path]));
   const recentSince = DateTime.toEpochMillis(yield* DateTime.now) - recentThreadMillis;
   // A thread of a deleted project has nowhere to work, so it's left out.
   const current = rows.success.threads.decoded.filter(({ project_id }) => folders.has(project_id));
+
   const threads = yield* Effect.promise(() =>
     Promise.all(
       current.map(async (row): Promise<T3CodeThread> => ({

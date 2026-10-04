@@ -12,6 +12,7 @@ if (version === undefined) {
 }
 
 const repository = path.resolve(import.meta.dirname, "../..");
+
 const changelogs = ["apps", "packages"]
   .flatMap((folder) =>
     readdirSync(path.join(repository, folder)).map((name) =>
@@ -19,6 +20,7 @@ const changelogs = ["apps", "packages"]
     ),
   )
   .filter((changelog) => existsSync(changelog));
+
 const kinds = ["Major Changes", "Minor Changes", "Patch Changes"];
 // Each change, with the most significant kind any package gave it.
 const changes = new Map();

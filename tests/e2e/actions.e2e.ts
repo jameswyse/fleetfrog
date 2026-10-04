@@ -208,6 +208,7 @@ test("[deterministic] fleet rescan discovers a newly created repository", async 
   }
 
   const { polling } = await fleetSnapshot();
+
   const setDiscoverySeconds = (discoverySeconds: number) =>
     withDashboard(url, (client) =>
       client.UpdatePolling({ polling: { ...polling, discoverySeconds } }).pipe(Effect.asVoid),

@@ -62,10 +62,13 @@ export function TidyBranchesDialog({
   readonly onClose: () => void;
 }) {
   const { start, pending, failure } = useStartBatch();
+
   const [chosen, setChosen] = useState<ReadonlySet<string>>(
     () => new Set(candidates.filter(isPreselected).map(({ name }) => name)),
   );
+
   const defaultBranch = git.defaultBranch ?? checkout.github?.defaultBranch ?? "the default branch";
+
   const groups: ReadonlyArray<Group> = [
     {
       title: "Merged",
@@ -93,6 +96,7 @@ export function TidyBranchesDialog({
       tone: "warning",
     },
   ];
+
   const selected = candidates.filter(({ name }) => chosen.has(name));
 
   const toggle = (names: ReadonlyArray<string>, on: boolean) =>

@@ -111,13 +111,16 @@ export function HistoryPage() {
   const search = useSearch({ from: "/_app/activity/" });
   const navigate = useNavigate({ from: "/activity" });
   const [limit, setLimit] = useState(activityPageSize);
+
   const filter: ActivityFilter = {
     machineIds: search.machines ?? [],
     repositoryKeys: search.repositories ?? [],
     outcomes: search.outcomes ?? [],
   };
+
   const filtered =
     filter.machineIds.length + filter.repositoryKeys.length + filter.outcomes.length > 0;
+
   const page = useHubStream({
     key: `${JSON.stringify(filter)}|${limit}`,
     open: (client) => client.WatchActivity({ filter, limit }),

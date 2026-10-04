@@ -36,14 +36,17 @@ export function summariseCheckout(checkout: Checkout): CheckoutSummary {
   const { git } = checkout.status;
   const { head } = git;
   const upstream = head._tag === "Branch" ? head.upstream : null;
+
   const branch =
     head._tag === "Detached"
       ? `detached at ${git.lastCommit?.sha.slice(0, 7) ?? "unknown"}`
       : head.name;
+
   const remoteMoved =
     checkout.github !== null &&
     checkout.github.trackingSha !== null &&
     checkout.github.remoteSha !== checkout.github.trackingSha;
+
   const ahead = upstream?.ahead ?? 0;
   const behind = upstream?.behind ?? 0;
   const changed = git.changed.total;

@@ -93,6 +93,7 @@ describe("tidyCandidates", () => {
     git,
     inOtherWorktrees: new Map([["elsewhere", "/home/dev/Projects/shop-elsewhere"]]),
   });
+
   const standings = new Map(candidates.map(({ name, standing }) => [name, standing._tag]));
 
   it("keeps the current and other worktrees' branches, saying what to do first", () => {
@@ -122,6 +123,7 @@ describe("tidyCandidates", () => {
 describe("branchesInOtherWorktrees", () => {
   it("includes branches of worktrees the main checkout lists, even ones whose links broke", () => {
     const machineId = MachineId.make("aaaaaaaa-0000-4000-8000-000000000000");
+
     const main: Checkout = {
       ...checkout,
       status: {
@@ -135,6 +137,7 @@ describe("branchesInOtherWorktrees", () => {
         },
       },
     };
+
     const linked: Checkout = {
       ...checkout,
       path: "/home/dev/Projects/shop-feature",
@@ -144,6 +147,7 @@ describe("branchesInOtherWorktrees", () => {
         git: { ...git, head: { _tag: "Branch", name: "feature", upstream: null } },
       },
     };
+
     const repository: Repository = {
       key: RepositoryKey.make("remote:github.com/acme/shop"),
       identity: checkout.identity,
@@ -155,6 +159,7 @@ describe("branchesInOtherWorktrees", () => {
         { machineId, checkout: linked },
       ],
     };
+
     // From the main checkout, both worktrees' branches are elsewhere.
     expect(
       new Set(branchesInOtherWorktrees({ repository, machineId, checkout: main }).keys()),

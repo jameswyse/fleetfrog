@@ -86,9 +86,11 @@ export function BranchesSection({
   const elsewhere = branchesInOtherWorktrees({ repository, machineId: machine.id, checkout });
   const busy = pending || activeRunFor(runs, { machineId: machine.id, checkout }) !== undefined;
   const others = git.branches.items.filter(({ name }) => name !== current && !elsewhere.has(name));
+
   const reasons = new Map(
     others.map(({ name }) => [name, switchSkipReason(machine, checkout, name)]),
   );
+
   // When nothing can be switched to, one reason covers every branch.
   const sharedReason = others.every(({ name }) => reasons.get(name) !== null)
     ? (reasons.get(others[0]?.name ?? "") ?? null)

@@ -4,6 +4,7 @@ import type { SystemInfo } from "@fleetfrog/protocol/domain/machine";
 
 const wholeNumber = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
 const oneDecimal = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
+
 const twoDecimals = new Intl.NumberFormat(undefined, {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,

@@ -41,6 +41,7 @@ it.effect("won't demote or remove the last admin", () =>
     const users = yield* UserStore;
     const admin = yield* create("ada@example.com", "admin");
     const user = yield* create("bo@example.com", "user");
+
     const demote = users.update({
       userId: admin.id,
       email: Email.make(admin.email),
@@ -125,6 +126,7 @@ it.effect(
 it.effect("won't hand an account linked at this provider to another of its accounts", () =>
   Effect.gen(function* () {
     const users = yield* UserStore;
+
     const identity = {
       issuer: "https://auth.example.com",
       email: Email.make("ada@example.com"),
@@ -191,6 +193,7 @@ it.effect("uses the provider's name only while people sign in through it", () =>
   Effect.gen(function* () {
     const users = yield* UserStore;
     const auth = yield* AuthSettingsStore;
+
     const { user } = yield* users.signInFromProvider({
       issuer: "https://auth.example.com",
       subject: "ada-at-provider",

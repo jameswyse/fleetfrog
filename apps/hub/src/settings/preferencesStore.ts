@@ -11,6 +11,7 @@ import type { UserId } from "@fleetfrog/protocol/domain/user";
 const PreferencesJson = JsonColumn(Preferences);
 const encodePreferences = Schema.encodeSync(PreferencesJson);
 const encodePolling = Schema.encodeSync(JsonColumn(PollingSettings));
+
 const decodeRows = Schema.decodeUnknownEffect(
   Schema.Array(Schema.Struct({ preferences: Schema.NullOr(PreferencesJson) })),
 );

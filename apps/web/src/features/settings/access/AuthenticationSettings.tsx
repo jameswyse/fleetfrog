@@ -35,8 +35,10 @@ function TurnOnPasswordsDialog({
   readonly onClose: () => void;
 }) {
   const session = useSession();
+
   const me =
     session._tag === "Known" && session.session._tag === "SignedIn" ? session.session.user : null;
+
   const [errors, setErrors] = useState<ReadonlyArray<FieldError>>([]);
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -52,6 +54,7 @@ function TurnOnPasswordsDialog({
           const form = event.currentTarget;
           const values = new FormData(form);
           const found = checkFields(form, ["displayName", "email", "password", "confirm"]);
+
           const change = decodeMethodChange({
             _tag: "EnablePasswords",
             email: formText(values, "email"),
@@ -196,11 +199,13 @@ function TurnOffMethodDialog({
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const providerName = settings.oidc?.providerName ?? "the provider";
+
   const method = {
     DisablePasswords: { name: "passwords", phrase: "with a password" },
     DisableProvider: { name: "OpenID Connect", phrase: `through ${providerName}` },
     DisableTailscale: { name: "Tailscale sign-in", phrase: "through Tailscale" },
   } as const;
+
   const remaining = (
     [
       settings.passwords && "DisablePasswords",
@@ -342,6 +347,7 @@ function MethodsSection({ settings }: { readonly settings: AuthSettingsView }) {
   const [providerWanted, setProviderWanted] = useState(false);
   const signInOn = isSignInOn(settings);
   const providerName = settings.oidc?.providerName ?? "the provider";
+
   // Turning off the only way in turns sign-in off.
   const turnOff = (change: TurningOff, othersOn: boolean) =>
     setAsking(othersOn ? change : "TurnOff");
@@ -506,6 +512,7 @@ export function AuthenticationSettings() {
   const failure = signInFailureMessage(
     useSearch({ from: "/_app/settings/authentication/" }).failure,
   );
+
   const settings = useHubStream({ key: "auth", open: (client) => client.WatchAuthSettings() });
 
   return (

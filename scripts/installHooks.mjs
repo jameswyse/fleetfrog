@@ -5,11 +5,13 @@ import path from "node:path";
 // Source archives and CI installs do not need local Git hooks.
 if (process.env.HUSKY !== "0" && !process.env.CI && existsSync(".git")) {
   const { default: husky } = await import("husky");
+
   const commonDirectory = execFileSync(
     "git",
     ["rev-parse", "--path-format=absolute", "--git-common-dir"],
     { encoding: "utf8" },
   ).trim();
+
   const hooksDirectory = path.join(commonDirectory, "husky");
   const error = husky(hooksDirectory);
 

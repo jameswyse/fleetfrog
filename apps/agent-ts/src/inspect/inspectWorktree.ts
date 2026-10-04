@@ -90,11 +90,14 @@ export const inspectWorktree = Effect.fn("inspectWorktree")(function* (
     ],
     { concurrency: "unbounded" },
   );
+
   const ignored = yield* readIgnored({ path: worktree });
+
   const [cacheSizes, otherSizes] = yield* Effect.all([
     diskUsage(worktree, ignored.caches),
     diskUsage(worktree, ignored.other),
   ]);
+
   const other = sized(ignored.other, otherSizes);
 
   return {

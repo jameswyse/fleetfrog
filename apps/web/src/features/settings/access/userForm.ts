@@ -40,11 +40,13 @@ export function checkFields(
   options: { readonly passwordOptional: boolean } = { passwordOptional: false },
 ): ReadonlyArray<FieldError> {
   const values = new FormData(form);
+
   const errors = fields.flatMap((field) => {
     const message = problems[field](values, options.passwordOptional);
 
     return message === null ? [] : [{ field, message }];
   });
+
   const input = errors[0] === undefined ? null : form.elements.namedItem(errors[0].field);
 
   if (input instanceof HTMLInputElement) {

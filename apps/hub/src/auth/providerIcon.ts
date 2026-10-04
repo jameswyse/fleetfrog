@@ -18,6 +18,7 @@ const iconTypes = [
   "image/svg+xml",
   "image/x-icon",
 ] as const;
+
 const IconType = Schema.Literals(iconTypes);
 type IconType = typeof IconType.Type;
 
@@ -34,6 +35,7 @@ export function iconType(data: Uint8Array): IconType | null {
   }
 
   const text = new TextDecoder().decode(data.subarray(0, 512)).trimStart().toLowerCase();
+
   const found: ReadonlyArray<[boolean, IconType]> = [
     [startsWith(data, [0x89, 0x50, 0x4e, 0x47]), "image/png"],
     [startsWith(data, [0xff, 0xd8, 0xff]), "image/jpeg"],
@@ -118,6 +120,7 @@ export const fetchProviderIcon = (issuerUrl: string) =>
   Effect.promise(async () => {
     const site = new URL("/", issuerUrl);
     const page = await download(site, maximumPageBytes).catch(() => null);
+
     const candidates = [
       ...(page === null
         ? []
@@ -140,6 +143,7 @@ export const fetchProviderIcon = (issuerUrl: string) =>
 const decodeRows = Schema.decodeUnknownEffect(
   Schema.Array(Schema.Struct({ hash: Schema.String, source: ProviderIconSource })),
 );
+
 const decodeData = Schema.decodeUnknownEffect(
   Schema.Array(Schema.Struct({ media_type: IconType, data: Schema.Uint8Array })),
 );
@@ -164,10 +168,12 @@ export class ProviderIconStore extends Context.Service<
   static readonly layer = Layer.effect(this)(
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
+
       const [stored] = yield* sql`select hash, source from provider_icon where id = 1`.pipe(
         Effect.flatMap(decodeRows),
         Effect.orDie,
       );
+
       const current = yield* SubscriptionRef.make<ProviderIcon | null>(
         stored === undefined ? null : { id: stored.hash, source: stored.source },
       );

@@ -61,6 +61,7 @@ export function PairMachine() {
   const hub = useHub();
   const now = useNow();
   const fleet = knownFleet(hub);
+
   // The machines paired before this page opened. Opened directly, the page renders before the
   // fleet arrives, so they come from the first fleet it sees rather than an empty list.
   const [knownMachines, setKnownMachines] = useState<ReadonlySet<string> | null>(() =>
@@ -72,6 +73,7 @@ export function PairMachine() {
   }
 
   const [copyOutcome, setCopyOutcome] = useState<CopyOutcome | null>(null);
+
   const [state, createOffer, creating] = useActionState(
     async (): Promise<OfferState> => {
       const result = await requestHub((client) => client.CreatePairingOffer());
@@ -90,8 +92,10 @@ export function PairMachine() {
     },
     { _tag: "Idle" },
   );
+
   const paired =
     knownMachines === null ? undefined : fleet?.machines.find(({ id }) => !knownMachines.has(id));
+
   const offer = state._tag === "Ready" ? state : null;
   const expired = offer !== null && DateTime.toEpochMillis(offer.offer.expiresAt) <= now;
 
@@ -104,6 +108,7 @@ export function PairMachine() {
 
   const copied = (command: string) =>
     copyOutcome?._tag === "Copied" && copyOutcome.command === command;
+
   const copyFailed = (command: string) =>
     copyOutcome?._tag === "Failed" && copyOutcome.command === command;
 

@@ -16,9 +16,11 @@ export type PairingInvite = typeof PairingInvite.Type;
 export const pairingCodeLifetimeMinutes = 10;
 
 const prefix = "ffp1_";
+
 const PairingPayload = Schema.StringFromBase64Url.pipe(
   Schema.decodeTo(Schema.fromJsonString(PairingInvite)),
 );
+
 const decodePayload = Schema.decodeUnknownOption(PairingPayload);
 const encodePayload = Schema.encodeSync(PairingPayload);
 

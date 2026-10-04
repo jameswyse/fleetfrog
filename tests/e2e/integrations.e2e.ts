@@ -54,10 +54,12 @@ test("[deterministic] T3 Code projects, threads and busy-action confirmation com
     await row.getByRole("button", { name: /main/ }).click();
     await expect(screen.getByRole("complementary")).toContainText("E2E coding thread");
     await screen.getByRole("button", { name: "Switch to feature/e2e", exact: true }).click();
+
     const dialog = screen.getByRole("dialog", {
       name: "Switch to feature/e2e while T3 Code is working?",
       exact: true,
     });
+
     await expect(dialog).toContainText("E2E coding thread");
     await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
     expect(git(fixtures.t3, "branch", "--show-current")).toBe("main");
@@ -111,6 +113,7 @@ test("[deterministic] T3 Code discovers a real checkout outside the configured p
     (await fleetSnapshot()).repositories.some((repository) =>
       repository.checkouts.some((entry) => entry.checkout.path === checkout),
     );
+
   expect(await hasCheckout()).toBe(false);
   const url = app.baseUrl;
 

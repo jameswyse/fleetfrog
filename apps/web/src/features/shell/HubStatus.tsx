@@ -29,6 +29,7 @@ function StaleDetails({
 
   useEffect(() => {
     const start = setTimeout(setAnnouncing, announceAfterMilliseconds, true);
+
     const end = setTimeout(
       setAnnouncing,
       announceAfterMilliseconds + announceForMilliseconds,
@@ -69,11 +70,13 @@ export function HubStatus() {
   // The drop being peeked at, so a peek that outlives its drop, such as focus that never blurred
   // when the status stopped being focusable, can't open the next drop's bubble.
   const [peekedAt, setPeekedAt] = useState<FleetSnapshot | null>(null);
+
   const [label, tone] = {
     Connecting: ["Connecting to hub…", "bg-ink-muted"],
     Live: ["Connected", "bg-clean"],
     Reconnecting: ["Hub unreachable, retrying", "bg-danger"],
   }[hub._tag];
+
   const stale = hub._tag === "Reconnecting" ? hub.snapshot : null;
   const peeking = stale !== null && peekedAt === stale;
 

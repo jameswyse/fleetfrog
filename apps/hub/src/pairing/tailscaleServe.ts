@@ -62,6 +62,7 @@ export const readTailnetAgentUrl = Effect.fn("readTailnetAgentUrl")(function* (
       ),
     ),
   );
+
   const serveConfig = yield* HttpClient.get(
     "http://local-tailscaled.sock/localapi/v0/serve-config",
   ).pipe(
@@ -79,6 +80,7 @@ export const readTailnetAgentUrl = Effect.fn("readTailnetAgentUrl")(function* (
         }),
     ),
   );
+
   const url = agentUrlFromServeConfig(serveConfig, agentPort);
 
   if (url === null) {

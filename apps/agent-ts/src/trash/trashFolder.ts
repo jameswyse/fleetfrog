@@ -89,6 +89,7 @@ export const forgetTrashItem = (trash: string, id: TrashId) =>
 export const listTrash = (trash: string) =>
   Effect.promise(async () => {
     const names = await readdir(trash).catch(() => []);
+
     const items = await Promise.all(
       names.map((name) =>
         readFile(path.join(trash, name, "item.json"), "utf8").then(decodeItem, () => Option.none()),

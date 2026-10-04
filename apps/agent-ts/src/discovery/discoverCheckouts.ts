@@ -31,6 +31,7 @@ async function findRepositoryDirectories(
   skipped: string | null,
 ): Promise<Array<string>> {
   const found: Array<string> = [];
+
   const pending: Array<{ readonly directory: string; readonly depth: number }> = [
     { directory: root, depth: 0 },
   ];
@@ -131,6 +132,7 @@ const locateAll = Effect.fnUntraced(function* (
       ),
     { concurrency: gitConcurrency },
   );
+
   const byPath = new Map<string, CheckoutLocation>();
 
   for (const location of located) {
@@ -165,12 +167,16 @@ export const discoverCheckouts = Effect.fn("discoverCheckouts")(function* (optio
   readonly projectFolders: ReadonlyArray<string>;
 }) {
   const archive = archivePath(options);
+
   const underRoots = yield* Effect.promise(() =>
     Promise.all(options.roots.map((root) => findRepositoryDirectories(rootPath(root), archive))),
   );
+
   const archived =
     archive === null ? [] : yield* Effect.promise(() => findRepositoryDirectories(archive, null));
+
   const directories = [...underRoots.flat(), ...options.projectFolders, ...archived];
+
   const worktrees = yield* Effect.forEach(directories, linkedWorktreePaths, {
     concurrency: gitConcurrency,
   });

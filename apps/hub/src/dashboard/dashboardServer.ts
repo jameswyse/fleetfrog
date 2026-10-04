@@ -80,6 +80,7 @@ const projectIcons = HttpRouter.add(
   "/project-icons/:id",
   Effect.gen(function* () {
     const { id } = yield* HttpRouter.params;
+
     const icon =
       id === undefined ? Option.none() : yield* ProjectIconStore.use((store) => store.find(id));
 
@@ -108,6 +109,7 @@ export const DashboardServer = Layer.unwrap(
   Effect.gen(function* () {
     const config = yield* HubConfig;
     const { webRoot } = config;
+
     // The page's own inline script is the only one the policy allows. In development Vite serves
     // the page, so there is none to allow.
     const scriptHashes =
@@ -116,12 +118,14 @@ export const DashboardServer = Layer.unwrap(
         : inlineScriptHashes(
             yield* Effect.promise(() => readFile(path.join(webRoot, "index.html"), "utf8")),
           );
+
     // A defect fails only its own request. By default it ends every stream on the socket, and the
     // dashboard reads that as the hub going away.
     const rpc = RpcServer.layer(DashboardRpcs, { disableFatalDefects: true }).pipe(
       Layer.provide(dashboardProtocol),
       Layer.provide([DashboardHandlers, DashboardAuthenticationLive, RpcSerialization.layerJson]),
     );
+
     const api = Layer.mergeAll(
       rpc,
       projectIcons,
@@ -129,8 +133,10 @@ export const DashboardServer = Layer.unwrap(
       securityHeaders({ scriptHashes }),
       bodyLimit(maximumBodyBytes),
     );
+
     const routes = webRoot === null ? api : Layer.merge(api, dashboardFiles(webRoot));
     const server = createServer();
+
     const dashboard = HttpRouter.serve(routes, { disableLogger: true }).pipe(
       Layer.provide(
         nodeServer(server, {

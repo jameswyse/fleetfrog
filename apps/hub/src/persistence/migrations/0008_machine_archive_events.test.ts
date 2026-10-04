@@ -12,6 +12,7 @@ const before = Object.fromEntries(Object.entries(migrations).filter(([name]) => 
 const OldDatabase = Layer.effectDiscard(
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
+
     const machine = (id: string, pairedAt: string, prettyName: string) => ({
       id,
       token_hash: id,
@@ -42,6 +43,7 @@ const TestStore = ActivityStore.layer.pipe(
 it.effect("gives each machine paired at the time its own hub-wide Archive folder change", () =>
   Effect.gen(function* () {
     const store = yield* ActivityStore;
+
     const page = yield* store.activity({
       filter: { machineIds: [], repositoryKeys: [], outcomes: [] },
       limit: 10,

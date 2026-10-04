@@ -9,6 +9,7 @@ type Unit = (typeof unitSizes)[number][0];
 
 const unitFormat = (unit: Unit) =>
   new Intl.NumberFormat(undefined, { style: "unit", unit, unitDisplay: "short" });
+
 const formats = {
   day: unitFormat("day"),
   hour: unitFormat("hour"),

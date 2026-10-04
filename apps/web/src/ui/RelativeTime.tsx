@@ -5,6 +5,7 @@ import { DateTime } from "effect";
 const tickMilliseconds = 15_000;
 const relative = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 const absolute = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
+
 const units = [
   ["day", 86_400],
   ["hour", 3600],

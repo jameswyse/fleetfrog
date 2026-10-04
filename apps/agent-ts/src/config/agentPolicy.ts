@@ -56,13 +56,16 @@ export interface ReadPolicy {
  */
 export function decidePolicy(file: PolicyFile | null): ReadPolicy {
   const allowed = file?.allowedTiers ?? [];
+
   const denied =
     file === null
       ? []
       : (file.deniedTiers ?? tiersBeforeDeniedList.filter((tier) => !allowed.includes(tier)));
+
   const defaulted = Tier.literals.filter(
     (tier) => !allowed.includes(tier) && !denied.includes(tier),
   );
+
   const allowedTiers = Tier.literals.filter(
     (tier) =>
       !denied.includes(tier) &&
@@ -86,6 +89,7 @@ export function policyPath(): string {
 
 const readPolicy = Effect.gen(function* () {
   const file = policyPath();
+
   const contents = yield* Effect.tryPromise({
     try: () =>
       readFile(file, "utf8").then(
@@ -123,6 +127,7 @@ export const savePolicy = (policy: AgentPolicy) =>
   Effect.tryPromise({
     try: async () => {
       const staged = `${policyPath()}.${process.pid}.tmp`;
+
       const contents = encodePolicy({
         allowedTiers: Tier.literals.filter((tier) => policy.allowedTiers.includes(tier)),
         deniedTiers: Tier.literals.filter((tier) => !policy.allowedTiers.includes(tier)),
@@ -173,17 +178,21 @@ export const changePolicy = Effect.fn("changePolicy")(function* (change: {
   readonly deny: ReadonlyArray<Tier>;
 }) {
   const current = yield* readPolicy.pipe(Effect.option);
+
   const { policy, defaulted, incomplete } = Option.getOrElse(current, (): ReadPolicy => ({
     policy: { allowedTiers: [] },
     defaulted: [],
     incomplete: true,
   }));
+
   const replacedDamaged = Option.isNone(current);
+
   const allowedTiers = Tier.literals.filter(
     (tier) =>
       !change.deny.includes(tier) &&
       (policy.allowedTiers.includes(tier) || change.allow.includes(tier)),
   );
+
   const changed =
     replacedDamaged ||
     allowedTiers.length !== policy.allowedTiers.length ||

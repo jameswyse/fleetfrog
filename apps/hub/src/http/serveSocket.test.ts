@@ -58,12 +58,14 @@ describe("the dashboard socket", () => {
       const server = createServer();
 
       yield* Effect.addFinalizer(() => Effect.sync(() => rmdirSync(folder)));
+
       const context = yield* Layer.build(
         Layer.effectDiscard(listenOnServeSocket(server, socketPath)).pipe(
           Layer.provideMerge(HttpRouter.serve(probe)),
           Layer.provideMerge(NodeHttpServer.layer(() => server, { port: 0, host: "127.0.0.1" })),
         ),
       );
+
       const { address } = Context.get(context, HttpServer.HttpServer);
       const port = address._tag === "UnixPathAddress" ? 0 : address.port;
 

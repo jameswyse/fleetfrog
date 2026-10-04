@@ -7,11 +7,13 @@ const WithoutTailscale = Schema.fromJsonString(
     Schema.makeFilter((settings) => !("tailscale" in settings)),
   ),
 );
+
 const decodeWithoutTailscale = Schema.decodeUnknownOption(WithoutTailscale);
 
 /** Tailscale sign-in starts off, and a user signs in through Tailscale as one tailnet login. */
 export default Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
+
   const rows = yield* sql<{ readonly auth_json: string | null }>`
     select auth_json from settings where id = 1
   `;

@@ -37,6 +37,7 @@ export function trashEntries(fleet: Fleet): ReadonlyArray<TrashEntry> {
       }
 
       const { git } = checkout.status;
+
       const branches = git.deletedBranches.items.map((branch): TrashEntry => ({
         key: `${machineId}:${checkout.path}:${branch.ref}`,
         machine,
@@ -45,6 +46,7 @@ export function trashEntries(fleet: Fleet): ReadonlyArray<TrashEntry> {
         deletedAt: branch.deletedAt,
         item: { _tag: "Branch", branch },
       }));
+
       const stashes = git.droppedStashes.items.map((stash): TrashEntry => ({
         key: `${machineId}:${checkout.path}:${stash.ref}`,
         machine,
@@ -57,6 +59,7 @@ export function trashEntries(fleet: Fleet): ReadonlyArray<TrashEntry> {
       return [...branches, ...stashes];
     }),
   );
+
   const checkouts = fleet.machines.flatMap((machine) =>
     machine.trash.map((checkout): TrashEntry => ({
       key: `${machine.id}:${checkout.id}`,

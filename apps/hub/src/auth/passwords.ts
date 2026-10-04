@@ -51,6 +51,7 @@ export const checkPassword = Effect.fnUntraced(function* (check: {
 
   const [, N = "", r = "", p = "", salt = "", key = ""] = match;
   const expected = Buffer.from(key, "base64");
+
   const actual = yield* derive(check.password, Buffer.from(salt, "base64"), {
     N: Number(N),
     r: Number(r),

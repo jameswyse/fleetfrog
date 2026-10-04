@@ -190,6 +190,7 @@ export class AgentSessions extends Context.Service<
               yield* disconnect(machineId);
 
               const since = yield* DateTime.now;
+
               const registered: Session = {
                 id: randomUUID(),
                 since,

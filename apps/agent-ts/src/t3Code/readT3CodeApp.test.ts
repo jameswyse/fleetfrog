@@ -38,6 +38,7 @@ describe("readT3CodeServer", () => {
   it.effect("counts a runtime file whose process is gone, or isn't T3 Code, as not running", () =>
     Effect.gen(function* () {
       const userdata = yield* temporaryDirectory("fleetfrog-t3app-");
+
       const runtime = (pid: number) =>
         writeFileSync(
           path.join(userdata, "server-runtime.json"),
@@ -60,6 +61,7 @@ describe("readT3CodeProviders", () => {
   it.effect("lists the coding agents turned on, with any newer version T3 Code knows of", () =>
     Effect.gen(function* () {
       const caches = yield* temporaryDirectory("fleetfrog-t3app-");
+
       const provider = (file: string, contents: unknown) =>
         writeFileSync(path.join(caches, file), JSON.stringify(contents));
 

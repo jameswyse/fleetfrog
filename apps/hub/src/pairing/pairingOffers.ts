@@ -31,6 +31,7 @@ export class PairingOffers extends Context.Service<
       const config = yield* HubConfig;
       const { tls } = yield* AgentCertificate;
       const expiries = new Map<string, DateTime.Utc>();
+
       const endpoint = Effect.gen(function* () {
         if (config.agentUrl !== null) {
           return AgentEndpoint.cases.Url.make({ url: config.agentUrl });

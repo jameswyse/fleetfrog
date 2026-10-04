@@ -83,6 +83,7 @@ function MachineRow({ fleet, machine }: { readonly fleet: Fleet; readonly machin
   const role = useRole();
   const { connection } = machine;
   const online = connection._tag === "Online";
+
   const repositories = fleet.repositories.filter(({ checkouts }) =>
     checkouts.some(({ machineId }) => machineId === machine.id),
   ).length;
@@ -154,24 +155,30 @@ export function FleetOverview({
   const { machines, repositories } = fleet;
   const cells = fleetCells(fleet);
   const problems = cells.filter(({ cell }) => cell.problem !== null);
+
   const changed = cells
     .filter(({ cell }) => cell.changes > 0)
     .toSorted((left, right) => right.cell.changes - left.cell.changes);
+
   const toPush = cells
     .filter(({ cell }) => cell.ahead > 0)
     .toSorted((left, right) => right.cell.ahead - left.cell.ahead);
+
   const toPull = cells
     .filter(({ cell }) => cell.behind > 0 || cell.remoteMoved)
     .toSorted((left, right) => right.cell.behind - left.cell.behind);
+
   const pullRequests = repositories.flatMap((repository) =>
     openPullRequests(repository).map((pull) => ({ repository, pull })),
   );
+
   const agents = cells.flatMap((item) =>
     busyThreads(
       item.machine,
       item.cell.entries.map(({ checkout }) => checkout.path),
     ).map((thread) => ({ item, thread })),
   );
+
   const online = machines.filter(({ connection }) => connection._tag === "Online").length;
   const settled = problems.length + changed.length + toPush.length + toPull.length === 0;
 

@@ -72,11 +72,13 @@ describe("ActivityStore", () => {
   it.effect("settles a batch only once its last run finishes", () =>
     Effect.gen(function* () {
       const store = yield* ActivityStore;
+
       const offline = newRun({
         machineId: laptop,
         path: "/a",
         outcome: { _tag: "MachineOffline" },
       });
+
       const sent = newRun({ machineId: studio, path: "/b" });
       const { batchId } = yield* recordBatch(0, [offline, sent]);
       const run = { runId: sent.id, machineId: studio };
@@ -148,22 +150,29 @@ describe("ActivityStore", () => {
     Effect.gen(function* () {
       const store = yield* ActivityStore;
       const denied: ActionOutcome = { _tag: "Failed", message: "denied" };
+
       const first = yield* recordBatch(1, [
         newRun({ machineId: studio, path: "/a", outcome: fetched }),
       ]);
+
       const second = yield* recordBatch(2, [
         newRun({ machineId: studio, path: "/a", outcome: denied }),
       ]);
+
       const third = yield* recordBatch(3, [
         newRun({ machineId: laptop, path: "/a", outcome: fetched }),
       ]);
+
       const fourth = yield* recordBatch(4, [
         newRun({ machineId: studio, path: "/a", outcome: fetched }),
         newRun({ machineId: laptop, path: "/a", outcome: denied }),
       ]);
+
       const all = { machineIds: [], repositoryKeys: [], outcomes: [] };
+
       const batchIds = (page: ActivityPage) =>
         page.entries.map((entry) => (entry._tag === "Batch" ? entry.batch.id : null));
+
       const matching = (filter: Partial<ActivityFilter>) =>
         store.activity({ filter: { ...all, ...filter }, limit: 10 }).pipe(Effect.map(batchIds));
 

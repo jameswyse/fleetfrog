@@ -94,11 +94,13 @@ export function startPond(
 ): void {
   const canvas = context.canvas;
   const style = getComputedStyle(canvas);
+
   const colours = {
     clean: style.getPropertyValue("--frog"),
     changes: style.getPropertyValue("--changes"),
     sync: style.getPropertyValue("--sync"),
   } satisfies Record<Status, string>;
+
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
   // The frog lands as its entrance animation ends.
   const landsAt = performance.now() + 400;
@@ -160,6 +162,7 @@ export function startPond(
     const ratio = Math.min(devicePixelRatio, 2);
     // Line the grid up with the frog, so it sits on a column and a row.
     const centre = frogCentre();
+
     const quiet = text.map((element) => {
       const bounds = element.getBoundingClientRect();
 

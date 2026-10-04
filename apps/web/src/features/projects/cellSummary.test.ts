@@ -63,6 +63,7 @@ function entry(
 describe("summariseCell", () => {
   it("speaks for the main clone and counts changes in every worktree, but stashes once per clone", () => {
     const stashes = { items: [{ index: 0, message: "WIP", sha: null }], total: 1 };
+
     const cell = summariseCell([
       entry("/p/shop-icons", {
         branch: "icons",

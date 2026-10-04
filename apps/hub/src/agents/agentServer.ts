@@ -39,6 +39,7 @@ export const AgentServer = Layer.unwrap(
   Effect.gen(function* () {
     const config = yield* HubConfig;
     const { tls } = yield* AgentCertificate;
+
     const server =
       tls === null
         ? createHttpServer()

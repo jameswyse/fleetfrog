@@ -54,6 +54,7 @@ export function CheckoutActions({
   const hasChanges = git !== null && git.changed.total + git.untracked.total > 0;
   const stashBlocked = stashSkipReason(machine, checkout);
   const linked = checkout.worktree._tag === "Linked" ? checkout.worktree.mainPath : null;
+
   // A linked worktree is archived with its main checkout.
   const archiveTarget =
     linked === null
@@ -61,6 +62,7 @@ export function CheckoutActions({
       : (repository.checkouts.find(
           (entry) => entry.machineId === machine.id && entry.checkout.path === linked,
         )?.checkout ?? null);
+
   const archive: ArchivePlan =
     archiveTarget === null
       ? {
@@ -68,6 +70,7 @@ export function CheckoutActions({
           reason: `It's a linked worktree of ${linked}, which FleetFrog doesn't list, so it can't be archived from here`,
         }
       : planArchive({ machine, checkout: archiveTarget });
+
   // A linked worktree is removed from its main checkout rather than moved to the trash.
   // Archiving and the trash are cleanup, which only admins see.
   const mayClean = useMayRun("Trash");

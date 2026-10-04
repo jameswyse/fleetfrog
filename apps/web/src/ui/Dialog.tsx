@@ -19,6 +19,7 @@ export function Dialog({
 }) {
   const titleId = useId();
   const opener = useRef<Element | null>(null);
+
   const position =
     placement === "side"
       ? "ms-auto me-0 h-dvh max-h-dvh w-full max-w-2xl rounded-none border-s"

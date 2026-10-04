@@ -101,13 +101,16 @@ const branchesInUse = (location: CheckoutLocation) =>
     const checkedOut = (yield* listWorktrees(location.path)).flatMap(({ branch }) =>
       branch === null ? [] : [branch],
     );
+
     const linked = yield* Effect.promise(() =>
       readdir(path.join(location.commonDirectory, "worktrees")).catch(() => []),
     );
+
     const gitDirectories = [
       location.commonDirectory,
       ...linked.map((name) => path.join(location.commonDirectory, "worktrees", name)),
     ];
+
     const operating = yield* Effect.promise(() =>
       Promise.all(
         gitDirectories.flatMap((directory) =>
@@ -321,6 +324,7 @@ export const cloneRepository = Effect.fn("cloneRepository")(
     }
 
     const { path: target, root } = options.destination;
+
     const problem = yield* Effect.promise(() =>
       destinationProblem({
         target,

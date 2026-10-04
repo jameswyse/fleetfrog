@@ -21,15 +21,19 @@ export function RepositoryActions({
   const [dialog, setDialog] = useState<"pull" | "clone" | null>(null);
   const { start, pending, failure } = useStartBatch();
   const machines = new Map(fleet.machines.map((machine) => [machine.id, machine]));
+
   const canFetch = repository.checkouts.some(({ machineId }) => {
     const machine = machines.get(machineId);
 
     return machine !== undefined && machineBlocker(machine, "Fetch") === null;
   });
+
   const holders = new Set(repository.checkouts.map(({ machineId }) => machineId));
+
   const canClone = fleet.machines.some(
     (machine) => !holders.has(machine.id) && cloneBlocker(machine) === null,
   );
+
   const scope = { _tag: "Repository", repositoryKey: repository.key } as const;
 
   return (

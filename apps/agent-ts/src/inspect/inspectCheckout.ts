@@ -129,6 +129,7 @@ export const fingerprintCheckout = Effect.fn("fingerprintCheckout")(function* (
     ],
     { concurrency: "unbounded" },
   );
+
   const commit = yield* runGit(location.path, ["rev-parse", "--verify", "--quiet", "HEAD"]).pipe(
     Effect.orElseSucceed(() => ""),
   );
@@ -191,6 +192,7 @@ const countUnpushedTags = (location: CheckoutLocation) =>
     const remotes = (yield* runGit(location.path, ["remote"]))
       .split("\n")
       .filter((remote) => remote !== "" && !remote.startsWith("-"));
+
     const onRemotes = new Set<string>();
 
     for (const remote of remotes) {
@@ -248,6 +250,7 @@ export const inspectCheckout = Effect.fn("inspectCheckout")(function* (
 ) {
   const remote = yield* checkRemotes(location, options);
   const git = yield* readGitStatus(location);
+
   // Every ref counts, including notes and the trash's, and HEAD too, since a detached HEAD can
   // hold commits no branch has. Stashes are counted on their own.
   const unpushedCommits = Number(
@@ -261,16 +264,20 @@ export const inspectCheckout = Effect.fn("inspectCheckout")(function* (
       "--remotes",
     ])).trim(),
   );
+
   const unpushedTags =
     remote._tag === "Fetched"
       ? yield* countUnpushedTags(location).pipe(Effect.orElseSucceed(() => 0))
       : 0;
+
   const ignored = yield* readIgnored(location);
+
   const [[total = 0], cacheSizes, otherSizes] = yield* Effect.all([
     diskUsage(path.dirname(location.path), [path.basename(location.path)]),
     diskUsage(location.path, ignored.caches),
     diskUsage(location.path, ignored.other),
   ]);
+
   const other = sized(ignored.other, otherSizes);
 
   return {

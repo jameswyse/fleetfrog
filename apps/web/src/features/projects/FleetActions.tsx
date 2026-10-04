@@ -24,6 +24,7 @@ export function FleetActions({ hub }: { readonly hub: HubState }) {
   const [rescanning, startRescan] = useTransition();
   const fleet = knownFleet(hub);
   const live = hub._tag === "Live";
+
   const failure =
     fetching.failure === null ? rescanFailure : `Couldn't start the fetch. ${fetching.failure}`;
 

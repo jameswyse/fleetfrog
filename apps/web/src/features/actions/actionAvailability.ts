@@ -60,6 +60,7 @@ export function cloneDestinationProblem(options: {
   readonly repositories: ReadonlyArray<Repository>;
 }): string | null {
   const { machine } = options;
+
   const check = checkCloneDestination({
     destination: options.destination,
     home: machine.info.homeDirectory,

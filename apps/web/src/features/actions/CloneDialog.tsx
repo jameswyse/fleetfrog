@@ -27,6 +27,7 @@ export function CloneDialog({
 }) {
   const { start, pending, failure } = useStartBatch();
   const holders = new Set(repository.checkouts.map(({ machineId }) => machineId));
+
   const candidates = fleet.machines
     .filter(({ id }) => !holders.has(id))
     .map((machine) => {
@@ -36,6 +37,7 @@ export function CloneDialog({
         machines: fleet.machines,
         occupied: checkoutPaths(fleet.repositories, machine.id),
       });
+
       const rootMissing =
         suggestion?.root.status === "Missing" || suggestion?.root.status === "NotFolder";
 
@@ -50,14 +52,19 @@ export function CloneDialog({
             : null,
       };
     });
+
   const [chosen, setChosen] = useState<ReadonlySet<MachineId>>(() => new Set());
+
   const [drafts, setDrafts] = useState<ReadonlyMap<MachineId, DestinationDraft>>(
     () => new Map(candidates.map(({ machine, draft }) => [machine.id, draft])),
   );
+
   const [problems, setProblems] = useState<ReadonlyMap<MachineId, string>>(() => new Map());
   const [nothingChosen, setNothingChosen] = useState(false);
+
   const draftOf = (machineId: MachineId) =>
     drafts.get(machineId) ?? { root: "", name: repository.name };
+
   let submitLabel = chosen.size > 1 ? `Clone to ${chosen.size} machines` : "Clone";
 
   if (pending) {
@@ -66,6 +73,7 @@ export function CloneDialog({
 
   const submit = (form: HTMLFormElement) => {
     const targets = candidates.filter(({ machine }) => chosen.has(machine.id));
+
     const found = new Map(
       targets.flatMap(({ machine }) => {
         const problem = draftProblem({

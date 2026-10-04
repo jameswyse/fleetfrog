@@ -51,6 +51,7 @@ const Claims = Schema.Struct({
   picture: Schema.optionalKey(Schema.String),
   groups: Schema.optionalKey(Schema.Array(Schema.String)),
 });
+
 const decodeClaims = Schema.decodeUnknownOption(Claims);
 const decodeEmail = Schema.decodeUnknownOption(Email);
 
@@ -171,6 +172,7 @@ export class OidcSignIn extends Context.Service<
             const state = oidc.randomState();
             const nonce = oidc.randomNonce();
             const verifier = oidc.randomPKCECodeVerifier();
+
             const challenge = yield* Effect.promise(() =>
               oidc.calculatePKCECodeChallenge(verifier),
             );
@@ -243,7 +245,9 @@ export class OidcSignIn extends Context.Service<
                     `The provider didn't complete the sign-in. (${describe(cause)})`,
                   ),
               });
+
               const fromToken = tokens.claims();
+
               // Some providers put the profile only in the ID token, others only behind userinfo.
               // Carrying on without userinfo could get someone's groups, and so their role, wrong.
               const fromUserInfo =
@@ -262,6 +266,7 @@ export class OidcSignIn extends Context.Service<
                           `The provider didn't share the profile. (${describe(cause)})`,
                         ),
                     });
+
               const claims = decodeClaims({ ...fromToken, ...fromUserInfo });
 
               if (Option.isNone(claims)) {

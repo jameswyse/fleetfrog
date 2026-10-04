@@ -148,6 +148,7 @@ export function ProjectFolders({
           const status = statuses.get(path);
           const folder = expandHome(path, homeDirectory);
           const creation = creations.get(path);
+
           let note = folderNote(
             status,
             repositoryPaths.filter((checkouts) =>

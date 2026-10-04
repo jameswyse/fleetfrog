@@ -97,6 +97,7 @@ export function checkCloneDestination(options: {
   }
 
   const { path } = folder;
+
   const root = options.roots.find((candidate) =>
     isBelow(path, withoutTrailingSlashes(expandHome(candidate, options.home))),
   );
@@ -144,9 +145,11 @@ export function suggestCloneDestination(options: {
   const { repository, target } = options;
   const roots = target.discoveryRoots;
   const homes = new Map(options.machines.map(({ id, info }) => [id, info.homeDirectory]));
+
   const mirrored = mostCommon(
     repository.checkouts.flatMap(({ machineId, checkout }) => {
       const home = homes.get(machineId);
+
       const relative =
         machineId === target.id || checkout.worktree._tag !== "Main" || home === undefined
           ? null

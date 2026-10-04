@@ -126,9 +126,11 @@ function ProviderForm({
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [pending, setPending] = useState(false);
   const errorFor = (field: string) => errors.find((error) => error.field === field)?.message;
+
   const callback = URL.canParse(dashboardUrl)
     ? new URL("/auth/oidc/callback", dashboardUrl).href
     : null;
+
   const providerLabel = name.trim() || "your provider";
   const saveLabel = turningOn && !signInOn ? `Save and sign in with ${providerLabel}` : "Save";
   const label = turningOn && signInOn ? "Save and turn on" : saveLabel;
@@ -161,6 +163,7 @@ function ProviderForm({
           const form = event.currentTarget;
           const values = new FormData(form);
           const optional = (field: string) => formText(values, field).trim() || null;
+
           const input = decodeOidcInput({
             providerName: formText(values, "providerName"),
             issuerUrl: formText(values, "issuerUrl"),
@@ -170,12 +173,14 @@ function ProviderForm({
             adminGroup: optional("adminGroup"),
             requiredGroup: optional("requiredGroup"),
           });
+
           const found = requiredFields.flatMap(([field, message]) => {
             const value = formText(values, field).trim();
             const url = field === "issuerUrl" || field === "dashboardUrl";
 
             return value === "" || (url && !URL.canParse(value)) ? [{ field, message }] : [];
           });
+
           const first = found[0] === undefined ? null : form.elements.namedItem(found[0].field);
 
           setErrors(found);

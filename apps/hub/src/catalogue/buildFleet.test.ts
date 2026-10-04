@@ -62,6 +62,7 @@ function checkout(path: string, identity: RepositoryIdentity): Checkout {
 describe("buildFleet", () => {
   it("groups checkouts of the same remote across machines and paths into one repository", () => {
     const shop: RepositoryIdentity = { _tag: "Remote", host: "github.com", path: "acme/shop" };
+
     const fleet = buildFleet({
       machines: [machine(laptop, "laptop"), machine(desktop, "desktop")],
       checkouts: [
@@ -119,6 +120,7 @@ describe("buildFleet", () => {
   it("names local-only repositories after their most common directory and sorts by name", () => {
     const notes: RepositoryIdentity = { _tag: "RootCommit", sha: "abc123" };
     const api: RepositoryIdentity = { _tag: "Remote", host: "gitlab.com", path: "group/sub/API" };
+
     const fleet = buildFleet({
       machines: [machine(laptop, "laptop"), machine(desktop, "desktop")],
       checkouts: [
@@ -143,6 +145,7 @@ describe("buildFleet", () => {
       host,
       path,
     });
+
     const fleet = buildFleet({
       machines: [machine(laptop, "laptop")],
       checkouts: [

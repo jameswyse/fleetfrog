@@ -65,6 +65,7 @@ export async function runCommand(
     stdio: "inherit",
     signal,
   });
+
   const code = await new Promise<number | null>((resolve, reject) => {
     child.once("error", reject);
     child.once("exit", resolve);
@@ -120,6 +121,7 @@ export async function startEnvironment(signal: AbortSignal) {
   ) => {
     const logPath = path.join(directory, `${name}.log`);
     const log = createWriteStream(logPath);
+
     const child = spawn(executable, arguments_, {
       cwd: repository,
       env: childEnvironment,
@@ -217,7 +219,9 @@ export async function startEnvironment(signal: AbortSignal) {
                 target.prefix === "agent" ? "t3code" : "second-t3code",
               ),
             };
+
             const offer = yield* client.CreatePairingOffer();
+
             const invitation = encodePairingString({
               agentUrl,
               code: offer.code,
@@ -227,9 +231,11 @@ export async function startEnvironment(signal: AbortSignal) {
             yield* Effect.promise(() =>
               runCommand(agentBinary, ["pair", invitation], targetEnvironment, signal),
             );
+
             const configText = yield* Effect.sync(() =>
               readFileSync(path.join(directory, `${target.prefix}-config/agent.json`), "utf8"),
             );
+
             const config = yield* Schema.decodeEffect(
               Schema.fromJsonString(Schema.Struct({ machineId: MachineId })),
             )(configText);

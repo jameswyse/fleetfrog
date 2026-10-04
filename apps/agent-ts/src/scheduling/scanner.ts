@@ -81,6 +81,7 @@ export function makeScanner<ReportError>(options: {
 }) {
   const readGithub =
     options.githubLogin === null ? null : makeGithubReader({ login: options.githubLogin });
+
   const lock = Semaphore.makeUnsafe(1);
   /** Numbers requests and pass starts in the order they happen, so no two compare as equal. */
   let sequence = 0;
@@ -110,6 +111,7 @@ export function makeScanner<ReportError>(options: {
         return pass;
       }).pipe(lock.withPermits(1));
     });
+
   let locations: ReadonlyArray<CheckoutLocation> = [];
   const sent = new Map<string, string>();
   /** Each T3 Code project's favicon, looked for again on every discovery walk. */
@@ -159,10 +161,12 @@ export function makeScanner<ReportError>(options: {
     githubMaximumAge: Duration.Duration,
   ) {
     const git = yield* readGitStatus(location).pipe(Effect.result);
+
     const status =
       git._tag === "Success"
         ? CheckoutStatus.cases.Read.make({ git: git.success })
         : CheckoutStatus.cases.Failed.make({ message: git.failure.message });
+
     // Archived checkouts don't need GitHub's view, which costs a request per repository.
     const github =
       readGithub !== null && git._tag === "Success" && location.placement._tag === "Projects"
@@ -248,6 +252,7 @@ export function makeScanner<ReportError>(options: {
           favicons.clear();
 
           const integration = yield* readIntegration(discovery.t3Code);
+
           const found = yield* discoverCheckouts({
             roots: discovery.roots,
             archiveFolder: discovery.archiveFolder,
@@ -263,6 +268,7 @@ export function makeScanner<ReportError>(options: {
           yield* Deferred.succeed(firstWalk, undefined);
 
           const checkouts = yield* readAll(found, discovery.githubMaximumAge);
+
           const roots = yield* inspectRoots(
             discovery.archiveFolder === null
               ? discovery.roots
@@ -295,10 +301,13 @@ export function makeScanner<ReportError>(options: {
         Effect.gen(function* () {
           const { githubMaximumAge } = pass;
           const present = locations.filter((location) => existsSync(location.path));
+
           const removedPaths = locations
             .filter((location) => !present.includes(location))
             .map(({ path }) => path);
+
           const active = present.filter(({ placement }) => placement._tag === "Projects");
+
           const changed = (yield* readAll(active, githubMaximumAge)).filter(
             (checkout) => sent.get(checkout.path) !== contentKey(checkout),
           );
@@ -356,7 +365,9 @@ export function makeScanner<ReportError>(options: {
       Effect.gen(function* () {
         const found =
           main === null ? [] : yield* repositoryCheckouts(main, archivePath(options.folders()));
+
         const foundPaths = new Set(found.map(({ path }) => path));
+
         const removedPaths = locations
           .filter(({ commonDirectory, path }) => commonDirectory === left && !foundPaths.has(path))
           .map(({ path }) => path);

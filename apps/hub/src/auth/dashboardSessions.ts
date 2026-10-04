@@ -65,9 +65,11 @@ export class DashboardSessions extends Context.Service<
       const auth = yield* AuthSettingsStore;
       const users = yield* UserStore;
       const connections = new Set<Connection>();
+
       const expiry = DateTime.now.pipe(
         Effect.map((now) => DateTime.formatIso(DateTime.addDuration(now, sessionLifetime))),
       );
+
       const close = (matches: (connection: Connection) => boolean) =>
         Effect.suspend(() =>
           Effect.forEach(
@@ -99,6 +101,7 @@ export class DashboardSessions extends Context.Service<
             }
 
             const sessionHash = hashSessionToken(token.value);
+
             const [session] = yield* sql`
               select user_id, expires_at from dashboard_sessions where token_hash = ${sessionHash}
             `.pipe(Effect.flatMap(decodeRows), Effect.orDie);

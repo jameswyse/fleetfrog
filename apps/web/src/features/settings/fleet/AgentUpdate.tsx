@@ -70,6 +70,7 @@ export function AgentUpdateRow({
   const { hubVersion } = fleet;
   const { update } = machine;
   const failure = update?._tag === "Failed" ? update : null;
+
   const message =
     error ??
     (failure === null ? null : `Couldn't update to ${failure.version}. ${failure.message}`);
@@ -164,6 +165,7 @@ export function UpdateAllAgents({ fleet }: { readonly fleet: Fleet }) {
           requestHub((client) => client.UpdateAgent({ machineId: machine.id })),
         ),
       );
+
       const failed = results.filter((result) => result._tag === "Failure").length;
 
       setError(

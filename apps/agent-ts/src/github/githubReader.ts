@@ -67,6 +67,7 @@ const RepositoryResponse = Schema.fromJsonString(
     }),
   }),
 );
+
 const decodeResponse = Schema.decodeUnknownEffect(RepositoryResponse);
 
 interface RemoteState {
@@ -120,7 +121,9 @@ export function makeGithubReader(reader: {
       "-f",
       `name=${name}`,
     ]);
+
     const { repository } = (yield* decodeResponse(output)).data;
+
     // A fork's `main` is not the local `main`, so only branches pushed here or to our fork match.
     const ours = (node: {
       readonly isCrossRepository: boolean;
@@ -169,6 +172,7 @@ export function makeGithubReader(reader: {
     const key = repositoryKey(identity);
     const now = yield* DateTime.now;
     const previous = cache.get(key);
+
     const fresh =
       previous !== undefined &&
       Duration.isLessThan(
@@ -180,6 +184,7 @@ export function makeGithubReader(reader: {
           ? options.maximumAge
           : retryDelay(previous.failures, options.maximumAge),
       );
+
     const reading: Reading = fresh
       ? previous
       : yield* fetchRemote(owner, name).pipe(
@@ -223,6 +228,7 @@ export function makeGithubReader(reader: {
       Effect.map((sha) => sha.trim()),
       Effect.orElseSucceed(() => null),
     );
+
     const branches = new Set(options.localBranches);
 
     return Option.some<GithubState>({

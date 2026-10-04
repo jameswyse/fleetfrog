@@ -47,10 +47,12 @@ export const pairWithHub = Effect.fn("pairWithHub")(function* (options: {
     certificateFingerprint === null || url.protocol === "ws:"
       ? null
       : yield* fetchPinnedCertificate({ url, fingerprint: certificateFingerprint });
+
   // The code is spent on first use, so confirm the token can be saved before redeeming it.
   yield* ensureConfigWritable;
 
   const client = yield* makePairingClient({ agentUrl: url, certificatePem });
+
   const paired = yield* client.Pair({
     code,
     info: yield* readMachineInfo,

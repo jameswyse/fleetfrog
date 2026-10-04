@@ -104,6 +104,7 @@ export function HistoryFilters() {
         next.length === 0 ? rest : { ...rest, machines: [...next] },
       replace: true,
     });
+
   const setRepositories = (next: ReadonlyArray<RepositoryKey>) =>
     navigate({
       to: "/activity",
@@ -111,6 +112,7 @@ export function HistoryFilters() {
         next.length === 0 ? rest : { ...rest, repositories: [...next] },
       replace: true,
     });
+
   const setOutcomes = (next: ReadonlyArray<OutcomeKind>) =>
     navigate({
       to: "/activity",

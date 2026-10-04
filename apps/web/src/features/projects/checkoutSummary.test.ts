@@ -102,6 +102,7 @@ describe("summariseCheckout", () => {
 
 describe("repositoryMatches", () => {
   const clean = repository("shop", [checkout({})]);
+
   const behind = repository("api", [
     checkout({
       head: {

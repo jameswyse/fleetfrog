@@ -30,10 +30,12 @@ export function useHubStream<A>(options: {
   readonly open: (client: DashboardClient) => Stream.Stream<A, DashboardError>;
 }): StreamState<A> {
   const client = useHubClient();
+
   const [current, setCurrent] = useState<{ readonly key: string; readonly state: StreamState<A> }>({
     key: options.key,
     state: { _tag: "Loading" },
   });
+
   const open = useEffectEvent(options.open);
   const { key } = options;
 

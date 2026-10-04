@@ -105,6 +105,7 @@ function serviceEnvironment(): ReadonlyArray<readonly [string, string]> {
 
 function systemdUnit(): string {
   const instance = currentInstance();
+
   const environment = serviceEnvironment()
     .map(([name, value]) => `Environment=${quoteSystemdArgument(`${name}=${value}`)}`)
     .join("\n");
@@ -165,9 +166,11 @@ export const logRotation = Logger.layer([Logger.make(rotateLog)], { mergeWithExi
 
 function launchdPlist(): string {
   const logPath = launchdLogPath();
+
   const argumentsXml = agentCommand()
     .map((argument) => `    <string>${escapeXml(argument)}</string>`)
     .join("\n");
+
   const environmentXml = serviceEnvironment()
     .map(([name, value]) => `    <key>${name}</key>\n    <string>${escapeXml(value)}</string>`)
     .join("\n");

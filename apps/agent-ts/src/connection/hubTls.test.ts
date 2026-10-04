@@ -109,6 +109,7 @@ describe("hub certificate pinning", () => {
       const url = new URL(`wss://127.0.0.1:${port}`);
       const fingerprint = new X509Certificate(hub.certificatePem).fingerprint256;
       const pinned = yield* fetchPinnedCertificate({ url, fingerprint });
+
       const mismatch = yield* fetchPinnedCertificate({
         url,
         fingerprint: new X509Certificate(impostor.certificatePem).fingerprint256,

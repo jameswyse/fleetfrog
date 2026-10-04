@@ -94,6 +94,7 @@ const readCommit = Effect.fn("readCommit")(function* (directory: string) {
  */
 async function readLastFetch(commonDirectory: string): Promise<DateTime.Utc | null> {
   const linked = await readdir(path.join(commonDirectory, "worktrees")).catch(() => []);
+
   const times = await Promise.all(
     [commonDirectory, ...linked.map((name) => path.join(commonDirectory, "worktrees", name))].map(
       (directory) =>
@@ -103,6 +104,7 @@ async function readLastFetch(commonDirectory: string): Promise<DateTime.Utc | nu
         ),
     ),
   );
+
   const latest = Math.max(...times.filter((time) => time !== null));
 
   return Number.isFinite(latest) ? DateTime.makeUnsafe(latest) : null;
@@ -127,16 +129,20 @@ export const locateCheckout = Effect.fn("locateCheckout")(function* (directory: 
 
   const [toplevel = "", gitDirectory = "", commonDirectory = ""] = located.value.trim().split("\n");
   const mainPath = gitDirectory === commonDirectory ? toplevel : path.dirname(commonDirectory);
+
   const worktree: Worktree =
     gitDirectory === commonDirectory ? { _tag: "Main" } : { _tag: "Linked", mainPath };
+
   // Worktrees share the main worktree's remote and history, so they share its identity. An orphan
   // or unborn branch in a linked worktree would otherwise split the repository.
   const mainOrigin = yield* readOrigin(mainPath);
   const fromMain = yield* identify(mainPath, mainOrigin);
+
   const identity =
     Option.isNone(fromMain) && mainPath !== toplevel
       ? yield* identify(toplevel, yield* readOrigin(toplevel))
       : fromMain;
+
   const originUrl = Option.getOrNull(Option.flatMap(mainOrigin, cloneableUrl));
 
   return Option.map(identity, (resolved) => ({
@@ -193,15 +199,18 @@ export const readGitStatus = Effect.fn("readGitStatus")(function* (location: Che
     ],
     { concurrency: "unbounded" },
   );
+
   const status = parseStatus(statusOutput);
   const { branches, currentCommit } = parseBranches(branchOutput);
   const refs = parseRefs(refOutput);
+
   const branchItems = yield* readBranchTips({
     directory: location.path,
     commonDirectory: location.commonDirectory,
     branches: branches.items,
     refs,
   });
+
   // Every worktree shares the clone's refs and worktree list, so only the main worktree reports
   // them.
   const main = location.worktree._tag === "Main";
@@ -209,6 +218,7 @@ export const readGitStatus = Effect.fn("readGitStatus")(function* (location: Che
   const dropped = main ? refs.droppedStashes : [];
   const worktrees = main ? yield* readLinkedWorktrees(location) : [];
   const stashes = status.stashCount > 0 ? yield* readStashes(location.path) : [];
+
   const lastCommit =
     status.head._tag === "Detached" && status.commit !== null
       ? yield* readCommit(location.path)

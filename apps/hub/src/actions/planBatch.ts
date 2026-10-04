@@ -108,6 +108,7 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
   const allTargets = fleet.repositories.flatMap((repository) =>
     repository.checkouts.map((entry) => ({ repository, entry })),
   );
+
   const archivedTargets = fleet.archive.flatMap((repository) =>
     repository.checkouts.map((entry) => ({ repository, entry })),
   );
@@ -123,6 +124,7 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
       Checkout: ({ machineId, path }): Effect.Effect<Resolved, PlanError> =>
         Effect.gen(function* () {
           const machine = yield* findMachine(machineId);
+
           const selected = allTargets.find(
             ({ entry }) => entry.machineId === machineId && entry.checkout.path === path,
           );
@@ -232,7 +234,9 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
       // A worktree outside the project folders may be listed without its main checkout.
       const paths =
         targeted._tag === "RemoveWorktree" ? [target.path, targeted.worktree] : [target.path];
+
       const candidates = candidatesFor(targeted);
+
       const found = paths
         .map((path) =>
           candidates.find(
@@ -299,6 +303,7 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
     Pull: ({ scope }): Effect.Effect<BatchPlan, PlanError> =>
       Effect.gen(function* () {
         const resolved = yield* resolveScope(scope, "Pull");
+
         const runs = yield* Effect.forEach(resolved.targets, (target) =>
           runFor(target, { _tag: "Pull", path: target.entry.checkout.path }),
         );
@@ -336,6 +341,7 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
       Effect.gen(function* () {
         // The request's schema holds every run to the first one's kind.
         const kind = runs[0].request._tag;
+
         // A target that's gone since the dashboard showed it, such as an item already restored,
         // is left out, so the rest still run. Only a batch left with nothing fails.
         const planned = yield* Effect.forEach(

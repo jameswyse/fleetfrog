@@ -10,6 +10,7 @@ import { trashEntries } from "./trashEntries.ts";
 export function CleanupLayout() {
   const fleet = knownFleet(useHub());
   const inTrash = fleet === null ? 0 : trashEntries(fleet).length;
+
   const archived =
     fleet?.archive.reduce((count, { checkouts }) => count + checkouts.length, 0) ?? 0;
 

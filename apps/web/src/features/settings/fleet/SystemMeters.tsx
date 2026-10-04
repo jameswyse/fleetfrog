@@ -94,6 +94,7 @@ export function LoadPills({
   readonly labels: "Labelled" | "Bare";
 }) {
   const [one, five, fifteen] = loadAverage;
+
   const windows = [
     ["1 min", one],
     ["5 min", five],

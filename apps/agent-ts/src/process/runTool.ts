@@ -34,6 +34,7 @@ const toolEnvironment = {
  * keychain, still work.
  */
 const promptPrograms = new Set(["GIT_ASKPASS", "SSH_ASKPASS"]);
+
 const actionEnvironment = {
   ...Object.fromEntries(
     Object.entries(toolEnvironment).filter(([name]) => !promptPrograms.has(name)),
@@ -114,6 +115,7 @@ export function runGitAction(options: {
   return Effect.callback<void, CommandFailed>((resume) => {
     let errorOutput = "";
     let exited = false;
+
     const child = spawn("git", args, {
       cwd: options.cwd,
       env: { ...actionEnvironment, ...options.environment },
@@ -125,12 +127,14 @@ export function runGitAction(options: {
     // without reading it, which fails the write with EPIPE; its exit status still decides the result.
     child.stdin.on("error", () => {});
     child.stdin.end(options.input ?? "");
+
     const closed = new Promise<void>((settle) => {
       child.once("close", () => {
         exited = true;
         settle();
       });
     });
+
     const fail = (message: string) =>
       resume(Effect.fail(new CommandFailed({ args, cwd: options.cwd, message })));
 

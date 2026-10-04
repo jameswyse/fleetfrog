@@ -46,6 +46,7 @@ export const diskUsage = Effect.fn("diskUsage")(function* (
   const measured = yield* Effect.forEach(batches, (batch) =>
     Effect.promise(() => runDu(cwd, batch)),
   );
+
   const sizes = new Map(measured.flatMap((batch) => [...batch]));
 
   return paths.map((path) => sizes.get(path) ?? 0);

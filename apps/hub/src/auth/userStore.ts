@@ -39,6 +39,7 @@ const UserRow = Schema.Struct({
 });
 
 const decodeRows = Schema.decodeUnknownEffect(Schema.Array(UserRow));
+
 const decodeAvatars = Schema.decodeUnknownEffect(
   Schema.Array(Schema.Struct({ media_type: AvatarMediaType, data: Schema.Uint8Array })),
 );
@@ -208,16 +209,20 @@ export class UserStore extends Context.Service<
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
       const auth = yield* AuthSettingsStore;
+
       const load = sql`
         select users.*, user_avatars.id as avatar_id
         from users left join user_avatars on user_avatars.user_id = users.id
         order by users.created_at
       `.pipe(Effect.flatMap(decodeRows), Effect.orDie);
+
       const records = yield* SubscriptionRef.make<ReadonlyArray<UserRecord>>(
         (yield* load).map(toRecord),
       );
+
       // Checks such as the last admin read memory, so writes run one at a time.
       const writes = yield* Semaphore.make(1);
+
       const write = <A, E>(effect: Effect.Effect<A, E>) =>
         effect.pipe(
           Effect.tap(() =>
@@ -225,6 +230,7 @@ export class UserStore extends Context.Service<
           ),
           Semaphore.withPermits(writes, 1),
         );
+
       const find = (id: UserId) =>
         SubscriptionRef.get(records).pipe(
           Effect.map((all) => all.find((record) => record.id === id)),
@@ -234,17 +240,21 @@ export class UserStore extends Context.Service<
               : Effect.succeed(record),
           ),
         );
+
       const emailTaken = (email: string, except: UserId | null) =>
         SubscriptionRef.get(records).pipe(
           Effect.map((all) => all.some((record) => record.email === email && record.id !== except)),
         );
+
       const otherAdmins = (userId: UserId) =>
         SubscriptionRef.get(records).pipe(
           Effect.map(
             (all) => all.filter((record) => record.role === "admin" && record.id !== userId).length,
           ),
         );
+
       const now = DateTime.now.pipe(Effect.map(DateTime.formatIso));
+
       const describing = (settings: AuthSettings): Describing => ({
         gravatar: settings.gravatar,
         providerInUse: !auth.overridden && settings.provider,
@@ -380,6 +390,7 @@ export class UserStore extends Context.Service<
           write(
             Effect.gen(function* () {
               const all = yield* SubscriptionRef.get(records);
+
               const existing =
                 all.find(
                   ({ oidc }) =>
@@ -393,6 +404,7 @@ export class UserStore extends Context.Service<
                     email === identity.email &&
                     (oidc === null || oidc.issuer !== identity.issuer),
                 );
+
               const fields = {
                 email: identity.email,
                 oidc_issuer: identity.issuer,
@@ -423,6 +435,7 @@ export class UserStore extends Context.Service<
                 existing.role === "admin" &&
                 identity.role === "user" &&
                 (yield* otherAdmins(existing.id)) === 0;
+
               // The provider's group can't leave the hub without an admin, so the last one stays.
               const role = demotesLastAdmin ? existing.role : (identity.role ?? existing.role);
 
@@ -450,6 +463,7 @@ export class UserStore extends Context.Service<
           write(
             Effect.gen(function* () {
               const all = yield* SubscriptionRef.get(records);
+
               const existing =
                 all.find(({ tailscaleLogin }) => tailscaleLogin === identity.login) ??
                 all.find(

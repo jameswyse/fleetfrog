@@ -73,6 +73,7 @@ export class AgentUpdates extends Context.Service<
           const record = yield* machines.find(machineId);
           const agent = (yield* SubscriptionRef.get(sessions.online)).get(machineId);
           const since = yield* DateTime.now;
+
           const connection =
             agent === undefined
               ? Connection.cases.Offline.make({ lastSeenAt: record.lastSeenAt })
@@ -80,6 +81,7 @@ export class AgentUpdates extends Context.Service<
                   since: agent.since,
                   capabilities: agent.capabilities,
                 });
+
           // Checked and claimed in one step, so a second click can't send the command twice.
           const claimed = yield* SubscriptionRef.modify(updates, (current) => {
             const machine = {

@@ -29,6 +29,7 @@ export function PullDialog({
   const runnable = targets.filter(({ skip }) => skip === null);
   const skipped = targets.filter(({ skip }) => skip !== null);
   const machineCount = new Set(runnable.map(({ machine }) => machine.id)).size;
+
   const underAgents = runnable.flatMap((target) => {
     const [thread] = busyThreads(target.machine, [target.checkout.path]);
 

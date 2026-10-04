@@ -40,6 +40,7 @@ export const listenOnServeSocket = Effect.fnUntraced(function* (server: Server, 
         serveConnections.add(socket);
         server.emit("connection", socket);
       });
+
       const onError = (cause: Error) => resume(Effect.fail(new ServeSocketError({ path, cause })));
 
       listener.once("error", onError);

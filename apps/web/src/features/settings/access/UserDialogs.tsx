@@ -102,9 +102,11 @@ export function AddUserDialog({
           event.preventDefault();
 
           const form = event.currentTarget;
+
           const found = checkFields(form, ["displayName", "email", "password"], {
             passwordOptional: !passwordsOn,
           });
+
           const values = new FormData(form);
           const email = decodeEmail(formText(values, "email"));
           const role = decodeRole(formText(values, "role"));
@@ -323,6 +325,7 @@ export function SetPasswordDialog({
           setFailure(null);
 
           const password = formText(new FormData(form), "password");
+
           const outcome = await requestHub((client) =>
             client.SetUserPassword({ userId: user.id, password }),
           );

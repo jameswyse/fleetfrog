@@ -23,6 +23,7 @@ const socketRoute = HttpRouter.add(
 function browser(url: string) {
   return Effect.callback<Effect.Effect<number>>((resume) => {
     const socket = new WebSocket(url);
+
     // Listening from the start, since the close can come before anyone waits for it.
     const closed = new Promise<number>((done) => {
       socket.addEventListener("close", (event) => done(event.code));
@@ -56,6 +57,7 @@ function silentClient(port: number) {
 it.live("stops promptly with WebSockets open, closing them cleanly", () =>
   Effect.gen(function* () {
     const scope = yield* Scope.make();
+
     const context = yield* Layer.buildWithScope(
       HttpRouter.serve(socketRoute).pipe(
         Layer.provideMerge(
@@ -68,6 +70,7 @@ it.live("stops promptly with WebSockets open, closing them cleanly", () =>
       ),
       scope,
     );
+
     const { address } = Context.get(context, HttpServer.HttpServer);
     const port = address._tag === "UnixPathAddress" ? 0 : address.port;
     const closed = yield* browser(`ws://localhost:${port}/socket`);

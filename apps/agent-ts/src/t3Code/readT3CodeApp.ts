@@ -15,6 +15,7 @@ const RuntimeFile = Schema.fromJsonString(
     startedAt: Schema.DateTimeUtcFromString,
   }),
 );
+
 const decodeRuntime = Schema.decodeUnknownOption(RuntimeFile);
 
 /** What T3 Code last found out about one coding agent. Its sign-in details are never read. */
@@ -30,6 +31,7 @@ const ProviderFile = Schema.fromJsonString(
     auth: Schema.optionalKey(Schema.Struct({ status: Schema.String })),
   }),
 );
+
 const decodeProvider = Schema.decodeUnknownOption(ProviderFile);
 
 const readText = (file: string) => readFile(file, "utf8").catch(() => null);
@@ -113,6 +115,7 @@ export const readT3CodeProviders = Effect.fn("readT3CodeProviders")(function* (c
       () => [],
     ),
   );
+
   const texts = yield* Effect.promise(() =>
     Promise.all(files.map((name) => readText(path.join(caches, name)))),
   );

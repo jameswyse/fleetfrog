@@ -50,6 +50,7 @@ export function archiveDestination(options: {
   const root = options.roots
     .map((candidate) => expandHome(candidate, options.home).replace(/\/+$/, ""))
     .find((candidate) => isWithin(options.path, candidate) && options.path !== candidate);
+
   const relative =
     root === undefined
       ? (options.path.split("/").findLast((part) => part !== "") ?? "")

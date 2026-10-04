@@ -167,6 +167,7 @@ const session = Effect.gen(function* () {
       ]),
     ),
   );
+
   const connected = yield* RpcClient.make(DashboardRpcs).pipe(Effect.provideContext(context));
 
   client = connected;

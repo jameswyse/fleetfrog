@@ -6,6 +6,7 @@ import { retryDelay } from "./githubReader.ts";
 describe("retryDelay", () => {
   it("retries less often after each failure, up to the interval", () => {
     const interval = Duration.seconds(900);
+
     const delays = [1, 2, 3, 4, 5, 6].map((failures) =>
       Duration.toSeconds(retryDelay(failures, interval)),
     );

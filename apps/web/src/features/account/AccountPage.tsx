@@ -250,6 +250,7 @@ function PasswordSection({ email }: { readonly email: string }) {
  */
 export function AccountPage() {
   const session = useSession();
+
   const signedIn =
     session._tag === "Known" && session.session._tag === "SignedIn" ? session.session : null;
 

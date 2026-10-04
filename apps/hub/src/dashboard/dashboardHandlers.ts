@@ -66,6 +66,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
     const oidc = yield* OidcSignIn;
     const throttle = yield* LoginThrottle;
     const buttonIcon = yield* ProviderIconStore;
+
     /** Shows the icon from the provider's website on the sign-in button, or none if it has none. */
     const useProviderIcon = (issuerUrl: string) =>
       fetchProviderIcon(issuerUrl).pipe(
@@ -78,13 +79,16 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
           ),
         ),
       );
+
     const dashboardSessions = yield* DashboardSessions;
+
     /** The signed-in user making the call. With sign-in off there's no one to act as. */
     const signedIn = Effect.gen(function* () {
       const viewer = yield* CurrentViewer;
 
       return viewer._tag === "SignedIn" ? viewer : yield* new NotSignedIn();
     });
+
     /** Who is calling, as history records them. */
     const actor: Effect.Effect<Actor, never, CurrentViewer> = Effect.gen(function* () {
       const viewer = yield* CurrentViewer;
@@ -102,8 +106,10 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
         onSome: ({ id, displayName }) => ({ userId: id, name: displayName }),
       });
     });
+
     const recordChange = (event: HubEvent) =>
       actor.pipe(Effect.flatMap((by) => activity.recordEvent(event, by)));
+
     const ownRecord = signedIn.pipe(
       Effect.flatMap(({ userId }) => users.find(userId)),
       Effect.catchTag("UserNotFound", () => Effect.fail(new NotSignedIn())),
@@ -337,12 +343,14 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
       SetOidcSettings: ({ settings: input }) =>
         Effect.gen(function* () {
           const current = yield* SubscriptionRef.get(auth.settings);
+
           // The saved secret goes only to the provider it was saved for, so pointing the settings
           // at another server can't send it there.
           const saved =
             current.oidc?.issuerUrl === input.issuerUrl && current.oidc.clientId === input.clientId
               ? current.oidc.clientSecret
               : null;
+
           const clientSecret = input.clientSecret ?? saved;
 
           if (clientSecret === null) {

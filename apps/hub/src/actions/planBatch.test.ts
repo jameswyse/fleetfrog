@@ -15,6 +15,7 @@ import type { Checkout } from "@fleetfrog/protocol/domain/checkout";
 import type { Fleet, Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
 const now = DateTime.makeUnsafe("2026-09-26T00:00:00Z");
+
 const everything: AgentCapabilities = {
   actions: ["Fetch", "Pull", "Clone"],
   allowedTiers: ["git"],
@@ -60,6 +61,7 @@ function machine(
 
 const online = machine("aaaaaaaa-0000-4000-8000-000000000000", { capabilities: everything });
 const offline = machine("bbbbbbbb-0000-4000-8000-000000000000", "offline");
+
 const outdated = machine("cccccccc-0000-4000-8000-000000000000", {
   capabilities: {
     actions: [],
@@ -69,6 +71,7 @@ const outdated = machine("cccccccc-0000-4000-8000-000000000000", {
     updatesItself: false,
   },
 });
+
 const locked = machine("dddddddd-0000-4000-8000-000000000000", {
   capabilities: {
     actions: everything.actions,
@@ -238,6 +241,7 @@ describe("planBatch", () => {
       const noOrigin = fleetWith([
         { machineId: online.id, checkout: checkout("/a", { originUrl: null }) },
       ]);
+
       const failure = (fleet: Fleet, request: Parameters<typeof planBatch>[0]) =>
         planBatch(request, fleet).pipe(
           Effect.flip,
@@ -275,6 +279,7 @@ describe("planBatch", () => {
         ...checkout("/home/dev/Archive/shop"),
         placement: { _tag: "Archive" as const, originalPath: null, archivedAt: null },
       };
+
       const fleet: Fleet = {
         ...fleetWith([{ machineId: online.id, checkout: checkout("/home/dev/Projects/shop") }]),
         archive: [
@@ -288,6 +293,7 @@ describe("planBatch", () => {
           },
         ],
       };
+
       const plan = (request: TargetedRun["request"]) =>
         planBatch({ _tag: "Targeted", runs: [{ machineId: online.id, request }] }, fleet).pipe(
           Effect.map(({ runs }) => runs.map(({ path }) => path)),
@@ -316,6 +322,7 @@ describe("planBatch", () => {
     Effect.gen(function* () {
       const kept = TrashId.make("11111111-1111-4111-8111-111111111111");
       const gone = TrashId.make("22222222-2222-4222-8222-222222222222");
+
       const withTrash: Machine = {
         ...online,
         trash: [
@@ -332,11 +339,14 @@ describe("planBatch", () => {
           },
         ],
       };
+
       const fleet: Fleet = { ...fleetWith([]), machines: [withTrash] };
+
       const purge = (id: TrashId) => ({
         machineId: online.id,
         request: { _tag: "Purge" as const, target: { _tag: "Checkout" as const, id } },
       });
+
       const plan = yield* planBatch({ _tag: "Targeted", runs: [purge(gone), purge(kept)] }, fleet);
 
       expect(plan.runs.map(({ path, repository }) => [path, repository.label])).toEqual([

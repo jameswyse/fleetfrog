@@ -69,7 +69,9 @@ export const archiveCheckout = Effect.fn("archiveCheckout")(
       archivedAt,
       worktrees: worktrees.map(({ from, to }) => ({ originalPath: from, archivedPath: to })),
     });
+
     const archivedAt = yield* DateTime.now;
+
     const unrecorded = yield* writeArchiveRecord(
       location.commonDirectory,
       record(planned.move.separate, archivedAt),
@@ -150,6 +152,7 @@ export const unarchiveCheckout = Effect.fn("unarchiveCheckout")(
     }
 
     const record = yield* readArchiveRecord(location.commonDirectory);
+
     // A worktree moved or removed since it was archived isn't at its archived path, so it stays.
     const returning = new Map(
       Option.isSome(record)

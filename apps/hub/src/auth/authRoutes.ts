@@ -102,12 +102,15 @@ const session = HttpRouter.add(
   Effect.gen(function* () {
     const sessions = yield* DashboardSessions;
     const request = yield* HttpServerRequest.HttpServerRequest;
+
     const viewer = yield* sessions
       .viewer(request.headers)
       .pipe(Effect.catchTag("NotSignedIn", () => Effect.succeed(null)));
+
     const response = yield* sessionJson(
       yield* describeSession(viewer?._tag === "SignedIn" ? viewer.userId : null),
     );
+
     const token = request.cookies[sessionCookie];
 
     if (viewer?._tag !== "SignedIn" || token === undefined) {
@@ -161,6 +164,7 @@ const login = HttpRouter.add(
     }
 
     const user = yield* users.findByEmail(email);
+
     const valid = yield* checkPassword({
       password,
       hash: Option.match(user, { onNone: () => null, onSome: (found) => found.passwordHash }),
@@ -283,6 +287,7 @@ function lockoutReason(
   { tailscaleAvailable }: { readonly tailscaleAvailable: boolean },
 ): string | null {
   const providerName = settings.oidc?.providerName ?? "the provider";
+
   const others = [
     {
       method: "passwords",
@@ -359,6 +364,7 @@ const changeMethods = HttpRouter.add(
     const self = signedIn === null ? null : yield* users.find(signedIn.userId).pipe(Effect.orDie);
     // The session as it is after the change.
     const current = describeSession(signedIn?.userId ?? null).pipe(Effect.flatMap(sessionJson));
+
     // Turns one way of signing in off, as long as the admin keeps another way in.
     const turnOff = (method: keyof SignInSwitches) =>
       Effect.gen(function* () {
@@ -396,6 +402,7 @@ const changeMethods = HttpRouter.add(
         // The admin's own account, found by email or created, becomes an admin with this password.
         const passwordHash = yield* hashPassword(change.password);
         const existing = yield* users.findByEmail(change.email);
+
         const userId = Option.isSome(existing)
           ? existing.value.id
           : (yield* users.create({
@@ -560,6 +567,7 @@ const oidcActivate = HttpRouter.add(
   Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const auth = yield* AuthSettingsStore;
+
     const viewer = yield* DashboardSessions.use((sessions) =>
       sessions.viewer(request.headers),
     ).pipe(Effect.option);
@@ -626,6 +634,7 @@ const oidcCallback = HttpRouter.add(
     }
 
     const token = yield* sessions.start(user.id);
+
     const response = yield* HttpServerResponse.setCookie(
       HttpServerResponse.redirect(redirect),
       sessionCookie,
@@ -649,6 +658,7 @@ const avatars = HttpRouter.add(
   "/avatars/:id",
   Effect.gen(function* () {
     const { id } = yield* HttpRouter.params;
+
     const avatar =
       id === undefined ? Option.none() : yield* UserStore.use((store) => store.findAvatar(id));
 
@@ -676,6 +686,7 @@ const providerIcon = HttpRouter.add(
   "/auth/provider-icon/:id",
   Effect.gen(function* () {
     const { id } = yield* HttpRouter.params;
+
     const icon =
       id === undefined ? Option.none() : yield* ProviderIconStore.use((store) => store.find(id));
 

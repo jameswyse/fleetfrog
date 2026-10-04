@@ -76,6 +76,7 @@ const cellHeight = "min-h-[3.375rem]";
  */
 const focusRing =
   "outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset";
+
 const selectedRing =
   "aria-[current=true]:ring-2 aria-[current=true]:ring-accent aria-[current=true]:ring-inset";
 
@@ -159,6 +160,7 @@ function MatrixCell({
   const cell = cellFor(repository, machine.id);
   const offline = machine.connection._tag === "Offline";
   const active = cell === null ? undefined : activeRunOn(runs, cell.entries);
+
   const [agent] =
     cell === null
       ? []
@@ -166,6 +168,7 @@ function MatrixCell({
           machine,
           cell.entries.map(({ checkout }) => checkout.path),
         );
+
   const selection = { repository: repository.key, machine: machine.id };
 
   return (
@@ -250,9 +253,11 @@ export function ProjectGrid({
     event.preventDefault();
 
     const [nextRow, nextColumn] = [row + rowStep, column + columnStep];
+
     const target = event.currentTarget.querySelector<HTMLElement>(
       `[data-cell="${nextRow}:${nextColumn}"]`,
     );
+
     const repository = repositories[nextRow];
 
     // Past the grid's edge there is no cell, so focus stays put.
@@ -296,6 +301,7 @@ export function ProjectGrid({
           {repositories.map((repository, row) => {
             const rowSelection = { repository: repository.key, machine: null };
             const host = gitHost(repository.identity);
+
             const identity =
               repository.identity._tag === "Remote"
                 ? `${host.name}: ${repository.identity.path}`

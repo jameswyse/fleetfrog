@@ -70,21 +70,25 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
   const info = yield* readMachineInfo;
   const trashDirectory = defaultTrashDirectory();
   let configuration: Configuration | null = null;
+
   const folders = () => ({
     roots: configuration?.discoveryRoots ?? [],
     archiveFolder: configuration?.archiveFolder ?? null,
   });
+
   const scanner = makeScanner({
     githubLogin: info.githubCli._tag === "Available" ? info.githubCli.login : null,
     trashDirectory,
     folders,
     report: (report) => client.Report({ report }),
   });
+
   const timers = yield* FiberHandle.make();
   const sessionScope = yield* Effect.scope;
   let capabilities = yield* readCapabilities;
 
   yield* warnIfUnreadable(capabilities);
+
   const actions = yield* makeActionRunner({
     catalogue: scanner,
     folders,
@@ -111,6 +115,7 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
       );
     }),
   );
+
   let lastDiscoveryAt: number | null = null;
   let lastStatusAt: number | null = null;
 
@@ -159,15 +164,19 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
     readonly discoverNow: boolean;
   }) {
     const now = yield* Clock.currentTimeMillis;
+
     const remaining = (seconds: number, since: number | null) =>
       since === null ? Duration.zero : Duration.millis(Math.max(0, seconds * 1000 - (now - since)));
+
     const untilDiscovery = discoverNow
       ? Duration.zero
       : remaining(current.schedule.discoverySeconds, lastDiscoveryAt);
+
     const untilStatus =
       lastStatusAt === null
         ? Duration.seconds(current.schedule.statusSeconds)
         : remaining(current.schedule.statusSeconds, lastStatusAt);
+
     // Passes run in the session's scope, so restarting the timers never cuts a scan short.
     const every = (seconds: number, pass: Effect.Effect<void>) =>
       Effect.forkIn(pass, sessionScope).pipe(

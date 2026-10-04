@@ -63,6 +63,7 @@ export function summariseCell(entries: ReadonlyArray<MachineCheckout>): CellSumm
       Number(!isMain(left)) - Number(!isMain(right)) ||
       left.checkout.path.localeCompare(right.checkout.path),
   );
+
   const [primary] = sorted;
 
   if (primary === undefined) {

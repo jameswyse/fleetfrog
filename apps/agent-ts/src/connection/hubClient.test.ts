@@ -17,6 +17,7 @@ const silentServer = (accepted: Deferred.Deferred<void>) =>
   Effect.acquireRelease(
     Effect.callback<{ readonly server: Server; readonly sockets: Set<Socket> }>((resume) => {
       const sockets = new Set<Socket>();
+
       const server = createServer((socket) => {
         sockets.add(socket);
         Deferred.doneUnsafe(accepted, Effect.void);

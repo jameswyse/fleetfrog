@@ -10,6 +10,7 @@ export async function startIdentityProvider() {
   const key = { ...publicKey.export({ format: "jwk" }), kid: "e2e", use: "sig", alg: "RS256" };
   const codes = new Map<string, { nonce: string; challenge: string; redirect: string }>();
   let issuer = "";
+
   const server = createServer(async (request, response) => {
     try {
       const url = new URL(request.url ?? "/", issuer);
@@ -86,6 +87,7 @@ export async function startIdentityProvider() {
         const code = form.get("code") ?? "";
         const pending = codes.get(code);
         codes.delete(code);
+
         const challenge = createHash("sha256")
           .update(form.get("code_verifier") ?? "")
           .digest("base64url");
@@ -102,9 +104,11 @@ export async function startIdentityProvider() {
         }
 
         const now = Math.floor(Date.now() / 1000);
+
         const header = Buffer.from(
           JSON.stringify({ alg: "RS256", kid: "e2e", typ: "JWT" }),
         ).toString("base64url");
+
         const payload = Buffer.from(
           JSON.stringify({
             iss: issuer,
@@ -119,6 +123,7 @@ export async function startIdentityProvider() {
             groups: ["fleetfrog-users"],
           }),
         ).toString("base64url");
+
         const token = `${header}.${payload}`;
         const signature = sign("RSA-SHA256", Buffer.from(token), privateKey).toString("base64url");
         response.end(
@@ -136,6 +141,7 @@ export async function startIdentityProvider() {
       response.writeHead(500).end(JSON.stringify({ error: "provider_error" }));
     }
   });
+
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   const address = server.address();

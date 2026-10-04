@@ -43,6 +43,7 @@ try {
       stdio: "inherit",
       signal: controller.signal,
     });
+
     const code = await new Promise<number | null>((resolve, reject) => {
       runner.once("error", reject);
       runner.once("exit", resolve);

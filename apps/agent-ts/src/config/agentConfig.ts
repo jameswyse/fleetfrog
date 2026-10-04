@@ -49,6 +49,7 @@ export function isMissingFile(error: unknown): boolean {
 /** The saved pairing, or `None` before the machine is paired. */
 export const loadAgentConfig = Effect.gen(function* () {
   const file = configPath();
+
   const contents = yield* Effect.tryPromise({
     // Only a missing file means "not paired"; any other read error is reported.
     try: () =>

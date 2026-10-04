@@ -12,6 +12,7 @@ import type { AuthSettingsView, SignInSwitches } from "@fleetfrog/protocol/domai
 const AuthJson = JsonColumn(AuthSettings);
 const encodeAuth = Schema.encodeSync(AuthJson);
 const encodePolling = Schema.encodeSync(JsonColumn(PollingSettings));
+
 const decodeRows = Schema.decodeUnknownEffect(
   Schema.Array(Schema.Struct({ auth_json: Schema.NullOr(AuthJson) })),
 );
@@ -34,10 +35,12 @@ export class AuthSettingsStore extends Context.Service<
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
       const { authModeOverride, dashboardSocket } = yield* HubConfig;
+
       const [stored] = yield* sql`select auth_json from settings where id = 1`.pipe(
         Effect.flatMap(decodeRows),
         Effect.orDie,
       );
+
       const settings = yield* SubscriptionRef.make(stored?.auth_json ?? defaultAuthSettings);
 
       return {

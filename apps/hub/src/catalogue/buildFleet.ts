@@ -96,6 +96,7 @@ function t3CodeProjects(
       ),
     ]),
   );
+
   const chosen = new Map<RepositoryKey, T3CodeProject>();
 
   for (const { machineId, checkout } of checkouts) {
@@ -125,6 +126,7 @@ function withProjectTitles(
   const shown = new Map(
     [...labels].map(([key, label]) => [key, projects.get(key)?.title ?? label] as const),
   );
+
   const counts = new Map<string, number>();
 
   for (const label of shown.values()) {
@@ -200,6 +202,7 @@ export function buildFleet(sources: {
   readonly integrations: IntegrationSettings;
 }): Fleet {
   const { t3Code } = sources.integrations;
+
   const machines = sources.machines.map((record): Machine => {
     const agent = sources.online.get(record.id);
     const statuses = new Map(record.rootStatuses.map(({ path, status }) => [path, status]));
@@ -229,20 +232,24 @@ export function buildFleet(sources: {
       update: sources.updates.get(record.id) ?? null,
     };
   });
+
   const projects =
     t3Code.enabled && t3Code.projectAppearance
       ? t3CodeProjects(sources.machines, sources.checkouts)
       : new Map<RepositoryKey, T3CodeProject>();
+
   // Labels tell apart every repository the fleet has, archived or not, so both lists agree.
   const labels = withProjectTitles(
     labelsFor(groupRepositories(sources.checkouts, new Map(), new Map())),
     projects,
   );
+
   const repositories = groupRepositories(
     sources.checkouts.filter(({ checkout }) => checkout.placement._tag === "Projects"),
     labels,
     projects,
   );
+
   const archive = groupRepositories(
     sources.checkouts.filter(({ checkout }) => checkout.placement._tag === "Archive"),
     labels,

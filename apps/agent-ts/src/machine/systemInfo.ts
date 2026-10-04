@@ -284,6 +284,7 @@ export const readSystemInfo = Effect.fn("readSystemInfo")(function* (platform: P
     Effect.map(parseGitVersion),
     Effect.orElseSucceed(() => null),
   );
+
   const now = yield* DateTime.now;
   const model = yield* readModel(platform);
   const hypervisor = yield* readHypervisor(platform);
@@ -326,6 +327,7 @@ export const readSystemUsage = Effect.fn("readSystemUsage")(function* (platform:
       () => null,
     ),
   );
+
   const [one = 0, five = 0, fifteen = 0] = os.loadavg();
 
   return {

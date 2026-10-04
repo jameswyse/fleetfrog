@@ -37,6 +37,7 @@ export function MachineActions({
   const [rescanFailure, setRescanFailure] = useState<string | null>(null);
   const scope = { _tag: "Machine", machineId: machine.id } as const;
   const blocked = machineBlocker(machine, "Fetch") !== null;
+
   const failure =
     fetching.failure === null ? rescanFailure : `Couldn't start the fetch. ${fetching.failure}`;
 

@@ -10,6 +10,7 @@ const SingleMode = Schema.fromJsonString(
     oidc: Schema.Unknown,
   }),
 );
+
 const decodeSingleMode = Schema.decodeUnknownOption(SingleMode);
 
 /**
@@ -18,6 +19,7 @@ const decodeSingleMode = Schema.decodeUnknownOption(SingleMode);
  */
 export default Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
+
   const rows = yield* sql<{ readonly auth_json: string | null }>`
     select auth_json from settings where id = 1
   `;

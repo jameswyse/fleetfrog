@@ -185,10 +185,12 @@ test("[deterministic] T3 Code switches save and dependent options follow enablem
   await app.open("/settings/integrations/t3-code");
   const read = screen.getByRole("switch", { name: "Read T3 Code", exact: true });
   const appearance = screen.getByRole("switch", { name: "Project names and icons", exact: true });
+
   const discovery = screen.getByRole("switch", {
     name: "Find projects outside project folders",
     exact: true,
   });
+
   await expect(appearance).toBeDisabled();
   await expect(discovery).toBeDisabled();
   await read.click();
@@ -215,10 +217,12 @@ test("[deterministic] pairing codes rotate, pair a temporary agent and remove it
 }) => {
   await app.open("/settings/fleet/pair");
   await screen.getByRole("button", { name: "Create pairing code", exact: true }).click();
+
   const readCommand = async () =>
     (await browser.locator("code").allTextContents()).find((text) =>
       text.includes("fleetfrog pair "),
     ) ?? "";
+
   await expect.poll(readCommand).toContain("fleetfrog pair ");
   const first = await readCommand();
   await screen.getByRole("button", { name: "New code", exact: true }).click();
@@ -242,9 +246,11 @@ test("[deterministic] pairing codes rotate, pair a temporary agent and remove it
     stdio: "pipe",
   });
   await expect(screen.getByRole("status").filter({ hasText: "is paired" })).toBeVisible();
+
   const config = Schema.decodeSync(Schema.fromJsonString(Schema.Struct({ machineId: MachineId })))(
     readFileSync(path.join(directory, "paired-agent-config/agent.json"), "utf8"),
   );
+
   await app.open(`/settings/fleet/${config.machineId}`);
   await expect(screen.getByRole("button", { name: "Rescan now", exact: true })).toBeDisabled();
   await screen.getByRole("button", { name: "Remove machine…", exact: true }).click();

@@ -41,6 +41,7 @@ const served = Effect.gen(function* () {
       Layer.provideMerge(nodeServer(createServer(), { port: 0, maximumMessageBytes: 1024 })),
     ),
   );
+
   const { address } = Context.get(context, HttpServer.HttpServer);
 
   return `http://localhost:${address._tag === "UnixPathAddress" ? 0 : address.port}`;
@@ -78,9 +79,12 @@ describe("bodyLimit", () => {
   it.live("reads a body within the limit and cuts off one past it", () =>
     Effect.gen(function* () {
       const origin = yield* served;
+
       const post = (body: string) =>
         Effect.tryPromise(() => fetch(`${origin}/echo`, { method: "POST", body }));
+
       const small = yield* post("x".repeat(16));
+
       // Node drops the connection once the body runs past the limit, so the request either fails
       // or is answered with 413.
       const refused = yield* post("x".repeat(17)).pipe(

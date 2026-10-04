@@ -85,6 +85,7 @@ export function ProjectsPage() {
   const visible = repositories.filter((repository) =>
     repositoryMatches({ repository, filter, query }),
   );
+
   const selection: ProjectSelection | null =
     search.repo === undefined ? null : { repository: search.repo, machine: search.machine ?? null };
 

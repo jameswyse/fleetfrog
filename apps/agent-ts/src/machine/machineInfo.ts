@@ -45,6 +45,7 @@ const readPrettyName = Effect.fn("readPrettyName")(function* (platform: Platform
   const machineInfo = yield* Effect.promise(() =>
     readFile("/etc/machine-info", "utf8").catch(() => ""),
   );
+
   const value = prettyHostnameLine.exec(machineInfo)?.groups?.value?.trim() ?? "";
 
   return value.replace(/^"(.*)"$/, "$1") || null;

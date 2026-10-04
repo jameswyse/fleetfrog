@@ -11,6 +11,7 @@ describe("createSelfSignedCertificate", () => {
       notBefore: new Date("2026-01-01T00:00:00Z"),
       notAfter: new Date("2060-01-01T00:00:00Z"),
     });
+
     const certificate = new X509Certificate(certificatePem);
 
     expect(certificate.subject).toBe("CN=FleetFrog hub");

@@ -55,6 +55,7 @@ afterEach(async () => {
       .getSetCookie()
       .map((entry) => entry.split(";")[0])
       .join("; ");
+
     const disabled = await fetch(`${url}/auth/methods`, {
       method: "POST",
       headers: { ...headers, Cookie: cookie },
@@ -201,6 +202,7 @@ test("[deterministic] regular user can use projects but cannot open administrati
   const forbidden = await browser.evaluate<number>(
     `async () => (await fetch('/auth/methods', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _tag: 'TurnOff' }) })).status`,
   );
+
   expect(forbidden).toBe(403);
 });
 

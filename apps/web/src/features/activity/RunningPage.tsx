@@ -22,6 +22,7 @@ function RunningBatch({
   const total = Object.values(batch.counts).reduce((sum, count) => sum + count, 0);
   const finished = total - batch.counts.Queued - batch.counts.Running;
   const titleId = `batch-${batch.id}`;
+
   // Runs under way first, then those waiting their turn, each group in the order it started.
   const ordered = runs.toSorted(
     (left, right) => Number(right.state._tag === "Running") - Number(left.state._tag === "Running"),

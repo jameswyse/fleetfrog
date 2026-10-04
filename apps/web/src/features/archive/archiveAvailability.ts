@@ -92,6 +92,7 @@ export function planArchive(options: {
   }
 
   const archive = expandHome(machine.archiveFolder, machine.info.homeDirectory);
+
   const destinationOf = (path: string) =>
     archiveDestination({
       path,

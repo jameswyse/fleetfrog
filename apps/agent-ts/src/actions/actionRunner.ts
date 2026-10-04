@@ -52,8 +52,10 @@ const networkConcurrency = 4;
  * busy machine can take a while over. It stays under the hub's wait for an inspection.
  */
 const discoveryWait = Duration.minutes(2);
+
 const notDiscovered =
   "This machine's agent hasn't finished finding its checkouts since it started. Try again once it has.";
+
 const progressInterval = Duration.seconds(1);
 
 /** What an action needs from the scanner: the checkouts it knows and a way to report changes. */
@@ -374,6 +376,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
         }),
       Clone: ({ url, destination }) => {
         const folders = options.folders();
+
         const checked = checkCloneDestination({
           destination,
           home,

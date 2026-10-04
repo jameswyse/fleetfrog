@@ -76,6 +76,7 @@ it.effect(
     Effect.gen(function* () {
       const activity = yield* ActivityStore;
       const auth = yield* AuthSettingsStore;
+
       const page = yield* activity.activity({
         filter: { machineIds: [], repositoryKeys: [], outcomes: [] },
         limit: 10,

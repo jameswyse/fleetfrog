@@ -38,9 +38,11 @@ function Whereabouts({
   readonly machine: Machine;
 }) {
   const label = machineLabel(machine);
+
   const holders = fleet.machines
     .filter(({ id }) => repository.checkouts.some(({ machineId }) => machineId === id))
     .map(machineLabel);
+
   let missing = `Not on ${label}.`;
 
   if (machine.lastDiscoveryAt === null) {
@@ -113,9 +115,11 @@ function CloneForm({
     machines: fleet.machines,
     occupied: checkoutPaths(fleet.repositories, machine.id),
   });
+
   const [draft, setDraft] = useState(() =>
     draftFromSuggestion({ machine, suggestion, repositoryName: repository.name }),
   );
+
   const [problem, setProblem] = useState<string | null>(null);
   const { start, pending, failure } = useStartBatch();
   const inputId = useId();
@@ -216,12 +220,15 @@ export function CloneSections({
   const target = { machineId: machine.id, repositoryKey: repository.key };
   const cloning = activeCloneFor(runs, target);
   const last = latestCloneFor(runs, target);
+
   const lastOutcome =
     last?.state._tag === "Finished" && last.state.outcome._tag !== "Succeeded"
       ? describeOutcome(last.state.outcome)
       : null;
+
   const source = cloneSource(repository);
   const blocker = cloneBlocker(machine);
+
   let clone = (
     <p className="text-sm text-ink-muted">
       No machine has a remote for it, so there's nothing to clone it from.

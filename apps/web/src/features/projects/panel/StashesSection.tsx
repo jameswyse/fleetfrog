@@ -38,6 +38,7 @@ function DropStashesDialog({
 }) {
   const { start, pending, failure } = useStartBatch();
   const [only] = stashes;
+
   const title =
     stashes.length === 1
       ? `Drop “${only.message}”?`
@@ -102,9 +103,11 @@ export function StashesSection({
   readonly git: GitStatus;
 }) {
   const runs = useRuns();
+
   const [dropping, setDropping] = useState<readonly [KnownStash, ...Array<KnownStash>] | null>(
     null,
   );
+
   const mayDrop = useMayRun("DropStashes");
   const blocked = machineBlocker(machine, "DropStashes");
   const busy = activeRunFor(runs, { machineId: machine.id, checkout }) !== undefined;

@@ -135,6 +135,7 @@ const countLocalCommits = Effect.fn("countLocalCommits")(function* (options: {
     "--not",
     "--remotes",
   ]);
+
   const count = Number(output.trim());
 
   counts.set(options.sha, count);

@@ -18,6 +18,7 @@ const setUp = (options: {
   Effect.gen(function* () {
     const home = yield* temporaryDirectory("fleetfrog-folders-");
     const audit: Array<AuditEntry> = [];
+
     const create = (folder: string) =>
       createProjectFolder({
         path: folder,

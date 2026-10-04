@@ -61,7 +61,9 @@ export function createSelfSignedCertificate(options: {
   const name = sequence(
     der(0x31, sequence(commonNameOid, der(0x0c, Buffer.from(options.commonName, "utf8")))),
   );
+
   const algorithm = sequence(ecdsaWithSha256);
+
   const toBeSigned = sequence(
     der(0x02, serial),
     algorithm,
@@ -70,6 +72,7 @@ export function createSelfSignedCertificate(options: {
     name,
     publicKey.export({ type: "spki", format: "der" }),
   );
+
   const signature = sign("sha256", toBeSigned, { key: privateKey, dsaEncoding: "der" });
   const certificate = sequence(toBeSigned, algorithm, der(0x03, Buffer.from([0x00]), signature));
 

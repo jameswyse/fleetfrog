@@ -12,6 +12,7 @@ import { defaultMonogram, readT3Code } from "./readT3Code.ts";
 /** The part of T3 Code's schema FleetFrog reads, at migration 54. */
 function createDatabase(file: string, options: { readonly withoutColumn?: string } = {}) {
   const database = new DatabaseSync(file);
+
   const columns = (list: ReadonlyArray<string>) =>
     list.filter((column) => column !== options.withoutColumn).join(", ");
 

@@ -144,6 +144,7 @@ function ConfigurationSection({
   readonly machine: Machine;
 }) {
   const { state, save } = useAutoSave();
+
   const repositoryPaths = fleet.repositories
     .map(({ checkouts }) =>
       checkouts.flatMap(({ machineId, checkout }) =>
@@ -151,6 +152,7 @@ function ConfigurationSection({
       ),
     )
     .filter((paths) => paths.length > 0);
+
   const nameId = `name-${machine.id}`;
   const archiveId = `archive-${machine.id}`;
   const computerName = machine.info.prettyName ?? machine.info.hostname;

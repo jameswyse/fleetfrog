@@ -147,6 +147,7 @@ export function RepositoryPanel({
                 cell.primary.checkout.status._tag === "Read"
                   ? cell.primary.checkout.status.git
                   : null;
+
               const active = activeRunOn(runs, cell.entries);
 
               return (

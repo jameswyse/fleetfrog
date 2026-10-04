@@ -43,6 +43,7 @@ const removeCaches = (folder: string, caches: ReadonlyArray<string>) =>
   Effect.gen(function* () {
     const inside = caches.filter((entry) => isWithin(path.resolve(folder, entry), folder));
     const sizes = yield* diskUsage(folder, inside);
+
     const results = yield* Effect.forEach(inside, (entry, index) =>
       Effect.promise(() =>
         rm(path.resolve(folder, entry), { recursive: true, force: true }).then(
@@ -90,6 +91,7 @@ export const trashCheckout = Effect.fn("trashCheckout")(
     const git = yield* readGitStatus(location);
     const id = TrashId.make(randomUUID());
     let worktreeCount = 0;
+
     const planned = yield* planCheckoutMove({
       location,
       destination: itemCheckoutPath(options.trash, id),
@@ -119,6 +121,7 @@ export const trashCheckout = Effect.fn("trashCheckout")(
         trashedPath: to,
       })),
     };
+
     const unprepared = yield* writeTrashItem(options.trash, item);
 
     if (unprepared !== null) {
@@ -134,6 +137,7 @@ export const trashCheckout = Effect.fn("trashCheckout")(
     }
 
     const trashed = planned.move.main.to;
+
     const removal =
       options.removeCaches && ignored.caches.length > 0
         ? yield* removeCaches(trashed, ignored.caches)
@@ -245,9 +249,11 @@ export const restoreCheckout = Effect.fn("restoreCheckout")(
     }
 
     const trashed = itemCheckoutPath(trash, id);
+
     const returning = new Map(
       item.value.worktrees.map(({ originalPath, trashedPath }) => [trashedPath, originalPath]),
     );
+
     const planned = yield* planCheckoutMove({
       location: { path: trashed, commonDirectory: path.join(trashed, ".git") },
       destination: item.value.originalPath,

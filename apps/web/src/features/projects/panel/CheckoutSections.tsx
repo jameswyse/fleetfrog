@@ -104,6 +104,7 @@ function problemOf(checkout: Checkout): string | null {
   }
 
   const { git } = checkout.status;
+
   const conflicted = git.changed.items.filter(
     ({ staged, unstaged }) => staged === "U" || unstaged === "U",
   ).length;
@@ -191,11 +192,14 @@ function GitSections({
   readonly checkout: Checkout;
 }) {
   const { head } = git;
+
   const pullRequest =
     head._tag === "Branch"
       ? (checkout.github?.pullRequests.find(({ branch }) => branch === head.name) ?? null)
       : null;
+
   const changes = git.changed.total + git.untracked.total;
+
   const files: ReadonlyArray<{ readonly path: string; readonly file: ChangedFile | null }> = [
     ...git.changed.items.map((file) => ({
       path: file.originalPath === null ? file.path : `${file.originalPath} → ${file.path}`,
@@ -274,6 +278,7 @@ export function CheckoutSections({
 }) {
   const git = checkout.status._tag === "Read" ? checkout.status.git : null;
   const problem = problemOf(checkout);
+
   const onGithub =
     repository.identity._tag === "Remote" && repository.identity.host === "github.com";
 

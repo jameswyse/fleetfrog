@@ -17,6 +17,7 @@ const environment = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG
 
 // The fixtures are deterministic and only read, so each version of the script builds them once.
 const fixtureHash = createHash("sha256").update(readFileSync(fixtureScript)).digest("hex");
+
 const projects = path.join(
   tmpdir(),
   `fleetfrog-agent-parity-${fixtureHash.slice(0, 12)}`,
@@ -59,6 +60,7 @@ const scans = readBoth([
   path.join(path.dirname(projects), "Archive"),
   projects,
 ]);
+
 const byPath = (checkouts) =>
   checkouts.toSorted((left, right) => left.path.localeCompare(right.path));
 

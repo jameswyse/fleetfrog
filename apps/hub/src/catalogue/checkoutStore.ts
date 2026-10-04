@@ -11,9 +11,11 @@ import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 
 const CheckoutJson = JsonColumn(Checkout);
 const encodeCheckout = Schema.encodeSync(CheckoutJson);
+
 const decodePaths = Schema.decodeUnknownEffect(
   Schema.Array(Schema.Struct({ path: Schema.String })),
 );
+
 const decodeRows = Schema.decodeUnknownEffect(
   Schema.Array(
     Schema.Struct({ machine_id: MachineCheckout.fields.machineId, checkout_json: CheckoutJson }),
@@ -84,7 +86,9 @@ export class CheckoutStore extends Context.Service<
                 Effect.flatMap(decodePaths),
               )).map(({ path }) => path),
             );
+
             let room = maximumReportedItems - held.size;
+
             const kept = changed.filter((checkout) => {
               if (held.has(checkout.path)) {
                 return true;

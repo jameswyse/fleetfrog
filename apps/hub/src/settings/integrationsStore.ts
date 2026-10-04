@@ -9,6 +9,7 @@ import { JsonColumn } from "../persistence/database.ts";
 const IntegrationsJson = JsonColumn(IntegrationSettings);
 const encodeIntegrations = Schema.encodeSync(IntegrationsJson);
 const encodePolling = Schema.encodeSync(JsonColumn(PollingSettings));
+
 const decodeRows = Schema.decodeUnknownEffect(
   Schema.Array(Schema.Struct({ integrations_json: Schema.NullOr(IntegrationsJson) })),
 );
@@ -24,10 +25,12 @@ export class IntegrationsStore extends Context.Service<
   static readonly layer = Layer.effect(this)(
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
+
       const [stored] = yield* sql`select integrations_json from settings where id = 1`.pipe(
         Effect.flatMap(decodeRows),
         Effect.orDie,
       );
+
       const settings = yield* SubscriptionRef.make(
         stored?.integrations_json ?? defaultIntegrationSettings,
       );

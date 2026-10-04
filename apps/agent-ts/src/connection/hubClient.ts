@@ -55,6 +55,7 @@ export class HubDisconnected extends Schema.TaggedError<HubDisconnected>()("HubD
 export const makeHubClient = Effect.fn("makeHubClient")(function* (config: AgentConfig) {
   const tls = pinnedTlsOptions(config.certificatePem);
   const dropped = yield* Deferred.make<void>();
+
   const webSocket = Layer.succeed(Socket.WebSocketConstructor)((url) => {
     const socket = new NodeSocket.NodeWS.WebSocket(url, {
       headers: { authorization: `Bearer ${config.token}` },
@@ -67,10 +68,12 @@ export const makeHubClient = Effect.fn("makeHubClient")(function* (config: Agent
 
     return socket;
   });
+
   const hooks = Layer.succeed(RpcClient.ConnectionHooks)({
     onConnect: Effect.logInfo("Connected to hub"),
     onDisconnect: Deferred.succeed(dropped, undefined).pipe(Effect.asVoid),
   });
+
   const client = yield* clientInCallerScope(
     AgentRpcs,
     RpcClient.layerProtocolSocket().pipe(

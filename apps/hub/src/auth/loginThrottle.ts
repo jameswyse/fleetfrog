@@ -41,6 +41,7 @@ export class LoginThrottle extends Context.Service<
   static readonly layer = Layer.sync(this)(() => {
     const failures = new Map<string, Failures>();
     const emailKey = (email: string) => `email ${email}`;
+
     const keys = ({ email, address }: Attempt) => [
       [emailKey(email), freeAttempts.email] as const,
       ...(address === null ? [] : [[`address ${address}`, freeAttempts.address] as const]),
@@ -60,6 +61,7 @@ export class LoginThrottle extends Context.Service<
 
     const count = (key: string, now: number) => {
       const previous = failures.get(key);
+
       // After a quiet spell the count starts again, so old failures don't add up forever.
       const recent =
         previous !== undefined && now - previous.lastAt <= Duration.toMillis(longestWait);

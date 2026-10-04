@@ -211,9 +211,11 @@ export function createRepositories(directory: string): void {
     database
       .prepare("INSERT INTO effect_sql_migrations VALUES (?, ?, ?)")
       .run(supportedT3CodeSchema.migration, now, supportedT3CodeSchema.name);
+
     const project = database.prepare(
       "INSERT INTO projection_projects VALUES (?, ?, ?, ?, NULL, 0, ?, NULL)",
     );
+
     project.run(
       "e2e-project",
       "E2E T3 project",

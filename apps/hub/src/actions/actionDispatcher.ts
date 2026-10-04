@@ -51,6 +51,7 @@ export class ActionDispatcher extends Context.Service<
       const store = yield* ActivityStore;
       const activity = yield* ActivityFeed;
       const fleet = yield* FleetFeed;
+
       /** The connection each sent run went to. A run outlives its connection only as a result. */
       const dispatched = new Map<
         RunId,
@@ -166,6 +167,7 @@ export class ActionDispatcher extends Context.Service<
         }),
         receive: Effect.fn("ActionDispatcher.receive")(function* ({ machineId, runId, update }) {
           const run = { runId, machineId };
+
           const changed = yield* ActionUpdate.match(update, {
             Started: () =>
               DateTime.now.pipe(Effect.flatMap((at) => store.markStarted({ ...run, at }))),

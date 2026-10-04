@@ -72,6 +72,7 @@ export function BatchDetailPanel({
     key: batchId,
     open: (client) => client.WatchBatch({ batchId }),
   });
+
   const title = detail._tag === "Ready" ? describeBatch(detail.value.batch) : "Action";
 
   return (

@@ -156,10 +156,12 @@ test("[deterministic] empty trash confirms and purges multiple sandbox checkouts
 }) => {
   await trashCheckout(app, screen, "empty-trash-a-project");
   await trashCheckout(app, screen, "empty-trash-b-project");
+
   const payloads = await Promise.all([
     trashPayload(fixtures.emptyTrashA),
     trashPayload(fixtures.emptyTrashB),
   ]);
+
   await screen.getByRole("button", { name: "Empty the trash", exact: true }).click();
   const dialog = screen.getByRole("dialog", { name: "Empty the trash?", exact: true });
   await expect(dialog).toContainText("2 items");
