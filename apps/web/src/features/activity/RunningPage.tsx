@@ -11,7 +11,6 @@ import { RunCountChips } from "./RunCountChips.tsx";
 
 import type { ActionBatch, ActionRun } from "@fleetfrog/protocol/domain/activity";
 
-/** One batch still going: how far it has got, then each run still waiting or running. */
 function RunningBatch({
   batch,
   runs,
@@ -23,7 +22,6 @@ function RunningBatch({
   const finished = total - batch.counts.Queued - batch.counts.Running;
   const titleId = `batch-${batch.id}`;
 
-  // Runs under way first, then those waiting their turn, each group in the order it started.
   const ordered = runs.toSorted(
     (left, right) => Number(right.state._tag === "Running") - Number(left.state._tag === "Running"),
   );
@@ -96,7 +94,6 @@ function RunningBatch({
   );
 }
 
-/** Every batch with runs still waiting or running, oldest first. */
 export function RunningPage() {
   const { activeBatches, active } = useRuns();
 

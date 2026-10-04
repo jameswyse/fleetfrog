@@ -27,7 +27,6 @@ const query = `query($owner: String!, $name: String!) {
   }
 }`;
 
-// Null when the fork that opened the pull request has been deleted.
 const HeadOwner = Schema.NullOr(Schema.Struct({ login: Schema.String }));
 
 const RepositoryResponse = Schema.fromJsonString(
@@ -78,11 +77,6 @@ interface RemoteState {
   readonly checkedAt: DateTime.Utc;
 }
 
-/**
- * The first retry after GitHub fails to return a repository. Each failure in a row doubles it, up
- * to the GitHub interval, so a brief outage clears quickly and a repository we can't see is asked
- * about rarely.
- */
 const firstRetry = Duration.minutes(1);
 
 export function retryDelay(failures: number, maximumAge: Duration.Duration): Duration.Duration {
@@ -98,15 +92,7 @@ type Reading =
       readonly checkedAt: DateTime.Utc;
     };
 
-/**
- * Reads default-branch and pull request state from GitHub through `gh`, at most once per
- * repository per interval, however many checkouts share it. A repository GitHub won't return is
- * retried less and less often, and logged only when its error changes.
- */
-export function makeGithubReader(reader: {
-  /** The signed-in GitHub user, whose fork's pull requests also count as this repository's. */
-  readonly login: string;
-}) {
+export function makeGithubReader(reader: { readonly login: string }) {
   const cache = new Map<RepositoryKey, Reading>();
 
   const fetchRemote = Effect.fn("fetchGithubRepository")(function* (owner: string, name: string) {
@@ -115,7 +101,6 @@ export function makeGithubReader(reader: {
       "graphql",
       "-f",
       `query=${query}`,
-      // `-f` sends raw strings; `-F` would turn a repository called `2048` into a number.
       "-f",
       `owner=${owner}`,
       "-f",
@@ -124,7 +109,6 @@ export function makeGithubReader(reader: {
 
     const { repository } = (yield* decodeResponse(output)).data;
 
-    // A fork's `main` is not the local `main`, so only branches pushed here or to our fork match.
     const ours = (node: {
       readonly isCrossRepository: boolean;
       readonly headRepositoryOwner: typeof HeadOwner.Type;
@@ -150,7 +134,6 @@ export function makeGithubReader(reader: {
     } satisfies RemoteState;
   });
 
-  /** Returns `None` for repositories not hosted on GitHub or when GitHub cannot be reached. */
   return Effect.fn("readGithubState")(function* (options: {
     readonly location: CheckoutLocation;
     readonly localBranches: ReadonlyArray<string>;

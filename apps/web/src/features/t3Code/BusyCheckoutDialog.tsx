@@ -5,10 +5,6 @@ import { BusyThreadsNotice } from "./T3CodeNotices.tsx";
 
 import type { T3CodeThread } from "@fleetfrog/protocol/domain/t3Code";
 
-/**
- * Asks before an action that would change files under a T3 Code agent part-way through its work,
- * for an action that otherwise starts without asking.
- */
 export function BusyCheckoutDialog({
   title,
   threads,

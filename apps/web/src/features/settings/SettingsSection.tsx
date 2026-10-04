@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-/** A labelled group of rows in one card, with room beside the label for how saving went. */
 export function SettingsSection({
   title,
   status,
@@ -23,10 +22,6 @@ export function SettingsSection({
   );
 }
 
-/**
- * One setting: what it is on the leading side and its control on the trailing side, with room
- * below for anything wider, such as a list or an error.
- */
 export function SettingsRow({
   title,
   description,
@@ -36,7 +31,6 @@ export function SettingsRow({
 }: {
   readonly title: ReactNode;
   readonly description?: ReactNode;
-  /** Makes the title the label of this input. */
   readonly htmlFor?: string;
   readonly control?: ReactNode;
   readonly children?: ReactNode;
@@ -64,7 +58,6 @@ export function SettingsRow({
   );
 }
 
-/** A compact card of facts for the side column: each term above its value. */
 export function SidePanel({
   title,
   children,

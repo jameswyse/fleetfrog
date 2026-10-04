@@ -20,7 +20,6 @@ function failed(message: string): FolderOutcome {
   return FolderOutcome.cases.Failed.make({ message });
 }
 
-/** The tier that covers creating the folder, or null when it's neither kind the hub may create. */
 function folderTier(options: {
   readonly path: string;
   readonly roots: ReadonlyArray<string>;
@@ -33,18 +32,9 @@ function folderTier(options: {
   return options.path === options.archiveFolder ? "cleanup" : null;
 }
 
-/**
- * Creates one of this machine's project folders, or its Archive folder, when the hub asks, with
- * any missing parents. The path must be one the hub has set, and neither hidden nor reached through
- * `.` or `..`. A project folder belongs to the git tier, which covers the folders clones go into,
- * and the Archive folder to the cleanup tier, so an owner who has turned the tier off gets nothing
- * created. Only a folder actually made is audited.
- */
 export const createProjectFolder = Effect.fn("createProjectFolder")(function* (options: {
   readonly path: string;
-  /** The project folders as the hub last configured them. */
   readonly roots: ReadonlyArray<string>;
-  /** The Archive folder as the hub last configured it. */
   readonly archiveFolder: string | null;
   readonly home: string;
   readonly loadPolicy: Effect.Effect<AgentPolicy, ConfigUnavailable>;

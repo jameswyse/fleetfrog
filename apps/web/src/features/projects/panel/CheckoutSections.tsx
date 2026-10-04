@@ -53,7 +53,6 @@ const letterTones = new Map([
   ["A", "bg-clean/15 text-clean"],
 ]);
 
-/** The letter that matters for a change: the unstaged one when there is one, or ?? when untracked. */
 function changeLetter(file: ChangedFile | null): string {
   if (file === null) {
     return "??";
@@ -75,7 +74,6 @@ function ChangeCode({ file }: { readonly file: ChangedFile | null }) {
   );
 }
 
-/** A small stat: a number over what it counts, coloured when it asks for attention. */
 function Tile({
   value,
   label,
@@ -97,7 +95,6 @@ function Tile({
   );
 }
 
-/** The problem with a checkout that needs fixing by hand, if there is one. */
 function problemOf(checkout: Checkout): string | null {
   if (checkout.status._tag === "Failed") {
     return `Couldn't read this checkout: ${checkout.status.message}`;

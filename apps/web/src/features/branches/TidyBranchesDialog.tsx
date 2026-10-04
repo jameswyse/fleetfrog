@@ -21,14 +21,12 @@ interface Group {
   readonly tone: "normal" | "warning";
 }
 
-/** What the list says about a branch beyond its last commit, when there's more to say. */
 function detail(candidate: TidyCandidate): string | null {
   const { standing } = candidate;
 
   return standing._tag === "MergedPullRequest" ? `Merged in #${standing.pullRequest.number}` : null;
 }
 
-/** Why the branch deserves a second look, shown as a warning, or null when it doesn't. */
 function warning(candidate: TidyCandidate): string | null {
   if (candidate.isDefault) {
     return "The default branch. You can check it out again from the remote";
@@ -39,10 +37,6 @@ function warning(candidate: TidyCandidate): string | null {
     : null;
 }
 
-/**
- * Chooses branches to move to the trash, grouped by what deleting them would lose. Merged branches
- * start selected; the rest must be chosen one by one.
- */
 export function TidyBranchesDialog({
   repository,
   machine,
@@ -57,7 +51,6 @@ export function TidyBranchesDialog({
   readonly checkout: Checkout;
   readonly git: GitStatus;
   readonly candidates: ReadonlyArray<TidyCandidate>;
-  /** Branches that can't be deleted yet, each with what to do first. */
   readonly kept: ReadonlyArray<KeptBranch>;
   readonly onClose: () => void;
 }) {
@@ -157,7 +150,6 @@ export function TidyBranchesDialog({
 
               return (
                 <fieldset key={group.title} className="min-w-0">
-                  {/* The legend names the group for screen readers; the heading row shows it. */}
                   <legend className="sr-only">{group.title}</legend>
                   <div className="mb-2 flex items-baseline gap-2">
                     <span

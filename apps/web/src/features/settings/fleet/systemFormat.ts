@@ -15,17 +15,14 @@ export const percent = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 0,
 });
 
-/** Memory as it is sold, in binary gigabytes: 64 GB for 64 GiB. */
 export function formatMemory(bytes: number): string {
   return `${wholeNumber.format(bytes / 1024 ** 3)} GB`;
 }
 
-/** Memory in use, in binary gigabytes to one decimal place, such as 9.6 GB. */
 export function formatMemoryInUse(bytes: number): string {
   return `${oneDecimal.format(bytes / 1024 ** 3)} GB`;
 }
 
-/** Disk space in decimal units, as macOS and most disk tools show it. */
 export function formatDiskSize(bytes: number): string {
   const terabytes = bytes / 1000 ** 4;
 
@@ -39,10 +36,6 @@ const clockSpeed = /\s+CPU\s+@\s+[\d.]+\s*GHz$/i;
 const coreCountSuffix = /\s+(?:\d+-Core )?Processor$/i;
 const repeatedSpaces = /\s{2,}/g;
 
-/**
- * The processor's name without trademark marks, clock speed or the chip's core count, which a
- * virtual machine may not get all of: "AMD EPYC 7302P 16-Core Processor" becomes "AMD EPYC 7302P".
- */
 export function shortProcessorName(model: string): string {
   return model
     .replace(trademarks, "")
@@ -52,7 +45,6 @@ export function shortProcessorName(model: string): string {
     .trim();
 }
 
-/** How many processors work runs on: virtual processors on a virtual machine, cores otherwise. */
 export function describeProcessorCount(system: SystemInfo): string {
   const { cores } = system.cpu;
   const unit = system.hypervisor === null ? "core" : "vCPU";

@@ -14,7 +14,6 @@ export const branchFormat = [
   "%(contents:subject)",
 ].join("%00");
 
-/** A local branch with its newest commit, before its reachability from remotes is known. */
 export interface ParsedBranch {
   readonly name: string;
   readonly upstream: LocalBranch["upstream"];
@@ -23,7 +22,6 @@ export interface ParsedBranch {
 
 export interface ParsedBranches {
   readonly branches: { readonly items: ReadonlyArray<ParsedBranch>; readonly total: number };
-  /** The tip of the checked-out branch, absent when HEAD is detached or unborn. */
   readonly currentCommit: Commit | null;
 }
 
@@ -49,7 +47,6 @@ function upstreamFrom(name: string, track: string): Upstream | null {
   return upstream;
 }
 
-/** Parses `git for-each-ref refs/heads --format=<branchFormat>`. */
 export function parseBranches(output: string): ParsedBranches {
   const items: Array<ParsedBranch> = [];
   let total = 0;

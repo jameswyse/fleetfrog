@@ -23,7 +23,6 @@ function git(cwd: string, ...args: Array<string>): string {
   });
 }
 
-/** An upstream repository, a clone one commit behind and one ahead of it, and a linked worktree. */
 function createFixture(root: string) {
   const upstream = path.join(root, "upstream");
   const clone = path.join(root, "clone");
@@ -66,7 +65,6 @@ describe("reading a checkout", () => {
       const location = Option.getOrThrow(yield* locateCheckout(fixture.clone));
       const status = yield* readGitStatus(location);
 
-      // A local-path origin has no remote identity, so the root commit identifies the repository.
       expect(location.identity).toEqual({ _tag: "RootCommit", sha: fixture.rootCommit });
       expect(location.worktree).toEqual({ _tag: "Main" });
       expect(location.directoryName).toBe("clone");
@@ -140,7 +138,6 @@ describe("reading a checkout", () => {
 
       expect(location.identity).toEqual({ _tag: "RootCommit", sha: fixture.rootCommit });
       expect(status.head).toEqual({ _tag: "Unborn", name: "scratch" });
-      // The clone's fetch counts for every worktree, since they share remote-tracking refs.
       expect(status.lastFetchedAt).not.toBeNull();
     }),
   );

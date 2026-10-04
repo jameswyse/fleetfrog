@@ -6,13 +6,11 @@ import { checkArchiveFolder } from "@fleetfrog/protocol/domain/archiveFolder";
 import type { HubResult } from "@/rpc/hubConnection.ts";
 import type { FolderOutcome, Machine } from "@fleetfrog/protocol/domain/fleet";
 
-/** A request to create the folder, until the agent looks at it again. */
 type Creation =
   | { readonly _tag: "Creating" }
   | { readonly _tag: "Created" }
   | { readonly _tag: "Failed"; readonly message: string };
 
-/** Why the folder can't be this machine's Archive folder, or null when it can. */
 function folderProblem(folder: string, machine: Machine): string | null {
   const check = checkArchiveFolder({
     folder,
@@ -33,10 +31,6 @@ function folderProblem(folder: string, machine: Machine): string | null {
     : null;
 }
 
-/**
- * Asks the machine to create its Archive folder, or null when its agent can't, or isn't allowed
- * to, so the field offers no button to try.
- */
 export function archiveFolderCreator(
   machine: Machine,
 ): ((path: string) => Promise<HubResult<FolderOutcome>>) | null {
@@ -47,15 +41,10 @@ export function archiveFolderCreator(
     : null;
 }
 
-/** Saves the machine's Archive folder, or turns archiving off with null. */
 export function saveArchiveFolder(machine: Machine, folder: string | null) {
   return requestHub((client) => client.SetArchiveFolder({ machineId: machine.id, folder }));
 }
 
-/**
- * The machine's Archive folder, saved when the field is left or on Enter. An empty field turns
- * archiving off. A folder the machine lacks can be created, and a new one is, once it's saved.
- */
 export function ArchiveFolderField({
   id,
   machine,
@@ -65,14 +54,12 @@ export function ArchiveFolderField({
   readonly id: string;
   readonly machine: Machine;
   readonly onChange: (folder: string | null) => Promise<HubResult<unknown>>;
-  /** Asks the machine to create a folder, or null when it can't now. */
   readonly createFolder: ((path: string) => Promise<HubResult<FolderOutcome>>) | null;
 }) {
   const [problem, setProblem] = useState<string | null>(null);
   const [creation, setCreation] = useState<Creation | null>(null);
   const folder = machine.archiveFolder;
   const status = machine.archiveFolderStatus;
-  // The saved folder can stop passing its checks when the project folders change.
   const savedProblem = folder === null ? null : folderProblem(folder, machine);
 
   const create = async (path: string) => {
@@ -107,20 +94,17 @@ export function ArchiveFolderField({
 
     const saved = await onChange(typed === "" ? null : typed);
 
-    // Once saved, the machine creates the folder if it lacks it, and leaves it alone otherwise.
     if (saved._tag === "Success" && typed !== "") {
       await create(typed);
     }
   };
 
-  // Until the agent looks again, say what the request did rather than what it last saw.
   const pending = status !== "Folder" && creation !== null && creation._tag !== "Failed";
   const missing = folder !== null && status === "Missing" && !pending;
 
   return (
     <div className="w-full">
       <input
-        // Keyed on the saved value, so a change from the hub replaces what is shown.
         key={folder ?? ""}
         id={id}
         type="text"

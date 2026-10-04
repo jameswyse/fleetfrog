@@ -11,7 +11,6 @@ import { migrations } from "../database.ts";
 
 const before = Object.fromEntries(Object.entries(migrations).filter(([name]) => name < "0009"));
 
-/** A database from before 0009 with a paired machine and saved polling, then fully migrated. */
 const OldDatabase = Layer.effectDiscard(
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;

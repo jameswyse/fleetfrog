@@ -13,7 +13,6 @@ export const tierDescriptions = {
   update: "Agent updates: let the hub update this agent to the hub's version",
 } satisfies Record<Tier, string>;
 
-/** What each tier covers, as the subject of a sentence. */
 const tierPluralNames = {
   git: "Git actions",
   cleanup: "Cleanup actions",
@@ -26,7 +25,6 @@ const tierArgument = Argument.Literals("tier", Tier.literals).pipe(
   ),
 );
 
-/** Allows or denies one tier. A running agent picks the change up at its next heartbeat. */
 function setTier(options: { readonly tier: Tier; readonly change: "allow" | "deny" }) {
   const verb = options.change === "allow" ? "allowed" : "denied";
 

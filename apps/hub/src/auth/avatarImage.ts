@@ -11,7 +11,6 @@ const signatures = {
     new TextDecoder().decode(data.subarray(8, 12)) === "WEBP",
 } satisfies Record<UploadedAvatar["mediaType"], (data: Uint8Array) => boolean>;
 
-/** Whether the bytes are an image of the type they claim, small enough to keep. */
 export function isAvatarImage({ mediaType, data }: UploadedAvatar): boolean {
   return data.byteLength <= maximumAvatarBytes && signatures[mediaType](data);
 }

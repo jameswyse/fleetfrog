@@ -45,7 +45,6 @@ const fields: ReadonlyArray<Field> = [
 
 const minimumSeconds = 5;
 
-/** The interval an input holds, in seconds, or null when it isn't a valid interval. */
 function readInterval(input: HTMLInputElement, field: Field): number | null {
   const seconds = Math.round(Number(input.value) * (field.unit === "minutes" ? 60 : 1));
 
@@ -54,7 +53,6 @@ function readInterval(input: HTMLInputElement, field: Field): number | null {
     : null;
 }
 
-/** How often agents scan. Each interval saves itself when its field is left or Enter is pressed. */
 export function ScanningSettings() {
   const hub = useHub();
   const fleet = knownFleet(hub);
@@ -110,7 +108,6 @@ export function ScanningSettings() {
                 <span className="flex items-center gap-2 text-sm">
                   <span className="text-ink-muted">Every</span>
                   <input
-                    // Keyed on the saved value, so a change from the hub replaces what is shown.
                     key={polling[name]}
                     id={name}
                     type="number"

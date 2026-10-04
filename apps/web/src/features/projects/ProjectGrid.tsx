@@ -22,65 +22,40 @@ import type { Fleet, Machine, Repository } from "@fleetfrog/protocol/domain/flee
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 import type { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
-/** What the side panel shows: a repository on every machine, or on one machine. */
 export interface ProjectSelection {
   readonly repository: RepositoryKey;
   readonly machine: MachineId | null;
 }
 
-/** Whether a change of selection adds a history entry or replaces the current one. */
 export type SelectionHistory = "Push" | "Replace";
 
-/** Names the grid button for a selection, so focus can return to it when the panel closes. */
 export function selectionKey(selection: ProjectSelection): string {
   return `${selection.repository}|${selection.machine ?? ""}`;
 }
 
-/** The grid button for a selection, if the grid shows it. */
 export function findGridCell(selection: ProjectSelection): HTMLElement | null {
   return document.querySelector<HTMLElement>(
     `[data-selection="${CSS.escape(selectionKey(selection))}"]`,
   );
 }
 
-/** Offline columns sit on the canvas colour so their last known state reads as stale. */
 function columnBackground(machine: Machine): string {
   return machine.connection._tag === "Offline" ? "bg-canvas" : "bg-surface";
 }
 
-/**
- * Machine columns start at a fixed width, so a long branch or machine name is cut short, not
- * widened. When the grid has room to spare, the columns share it.
- */
 const columnWidth = "w-52 min-w-full";
 
-/**
- * The repository column grows with its longest name, up to a limit, and gives that width back
- * before the grid scrolls sideways. Its header sets the limit as the column's width, so spare room
- * goes to the machine columns. The name's grid track lets it shrink to nothing, so only the
- * minimum width holds the column open when space is short.
- */
 const nameColumnWidth = "min-w-60 max-w-sm";
 const shrinkableName = "grid min-w-0 grid-cols-[minmax(0,max-content)]";
 
-/**
- * Every cell is at least two lines tall, so rows line up whether or not a cell has a second line.
- * Cells are 1px tall to start with, which a table grows to the row's height, so their contents can
- * fill the row with a full height.
- */
 const cellHeight = "min-h-[3.375rem]";
 
-/**
- * Keyboard focus and selection draw the same single ring, so a focused, selected cell shows one
- * border, not two.
- */
 const focusRing =
   "outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset";
 
 const selectedRing =
   "aria-[current=true]:ring-2 aria-[current=true]:ring-accent aria-[current=true]:ring-inset";
 
-/** A chosen repository's whole row. */
 const selectedRowBackground = "bg-accent-soft";
 
 function stepFor(key: string): readonly [number, number] | null {
@@ -107,12 +82,10 @@ function MachineHeader({ fleet, machine }: { readonly fleet: Fleet; readonly mac
       scope="col"
       className={`sticky top-0 z-[2] border-b border-line p-0 text-center align-middle font-normal ${columnBackground(machine)}`}
     >
-      {/* The whole header opens the machine's menu. */}
       <MachineActions
         fleet={fleet}
         machine={machine}
         trigger={{
-          // As tall as the header row, whose height the grid's scroll padding allows for.
           className: `group relative flex min-h-12 ${columnWidth} items-center justify-center gap-2 px-7 hover:bg-surface-raised ${focusRing}`,
           content: (
             <>
@@ -149,10 +122,8 @@ function MatrixCell({
   readonly repository: Repository;
   readonly machine: Machine;
   readonly runs: RunsSnapshot;
-  /** `<row>:<column>` for moving between cells with the arrow keys. */
   readonly position: string;
   readonly selected: boolean;
-  /** The cell's repository is chosen as a whole, which tints its row. */
   readonly rowSelected: boolean;
   readonly onSelect: (selection: ProjectSelection, history: SelectionHistory) => void;
 }) {
@@ -175,7 +146,6 @@ function MatrixCell({
     <td
       className={`h-px border-b border-line p-0 align-middle ${cell === null || cell.problem === null ? background : "bg-danger-soft"}`}
     >
-      {/* Every cell can be chosen, including one the machine lacks, so the arrow keys reach it. */}
       <button
         type="button"
         data-cell={position}
@@ -194,7 +164,6 @@ function MatrixCell({
               activity={
                 active === undefined ? (
                   agent === undefined ? null : (
-                    // A T3 Code agent at work here is the next most useful thing to see.
                     <span
                       className="mt-0.5 flex items-center justify-center gap-1 text-xs text-sync"
                       title={`T3 Code: ${agent.title}`}
@@ -219,11 +188,6 @@ function MatrixCell({
   );
 }
 
-/**
- * Repositories down the side and machines across the top, one short cell for each repository on
- * each machine. Choosing a repository or a cell opens it in the side panel; the arrow keys move
- * between them, and follow along in the panel while it is open.
- */
 export function ProjectGrid({
   fleet,
   repositories,
@@ -231,7 +195,6 @@ export function ProjectGrid({
   onSelect,
 }: {
   readonly fleet: Fleet;
-  /** The repositories to show, which the page may have filtered. */
   readonly repositories: ReadonlyArray<Repository>;
   readonly selection: ProjectSelection | null;
   readonly onSelect: (selection: ProjectSelection, history: SelectionHistory) => void;
@@ -260,7 +223,6 @@ export function ProjectGrid({
 
     const repository = repositories[nextRow];
 
-    // Past the grid's edge there is no cell, so focus stays put.
     if (target === null || repository === undefined) {
       return;
     }
@@ -276,9 +238,6 @@ export function ProjectGrid({
   };
 
   return (
-    // Scrolls both ways under its pinned header row and repository column, which the scroll padding
-    // keeps a focused cell clear of. Positioned so screen-reader text in the cells is clipped here
-    // instead of widening the page.
     <div className="relative min-h-0 w-full max-w-projects scroll-pt-[3.0625rem] scroll-ps-[min(24rem,40%)] overflow-auto rounded-lg border border-line bg-surface">
       <table className="w-full border-separate border-spacing-0 text-sm">
         <caption className="sr-only">
@@ -336,8 +295,6 @@ export function ProjectGrid({
                           </span>
                         </>
                       ) : (
-                        // T3 Code's name leads, with the repository it stands for beneath it. Both
-                        // icons share a column, and both lines start at the same edge.
                         <span className="grid min-w-0 grid-cols-[1rem_minmax(0,max-content)] items-center gap-x-2 gap-y-0.5">
                           <ProjectIcon icon={repository.icon} />
                           <span className="truncate group-hover:underline">{repository.label}</span>

@@ -28,10 +28,8 @@ import type { Cause, Scope } from "effect";
 import type { AgentCapabilities } from "@fleetfrog/protocol/domain/action";
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 
-/** A connected agent as the rest of the hub sees it. */
 export interface OnlineAgent {
   readonly since: DateTime.Utc;
-  /** Distinguishes a reconnection, which abandons the previous connection's actions. */
   readonly sessionId: string;
   readonly capabilities: AgentCapabilities;
 }
@@ -41,31 +39,22 @@ interface Session {
   readonly since: DateTime.Utc;
   capabilities: AgentCapabilities;
   readonly commands: Queue.Queue<HubCommand, Cause.Done>;
-  /** Epoch milliseconds of the last heartbeat, or of connecting. */
   lastHeartbeatAt: number;
 }
 
-/** Connected agents and the command stream each one holds open. */
 export class AgentSessions extends Context.Service<
   AgentSessions,
   {
     readonly online: SubscriptionRef.SubscriptionRef<ReadonlyMap<MachineId, OnlineAgent>>;
-    /**
-     * Registers an agent connection until the scope closes and returns its commands, starting with
-     * its configuration. A newer connection from the same machine ends the older one.
-     */
     readonly connect: (connection: {
       readonly machineId: MachineId;
       readonly capabilities: AgentCapabilities;
     }) => Effect.Effect<Stream.Stream<HubCommand>, never, Scope.Scope>;
-    /** Records capabilities the agent advertised after its owner changed its policy. */
     readonly advertise: (agent: {
       readonly machineId: MachineId;
       readonly capabilities: AgentCapabilities;
     }) => Effect.Effect<void>;
-    /** Queues a command for a connected agent. Returns its session, or null when it is offline. */
     readonly send: (machineId: MachineId, command: HubCommand) => Effect.Effect<string | null>;
-    /** Resends a machine's configuration after its discovery roots or Archive folder change. */
     readonly reconfigure: (machineId: MachineId) => Effect.Effect<void>;
     readonly heartbeat: (machineId: MachineId) => Effect.Effect<void>;
     readonly refresh: (machineIds: ReadonlyArray<MachineId> | "all") => Effect.Effect<void>;
@@ -137,16 +126,11 @@ export class AgentSessions extends Context.Service<
           ? Effect.void
           : configuration(machineId).pipe(
               Effect.flatMap((command) => Queue.offer(session.commands, command)),
-              // A machine removed while connecting has nothing to do. Ending its stream makes the
-              // agent reconnect, and its revoked token then stops it.
               Effect.catchTag("MachineNotFound", () => disconnect(machineId)),
               Effect.asVoid,
             );
       };
 
-      // Polling and integration changes, and dashboards opening or closing, change every agent's
-      // configuration. The initial values arrive before any agent connects, so they reconfigure
-      // nobody.
       yield* Stream.mergeAll(
         [
           SubscriptionRef.changes(polling.settings).pipe(Stream.as(undefined)),
@@ -165,7 +149,6 @@ export class AgentSessions extends Context.Service<
         Effect.forkScoped,
       );
 
-      // A sleeping or unplugged machine never closes its socket, so silence ends the session.
       yield* Effect.gen(function* () {
         const cutoff = (yield* Clock.currentTimeMillis) - heartbeatTimeoutSeconds * 1000;
 
@@ -183,8 +166,6 @@ export class AgentSessions extends Context.Service<
       return {
         online,
         connect: Effect.fn("AgentSessions.connect")(function* ({ machineId, capabilities }) {
-          // Registration and its release are one step, so no interruption can leave a session
-          // registered without the finaliser that removes it.
           const session = yield* Effect.acquireRelease(
             Effect.gen(function* () {
               yield* disconnect(machineId);

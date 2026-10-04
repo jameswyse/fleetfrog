@@ -23,16 +23,13 @@ import type {
 
 const stashLimit = 50;
 
-/** What discovery learns about a checkout. It changes rarely, so status passes reuse it. */
 export interface CheckoutLocation {
   readonly path: string;
   readonly identity: RepositoryIdentity;
-  /** The main worktree's `origin`, in a form other machines can clone from. */
   readonly originUrl: string | null;
   readonly worktree: Worktree;
   readonly directoryName: string;
   readonly placement: Placement;
-  /** This worktree's own Git directory, which holds its HEAD and any operation in progress. */
   readonly gitDirectory: string;
   readonly commonDirectory: string;
 }
@@ -88,10 +85,6 @@ const readCommit = Effect.fn("readCommit")(function* (directory: string) {
   } satisfies Commit;
 });
 
-/**
- * When any worktree of the repository last fetched. `FETCH_HEAD` is per worktree, but every
- * worktree shares the remote-tracking refs a fetch updates.
- */
 async function readLastFetch(commonDirectory: string): Promise<DateTime.Utc | null> {
   const linked = await readdir(path.join(commonDirectory, "worktrees")).catch(() => []);
 
@@ -110,10 +103,6 @@ async function readLastFetch(commonDirectory: string): Promise<DateTime.Utc | nu
   return Number.isFinite(latest) ? DateTime.makeUnsafe(latest) : null;
 }
 
-/**
- * Identifies the working tree at `directory`. Returns `None` for bare repositories and for
- * repositories with neither an `origin` remote nor any commits, which have no identity to share.
- */
 export const locateCheckout = Effect.fn("locateCheckout")(function* (directory: string) {
   const located = yield* runGit(directory, [
     "rev-parse",
@@ -133,8 +122,6 @@ export const locateCheckout = Effect.fn("locateCheckout")(function* (directory: 
   const worktree: Worktree =
     gitDirectory === commonDirectory ? { _tag: "Main" } : { _tag: "Linked", mainPath };
 
-  // Worktrees share the main worktree's remote and history, so they share its identity. An orphan
-  // or unborn branch in a linked worktree would otherwise split the repository.
   const mainOrigin = yield* readOrigin(mainPath);
   const fromMain = yield* identify(mainPath, mainOrigin);
 
@@ -151,14 +138,12 @@ export const locateCheckout = Effect.fn("locateCheckout")(function* (directory: 
     originUrl,
     worktree,
     directoryName: path.basename(mainPath),
-    // Discovery marks checkouts it finds in the Archive folder as archived.
     placement: Placement.cases.Projects.make({}),
     gitDirectory,
     commonDirectory,
   }));
 });
 
-/** The files Git leaves in a worktree's Git directory while each operation waits to continue. */
 const operationMarkers: ReadonlyArray<readonly [string, Operation]> = [
   ["rebase-merge", "rebase"],
   ["rebase-apply", "rebase"],
@@ -211,8 +196,6 @@ export const readGitStatus = Effect.fn("readGitStatus")(function* (location: Che
     refs,
   });
 
-  // Every worktree shares the clone's refs and worktree list, so only the main worktree reports
-  // them.
   const main = location.worktree._tag === "Main";
   const deleted = main ? refs.deleted : [];
   const dropped = main ? refs.droppedStashes : [];

@@ -12,5 +12,4 @@ export const skipped = (reason: SkipReason) => ActionOutcome.cases.Skipped.make(
 
 export const succeeded = (result: ActionResult) => ActionOutcome.cases.Succeeded.make({ result });
 
-/** A Git command's failure as the action's outcome, usually Git's own message. */
 export const failedWith = ({ message }: CommandFailed) => Effect.succeed(failed(message));

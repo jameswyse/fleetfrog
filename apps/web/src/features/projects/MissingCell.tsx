@@ -6,10 +6,6 @@ import { activeCloneFor, latestCloneFor } from "../actions/runLookup.ts";
 import type { RunsSnapshot } from "@fleetfrog/protocol/domain/activity";
 import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
-/**
- * What a cell shows for a repository its machine doesn't have: a faint dashed circle, a clone on
- * its way, or a clone that failed. Choosing the cell offers the clone in the side panel.
- */
 export function MissingCellContent({
   repository,
   machine,

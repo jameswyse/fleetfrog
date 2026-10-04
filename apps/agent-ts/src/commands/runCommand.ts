@@ -5,11 +5,6 @@ import { runAgent } from "../scheduling/runAgent.ts";
 import { logRotation } from "../service/agentService.ts";
 import { reportFailure } from "./reportFailure.ts";
 
-/*
- * Being unpaired or removed are finished states rather than crashes, so `run` stops with a zero
- * exit code and the installed service does not restart it every few seconds.
- */
-
 export const runCommand = Command.make("run", {}, () =>
   runAgent.pipe(
     Effect.catchTags({

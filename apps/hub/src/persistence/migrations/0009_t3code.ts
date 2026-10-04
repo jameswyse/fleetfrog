@@ -1,7 +1,6 @@
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 
-/** The T3 Code integration: each machine's last reading, its project icons and the settings. */
 export default Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 

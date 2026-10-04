@@ -16,10 +16,6 @@ import type { Inspection, SizedPath } from "@fleetfrog/protocol/domain/trash";
 import type { CheckoutLocation } from "../git/readCheckout.ts";
 import type { CommandFailed } from "../process/runTool.ts";
 
-/**
- * Ignored folders and files that tools rebuild or recreate, such as dependencies, build output and
- * caches. Only ignored entries with these names count, so a tracked `build` folder never does.
- */
 const cacheNames = new Set([
   "node_modules",
   ".next",
@@ -49,7 +45,6 @@ const cacheNames = new Set([
   ".DS_Store",
 ]);
 
-/** Build output with a name of its own, such as `.next-e2e` for a second Next.js build. */
 const cachePrefixes = [".next-"];
 const cacheSuffixes = [".tsbuildinfo", ".pyc"];
 
@@ -63,13 +58,10 @@ function isCache(entry: string): boolean {
   );
 }
 
-/** How many ignored entries the dashboard lists by name. */
 export const ignoredListLimit = 100;
 const fetchTimeout = Duration.seconds(90);
-/** A remote's tag listing stops here, so it can't grow without limit. */
 const listingLimit = 8 * 1024 * 1024;
 
-/** Ignored files and folders, each folder once rather than everything inside it. */
 const listIgnored = (location: Pick<CheckoutLocation, "path">) =>
   runGit(location.path, [
     "ls-files",
@@ -86,12 +78,10 @@ export interface IgnoredEntries {
   readonly other: ReadonlyArray<string>;
 }
 
-/** Whether the inspection may fetch, which the owner allows with the `git` tier. */
 export interface InspectionOptions {
   readonly fetch: "Allowed" | "NotAllowed";
 }
 
-/** The ignored entries that are caches, and those that are anything else. */
 export const readIgnored = (
   location: Pick<CheckoutLocation, "path">,
 ): Effect.Effect<IgnoredEntries, CommandFailed> =>
@@ -102,12 +92,6 @@ export const readIgnored = (
     })),
   );
 
-/**
- * A digest of what the checkout holds: HEAD, every ref other than remote-tracking branches, each
- * changed or untracked path, and each ignored entry, caches included, so a cache that appears after
- * the inspection isn't deleted unseen. Remote-tracking branches are left out, so fetching doesn't
- * change it.
- */
 export const fingerprintCheckout = Effect.fn("fingerprintCheckout")(function* (
   location: CheckoutLocation,
   ignored: IgnoredEntries,
@@ -139,7 +123,6 @@ export const fingerprintCheckout = Effect.fn("fingerprintCheckout")(function* (
     .digest("hex");
 });
 
-/** Fetches every remote so the inspection compares against what they have now. */
 const checkRemotes = (location: CheckoutLocation, options: InspectionOptions) =>
   Effect.gen(function* () {
     const remotes = (yield* runGit(location.path, ["remote"])).trim();
@@ -173,7 +156,6 @@ const checkRemotes = (location: CheckoutLocation, options: InspectionOptions) =>
     );
   });
 
-/** Tags no remote has, found by asking each remote for its tags. */
 const countUnpushedTags = (location: CheckoutLocation) =>
   Effect.gen(function* () {
     const local = (yield* runGit(location.path, [
@@ -188,7 +170,6 @@ const countUnpushedTags = (location: CheckoutLocation) =>
       return 0;
     }
 
-    // A remote named like an option, which editing `.git/config` allows, would be read as one.
     const remotes = (yield* runGit(location.path, ["remote"]))
       .split("\n")
       .filter((remote) => remote !== "" && !remote.startsWith("-"));
@@ -201,8 +182,6 @@ const countUnpushedTags = (location: CheckoutLocation) =>
       yield* runGitAction({
         cwd: location.path,
         args: ["ls-remote", "--tags", "--refs", remote],
-        // The listing stops at its limit, so a remote can't grow it without bound. Tags past the
-        // limit count as unpushed.
         onOutput: (text) => {
           if (listing.length < listingLimit) {
             listing += text.slice(0, listingLimit - listing.length);
@@ -210,7 +189,6 @@ const countUnpushedTags = (location: CheckoutLocation) =>
         },
       });
 
-      // Only lines in `ls-remote`'s own format count, so a warning on stderr is never a tag.
       for (const match of listing.matchAll(/^[0-9a-f]{40,64}\t(refs\/tags\/\S+)$/gm)) {
         if (match[1] !== undefined) {
           onRemotes.add(match[1]);
@@ -221,7 +199,6 @@ const countUnpushedTags = (location: CheckoutLocation) =>
     return local.filter((ref) => !onRemotes.has(ref)).length;
   });
 
-/** Submodules whose Git directories are inside the checkout, holding work of their own. */
 const countSubmodules = (location: CheckoutLocation) =>
   Effect.promise(() =>
     readdir(path.join(location.commonDirectory, "modules")).then(
@@ -230,7 +207,6 @@ const countSubmodules = (location: CheckoutLocation) =>
     ),
   );
 
-/** Each path with its size, largest first. */
 export function sized(
   paths: ReadonlyArray<string>,
   sizes: ReadonlyArray<number>,
@@ -240,10 +216,6 @@ export function sized(
     .toSorted((left, right) => right.sizeBytes - left.sizeBytes);
 }
 
-/**
- * Finds what deleting the checkout would lose. It fetches every remote first, when allowed, so
- * commits count as safe only if a remote has them now.
- */
 export const inspectCheckout = Effect.fn("inspectCheckout")(function* (
   location: CheckoutLocation,
   options: InspectionOptions,
@@ -251,8 +223,6 @@ export const inspectCheckout = Effect.fn("inspectCheckout")(function* (
   const remote = yield* checkRemotes(location, options);
   const git = yield* readGitStatus(location);
 
-  // Every ref counts, including notes and the trash's, and HEAD too, since a detached HEAD can
-  // hold commits no branch has. Stashes are counted on their own.
   const unpushedCommits = Number(
     (yield* runGit(location.path, [
       "rev-list",

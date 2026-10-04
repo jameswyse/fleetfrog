@@ -2,7 +2,6 @@ import { XIcon } from "lucide-react";
 
 import type { ReactNode } from "react";
 
-/** The top of the side panel, pinned while the rest scrolls. */
 export function PanelHeader({
   headingId,
   title,
@@ -10,7 +9,6 @@ export function PanelHeader({
   actions,
   onClose,
 }: {
-  /** Labels the panel, and takes focus when the panel covers the page. */
   readonly headingId: string;
   readonly title: ReactNode;
   readonly subtitle?: ReactNode;
@@ -48,7 +46,6 @@ export function PanelHeader({
   );
 }
 
-/** One step of a breadcrumb heading, followed by a slash when another comes after it. */
 export function Crumb({
   children,
   last = false,

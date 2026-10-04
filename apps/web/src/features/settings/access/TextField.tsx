@@ -2,10 +2,6 @@ import { useId } from "react";
 
 import type { InputHTMLAttributes } from "react";
 
-/**
- * A labelled text input for a dialog form, with a hint below it that becomes the error when the
- * field is invalid.
- */
 export function TextField({
   label,
   hint,

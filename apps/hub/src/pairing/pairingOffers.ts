@@ -18,7 +18,6 @@ function hashCode(code: string): string {
   return createHash("sha256").update(code).digest("hex");
 }
 
-/** Single-use pairing codes, held in memory so a hub restart invalidates them. */
 export class PairingOffers extends Context.Service<
   PairingOffers,
   {
@@ -37,7 +36,6 @@ export class PairingOffers extends Context.Service<
           return AgentEndpoint.cases.Url.make({ url: config.agentUrl });
         }
 
-        // Read for each offer, because the address changes when the tailnet machine is renamed.
         if (config.tailscaleSocket !== null) {
           const url = yield* readTailnetAgentUrl(config.tailscaleSocket, config.agentPort);
 
@@ -67,7 +65,6 @@ export class PairingOffers extends Context.Service<
 
           return {
             code,
-            // Agents on the tailnet see Tailscale's certificate, never the hub's own.
             certificateFingerprint:
               offerEndpoint._tag === "Tailnet" ? null : (tls?.fingerprint ?? null),
             endpoint: offerEndpoint,

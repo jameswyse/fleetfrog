@@ -15,7 +15,6 @@ import type { Viewer } from "@fleetfrog/protocol/dashboard/rpcs";
 export const sessionCookie = "fleetfrog_session";
 export const sessionLifetime = Duration.days(30);
 
-/** Session tokens are stored only as SHA-256 hashes. Their 256 random bits make a slow hash unnecessary. */
 function hashSessionToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
@@ -30,29 +29,19 @@ interface Connection {
   readonly closed: Deferred.Deferred<void>;
 }
 
-/**
- * Dashboard sessions and the sockets open under them. Ending a session closes its sockets, so a
- * signed-out, deleted or demoted user stops receiving what they could see before.
- */
 export class DashboardSessions extends Context.Service<
   DashboardSessions,
   {
-    /** Who sent the request, from its session cookie. With sign-in off, anyone. */
     readonly viewer: (headers: Headers.Headers) => Effect.Effect<Viewer, NotSignedIn>;
-    /** Starts a session for the user and returns its token for the cookie. */
     readonly start: (userId: UserId) => Effect.Effect<string>;
-    /** Pushes the session's expiry back to a full lifetime from now. */
     readonly extend: (sessionHash: string) => Effect.Effect<void>;
     readonly end: (sessionHash: string) => Effect.Effect<void>;
     readonly endForUser: (
       userId: UserId,
       options?: { readonly except: string },
     ) => Effect.Effect<void>;
-    /** Ends every session and closes every socket, including those opened with sign-in off. */
     readonly endAll: Effect.Effect<void>;
-    /** Ends every session but the one given, and closes their sockets. */
     readonly endOthers: (sessionHash: string) => Effect.Effect<void>;
-    /** Runs a dashboard socket until it closes or its session ends. */
     readonly connect: <A, E, R>(
       viewer: Viewer,
       socket: Effect.Effect<A, E, R>,
@@ -176,7 +165,6 @@ export class DashboardSessions extends Context.Service<
 
             connections.add(connection);
 
-            // Interrupting the socket's fiber closes it.
             yield* Effect.raceFirst(Effect.asVoid(socket), Deferred.await(connection.closed)).pipe(
               Effect.ensuring(Effect.sync(() => connections.delete(connection))),
             );

@@ -214,7 +214,6 @@ test("[deterministic] fleet rescan discovers a newly created repository", async 
       client.UpdatePolling({ polling: { ...polling, discoverySeconds } }).pipe(Effect.asVoid),
     );
 
-  // Without this, the harness's 5-second discovery finds the repository before the assertion times out.
   await setDiscoverySeconds(3600);
 
   try {

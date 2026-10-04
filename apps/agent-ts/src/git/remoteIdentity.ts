@@ -6,16 +6,11 @@ const scpLikeRemote = /^(?:[^@/]+@)?(?<host>[^:/]+):(?!\/)(?<path>.+)$/;
 const trailingGitSuffix = /\.git\/?$/;
 const surroundingSlashes = /^\/+|\/+$/g;
 
-/**
- * Normalises a Git remote URL so SSH, SCP-like and HTTPS forms of the same repository compare
- * equal. Returns `None` for local paths and URLs without a repository path.
- */
 export function remoteIdentity(remoteUrl: string): Option.Option<RepositoryIdentity> {
   const trimmed = remoteUrl.trim();
   let host: string;
   let path: string;
 
-  // SCP-like remotes such as `github.com:acme/shop` also parse as URLs with a `github.com:` scheme.
   if (trimmed.includes("://") && URL.canParse(trimmed)) {
     const url = new URL(trimmed);
 
@@ -28,7 +23,6 @@ export function remoteIdentity(remoteUrl: string): Option.Option<RepositoryIdent
     try {
       path = decodeURIComponent(url.pathname);
     } catch {
-      // A malformed escape cannot name a hosted repository.
       return Option.none();
     }
   } else {
@@ -58,16 +52,10 @@ export function remoteIdentity(remoteUrl: string): Option.Option<RepositoryIdent
 
 const unsafeCharacters = /[\s\p{Cc}]/u;
 
-/**
- * The form of a remote URL that is safe to share and clone from: HTTPS without credentials, or
- * SSH in URL or SCP-like form. Returns `None` for local paths, other transports, URLs that could
- * pass for a Git option, and anything without a repository path.
- */
 export function cloneableUrl(remoteUrl: string): Option.Option<string> {
   const trimmed = remoteUrl.trim();
   const identity = remoteIdentity(trimmed);
 
-  // A host starting with `-` could reach SSH as an option.
   if (
     trimmed.startsWith("-") ||
     unsafeCharacters.test(trimmed) ||
@@ -82,7 +70,6 @@ export function cloneableUrl(remoteUrl: string): Option.Option<string> {
     return Option.some(trimmed);
   }
 
-  // An SCP-like remote whose path happens to contain `://` is not a URL.
   if (!URL.canParse(trimmed)) {
     return Option.none();
   }

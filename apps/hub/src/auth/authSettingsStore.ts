@@ -17,17 +17,13 @@ const decodeRows = Schema.decodeUnknownEffect(
   Schema.Array(Schema.Struct({ auth_json: Schema.NullOr(AuthJson) })),
 );
 
-/** The hub's sign-in settings, persisted and observable. */
 export class AuthSettingsStore extends Context.Service<
   AuthSettingsStore,
   {
     readonly settings: SubscriptionRef.SubscriptionRef<AuthSettings>;
-    /** The ways of signing in in force, which `FLEETFROG_AUTH_MODE` can turn off. */
     readonly methods: Effect.Effect<SignInSwitches>;
-    /** Whether `FLEETFROG_AUTH_MODE` has turned sign-in off. */
     readonly overridden: boolean;
     readonly update: (auth: AuthSettings) => Effect.Effect<void>;
-    /** The settings as admins see them, on subscribe and after every change. */
     readonly watch: Stream.Stream<Omit<AuthSettingsView, "icon">>;
   }
 >()("fleetfrog/AuthSettingsStore") {
@@ -53,7 +49,6 @@ export class AuthSettingsStore extends Context.Service<
           ),
         ),
         overridden: authModeOverride !== null,
-        // The settings row may not exist yet, and it needs polling intervals to be created.
         update: (auth) =>
           sql`insert into settings ${sql.insert({
             id: 1,

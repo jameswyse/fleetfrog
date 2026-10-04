@@ -20,7 +20,6 @@ import type { ReactNode } from "react";
 
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 
-/** A machine's menu, opened by its column header in the grid. */
 export function MachineActions({
   fleet,
   machine,

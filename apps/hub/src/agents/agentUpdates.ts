@@ -16,30 +16,19 @@ import { AgentSessions } from "./agentSessions.ts";
 import type { MachineNotFound } from "@fleetfrog/protocol/dashboard/rpcs";
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 
-/**
- * Updates agents to the hub's own version, which every FleetFrog package shares, so an agent never
- * runs a version its hub doesn't know. Tracks each update until the agent reconnects.
- */
 export class AgentUpdates extends Context.Service<
   AgentUpdates,
   {
-    /** The version agents should run: the hub's own. */
     readonly targetVersion: string;
     readonly updates: SubscriptionRef.SubscriptionRef<ReadonlyMap<MachineId, AgentUpdate>>;
-    /** Asks the machine's agent to update to the target version. */
     readonly start: (
       machineId: MachineId,
     ) => Effect.Effect<void, MachineNotFound | AgentNotUpdatable>;
-    /** Records the agent's answer that it couldn't update. */
     readonly fail: (failure: {
       readonly machineId: MachineId;
       readonly version: string;
       readonly message: string;
     }) => Effect.Effect<void>;
-    /**
-     * Settles an update when its agent reconnects: done if it runs the new version, and failed if
-     * it came back on its old one, which means it stopped before installing.
-     */
     readonly connected: (agent: {
       readonly machineId: MachineId;
       readonly agentVersion: string;
@@ -82,7 +71,6 @@ export class AgentUpdates extends Context.Service<
                   capabilities: agent.capabilities,
                 });
 
-          // Checked and claimed in one step, so a second click can't send the command twice.
           const claimed = yield* SubscriptionRef.modify(updates, (current) => {
             const machine = {
               info: record.info,

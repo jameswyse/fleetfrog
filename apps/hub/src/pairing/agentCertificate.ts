@@ -9,14 +9,12 @@ import { createSelfSignedCertificate } from "./selfSignedCertificate.ts";
 
 const validityYears = 20;
 
-/** The self-signed certificate agents pin during pairing. Absent when agent TLS is off. */
 export class AgentCertificate extends Context.Service<
   AgentCertificate,
   {
     readonly tls: {
       readonly certificatePem: string;
       readonly privateKeyPem: string;
-      /** Node's `AA:BB:…` SHA-256 fingerprint, as agents see it on the TLS peer certificate. */
       readonly fingerprint: string;
     } | null;
   }
@@ -33,7 +31,6 @@ export class AgentCertificate extends Context.Service<
       const certificatePath = path.join(directory, "certificate.pem");
       const privateKeyPath = path.join(directory, "private-key.pem");
       const now = yield* DateTime.now;
-      // Backdated so an agent whose clock runs a little behind still accepts it.
       const notBefore = DateTime.toDate(DateTime.subtract(now, { days: 1 }));
       const notAfter = DateTime.toDate(DateTime.add(now, { years: validityYears }));
 

@@ -21,22 +21,16 @@ const whitespace = /\s+/g;
 const vmStatPageSize = /page size of (?<bytes>\d+) bytes/;
 const vmStatCount = /^"?(?<name>[^":\n]+)"?:\s+(?<count>\d+)\.$/gm;
 
-/** The distribution's own name for itself from `/etc/os-release`, such as "Ubuntu 26.04 LTS". */
 export function parseOsRelease(text: string): string | null {
   const value = osReleaseName.exec(text)?.groups?.value?.trim() ?? "";
 
   return value.replace(/^(["'])(.*)\1$/, "$2") || null;
 }
 
-/** The version number from `git --version`, such as "2.53.0" from "git version 2.53.0". */
 export function parseGitVersion(output: string): string | null {
   return gitVersionNumber.exec(output)?.groups?.version ?? null;
 }
 
-/**
- * Memory in use from `vm_stat`, counted as Activity Monitor does: app memory (anonymous pages that
- * can't be purged), wired memory and the compressor's pages. File caches don't count.
- */
 export function parseVmStat(output: string): number | null {
   const pageBytes = Number(vmStatPageSize.exec(output)?.groups?.bytes ?? Number.NaN);
   const pages = new Map<string, number>();
@@ -67,10 +61,6 @@ export function parseVmStat(output: string): number | null {
   return (Math.max(0, anonymous - purgeable) + wired + compressed) * pageBytes;
 }
 
-/**
- * The Mac's model from `ioreg`, as About This Mac shows it: "MacBook Pro (13-inch, M1, 2020)"
- * becomes "MacBook Pro" with "13-inch, M1, 2020".
- */
 export function parseProductName(output: string): MachineModel | null {
   const full = productName.exec(output)?.groups?.name?.trim();
 
@@ -99,14 +89,12 @@ const hypervisorNames = new Map([
   ["google", "Google Compute Engine"],
 ]);
 
-/** The hypervisor's name from `systemd-detect-virt --vm`, or null on a physical machine. */
 export function parseHypervisor(output: string): string | null {
   const id = output.trim();
 
   return id === "" || id === "none" ? null : (hypervisorNames.get(id) ?? id);
 }
 
-/** Apple's marketing names and model identifiers share these prefixes, such as "Mac mini" and "Macmini8,1". */
 export function kindFromAppleName(name: string): MachineKind | null {
   const compact = name.toLowerCase().replace(whitespace, "");
 
@@ -125,10 +113,6 @@ export function kindFromAppleName(name: string): MachineKind | null {
   return compact.startsWith("imac") || compact.startsWith("macpro") ? "desktop" : null;
 }
 
-/**
- * SMBIOS enclosure types. Codes that describe a shape rather than a machine, such as docking
- * stations, have no kind.
- */
 const chassisKinds = new Map<string, MachineKind>([
   ["3", "desktop"],
   ["4", "desktop"],
@@ -156,10 +140,6 @@ const chassisKinds = new Map<string, MachineKind>([
   ["35", "desktop"],
 ]);
 
-/**
- * Hypervisors and cloud providers that name themselves in the firmware's vendor or product.
- * Hyper-V is matched on its "Virtual Machine" product, not the vendor Surface devices share.
- */
 const virtualMarkers = [
   "qemu",
   "kvm",
@@ -181,7 +161,6 @@ const virtualMarkers = [
   "virtual machine",
 ];
 
-/** A Linux machine's kind from its firmware tables. Any virtual machine reads as a cloud VM. */
 export function kindFromFirmware(firmware: {
   readonly chassisType: string | null;
   readonly vendor: string | null;
@@ -194,7 +173,6 @@ export function kindFromFirmware(firmware: {
     return "cloud";
   }
 
-  // Apple hardware running Linux still reports its Apple product name.
   return (
     kindFromAppleName(product) ??
     (firmware.chassisType === null ? null : (chassisKinds.get(firmware.chassisType) ?? null))
@@ -207,7 +185,6 @@ const readTrimmed = (file: string) =>
     () => null,
   );
 
-/** The machine's kind for its icon, detected as T3 Code does. Null without a usable signal. */
 const readKind = Effect.fn("readKind")(function* (
   platform: Platform,
   model: MachineModel | null,
@@ -216,7 +193,6 @@ const readKind = Effect.fn("readKind")(function* (
   if (platform === "darwin") {
     const fromModel = model === null ? null : kindFromAppleName(model.name);
 
-    // Intel Macs have no marketing name, but their model identifier shares its prefix.
     return (
       fromModel ??
       (yield* runTool("sysctl", os.homedir(), ["-n", "hw.model"]).pipe(
@@ -235,7 +211,6 @@ const readKind = Effect.fn("readKind")(function* (
     ]),
   );
 
-  // WSL names Microsoft in its kernel release, and WSL 2 would otherwise read as a Hyper-V VM.
   if (release?.toLowerCase().includes("microsoft") === true) {
     return "linux";
   }
@@ -244,7 +219,6 @@ const readKind = Effect.fn("readKind")(function* (
 });
 
 const readModel = Effect.fn("readModel")(function* (platform: Platform) {
-  // Apple silicon Macs name themselves; Linux has no dependable equivalent.
   return platform === "darwin"
     ? yield* runTool("ioreg", os.homedir(), ["-rc", "IOPlatformDevice", "-k", "product-name"]).pipe(
         Effect.map(parseProductName),
@@ -254,7 +228,6 @@ const readModel = Effect.fn("readModel")(function* (platform: Platform) {
 });
 
 const readHypervisor = Effect.fn("readHypervisor")(function* (platform: Platform) {
-  // It exits with a failure on a physical machine, which reads as no hypervisor.
   return platform === "linux"
     ? yield* runTool("systemd-detect-virt", os.homedir(), ["--vm"]).pipe(
         Effect.map(parseHypervisor),
@@ -278,7 +251,6 @@ const readOsName = Effect.fn("readOsName")(function* (platform: Platform) {
   return parseOsRelease(release) ?? "Linux";
 });
 
-/** Hardware and software facts, read once per connection. */
 export const readSystemInfo = Effect.fn("readSystemInfo")(function* (platform: Platform) {
   const git = yield* runTool("git", os.homedir(), ["--version"]).pipe(
     Effect.map(parseGitVersion),
@@ -304,24 +276,20 @@ export const readSystemInfo = Effect.fn("readSystemInfo")(function* (platform: P
 
 const readMemoryUsed = Effect.fn("readMemoryUsed")(function* (platform: Platform) {
   if (platform === "darwin") {
-    // Free pages alone are a sliver on macOS, which keeps its caches full.
     return yield* runTool("vm_stat", os.homedir(), []).pipe(
       Effect.map(parseVmStat),
       Effect.orElseSucceed(() => null),
     );
   }
 
-  // Node reads MemAvailable on Linux, which leaves out caches the kernel can reclaim.
   return os.totalmem() - os.freemem();
 });
 
-/** Disk space for the home directory's file system, memory in use and the load average, now. */
 export const readSystemUsage = Effect.fn("readSystemUsage")(function* (platform: Platform) {
   const disk = yield* Effect.promise(() =>
     statfs(os.homedir()).then(
       (stats) => ({
         totalBytes: stats.blocks * stats.bsize,
-        // Space an unprivileged user can use, which is what a clone or install can fill.
         freeBytes: stats.bavail * stats.bsize,
       }),
       () => null,

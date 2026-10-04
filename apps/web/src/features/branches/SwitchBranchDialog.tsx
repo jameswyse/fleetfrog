@@ -9,7 +9,6 @@ import { BusyThreadsNotice } from "../t3Code/T3CodeNotices.tsx";
 import type { Checkout } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine } from "@fleetfrog/protocol/domain/fleet";
 
-/** Confirms switching a checkout with changes, which are stashed first rather than carried. */
 export function SwitchBranchDialog({
   machine,
   checkout,

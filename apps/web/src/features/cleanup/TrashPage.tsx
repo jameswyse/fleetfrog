@@ -21,7 +21,6 @@ import type { ActionRun, TargetedRun } from "@fleetfrog/protocol/domain/activity
 
 import type { TrashEntry } from "./trashEntries.ts";
 
-/** The queued or running restore or purge of an entry. */
 function activeRunOn(active: ReadonlyArray<ActionRun>, entry: TrashEntry): ActionRun | undefined {
   return active.find(
     (run) =>
@@ -38,7 +37,6 @@ function purgeRuns(entries: ReadonlyArray<TrashEntry>): ReadonlyArray<TargetedRu
   }));
 }
 
-/** What an entry is called in sentences, such as the branch or folder name. */
 function entryName({ item }: TrashEntry): string {
   if (item._tag === "Stash") {
     return "this stash";
@@ -47,7 +45,6 @@ function entryName({ item }: TrashEntry): string {
   return item._tag === "Branch" ? item.branch.name : item.checkout.directoryName;
 }
 
-/** Confirms permanently deleting entries, which can't be undone. */
 function PurgeDialog({
   entries,
   onClose,
@@ -104,7 +101,6 @@ function PurgeDialog({
   );
 }
 
-/** What the row says about the entry under its name. */
 function EntryDetails({ entry }: { readonly entry: TrashEntry }) {
   const { item } = entry;
 
@@ -228,7 +224,6 @@ function TrashRow({
   );
 }
 
-/** Everything moved to the trash on every machine, which can be restored until it's emptied. */
 export function TrashPage() {
   const fleet = knownFleet(useHub());
   const { active } = useRuns();

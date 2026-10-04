@@ -1,22 +1,16 @@
 import { Effect, Option, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 
-/** The settings as 0.2.0 stored them, with one mode for how people sign in. */
 const SingleMode = Schema.fromJsonString(
   Schema.Struct({
     mode: Schema.Literals(["none", "local", "oidc"]),
     gravatar: Schema.Boolean,
-    // Carried over as it is, since its shape doesn't change.
     oidc: Schema.Unknown,
   }),
 );
 
 const decodeSingleMode = Schema.decodeUnknownOption(SingleMode);
 
-/**
- * Passwords and the provider turn on and off independently, so each stored mode becomes a switch
- * for each. The provider's sign-in button gets an icon of its own.
- */
 export default Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 

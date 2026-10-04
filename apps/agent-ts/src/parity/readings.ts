@@ -1,13 +1,3 @@
-/**
- * Prints what this agent reads from checkouts, for `scripts/agentParity/compare.mjs` to compare
- * with the Rust agent's `__scan` and `__inspect` output.
- *
- * `node src/parity/readings.ts scan [--archive <folder>] <root>...` prints every checkout discovery
- * finds with its status, and `node src/parity/readings.ts inspect <path> [<worktree>]` prints an inspection that
- * doesn't fetch. `node src/parity/readings.ts t3code <database>` prints what the agent reads from T3
- * Code, with project icons. `node src/parity/readings.ts github <login> <path>` prints what the agent
- * reads from GitHub about the checkout at the path.
- */
 import { Console, Duration, Effect, Option, Schema } from "effect";
 
 import { CheckoutStatus, GithubState } from "@fleetfrog/protocol/domain/checkout";

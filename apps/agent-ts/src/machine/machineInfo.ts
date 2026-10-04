@@ -18,10 +18,6 @@ const prettyHostnameLine = /^PRETTY_HOSTNAME=(?<value>.*)$/m;
 
 export const agentVersion = packageJson.version;
 
-/**
- * Why this agent can't update itself, for `fleetfrog update` and a hub's `Update` command. It runs
- * from a checkout on Node, so Git updates it.
- */
 export const runsFromSource =
   "This agent runs from source, so it can't update itself. Update it with Git and restart it.";
 
@@ -33,7 +29,6 @@ function currentPlatform(): Platform {
   throw new Error(`FleetFrog does not support ${process.platform} yet.`);
 }
 
-/** The name the user gave the machine: systemd's pretty hostname on Linux, the computer name on macOS. */
 const readPrettyName = Effect.fn("readPrettyName")(function* (platform: Platform) {
   if (platform === "darwin") {
     return yield* runTool("scutil", homedir(), ["--get", "ComputerName"]).pipe(
@@ -73,11 +68,9 @@ export const readMachineInfo = Effect.gen(function* () {
   } satisfies MachineInfo;
 });
 
-/** Common development folders that exist here, offered as the first discovery roots. */
 export function suggestDiscoveryRoots(): Array<string> {
   const existing = commonRoots.filter((root) => existsSync(rootPath(root)));
 
-  // Case-insensitive file systems report both spellings of the same folder.
   return existing.includes("~/Projects")
     ? existing.filter((root) => root !== "~/projects")
     : existing;

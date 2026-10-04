@@ -22,20 +22,14 @@ const decodeRows = Schema.decodeUnknownEffect(
   ),
 );
 
-/** The last observed checkouts for every machine. Replaceable at any time by a fresh scan. */
 export class CheckoutStore extends Context.Service<
   CheckoutStore,
   {
     readonly all: Effect.Effect<ReadonlyArray<MachineCheckout>>;
-    /** Replaces a machine's whole inventory after a completed discovery walk. */
     readonly replace: (inventory: {
       readonly machineId: MachineId;
       readonly checkouts: ReadonlyArray<Checkout>;
     }) => Effect.Effect<void>;
-    /**
-     * Upserts changed checkouts and drops removed ones after a status pass. A checkout the hub
-     * doesn't hold yet is added only while the machine has fewer than `maximumReportedItems`.
-     */
     readonly apply: (changes: {
       readonly machineId: MachineId;
       readonly changed: ReadonlyArray<Checkout>;

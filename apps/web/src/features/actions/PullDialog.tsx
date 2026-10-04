@@ -14,7 +14,6 @@ import type { Fleet } from "@fleetfrog/protocol/domain/fleet";
 
 import type { PullScope } from "./actionAvailability.ts";
 
-/** Confirms a pull across several checkouts, saying which will be skipped and why. */
 export function PullDialog({
   fleet,
   scope,

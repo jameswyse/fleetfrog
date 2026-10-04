@@ -10,7 +10,6 @@ const decodeRows = Schema.decodeUnknownEffect(
   Schema.Array(Schema.Struct({ media_type: Schema.String, data: Schema.Uint8Array })),
 );
 
-/** The image types a project icon may be, as agents look for them. */
 const imageTypes = new Set([
   "image/avif",
   "image/gif",
@@ -21,14 +20,8 @@ const imageTypes = new Set([
   "image/x-icon",
 ]);
 
-/** The largest icon an agent sends. */
 const maximumIconBytes = 256 * 1024;
 
-/**
- * The icon's bytes, or null for one the hub won't serve: an unknown type, too large, or bytes that
- * don't match the hash it's named by. Browsers keep each icon for good under its hash, so the name
- * must be the hash of what's served.
- */
 function checkedBytes(icon: ProjectIconFile): Buffer | null {
   const data = Buffer.from(icon.base64, "base64");
 
@@ -40,11 +33,9 @@ function checkedBytes(icon: ProjectIconFile): Buffer | null {
     : null;
 }
 
-/** The images machines last reported as project icons, each named by a hash of its bytes. */
 export class ProjectIconStore extends Context.Service<
   ProjectIconStore,
   {
-    /** Replaces every icon a machine holds. */
     readonly replace: (report: {
       readonly machineId: MachineId;
       readonly icons: ReadonlyArray<ProjectIconFile>;
@@ -84,7 +75,6 @@ export class ProjectIconStore extends Context.Service<
           Effect.orDie,
         ),
         find: (id) =>
-          // A machine removed while its report was on the way may leave icons behind.
           sql`select media_type, data from project_icons
               where id = ${id} and machine_id in (select id from machines) limit 1`.pipe(
             Effect.flatMap(decodeRows),

@@ -6,7 +6,6 @@ import { SidebarLayout, sidebarLinkClass } from "@/ui/SidebarLayout.tsx";
 
 import { trashEntries } from "./trashEntries.ts";
 
-/** Where tidied-away work waits: the archive and the trash, and what can come back from each. */
 export function CleanupLayout() {
   const fleet = knownFleet(useHub());
   const inTrash = fleet === null ? 0 : trashEntries(fleet).length;

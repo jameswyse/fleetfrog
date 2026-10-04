@@ -11,13 +11,11 @@ import type { HubResult } from "@/rpc/hubConnection.ts";
 import type { DiscoveryRoot, FolderOutcome, FolderStatus } from "@fleetfrog/protocol/domain/fleet";
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 
-/** A folder this list asked the machine to create. */
 type Creation =
   | { readonly _tag: "Creating" }
   | { readonly _tag: "Created" }
   | { readonly _tag: "Failed"; readonly message: string };
 
-/** What the agent found at a folder on its last search, and whether that is a problem. */
 interface FolderNote {
   readonly text: string;
   readonly problem: boolean;
@@ -38,7 +36,6 @@ function folderNote(status: FolderStatus | null | undefined, repositories: numbe
   return { text: status === "Missing" ? "Not found" : "Not a folder", problem: true };
 }
 
-/** Why a folder can't be added, or null when it can. */
 function additionProblem(path: string, paths: ReadonlyArray<string>): string | null {
   if (!path.startsWith("/") && !path.startsWith("~")) {
     return "Enter a full path, or one starting with ~.";
@@ -47,12 +44,6 @@ function additionProblem(path: string, paths: ReadonlyArray<string>): string | n
   return paths.includes(path) ? `${path} is already in the list.` : null;
 }
 
-/**
- * A machine's project folders as a compact list, each with how many repositories it holds. The
- * first is the default for clones, so making another the default moves it to the top. Every change
- * is handed to `onChange` straight away and shown at once; the saved list replaces it when the hub
- * reports it. A folder the machine lacks can be created, and one added here is, once it's saved.
- */
 export function ProjectFolders({
   machineId,
   homeDirectory,
@@ -63,14 +54,9 @@ export function ProjectFolders({
 }: {
   readonly machineId: MachineId;
   readonly homeDirectory: string;
-  /**
-   * The checkout folders of each repository on the machine, so several clones of one repository
-   * count once.
-   */
   readonly repositoryPaths: ReadonlyArray<ReadonlyArray<string>>;
   readonly roots: ReadonlyArray<DiscoveryRoot>;
   readonly onChange: (paths: ReadonlyArray<string>) => Promise<HubResult<unknown>>;
-  /** Asks the machine to create a folder, or null when it can't now. */
   readonly createFolder: ((path: string) => Promise<HubResult<FolderOutcome>>) | null;
 }) {
   const savedPaths = roots.map(({ path }) => path);
@@ -83,7 +69,6 @@ export function ProjectFolders({
   const statuses = new Map(roots.map(({ path, status }) => [path, status]));
   const inputId = `new-folder-${machineId}`;
 
-  // The hub reported a different saved list, so show it in place of the local copy.
   if (adoptedKey !== savedKey) {
     setAdoptedKey(savedKey);
     setPaths(savedPaths);
@@ -121,7 +106,6 @@ export function ProjectFolders({
     );
   };
 
-  /** Once saved, the machine creates the folder if it lacks it, and leaves it alone otherwise. */
   const add = async (path: string) => {
     const saved = await update([...paths, path]);
 
@@ -130,7 +114,6 @@ export function ProjectFolders({
     }
   };
 
-  /** Removing or reordering takes away the button that had focus, so focus goes to the add field. */
   const updateFromRow = (next: ReadonlyArray<string>) => {
     void update(next);
     document.getElementById(inputId)?.focus();
@@ -156,7 +139,6 @@ export function ProjectFolders({
             ).length,
           );
 
-          // Until the agent looks again, say what the request did rather than what it last saw.
           if (status !== "Folder" && creation?._tag === "Creating") {
             note = { text: "Creating…", problem: false };
           } else if (status !== "Folder" && creation?._tag === "Created") {

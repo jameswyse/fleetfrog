@@ -25,7 +25,6 @@ import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 
 import type { UnfinishedRun } from "../activity/activityStore.ts";
 
-/** Starts batches, relays agents' reports on them and cancels them. */
 export class ActionDispatcher extends Context.Service<
   ActionDispatcher,
   {
@@ -37,7 +36,6 @@ export class ActionDispatcher extends Context.Service<
       MachineNotFound | RepositoryNotFound | NothingToRun | NoCloneSource
     >;
     readonly cancel: (target: CancelTarget) => Effect.Effect<void>;
-    /** Records an agent's report about one of its own runs. Reports about other runs are ignored. */
     readonly receive: (report: {
       readonly machineId: MachineId;
       readonly runId: RunId;
@@ -52,7 +50,6 @@ export class ActionDispatcher extends Context.Service<
       const activity = yield* ActivityFeed;
       const fleet = yield* FleetFeed;
 
-      /** The connection each sent run went to. A run outlives its connection only as a result. */
       const dispatched = new Map<
         RunId,
         { readonly machineId: MachineId; readonly sessionId: string }
@@ -70,12 +67,10 @@ export class ActionDispatcher extends Context.Service<
           ),
         );
 
-      // Runs left unfinished by a previous hub process will never report.
       yield* store
         .unfinished({ _tag: "All" })
         .pipe(Effect.flatMap((runs) => Effect.forEach(runs, interrupt, { discard: true })));
 
-      // An agent that disconnects or reconnects abandons its actions, so they end as interrupted.
       yield* SubscriptionRef.changes(sessions.online).pipe(
         Stream.runForEach((online) =>
           Effect.gen(function* () {
@@ -157,7 +152,6 @@ export class ActionDispatcher extends Context.Service<
                   ({ runId }) => runId === target.runId,
                 );
 
-          // The agent reports each cancellation as the run's outcome.
           yield* Effect.forEach(
             runs,
             ({ runId, machineId }) =>
@@ -172,7 +166,6 @@ export class ActionDispatcher extends Context.Service<
             Started: () =>
               DateTime.now.pipe(Effect.flatMap((at) => store.markStarted({ ...run, at }))),
             Progress: ({ line }) => store.markProgress({ ...run, line }),
-            // Only the machine running it can finish a run, so a stray report changes nothing.
             Finished: ({ outcome, output }) =>
               DateTime.now.pipe(
                 Effect.flatMap((at) => store.markFinished({ ...run, outcome, output, at })),

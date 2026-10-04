@@ -4,10 +4,6 @@ import type { ComponentType } from "react";
 
 import type { MachineKind } from "@fleetfrog/protocol/domain/machine";
 
-/*
- * Lucide has no Apple desktops, so these two are T3 Code's, drawn to Lucide's grid: a Mac mini as a
- * squat slab with a front light, and a Mac Studio as the same slab twice as tall.
- */
 const MacMiniIcon = createLucideIcon("mac-mini", [
   ["rect", { width: "20", height: "8", x: "2", y: "8", rx: "2", key: "body" }],
   ["path", { d: "M6 12h.01", key: "light" }],
@@ -18,7 +14,6 @@ const MacStudioIcon = createLucideIcon("mac-studio", [
   ["path", { d: "M7 15h.01M11 15h.01M15 15h.01", key: "ports" }],
 ]);
 
-/** Tux from Simple Icons, as T3 Code shows Linux and WSL. It is filled, unlike Lucide's outlines. */
 function LinuxIcon({ className = "" }: { readonly className?: string }) {
   return (
     <svg
@@ -44,7 +39,6 @@ const kindIcons = {
   "mac-studio": MacStudioIcon,
 } satisfies Record<MachineKind, ComponentType<{ readonly className?: string }>>;
 
-/** The names T3 Code gives each kind, so the two apps agree. */
 export const machineKindLabels = {
   server: "Server",
   cloud: "Cloud VM",
@@ -55,7 +49,6 @@ export const machineKindLabels = {
   "mac-studio": "Workstation",
 } satisfies Record<MachineKind, string>;
 
-/** A machine's icon. Decorative, like every icon: name the machine beside it. */
 export function MachineKindIcon({
   kind,
   className = "",

@@ -1,7 +1,6 @@
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 
-/** Who started each batch and made each change, which stays null from before sign-in. */
 export default Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 

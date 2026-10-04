@@ -1,7 +1,5 @@
-/** How long a copy button shows its tick, in milliseconds. */
 const copiedDuration = 2000;
 
-/** Lets each command's button copy it, confirming with a tick and through the status message. */
 export function enableCopyButtons(status: HTMLElement): void {
   for (const button of document.querySelectorAll<HTMLButtonElement>("[data-copy]")) {
     const code = button.closest(".command")?.querySelector("code");

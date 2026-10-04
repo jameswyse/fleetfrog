@@ -23,7 +23,6 @@ function T3CodeState({ fleet }: { readonly fleet: Fleet }) {
   );
 }
 
-/** Other apps FleetFrog reads, each opening its own settings. */
 export function IntegrationsSettings() {
   const hub = useHub();
   const fleet = knownFleet(hub);

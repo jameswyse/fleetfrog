@@ -4,7 +4,6 @@ import { createServer } from "node:http";
 
 import { Predicate, Schema } from "effect";
 
-/** A loopback identity provider that signs real ID tokens and checks PKCE. */
 export async function startIdentityProvider() {
   const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
   const key = { ...publicKey.export({ format: "jwk" }), kid: "e2e", use: "sig", alg: "RS256" };

@@ -41,7 +41,6 @@ const capabilities = (updatesItself: boolean): AgentCapabilities => ({
   updatesItself,
 });
 
-/** Pairs the studio and connects its agent on `agentVersion`, returning the commands it receives. */
 const connectStudio = Effect.fnUntraced(function* (options: {
   readonly agentVersion: string;
   readonly updatesItself: boolean;

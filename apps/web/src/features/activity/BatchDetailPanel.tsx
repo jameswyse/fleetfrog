@@ -8,7 +8,6 @@ import { CancelButton } from "./CancelButton.tsx";
 
 import type { ActionRun, BatchId, RunDetail } from "@fleetfrog/protocol/domain/activity";
 
-/** Problems first, then work in progress, then everything that went to plan. */
 const statusOrder = {
   Failed: 0,
   Interrupted: 1,
@@ -60,7 +59,6 @@ function RunItem({ detail }: { readonly detail: RunDetail }) {
   );
 }
 
-/** Every run in one batch, with the problems first. */
 export function BatchDetailPanel({
   batchId,
   onClose,

@@ -2,10 +2,6 @@ import { useId, useRef } from "react";
 
 import type { ReactNode } from "react";
 
-/**
- * A modal built on the native `<dialog>`, which traps focus, makes the page inert and closes on
- * Escape. Render it only while open.
- */
 export function Dialog({
   title,
   onClose,
@@ -37,9 +33,6 @@ export function Dialog({
           node.showModal();
         }
 
-        // Callers close the dialog by unmounting it, which skips the native focus return. In
-        // development React also detaches and reattaches the ref, so only a removed dialog
-        // hands focus back.
         return () => {
           queueMicrotask(() => {
             if (!node.isConnected && opener.current instanceof HTMLElement) {

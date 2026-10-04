@@ -4,7 +4,6 @@ import { schemaDrift } from "@fleetfrog/protocol/domain/t3Code";
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 import type { T3CodeProject } from "@fleetfrog/protocol/domain/t3Code";
 
-/** Paths of every checkout the machine reported, archived or not. */
 function checkoutPaths(fleet: Fleet, machine: Machine): ReadonlySet<string> {
   return new Set(
     [...fleet.repositories, ...fleet.archive].flatMap(({ checkouts }) =>
@@ -15,7 +14,6 @@ function checkoutPaths(fleet: Fleet, machine: Machine): ReadonlySet<string> {
   );
 }
 
-/** T3 Code's projects on the machine whose folder isn't a checkout FleetFrog knows. */
 export function unmatchedProjects(fleet: Fleet, machine: Machine): ReadonlyArray<T3CodeProject> {
   const reading = machine.t3Code?.reading;
 
@@ -28,7 +26,6 @@ export function unmatchedProjects(fleet: Fleet, machine: Machine): ReadonlyArray
   return reading.projects.filter(({ path }) => !paths.has(path));
 }
 
-/** What the machine's agent last found, in a few words. */
 export function ReadingSummary({
   fleet,
   machine,

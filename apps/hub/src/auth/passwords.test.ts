@@ -3,8 +3,6 @@ import { Effect } from "effect";
 
 import { checkPassword, hashPassword } from "./passwords.ts";
 
-// Each hash costs scrypt's full work, and CI runs every package's tests at once, so five of them
-// can take longer than Vitest's default limit.
 it.effect(
   "accepts only the password that was hashed",
   () =>

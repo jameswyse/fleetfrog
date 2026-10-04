@@ -31,14 +31,9 @@ import type { CheckoutLocation } from "../git/readCheckout.ts";
 import type { InspectionOptions } from "../inspect/inspectCheckout.ts";
 import type { ActionOutput } from "./actionOutput.ts";
 
-/** What a folder takes up on disk. */
 const sizeOf = (folder: string) =>
   diskUsage(path.dirname(folder), [path.basename(folder)]).pipe(Effect.map(([bytes = 0]) => bytes));
 
-/**
- * Deletes cache folders inside `folder`, returning the bytes they took up and any that couldn't be
- * deleted. `rm` removes a symbolic link itself, never what it points at.
- */
 const removeCaches = (folder: string, caches: ReadonlyArray<string>) =>
   Effect.gen(function* () {
     const inside = caches.filter((entry) => isWithin(path.resolve(folder, entry), folder));
@@ -61,11 +56,6 @@ const removeCaches = (folder: string, caches: ReadonlyArray<string>) =>
     };
   });
 
-/**
- * Moves a checkout into the machine's trash, with its linked worktrees and a record of where they
- * came from, if it still matches the inspection the dashboard showed. Caches are deleted from the
- * trashed copy when asked, so a move that fails leaves everything where it was.
- */
 export const trashCheckout = Effect.fn("trashCheckout")(
   function* (
     location: CheckoutLocation,
@@ -147,7 +137,6 @@ export const trashCheckout = Effect.fn("trashCheckout")(
       output.write(`Couldn't delete a cache folder, ${line}\n`);
     }
 
-    // The record is already saved, so a failure here only leaves it out of date.
     yield* writeTrashItem(options.trash, {
       ...item,
       sizeBytes: yield* sizeOf(trashed),
@@ -159,12 +148,6 @@ export const trashCheckout = Effect.fn("trashCheckout")(
   Effect.catchTag("CommandFailed", failedWith),
 );
 
-/**
- * Deletes a checkout for good, only if it still matches the inspection the dashboard showed. Unless
- * the developer accepted losing its unique work with `discardUniqueWork`, a fresh inspection, after
- * fetching, must also find nothing that exists only here and no linked worktrees. Otherwise its
- * linked worktrees are removed through Git first, which deletes their folders.
- */
 export const deleteCheckout = Effect.fn("deleteCheckout")(
   function* (
     location: CheckoutLocation,
@@ -201,7 +184,6 @@ export const deleteCheckout = Effect.fn("deleteCheckout")(
     }
 
     for (const worktree of yield* readLinkedWorktrees(location)) {
-      // Git removes only a worktree whose link it can follow back to this repository.
       if (worktree.state === "Broken") {
         yield* runGitAction({
           cwd: location.path,
@@ -235,11 +217,6 @@ export const deleteCheckout = Effect.fn("deleteCheckout")(
   Effect.catchTag("CommandFailed", failedWith),
 );
 
-/**
- * Moves a trashed checkout back to where it was, with a number added when something is there now,
- * and the worktrees trashed alongside it likewise. The trash record goes, but a worktree that
- * couldn't move back stays in the trash folder rather than being deleted with it.
- */
 export const restoreCheckout = Effect.fn("restoreCheckout")(
   function* (trash: string, id: TrashId, output: ActionOutput) {
     const item = yield* readTrashItem(trash, id);
@@ -280,7 +257,6 @@ export const restoreCheckout = Effect.fn("restoreCheckout")(
   Effect.catchTag("CommandFailed", failedWith),
 );
 
-/** Deletes a trashed checkout for good. */
 export const purgeCheckout = Effect.fn("purgeCheckout")(function* (
   trash: string,
   id: TrashId,

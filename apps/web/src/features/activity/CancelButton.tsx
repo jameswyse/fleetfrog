@@ -5,10 +5,6 @@ import { Button } from "@/ui/Button.tsx";
 
 import type { CancelTarget } from "@fleetfrog/protocol/dashboard/rpcs";
 
-/**
- * Cancels a run, or every run of a batch that has not finished. A subject names what it cancels
- * for screen readers when several buttons share one label.
- */
 export function CancelButton({
   target,
   label,

@@ -67,7 +67,6 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
     const throttle = yield* LoginThrottle;
     const buttonIcon = yield* ProviderIconStore;
 
-    /** Shows the icon from the provider's website on the sign-in button, or none if it has none. */
     const useProviderIcon = (issuerUrl: string) =>
       fetchProviderIcon(issuerUrl).pipe(
         Effect.flatMap((found) =>
@@ -82,14 +81,12 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
 
     const dashboardSessions = yield* DashboardSessions;
 
-    /** The signed-in user making the call. With sign-in off there's no one to act as. */
     const signedIn = Effect.gen(function* () {
       const viewer = yield* CurrentViewer;
 
       return viewer._tag === "SignedIn" ? viewer : yield* new NotSignedIn();
     });
 
-    /** Who is calling, as history records them. */
     const actor: Effect.Effect<Actor, never, CurrentViewer> = Effect.gen(function* () {
       const viewer = yield* CurrentViewer;
 
@@ -155,8 +152,6 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
         Effect.gen(function* () {
           const machine = yield* machines.find(machineId);
 
-          // Only a folder the machine is set to search, or its Archive folder, which its agent
-          // also checks.
           if (!machine.discoveryRoots.includes(path) && machine.archiveFolder !== path) {
             return FolderOutcome.cases.Failed.make({
               message: `${path} isn't one of ${machineLabel(machine)}'s project folders or its Archive folder.`,
@@ -287,7 +282,6 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
         Effect.gen(function* () {
           const { sessionHash } = yield* signedIn;
           const record = yield* ownRecord;
-          // A stolen session shouldn't be able to guess the password any faster than sign-in can.
           const attempt = { email: record.email, address: null };
           const wait = yield* throttle.reserve(attempt);
 
@@ -324,7 +318,6 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
 
           yield* users.update(update);
 
-          // Open sockets carry what the old role could see, so they close.
           if (before.role !== update.role) {
             yield* dashboardSessions.endForUser(update.userId);
           }
@@ -344,8 +337,6 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
         Effect.gen(function* () {
           const current = yield* SubscriptionRef.get(auth.settings);
 
-          // The saved secret goes only to the provider it was saved for, so pointing the settings
-          // at another server can't send it there.
           const saved =
             current.oidc?.issuerUrl === input.issuerUrl && current.oidc.clientId === input.clientId
               ? current.oidc.clientSecret
@@ -370,8 +361,6 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
 
           yield* auth.update({ ...current, oidc: settings });
 
-          // Unless an admin uploaded one, the button shows the provider's own icon, which may have
-          // changed with its settings.
           return (yield* SubscriptionRef.get(buttonIcon.current))?.source === "uploaded"
             ? undefined
             : yield* useProviderIcon(settings.issuerUrl);

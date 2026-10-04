@@ -2,7 +2,6 @@ import { Schema } from "effect";
 
 const Seconds = Schema.Int.check(Schema.isGreaterThanOrEqualTo(5));
 
-/** How often agents rescan. The hub switches to the watching interval while a dashboard is open. */
 export const PollingSettings = Schema.Struct({
   idleStatusSeconds: Seconds,
   watchingStatusSeconds: Seconds,

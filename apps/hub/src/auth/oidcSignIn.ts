@@ -11,27 +11,16 @@ import type { OidcSettings, Role } from "@fleetfrog/protocol/domain/user";
 
 import type { UserRecord } from "./userStore.ts";
 
-/**
- * `SignIn` signs someone in while the provider is in use. `Activate` is an admin's test sign-in
- * that turns the provider on once it works, making them an admin.
- */
 export const OidcIntent = Schema.Literals(["SignIn", "Activate"]);
 export type OidcIntent = typeof OidcIntent.Type;
 
-/**
- * Why signing in through the provider didn't work: the kind the dashboard explains, and the
- * details for the hub's log.
- */
 export class OidcFailure extends Schema.TaggedError<OidcFailure>()("OidcFailure", {
   kind: SignInFailure,
   detail: Schema.String,
-  /** What the failed attempt was for, which decides where to explain it. */
   intent: OidcIntent,
 }) {}
 
-/** How long someone has to finish signing in at the provider. */
 const pendingLifetime = Duration.minutes(10);
-/** Anyone can start a sign-in, so unfinished ones are capped, dropping the oldest first. */
 const maximumPending = 1000;
 
 interface Pending {
@@ -59,7 +48,6 @@ export function callbackUrl(settings: OidcSettings): URL {
   return new URL("/auth/oidc/callback", settings.dashboardUrl);
 }
 
-/** The library's message and, when it has one, the more specific reason behind it. */
 function describe(cause: unknown): string {
   if (!(cause instanceof Error)) {
     return String(cause);
@@ -80,32 +68,23 @@ function failure(kind: SignInFailure, detail: string) {
   return new OidcFailure({ kind, detail, intent: "SignIn" });
 }
 
-/** Marks a failure as belonging to what the attempt was for. */
 function during(intent: OidcIntent) {
   return Effect.mapError(
     (error: OidcFailure) => new OidcFailure({ kind: error.kind, detail: error.detail, intent }),
   );
 }
 
-/** Signs people in through the configured OpenID Connect provider. */
 export class OidcSignIn extends Context.Service<
   OidcSignIn,
   {
-    /** Checks that the provider answers discovery for these settings. */
     readonly check: (settings: OidcSettings) => Effect.Effect<void, OidcFailure>;
-    /** Where to send the browser to sign in at the provider. */
     readonly start: (request: {
       readonly intent: OidcIntent;
       readonly redirect: string;
     }) => Effect.Effect<{ readonly url: URL; readonly state: string }, OidcFailure>;
-    /** Finishes a sign-in from the provider's redirect back, returning who signed in. */
-    readonly finish: (callback: {
-      /** The path and query the provider redirected to. */
-      readonly url: string;
-    }) => Effect.Effect<
+    readonly finish: (callback: { readonly url: string }) => Effect.Effect<
       {
         readonly user: UserRecord;
-        /** The provider's groups gave them another role, so their other sessions should end. */
         readonly roleChanged: boolean;
         readonly intent: OidcIntent;
         readonly redirect: string;
@@ -119,7 +98,6 @@ export class OidcSignIn extends Context.Service<
       const auth = yield* AuthSettingsStore;
       const users = yield* UserStore;
       const pending = new Map<string, Pending>();
-      // Discovery is fetched once for each set of settings, and again once they change.
       let discovered: { readonly key: string; readonly config: oidc.Configuration } | null = null;
 
       const discover = (settings: OidcSettings) =>
@@ -137,7 +115,6 @@ export class OidcSignIn extends Context.Service<
                 settings.clientId,
                 settings.clientSecret,
                 undefined,
-                // A provider on a private network may well be plain HTTP.
                 settings.issuerUrl.startsWith("http:")
                   ? { execute: [oidc.allowInsecureRequests] }
                   : undefined,
@@ -219,7 +196,6 @@ export class OidcSignIn extends Context.Service<
               return yield* failure("Expired", "That sign-in took too long or was already used.");
             }
 
-            // Sign-in may have moved away from the provider while this one was at it.
             if (started.intent === "SignIn" && !(yield* auth.methods).provider) {
               return yield* failure("ProviderOff", "Signing in through a provider is off.");
             }
@@ -248,8 +224,6 @@ export class OidcSignIn extends Context.Service<
 
               const fromToken = tokens.claims();
 
-              // Some providers put the profile only in the ID token, others only behind userinfo.
-              // Carrying on without userinfo could get someone's groups, and so their role, wrong.
               const fromUserInfo =
                 config.serverMetadata().userinfo_endpoint === undefined
                   ? {}
@@ -290,7 +264,6 @@ export class OidcSignIn extends Context.Service<
                 );
               }
 
-              // With an admin group, the provider's groups decide the role at every sign-in.
               const groupRole = roleFromGroups(settings.adminGroup, groups);
 
               if (started.intent === "Activate" && groupRole === "user") {
@@ -306,7 +279,6 @@ export class OidcSignIn extends Context.Service<
                   subject: sub,
                   email: address.value,
                   name: name ?? preferred_username ?? null,
-                  // Every viewer's browser fetches the picture, so it must be a plain web address.
                   picture: picture !== undefined && isHttpUrl(picture) ? picture : null,
                   emailVerified: claims.value.email_verified ?? null,
                   role: started.intent === "Activate" ? "admin" : groupRole,

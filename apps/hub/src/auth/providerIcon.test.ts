@@ -8,7 +8,6 @@ import { fetchProviderIcon, iconType } from "./providerIcon.ts";
 const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
 const ico = new Uint8Array([0x00, 0x00, 0x01, 0x00, 1, 2, 3]);
 
-/** A provider's website on a free port, answering each path with its page or image. */
 const site = (pages: Record<string, { type: string; body: string | Uint8Array }>) =>
   Effect.acquireRelease(
     Effect.promise(

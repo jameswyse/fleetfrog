@@ -18,13 +18,10 @@ import type { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentit
 interface Choice<Value extends string> {
   readonly value: Value;
   readonly label: string;
-  /** Shown before the label, such as a machine's icon. */
   readonly icon?: ReactNode;
-  /** Shown after the label, such as an outcome's colour. */
   readonly marker?: ReactNode;
 }
 
-/** One filter as a list of checkboxes, any number of which can be ticked. */
 function ChoiceGroup<Value extends string>({
   legend,
   choices,
@@ -37,9 +34,7 @@ function ChoiceGroup<Value extends string>({
   readonly choices: ReadonlyArray<Choice<Value>>;
   readonly selected: ReadonlyArray<Value>;
   readonly onChange: (values: ReadonlyArray<Value>) => void;
-  /** Shown when there are no choices. */
   readonly empty: string;
-  /** Anything between the legend and the list, such as a field to narrow it. */
   readonly children?: ReactNode;
 }) {
   return (
@@ -79,24 +74,18 @@ function ChoiceGroup<Value extends string>({
   );
 }
 
-/**
- * The history filters. Each list matches any of its ticked values, and an action must match every
- * list that has one.
- */
 export function HistoryFilters() {
   const hub = useHub();
   const fleet = knownFleet(hub);
   const search = useSearch({ from: "/_app/activity" });
   const navigate = useNavigate({ from: "/activity" });
   const [query, setQuery] = useState("");
-  // On narrow screens the sidebar sits above the history, so the lists start hidden there.
   const [shown, setShown] = useState(false);
   const machines = search.machines ?? [];
   const repositories = search.repositories ?? [];
   const outcomes = search.outcomes ?? [];
   const needle = query.trim().toLocaleLowerCase();
 
-  // Each filter is its own search key, set or removed without touching the others.
   const setMachines = (next: ReadonlyArray<MachineId>) =>
     navigate({
       to: "/activity",
@@ -122,7 +111,6 @@ export function HistoryFilters() {
     });
 
   const repositoryChoices = (fleet?.repositories ?? [])
-    // Ticked repositories stay listed while narrowing, so every applied filter stays visible.
     .filter(
       ({ key, name }) => repositories.includes(key) || name.toLocaleLowerCase().includes(needle),
     )

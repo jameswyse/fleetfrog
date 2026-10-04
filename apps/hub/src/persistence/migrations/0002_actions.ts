@@ -15,7 +15,6 @@ export default Effect.gen(function* () {
     )
   `;
   yield* sql`create index action_batches_requested_at on action_batches (requested_at)`;
-  // Runs keep the machine's name and outlive it, so history survives removing a machine.
   yield* sql`
     create table action_runs (
       id text primary key,

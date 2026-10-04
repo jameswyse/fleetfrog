@@ -16,7 +16,6 @@ import type { ActivityFilter, ActivityPage, Actor } from "@fleetfrog/protocol/do
 
 import type { NewRun } from "./activityStore.ts";
 
-/** A fresh, fully migrated database for each test. */
 const TestStore = ActivityStore.layer.pipe(
   Layer.provide(Migrations.pipe(Layer.provideMerge(SqliteClient.layer({ filename: ":memory:" })))),
 );
@@ -51,7 +50,6 @@ function newRun(options: {
 
 const fetched: ActionOutcome = { _tag: "Succeeded", result: { _tag: "Fetched" } };
 
-/** Records a batch of runs requested at the given minute and returns its id and runs. */
 const recordBatch = (minute: number, runs: ReadonlyArray<NewRun>, requestedBy: Actor = null) =>
   ActivityStore.use((store) => {
     const batchId = BatchId.make(id());
@@ -192,7 +190,6 @@ describe("ActivityStore", () => {
         first.batchId,
       ]);
       expect(yield* matching({ machineIds: [laptop] })).toEqual([fourth.batchId, third.batchId]);
-      // The fourth batch failed only on the laptop, so it is not a failure on the studio.
       expect(yield* matching({ machineIds: [studio], outcomes: ["Failed"] })).toEqual([
         second.batchId,
       ]);
@@ -216,7 +213,6 @@ describe("ActivityStore", () => {
         limit: 10,
       });
 
-      // Newest first: events are stamped by the test clock, long before the batch.
       expect(
         page.entries.map((entry) => (entry._tag === "Batch" ? entry.batch.requestedBy : entry.by)),
       ).toEqual([ada, null, ada]);

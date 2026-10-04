@@ -69,7 +69,6 @@ afterEach(async () => {
     return;
   }
 
-  // The test may already have turned sign-in off through the dashboard.
   const response = await fetch(`${url}/auth/methods`, {
     method: "POST",
     headers,

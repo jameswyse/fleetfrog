@@ -16,9 +16,7 @@ import { PairingHandlers } from "../pairing/pairingHandlers.ts";
 import { AgentAuthenticationLive } from "./agentAuthentication.ts";
 import { AgentHandlers } from "./agentHandlers.ts";
 
-/** A pairing request carries the machine's details and a few folder paths. */
 const maximumBodyBytes = ByteSize.kibibytes(64);
-/** A report lists every checkout on a machine, and a project icon report carries their images. */
 const maximumMessageBytes = 64 * 1024 * 1024;
 
 const routes = Layer.mergeAll(
@@ -34,7 +32,6 @@ const routes = Layer.mergeAll(
   ]),
 );
 
-/** The agent port: pairing over HTTPS and agent connections over secure WebSocket. */
 export const AgentServer = Layer.unwrap(
   Effect.gen(function* () {
     const config = yield* HubConfig;

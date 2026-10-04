@@ -7,7 +7,6 @@ import { ProviderIconSource } from "@fleetfrog/protocol/domain/user";
 
 import type { ProviderIcon } from "@fleetfrog/protocol/domain/user";
 
-/** Enough for any sensible icon, and small enough to fetch and store without thought. */
 export const maximumIconBytes = 256 * 1024;
 
 const iconTypes = [
@@ -25,10 +24,6 @@ type IconType = typeof IconType.Type;
 const startsWith = (data: Uint8Array, bytes: ReadonlyArray<number>, at = 0) =>
   bytes.every((byte, i) => data[at + i] === byte);
 
-/**
- * What kind of image the bytes are, read from the bytes themselves rather than from whoever sent
- * them, or null when they're no image a browser would show on a button.
- */
 export function iconType(data: Uint8Array): IconType | null {
   if (data.byteLength === 0 || data.byteLength > maximumIconBytes) {
     return null;
@@ -62,7 +57,6 @@ function attribute(tag: string, name: string): string | undefined {
   return match?.[1] ?? match?.[2] ?? match?.[3];
 }
 
-/** The page's icons, the ones made for home screens first since they're the largest. */
 function iconLinks(html: string, page: URL): ReadonlyArray<URL> {
   const links = [...html.matchAll(linkTag)].flatMap(([tag]) => {
     const rel = attribute(tag, "rel")?.toLowerCase().split(/\s+/u) ?? [];
@@ -80,12 +74,9 @@ function iconLinks(html: string, page: URL): ReadonlyArray<URL> {
   );
 }
 
-/** A page is small; anything bigger isn't where a site lists its icons. */
 const maximumPageBytes = 1024 * 1024;
-/** A few tries is plenty, and each can take up to the timeout. */
 const maximumCandidates = 5;
 
-/** The response's body, or null when it fails or runs past the limit, which stops the download. */
 async function download(url: URL, limit: number): Promise<{ url: URL; data: Uint8Array } | null> {
   const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
 
@@ -112,10 +103,6 @@ async function download(url: URL, limit: number): Promise<{ url: URL; data: Uint
   return { url: new URL(response.url), data: new Uint8Array(Buffer.concat(chunks)) };
 }
 
-/**
- * The icon the provider's website shows, such as Authentik's branding: the page's icon links in
- * order, then `/favicon.ico`. None when the site has none or can't be reached.
- */
 export const fetchProviderIcon = (issuerUrl: string) =>
   Effect.promise(async () => {
     const site = new URL("/", issuerUrl);
@@ -148,7 +135,6 @@ const decodeData = Schema.decodeUnknownEffect(
   Schema.Array(Schema.Struct({ media_type: IconType, data: Schema.Uint8Array })),
 );
 
-/** The provider's sign-in button icon, persisted and observable. */
 export class ProviderIconStore extends Context.Service<
   ProviderIconStore,
   {

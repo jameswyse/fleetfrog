@@ -8,30 +8,24 @@ import { RepositoryIdentity } from "./repositoryIdentity.ts";
 export const TrashId = Schema.String.pipe(Schema.check(Schema.isUUID()), Schema.brand("TrashId"));
 export type TrashId = typeof TrashId.Type;
 
-/** A checkout moved to a machine's trash, kept whole until the trash is emptied. */
 export const TrashedCheckout = Schema.Struct({
   id: TrashId,
-  /** Where it was, and where restoring it puts it back. */
   originalPath: ReportedText,
   identity: RepositoryIdentity,
   directoryName: ReportedText,
   branch: Schema.NullOr(ReportedText),
   lastCommit: Schema.NullOr(Commit),
   trashedAt: Schema.DateTimeUtc,
-  /** What it takes up in the trash, after any caches were removed. */
   sizeBytes: Count,
-  /** Linked worktrees trashed with it, which restoring puts back too. */
   worktrees: ReportedList(
     Schema.Struct({ originalPath: ReportedText, trashedPath: ReportedText }),
   ).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed([]))),
 });
 export type TrashedCheckout = typeof TrashedCheckout.Type;
 
-/** A file or folder inside a checkout, relative to it, with what it takes up on disk. */
 export const SizedPath = Schema.Struct({ path: ReportedText, sizeBytes: Count });
 export type SizedPath = typeof SizedPath.Type;
 
-/** Whether the checkout's remotes could be fetched just before it was inspected. */
 export const RemoteCheck = Schema.TaggedUnion({
   Fetched: {},
   NoRemote: {},
@@ -39,55 +33,33 @@ export const RemoteCheck = Schema.TaggedUnion({
 });
 export type RemoteCheck = typeof RemoteCheck.Type;
 
-/**
- * What deleting a checkout would lose, found by fetching its remotes and then reading it. The
- * fingerprint changes when a commit, branch, tag, stash, changed or untracked path, or ignored
- * entry is added or removed, so a request made from this inspection is refused if the checkout
- * has changed that way since.
- */
 export const Inspection = Schema.Struct({
   fingerprint: ReportedText,
   sizeBytes: Count,
   remote: RemoteCheck,
-  /** Local branches with commits no remote-tracking branch has. */
   unpushedBranches: ReportedList(Schema.Struct({ name: ReportedText, commits: Count })),
-  /** Commits on any ref or HEAD that no remote-tracking branch has, stashes included. */
   unpushedCommits: Count,
-  /** Tags no remote has, even when their commits are pushed. */
   unpushedTags: Count,
-  /** A merge, rebase or similar part-way through, whose state lives only in this checkout. */
   operation: Schema.NullOr(Operation),
-  /** Submodules with Git directories inside this checkout, whose work isn't inspected. */
   submodules: Count,
   stashes: Count,
   changedFiles: Count,
   untrackedFiles: Count,
-  /** Ignored files and folders that aren't known caches, largest first. */
   ignored: Schema.Struct({ items: ReportedList(SizedPath), total: Count }),
-  /** Ignored dependency and build folders, such as `node_modules`, which can be rebuilt. */
   caches: ReportedList(SizedPath),
   linkedWorktrees: Count,
 });
 export type Inspection = typeof Inspection.Type;
 
-/**
- * What removing a linked worktree would do, found by reading it. Its changes would be stashed and
- * its detached HEAD's own commits kept in the trash, so only its ignored files other than caches
- * are lost. The fingerprint changes when its HEAD, changes or ignored entries do.
- */
 export const WorktreeInspection = Schema.Struct({
   fingerprint: ReportedText,
   path: ReportedText,
-  /** The folder is gone, and `parentMissing` says whether the folder above it is too. */
   missing: Schema.NullOr(Schema.Struct({ parentMissing: Schema.Boolean })),
   branch: Schema.NullOr(ReportedText),
-  /** Why Git was told to keep the worktree, when it was locked, or an empty reason. */
   locked: Schema.NullOr(ReportedText),
   changedFiles: Count,
   untrackedFiles: Count,
-  /** Commits only its detached HEAD holds. */
   unreachableCommits: Count,
-  /** Ignored files and folders that aren't known caches, largest first. */
   ignored: Schema.Struct({ items: ReportedList(SizedPath), total: Count }),
   caches: ReportedList(SizedPath),
 });
@@ -100,11 +72,6 @@ export const InspectionResult = Schema.TaggedUnion({
 });
 export type InspectionResult = typeof InspectionResult.Type;
 
-/**
- * Whether everything in the checkout can be had again from its remotes or rebuilt, so deleting it
- * for good loses nothing. Otherwise the dashboard warns before deleting, and asks the agent to
- * delete regardless; without that, the agent checks again and keeps a checkout with unique work.
- */
 export function nothingUnique(inspection: Inspection): boolean {
   return (
     inspection.remote._tag === "Fetched" &&

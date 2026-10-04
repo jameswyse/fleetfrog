@@ -2,10 +2,6 @@ import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 
 import { Effect } from "effect";
 
-/**
- * scrypt at a cost OWASP recommends: N = 2^15 with p = 3 does the work of N = 2^17 in 32 MiB,
- * Node's default memory limit, rather than 128 MiB.
- */
 const cost = { N: 2 ** 15, r: 8, p: 3, maxmem: 64 * 1024 * 1024 };
 const keyLength = 32;
 
@@ -21,7 +17,6 @@ function derive(
   });
 }
 
-/** Hashes a password as `scrypt$N$r$p$salt$key`, so a later cost change can still check it. */
 export const hashPassword = Effect.fnUntraced(function* (password: string) {
   const salt = randomBytes(16);
   const key = yield* derive(password, salt, cost);
@@ -33,10 +28,8 @@ export const hashPassword = Effect.fnUntraced(function* (password: string) {
 
 const Stored = /^scrypt\$(\d+)\$(\d+)\$(\d+)\$([A-Za-z0-9+/=]+)\$([A-Za-z0-9+/=]+)$/;
 
-/** Checked against when there's no user, so a wrong email takes as long as a wrong password. */
 let placeholderHash: string | null = null;
 
-/** Whether the password matches the stored hash. With no hash, it takes as long and fails. */
 export const checkPassword = Effect.fnUntraced(function* (check: {
   readonly password: string;
   readonly hash: string | null;

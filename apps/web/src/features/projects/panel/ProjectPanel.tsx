@@ -15,21 +15,11 @@ import type { Fleet } from "@fleetfrog/protocol/domain/fleet";
 
 import type { ProjectSelection, SelectionHistory } from "../ProjectGrid.tsx";
 
-/** The panel's element id, for telling whether focus is inside it. */
 export const projectPanelId = "project-panel";
 
-/**
- * Classes both panels share. Each also positions itself in every layout, so screen-reader text
- * inside stays within the panel rather than stretching the window.
- */
 const panelClassName =
   "overflow-y-auto bg-surface lg:w-[30rem] lg:shrink-0 lg:border-s lg:border-line";
 
-/**
- * The side panel: a repository on every machine, on one machine, or the whole fleet when nothing
- * is chosen. On wide screens it is always open beside the grid, full height, and scrolls on its
- * own; on narrow ones it covers the page while something is chosen.
- */
 export function ProjectPanel({
   fleet,
   selection,
@@ -71,7 +61,6 @@ export function ProjectPanel({
       aria-labelledby={headingId}
       className={`fixed inset-0 z-10 lg:relative lg:inset-auto lg:z-auto ${panelClassName}`}
     >
-      {/* Keyed on the selection, so it runs each time the panel shows something new. */}
       <FocusHeading key={`focus:${key}`} targetId={headingId} />
       {repository === undefined && (
         <>

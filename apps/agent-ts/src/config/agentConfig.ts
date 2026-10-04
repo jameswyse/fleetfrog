@@ -9,12 +9,10 @@ import { MachineId } from "@fleetfrog/protocol/domain/machine";
 
 import { instanceNamed } from "./agentInstance.ts";
 
-/** What pairing leaves behind: where the hub is, how to recognise it and how to prove who we are. */
 export const AgentConfig = Schema.Struct({
   agentUrl: Schema.String,
   machineId: MachineId,
   token: Schema.String,
-  /** The hub's pinned self-signed certificate, absent when the hub uses a publicly trusted one. */
   certificatePem: Schema.NullOr(Schema.String),
 });
 export type AgentConfig = typeof AgentConfig.Type;
@@ -46,12 +44,10 @@ export function isMissingFile(error: unknown): boolean {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
 
-/** The saved pairing, or `None` before the machine is paired. */
 export const loadAgentConfig = Effect.gen(function* () {
   const file = configPath();
 
   const contents = yield* Effect.tryPromise({
-    // Only a missing file means "not paired"; any other read error is reported.
     try: () =>
       readFile(file, "utf8").then(Option.some, (error: unknown) => {
         if (isMissingFile(error)) {
@@ -76,7 +72,6 @@ export const loadAgentConfig = Effect.gen(function* () {
   );
 });
 
-/** Creates the config directory and checks it can be written, before anything depends on it. */
 export const ensureConfigWritable = Effect.tryPromise({
   try: async () => {
     await mkdir(configDirectory(), { recursive: true, mode: 0o700 });
@@ -85,13 +80,11 @@ export const ensureConfigWritable = Effect.tryPromise({
   catch: (error) => new ConfigUnavailable({ path: configDirectory(), message: String(error) }),
 });
 
-/** Saves the pairing readable only by the current user, since it holds the agent's token. */
 export const saveAgentConfig = (config: AgentConfig) =>
   Effect.tryPromise({
     try: async () => {
       await mkdir(configDirectory(), { recursive: true, mode: 0o700 });
       await writeFile(configPath(), `${encodeConfig(config)}\n`, { mode: 0o600 });
-      // Creation modes do not apply to a directory or file that already exists.
       await chmod(configDirectory(), 0o700);
       await chmod(configPath(), 0o600);
     },

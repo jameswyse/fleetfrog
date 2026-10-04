@@ -1,6 +1,3 @@
-// Checks that the Rust agent reads checkouts exactly as the TypeScript agent does: the same
-// discovery results, statuses and inspections, fingerprints included, for repositories in the
-// awkward states `fixtures.sh` creates. Run it through `pnpm --filter @fleetfrog/agent-rs test:unit`.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -12,10 +9,8 @@ const repository = path.resolve(import.meta.dirname, "../..");
 const fixtureScript = path.join(import.meta.dirname, "fixtures.sh");
 const rustAgent = path.join(repository, "apps/agent-rs/target/debug/fleetfrog");
 const typeScriptReadings = path.join(repository, "apps/agent-ts/src/parity/readings.ts");
-// Git run by either agent ignores the developer's own configuration.
 const environment = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1" };
 
-// The fixtures are deterministic and only read, so each version of the script builds them once.
 const fixtureHash = createHash("sha256").update(readFileSync(fixtureScript)).digest("hex");
 
 const projects = path.join(
@@ -74,14 +69,11 @@ for (const checkout of scans.typeScript) {
   }
 }
 
-// T3 Code's database has no fixture, so this compares readings of this machine's own, in each layout
-// it has.
 const t3CodeUserdata = path.join(
   process.env.T3CODE_HOME ?? path.join(homedir(), ".t3"),
   "userdata",
 );
 
-// The TypeScript agent lists icons in the order its reads finish, and the hub keeps them as a set.
 function withSortedIcons({ typeScript, rust }) {
   const sorted = (reading) => ({
     ...reading,
@@ -102,7 +94,6 @@ compare(
   withSortedIcons(readBoth(["t3code", path.join(projects, "state.sqlite")])),
 );
 
-// GitHub needs a signed-in `gh`, so this compares readings of this repository's own checkout.
 function githubLogin() {
   try {
     return execFileSync("gh", ["api", "user", "--jq", ".login"], { encoding: "utf8" }).trim();

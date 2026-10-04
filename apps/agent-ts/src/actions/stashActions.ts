@@ -10,18 +10,11 @@ import { failedWith, skipped, succeeded } from "./outcomes.ts";
 import type { CheckoutLocation } from "../git/readCheckout.ts";
 import type { ActionOutput } from "./actionOutput.ts";
 
-/** The commit each stash is, by index, newest first as `git stash list` numbers them. */
 const stashCommits = (location: CheckoutLocation) =>
   runGit(location.path, ["stash", "list", "--format=%H"]).pipe(
     Effect.map((output) => output.split("\n").filter((sha) => sha !== "")),
   );
 
-/**
- * Moves stashes to the trash: each is kept as `refs/fleetfrog/stashes/<time>/<index>`, with the
- * index the dashboard showed, then dropped from the stash list. Each is found by its commit just
- * before it goes, since dropping one renumbers the ones after it, and a stash that's gone already
- * is left out. Keeping it first means a stop partway leaves no copy of a stash that wasn't dropped.
- */
 export const dropStashes = Effect.fn("dropStashes")(
   function* (
     location: CheckoutLocation,
@@ -61,11 +54,9 @@ export const dropStashes = Effect.fn("dropStashes")(
   Effect.catchTag("CommandFailed", failedWith),
 );
 
-/** The commit a dropped-stash ref keeps, or null when it isn't one or is gone. */
 const droppedStashCommit = (location: CheckoutLocation, ref: string) =>
   parseDroppedStashRef(ref) === null ? Effect.succeed(null) : refCommit(location, ref);
 
-/** Puts a dropped stash back at the top of the stash list, with its message. */
 export const restoreStash = Effect.fn("restoreStash")(
   function* (location: CheckoutLocation, ref: string, output: ActionOutput) {
     const sha = yield* droppedStashCommit(location, ref);
@@ -92,7 +83,6 @@ export const restoreStash = Effect.fn("restoreStash")(
   Effect.catchTag("CommandFailed", failedWith),
 );
 
-/** Forgets a dropped stash. Its commits go once Git's garbage collection finds them unreachable. */
 export const purgeStash = Effect.fn("purgeStash")(
   function* (location: CheckoutLocation, ref: string, output: ActionOutput) {
     const sha = yield* droppedStashCommit(location, ref);

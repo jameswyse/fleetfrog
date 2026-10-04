@@ -1,4 +1,3 @@
-/** A small busy indicator. It spins only when motion is welcome and is always hidden from screen readers. */
 export function Spinner({ className = "" }: { readonly className?: string }) {
   return (
     <span

@@ -47,7 +47,6 @@ describe("readT3CodeServer", () => {
 
       expect(yield* readT3CodeServer(userdata)).toBeNull();
 
-      // This test's own process is running, but it's Node rather than T3 Code.
       runtime(process.pid);
       expect(yield* readT3CodeServer(userdata)).toBeNull();
 

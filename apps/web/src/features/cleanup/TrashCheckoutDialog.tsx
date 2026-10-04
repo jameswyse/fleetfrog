@@ -43,10 +43,6 @@ function stateFrom(result: HubResult<InspectionResult>): InspectionState {
   };
 }
 
-/**
- * The things only this checkout has, each as a short line. It covers every condition
- * `nothingUnique` checks, so permanent deletion is never offered as safe beside a warning.
- */
 function uniqueWork(inspection: Inspection): ReadonlyArray<string> {
   const lines: Array<string> = [];
 
@@ -141,17 +137,12 @@ function InspectionSummary({
   );
 }
 
-/**
- * Moves a checkout to the trash, or deletes it for good when nothing in it is unique, after
- * showing what only this machine has. The machine checks everything again before acting.
- */
 export function TrashCheckoutDialog({
   label,
   machine,
   checkout,
   onClose,
 }: {
-  /** The repository's name, for the title. */
   readonly label: string;
   readonly machine: Machine;
   readonly checkout: Checkout;
@@ -184,7 +175,6 @@ export function TrashCheckoutDialog({
 
   const inspection = state._tag === "Ready" ? state.inspection : null;
   const worktrees = inspection?.linkedWorktrees ?? 0;
-  // Worktrees go to the trash with it, but their work isn't inspected, so deleting them warns.
   const safe = inspection !== null && nothingUnique(inspection) && worktrees === 0;
   const cacheBytes = inspection?.caches.reduce((total, { sizeBytes }) => total + sizeBytes, 0) ?? 0;
   const deleting = permanently && inspection !== null;

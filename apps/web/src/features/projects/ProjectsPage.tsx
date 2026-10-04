@@ -12,7 +12,6 @@ import type { ReactNode } from "react";
 
 import type { ProjectSelection, SelectionHistory } from "./ProjectGrid.tsx";
 
-/** Use heading level 2 inside a page that already has its own h1. */
 function EmptyState({
   title,
   level = 1,
@@ -32,10 +31,6 @@ function EmptyState({
   );
 }
 
-/**
- * Every repository on every machine as a grid, with a panel beside it for whatever is chosen. The
- * page fills the window: the toolbar stays put while the grid and the panel scroll on their own.
- */
 export function ProjectsPage() {
   const hub = useHub();
   const role = useRole();
@@ -98,7 +93,6 @@ export function ProjectsPage() {
       replace: history === "Replace",
     });
 
-    // A choice made in the side panel may be out of sight in the grid.
     findGridCell(next)?.scrollIntoView({ block: "nearest", inline: "nearest" });
   };
 
@@ -109,7 +103,6 @@ export function ProjectsPage() {
       search: ({ repo: _repo, machine: _machine, path: _path, ...rest }) => rest,
     });
 
-    // Focus returns to what opened the panel, rather than falling back to the page.
     if (panelHadFocus && selection !== null) {
       findGridCell(selection)?.focus();
     }

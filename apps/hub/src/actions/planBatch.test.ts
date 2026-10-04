@@ -133,7 +133,6 @@ const onEveryMachine = fleetWith([
   { machineId: locked.id, checkout: checkout("/home/dev/Projects/shop") },
 ]);
 
-/** The outcome's name, or the skip reason's for a skipped run. */
 function outcomeName(outcome: ActionOutcome | null): string | null {
   if (outcome === null) {
     return null;

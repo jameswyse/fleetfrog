@@ -16,10 +16,6 @@ const stateWords = {
   Idle: null,
 } satisfies Record<T3CodeThread["state"], string | null>;
 
-/**
- * T3 Code's project for this checkout and its recent threads here, or nothing when T3 Code has
- * neither.
- */
 export function T3CodeSection({
   machine,
   checkout,

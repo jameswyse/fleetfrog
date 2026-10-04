@@ -10,26 +10,18 @@ import type { ActionOutcome, ActionRequest, Tier } from "@fleetfrog/protocol/dom
 import type { RunId } from "@fleetfrog/protocol/domain/activity";
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 
-/**
- * Something this machine did or allowed, recorded locally where the hub cannot change it. Only
- * requested actions and changes are recorded, never scans or connections.
- */
 export type AuditEntry =
   | { readonly event: "ActionStarted"; readonly runId: RunId; readonly request: ActionRequest }
   | { readonly event: "ActionFinished"; readonly runId: RunId; readonly outcome: ActionOutcome }
-  /** The agent stopped before it could report, usually because the hub connection dropped. */
   | { readonly event: "ActionInterrupted"; readonly runId: RunId }
-  /** Refused before it could change anything: not allowed, or not something this agent knows. */
   | {
       readonly event: "ActionRefused";
       readonly runId: RunId;
       readonly request: ActionRequest;
       readonly reason: string;
     }
-  /** A project folder the hub asked for, created because it was missing. */
   | { readonly event: "FolderCreated"; readonly path: string }
   | { readonly event: "PolicyChanged"; readonly allowedTiers: ReadonlyArray<Tier> }
-  /** Tiers the owner hadn't decided, such as ones added in an update, recorded at their defaults. */
   | {
       readonly event: "PolicyDefaultsApplied";
       readonly allowedTiers: ReadonlyArray<Tier>;
@@ -37,7 +29,6 @@ export type AuditEntry =
     }
   | { readonly event: "Paired"; readonly agentUrl: string; readonly machineId: MachineId };
 
-/** At this size the log moves to `actions.log.1`, replacing the previous one. */
 const rotateAtBytes = 1024 * 1024;
 
 export function auditLogPath(): string {
@@ -67,10 +58,6 @@ async function append(file: string, line: string): Promise<void> {
   await appendFile(file, line, { mode: 0o600 });
 }
 
-/**
- * The URL without a password, or without any credentials for HTTP. The hub is expected to send
- * clean URLs, but the log is written before the agent checks them.
- */
 function withoutCredentials(remoteUrl: string): string {
   if (!remoteUrl.includes("://") || !URL.canParse(remoteUrl)) {
     return remoteUrl;
@@ -98,7 +85,6 @@ function loggable(entry: AuditEntry): AuditEntry {
   return entry;
 }
 
-/** Appends one JSON line. A log that cannot be written is reported but never stops an action. */
 export function writeAuditEntry(entry: AuditEntry): Effect.Effect<void> {
   const file = auditLogPath();
 

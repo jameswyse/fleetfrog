@@ -8,10 +8,6 @@ import { TrashedCheckout } from "@fleetfrog/protocol/domain/trash";
 
 import type { TrashId } from "@fleetfrog/protocol/domain/trash";
 
-/**
- * Where this machine keeps trashed checkouts: application data in the home directory, which is
- * normally on the same disk as the projects, so moving a checkout there is a rename.
- */
 export function defaultTrashDirectory(): string {
   return process.platform === "darwin"
     ? path.join(homedir(), "Library", "Application Support", "FleetFrog", "Trash")
@@ -26,10 +22,6 @@ const ItemJson = Schema.fromJsonString(Schema.toCodecJson(TrashedCheckout));
 const decodeItem = Schema.decodeUnknownOption(ItemJson);
 const encodeItem = Schema.encodeSync(ItemJson);
 
-/**
- * The folder holding one trashed checkout: its record, the checkout itself, and any linked
- * worktrees trashed with it.
- */
 function itemDirectory(trash: string, id: TrashId): string {
   return path.join(trash, id);
 }
@@ -46,7 +38,6 @@ function itemRecordPath(trash: string, id: TrashId): string {
   return path.join(itemDirectory(trash, id), "item.json");
 }
 
-/** Creates the item's folder and saves its record, returning why that failed, or null. */
 export const writeTrashItem = (trash: string, item: TrashedCheckout) =>
   Effect.promise(async () => {
     try {
@@ -59,13 +50,11 @@ export const writeTrashItem = (trash: string, item: TrashedCheckout) =>
     }
   });
 
-/** The item's record, or none when it isn't in the trash. */
 export const readTrashItem = (trash: string, id: TrashId) =>
   Effect.promise(() =>
     readFile(itemRecordPath(trash, id), "utf8").then(decodeItem, () => Option.none()),
   );
 
-/** Removes the item's folder and everything in it. */
 export const removeTrashItem = (trash: string, id: TrashId) =>
   Effect.promise(() =>
     rm(itemDirectory(trash, id), { recursive: true, force: true }).then(
@@ -74,10 +63,6 @@ export const removeTrashItem = (trash: string, id: TrashId) =>
     ),
   );
 
-/**
- * Removes the item's record and whatever folders are left empty after a restore. Anything still in
- * them, such as a worktree that couldn't move back, stays in place.
- */
 export const forgetTrashItem = (trash: string, id: TrashId) =>
   Effect.promise(async () => {
     await rm(itemRecordPath(trash, id), { force: true }).catch(() => undefined);
@@ -85,7 +70,6 @@ export const forgetTrashItem = (trash: string, id: TrashId) =>
     await rmdir(itemDirectory(trash, id)).catch(() => undefined);
   });
 
-/** Everything in the trash, newest first. Folders without a readable record are left out. */
 export const listTrash = (trash: string) =>
   Effect.promise(async () => {
     const names = await readdir(trash).catch(() => []);

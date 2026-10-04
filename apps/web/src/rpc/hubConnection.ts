@@ -49,7 +49,6 @@ export type DashboardClient = RpcClient.FromGroup<
   RpcClientError.RpcClientError
 >;
 
-/** Every typed failure a dashboard call can report. */
 export type DashboardError =
   | MachineNotFound
   | RepositoryNotFound
@@ -72,13 +71,11 @@ export type DashboardError =
   | TailscaleServeUnavailable
   | RpcClientError.RpcClientError;
 
-/** The most recent fleet from the hub and when the dashboard received it. */
 export type FleetSnapshot = { readonly fleet: Fleet; readonly receivedAt: DateTime.Utc };
 
 export type HubState =
   | { readonly _tag: "Connecting" }
   | { readonly _tag: "Live"; readonly snapshot: FleetSnapshot }
-  /** The last snapshot stays visible, marked stale, while the dashboard reconnects. */
   | { readonly _tag: "Reconnecting"; readonly snapshot: FleetSnapshot | null };
 
 const retryDelay = Duration.seconds(2);
@@ -87,13 +84,8 @@ const noRuns: RunsSnapshot = { activeBatches: [], active: [], latest: [] };
 
 let state: HubState = { _tag: "Connecting" };
 let client: DashboardClient | null = null;
-/** Active runs and each checkout's latest result, kept through a reconnect. */
 let runs: RunsSnapshot = noRuns;
 const listeners = new Set<() => void>();
-/**
- * Set once the hub sends something this page can't read, which happens when the hub was updated
- * after the page loaded. Only reloading the page fixes it.
- */
 let outdated = false;
 
 function notify(): void {
@@ -107,7 +99,6 @@ function setState(next: HubState): void {
   notify();
 }
 
-/** The fleet to show, which may be stale while reconnecting, or null before the first one arrives. */
 export function knownFleet(hub: HubState): Fleet | null {
   return hub._tag === "Connecting" ? null : (hub.snapshot?.fleet ?? null);
 }
@@ -126,12 +117,10 @@ export function useRuns(): RunsSnapshot {
   return useSyncExternalStore(subscribe, () => runs);
 }
 
-/** Whether the hub was updated since this page loaded, so the page needs reloading. */
 export function useDashboardOutdated(): boolean {
   return useSyncExternalStore(subscribe, () => outdated);
 }
 
-/** Whether the connection failed on data this version of the dashboard can't decode. */
 function isSchemaMismatch(cause: Cause.Cause<unknown>): boolean {
   return cause.reasons.some((reason) => {
     if (Cause.isFailReason(reason)) {
@@ -142,12 +131,10 @@ function isSchemaMismatch(cause: Cause.Cause<unknown>): boolean {
   });
 }
 
-/** The connected client, or null while connecting. Changes on every reconnect. */
 export function useHubClient(): DashboardClient | null {
   return useSyncExternalStore(subscribe, () => client);
 }
 
-/** One connection: follows the fleet until the socket drops, which ends it so a fresh one can start. */
 const session = Effect.gen(function* () {
   const dropped = yield* Deferred.make<void>();
   const url = new URL("/rpc", window.location.href);
@@ -209,16 +196,11 @@ const session = Effect.gen(function* () {
   ),
 );
 
-/** Forgets what the last user could see, so the next one starts from nothing. */
 function forget(): void {
   runs = noRuns;
   setState({ _tag: "Connecting" });
 }
 
-/**
- * Connects to the hub for the lifetime of the page, reconnecting after any drop. A drop can mean
- * the session ended, so it asks who is signed in first, and waits while no one is.
- */
 export function startHubConnection(): void {
   Effect.runFork(
     Effect.promise(whenAccessible).pipe(
@@ -284,17 +266,12 @@ export function describeCause(cause: Cause.Cause<DashboardError>): string {
     return "Something went wrong talking to the hub. Try again.";
   }
 
-  // These carry the hub's own reason, which says what to fix.
   return error.success._tag === "ProviderRejected" ||
     error.success._tag === "TailscaleServeUnavailable"
     ? error.success.message
     : failureMessages[error.success._tag];
 }
 
-/**
- * Runs one dashboard call and turns any failure, including defects and interruptions, into a
- * sentence for the interface. The promise never rejects.
- */
 export function requestHub<A>(
   call: (hub: DashboardClient) => Effect.Effect<A, DashboardError>,
 ): Promise<HubResult<A>> {

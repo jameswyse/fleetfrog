@@ -35,7 +35,6 @@ function archivedEntries(fleet: Fleet): ReadonlyArray<ArchivedEntry> {
     repository.checkouts.flatMap(({ machineId, checkout }) => {
       const machine = machines.get(machineId);
 
-      // A linked worktree is listed with its main checkout, which it moves with.
       return machine === undefined || checkout.worktree._tag === "Linked"
         ? []
         : [{ repository, machine, checkout }];
@@ -152,7 +151,6 @@ function ArchivedRow({
   );
 }
 
-/** Checkouts moved into the Archive folder on every machine. */
 export function ArchivePage() {
   const fleet = knownFleet(useHub());
   const { active } = useRuns();

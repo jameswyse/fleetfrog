@@ -7,7 +7,6 @@ import { runTool } from "../process/runTool.ts";
 
 import type { T3CodeProvider, T3CodeServer } from "@fleetfrog/protocol/domain/t3Code";
 
-/** What T3 Code writes while its server runs. */
 const RuntimeFile = Schema.fromJsonString(
   Schema.Struct({
     pid: Schema.Int,
@@ -18,7 +17,6 @@ const RuntimeFile = Schema.fromJsonString(
 
 const decodeRuntime = Schema.decodeUnknownOption(RuntimeFile);
 
-/** What T3 Code last found out about one coding agent. Its sign-in details are never read. */
 const ProviderFile = Schema.fromJsonString(
   Schema.Struct({
     displayName: Schema.String,
@@ -36,7 +34,6 @@ const decodeProvider = Schema.decodeUnknownOption(ProviderFile);
 
 const readText = (file: string) => readFile(file, "utf8").catch(() => null);
 
-/** Whether a process is running, including one this user may not signal. */
 function isRunning(pid: number): boolean {
   try {
     process.kill(pid, 0);
@@ -47,7 +44,6 @@ function isRunning(pid: number): boolean {
   }
 }
 
-/** The program a process runs: from `/proc` on Linux, and from `ps` on macOS. */
 const executableOf = (pid: number) =>
   Effect.promise(() => readlink(`/proc/${pid}/exe`).catch(() => null)).pipe(
     Effect.flatMap((linked) =>
@@ -60,10 +56,6 @@ const executableOf = (pid: number) =>
     ),
   );
 
-/**
- * T3 Code's version from the program running its server: a folder named after the version when it
- * runs as a service, or the app's `Info.plist` when the app runs it.
- */
 export async function versionOf(executable: string): Promise<string | null> {
   const service = /\/runtime\/versions\/([^/]+)\//.exec(executable)?.[1];
 
@@ -82,10 +74,6 @@ export async function versionOf(executable: string): Promise<string | null> {
   );
 }
 
-/**
- * T3 Code's server, if it's running. A runtime file left behind by a server that stopped, whose
- * process number now belongs to another program, counts as not running.
- */
 export const readT3CodeServer = Effect.fn("readT3CodeServer")(function* (userdata: string) {
   const text = yield* Effect.promise(() => readText(path.join(userdata, "server-runtime.json")));
   const runtime = text === null ? Option.none() : decodeRuntime(text);
@@ -107,7 +95,6 @@ export const readT3CodeServer = Effect.fn("readT3CodeServer")(function* (userdat
   } satisfies T3CodeServer;
 });
 
-/** The coding agents turned on in T3 Code, by name, as it last checked them. */
 export const readT3CodeProviders = Effect.fn("readT3CodeProviders")(function* (caches: string) {
   const files = yield* Effect.promise(() =>
     readdir(caches).then(

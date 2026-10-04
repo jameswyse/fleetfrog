@@ -20,17 +20,12 @@ function toPem(certificate: PeerCertificate): string {
   return `-----BEGIN CERTIFICATE-----\n${lines.join("\n")}\n-----END CERTIFICATE-----\n`;
 }
 
-/**
- * Fetches the hub's certificate without trusting it, then accepts it only if it matches the
- * fingerprint from the pairing string. Nothing is sent to the hub before that check.
- */
 export function fetchPinnedCertificate(options: {
   readonly url: URL;
   readonly fingerprint: string;
 }) {
   return Effect.callback<string, HubUnreachable | CertificateMismatch>((resume) => {
     const socket = connect({
-      // URL keeps the brackets around IPv6 literals, which name lookup does not accept.
       host: options.url.hostname.replace(/^\[(.*)\]$/, "$1"),
       port: Number(options.url.port || 443),
       rejectUnauthorized: false,
@@ -64,10 +59,6 @@ export function fetchPinnedCertificate(options: {
   });
 }
 
-/**
- * TLS options that trust only the pinned hub certificate. Hostname checks are replaced by the
- * fingerprint check because the certificate is tied to the hub, not to an address.
- */
 export function pinnedTlsOptions(certificatePem: string | null) {
   if (certificatePem === null) {
     return {};

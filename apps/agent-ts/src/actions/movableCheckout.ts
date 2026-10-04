@@ -12,10 +12,6 @@ import type { ActionOutcome } from "@fleetfrog/protocol/domain/action";
 
 import type { CheckoutLocation } from "../git/readCheckout.ts";
 
-/**
- * Why the checkout can't leave its place as a whole, or null when it can: only a main checkout
- * whose Git directory is inside it.
- */
 export function movableProblem(location: CheckoutLocation): ActionOutcome | null {
   if (location.worktree._tag === "Linked") {
     return skipped(SkipReason.cases.IsWorktree.make({}));
@@ -26,7 +22,6 @@ export function movableProblem(location: CheckoutLocation): ActionOutcome | null
     : failed("This checkout keeps its Git directory elsewhere, so it can't move safely.");
 }
 
-/** Why the checkout can't go without its linked worktrees, which would be left broken. */
 export const worktreesProblem = (location: CheckoutLocation) =>
   countLinkedWorktrees(location).pipe(
     Effect.map((count) =>
@@ -34,7 +29,6 @@ export const worktreesProblem = (location: CheckoutLocation) =>
     ),
   );
 
-/** Whether something is already at the path. */
 export const exists = (target: string) =>
   Effect.promise(() =>
     lstat(target).then(
@@ -43,21 +37,15 @@ export const exists = (target: string) =>
     ),
   );
 
-/** Whether a rename failed because its two paths are on different disks. */
 function isCrossDevice(error: unknown): boolean {
   return error instanceof Error && "code" in error && error.code === "EXDEV";
 }
 
 type MoveResult =
   | { readonly _tag: "Moved" }
-  /** Something is already at the destination, so nothing moved. */
   | { readonly _tag: "Taken" }
   | { readonly _tag: "Failed"; readonly message: string };
 
-/**
- * Moves a checkout's folder, creating the folders above its new place. The move is a rename, so it
- * happens at once or not at all, and only within one disk.
- */
 export const moveFolder = ({ from, to }: { readonly from: string; readonly to: string }) =>
   Effect.promise(async (): Promise<MoveResult> => {
     const taken = await lstat(to).then(
@@ -84,7 +72,6 @@ export const moveFolder = ({ from, to }: { readonly from: string; readonly to: s
     }
   });
 
-/** The outcome of a move that didn't happen, or null when it did. */
 export function unmoved(result: MoveResult, destination: string): ActionOutcome | null {
   if (result._tag === "Taken") {
     return skipped(SkipReason.cases.DestinationTaken.make({ path: destination }));

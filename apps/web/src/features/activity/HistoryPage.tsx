@@ -21,7 +21,6 @@ import type {
   ActivityFilter,
 } from "@fleetfrog/protocol/domain/activity";
 
-/** The machine an event concerns, by the name it had then. */
 function eventMachine(event: HubEvent): string {
   return HubEvent.match(event, {
     MachinePaired: ({ machineName }) => machineName,
@@ -42,7 +41,6 @@ function BatchRow({ batch, open }: { readonly batch: ActionBatch; readonly open:
 
   return (
     <tr
-      // The action's link is the keyboard route to its detail; the whole row opens it by pointer.
       onClick={(event) => {
         if (!(event.target instanceof Element && event.target.closest("a") !== null)) {
           void navigate({ search: (previous) => ({ ...previous, batch: batch.id }) });
@@ -106,7 +104,6 @@ function EventRow({ entry }: { readonly entry: Extract<ActivityEntry, { _tag: "E
   );
 }
 
-/** Actions and changes from the retention period as a table, newest first. */
 export function HistoryPage() {
   const search = useSearch({ from: "/_app/activity/" });
   const navigate = useNavigate({ from: "/activity" });

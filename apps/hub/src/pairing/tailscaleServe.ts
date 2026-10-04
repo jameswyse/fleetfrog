@@ -5,9 +5,7 @@ import { HttpClient, HttpClientResponse } from "effect/http";
 
 import { TailscaleServeUnavailable } from "@fleetfrog/protocol/dashboard/rpcs";
 
-/** The part of Tailscale Serve's settings that says which local server each HTTPS port reaches. */
 const ServeConfig = Schema.Struct({
-  /** Keyed by `host:port`, such as `fleetfrog.tail1234.ts.net:8443`. */
   Web: Schema.optional(
     Schema.Record(
       Schema.String,
@@ -33,13 +31,11 @@ function proxiesTo(target: string, port: number): boolean {
   return url.protocol === "http:" && loopbackHosts.has(url.hostname) && Number(url.port) === port;
 }
 
-/** The `wss://` address of the HTTPS port whose root Tailscale Serve forwards to the agent port. */
 export function agentUrlFromServeConfig(config: ServeConfig, agentPort: number): string | null {
   for (const [hostAndPort, site] of Object.entries(config.Web ?? {})) {
     const target = site.Handlers?.["/"]?.Proxy;
 
     if (target !== undefined && proxiesTo(target, agentPort)) {
-      // `origin` leaves out the default port, 443.
       return new URL(`wss://${hostAndPort}`).origin;
     }
   }
@@ -47,7 +43,6 @@ export function agentUrlFromServeConfig(config: ServeConfig, agentPort: number):
   return null;
 }
 
-/** Reads the agent's tailnet address from tailscaled's local API, which answers only on its socket. */
 export const readTailnetAgentUrl = Effect.fn("readTailnetAgentUrl")(function* (
   socketPath: string,
   agentPort: number,

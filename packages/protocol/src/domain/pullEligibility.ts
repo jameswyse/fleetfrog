@@ -2,14 +2,6 @@ import { SkipReason } from "./action.ts";
 
 import type { GitStatus } from "./checkout.ts";
 
-/**
- * Why a pull would skip this checkout, or `null` when it can go ahead. A pull only fast-forwards,
- * so no operation such as a merge may be part-way through, and the checkout must be on a branch
- * with an upstream, with nothing to push and no changes to tracked files. Untracked files are
- * allowed because Git refuses to overwrite them itself.
- *
- * The dashboard uses this to predict skips and the agent checks it again before and after fetching.
- */
 export function pullBlocker(git: GitStatus): SkipReason | null {
   const { head } = git;
 

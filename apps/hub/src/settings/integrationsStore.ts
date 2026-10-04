@@ -14,7 +14,6 @@ const decodeRows = Schema.decodeUnknownEffect(
   Schema.Array(Schema.Struct({ integrations_json: Schema.NullOr(IntegrationsJson) })),
 );
 
-/** Hub-wide settings for other apps FleetFrog reads, persisted and observable. */
 export class IntegrationsStore extends Context.Service<
   IntegrationsStore,
   {
@@ -37,7 +36,6 @@ export class IntegrationsStore extends Context.Service<
 
       return {
         settings,
-        // The settings row may not exist yet, and it needs polling intervals to be created.
         update: (integrations) =>
           sql`insert into settings ${sql.insert({
             id: 1,

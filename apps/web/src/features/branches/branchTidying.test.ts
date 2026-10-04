@@ -160,11 +160,9 @@ describe("branchesInOtherWorktrees", () => {
       ],
     };
 
-    // From the main checkout, both worktrees' branches are elsewhere.
     expect(
       new Set(branchesInOtherWorktrees({ repository, machineId, checkout: main }).keys()),
     ).toEqual(new Set(["fix", "feature"]));
-    // From the linked worktree, its own branch isn't, but main's and the broken one's are.
     expect(
       new Set(branchesInOtherWorktrees({ repository, machineId, checkout: linked }).keys()),
     ).toEqual(new Set(["current", "fix"]));

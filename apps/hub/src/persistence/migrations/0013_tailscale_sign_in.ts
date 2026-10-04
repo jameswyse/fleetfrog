@@ -1,7 +1,6 @@
 import { Effect, Option, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 
-/** The settings as 0.3 stored them, before Tailscale sign-in. */
 const WithoutTailscale = Schema.fromJsonString(
   Schema.Record(Schema.String, Schema.Unknown).check(
     Schema.makeFilter((settings) => !("tailscale" in settings)),
@@ -10,7 +9,6 @@ const WithoutTailscale = Schema.fromJsonString(
 
 const decodeWithoutTailscale = Schema.decodeUnknownOption(WithoutTailscale);
 
-/** Tailscale sign-in starts off, and a user signs in through Tailscale as one tailnet login. */
 export default Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 

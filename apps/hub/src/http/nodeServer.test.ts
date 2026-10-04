@@ -6,7 +6,6 @@ import { HttpRouter, HttpServer, HttpServerRequest } from "effect/http";
 
 import { nodeServer } from "./nodeServer.ts";
 
-/** A WebSocket that stays open until the server ends it, like the dashboard's and the agents'. */
 const socketRoute = HttpRouter.add(
   "GET",
   "/socket",
@@ -19,12 +18,10 @@ const socketRoute = HttpRouter.add(
   }),
 );
 
-/** A browser, which answers the server's close. Resolves with the close code it got. */
 function browser(url: string) {
   return Effect.callback<Effect.Effect<number>>((resume) => {
     const socket = new WebSocket(url);
 
-    // Listening from the start, since the close can come before anyone waits for it.
     const closed = new Promise<number>((done) => {
       socket.addEventListener("close", (event) => done(event.code));
     });
@@ -33,7 +30,6 @@ function browser(url: string) {
   });
 }
 
-/** A client that has gone away without saying so, such as a sleeping laptop. */
 function silentClient(port: number) {
   return Effect.callback<void>((resume) => {
     request({
@@ -81,9 +77,7 @@ it.live("stops promptly with WebSockets open, closing them cleanly", () =>
 
     yield* Scope.close(scope, Exit.void);
 
-    // Effect's server alone would wait 20 seconds for these connections to end.
     expect((yield* Clock.currentTimeMillis) - start).toBeLessThan(2000);
-    // 1006 would mean the connection dropped without a close.
     expect(yield* closed).not.toBe(1006);
   }),
 );

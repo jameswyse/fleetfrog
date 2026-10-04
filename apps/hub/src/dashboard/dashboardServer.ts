@@ -20,7 +20,6 @@ import { listenOnServeSocket } from "../http/serveSocket.ts";
 import { HubConfig } from "../hubConfig.ts";
 import { DashboardHandlers } from "./dashboardHandlers.ts";
 
-/** The RPC socket, for signed-in pages served from the same origin. */
 const dashboardProtocol = Layer.effect(RpcServer.Protocol)(
   Effect.gen(function* () {
     const { protocol, httpEffect } = yield* RpcServer.makeProtocolWithHttpEffectWebsocket;
@@ -55,14 +54,9 @@ const dashboardProtocol = Layer.effect(RpcServer.Protocol)(
   }),
 );
 
-/**
- * The built dashboard. Its page is revalidated on every load, so a new deploy reaches browsers at
- * once; files under `/assets` have a content hash in their names, so browsers keep them for a year.
- */
 function dashboardFiles(root: string) {
   return Layer.mergeAll(
     HttpStaticServer.layer({ root, spa: true, cacheControl: "no-cache" }),
-    // The prefix is taken off the request's path, so this one serves from the assets folder.
     HttpStaticServer.layer({
       root: path.join(root, "assets"),
       prefix: "/assets",
@@ -71,10 +65,6 @@ function dashboardFiles(root: string) {
   );
 }
 
-/**
- * Project icons by the hash of their bytes, so browsers keep each one for good. The images come
- * from repositories, so an SVG is sandboxed and never runs a script, even opened on its own.
- */
 const projectIcons = HttpRouter.add(
   "GET",
   "/project-icons/:id",
@@ -99,19 +89,14 @@ const projectIcons = HttpRouter.add(
   }),
 );
 
-/** Sign-in and settings bodies are small; the dashboard sends everything else over its socket. */
 const maximumBodyBytes = ByteSize.kibibytes(64);
-/** An uploaded picture is at most 512 KB, which JSON carries as base64. */
 const maximumMessageBytes = 4 * 1024 * 1024;
 
-/** The dashboard port, and the socket for Tailscale Serve: the built dashboard plus its RPC WebSocket. */
 export const DashboardServer = Layer.unwrap(
   Effect.gen(function* () {
     const config = yield* HubConfig;
     const { webRoot } = config;
 
-    // The page's own inline script is the only one the policy allows. In development Vite serves
-    // the page, so there is none to allow.
     const scriptHashes =
       webRoot === null
         ? []
@@ -119,8 +104,6 @@ export const DashboardServer = Layer.unwrap(
             yield* Effect.promise(() => readFile(path.join(webRoot, "index.html"), "utf8")),
           );
 
-    // A defect fails only its own request. By default it ends every stream on the socket, and the
-    // dashboard reads that as the hub going away.
     const rpc = RpcServer.layer(DashboardRpcs, { disableFatalDefects: true }).pipe(
       Layer.provide(dashboardProtocol),
       Layer.provide([DashboardHandlers, DashboardAuthenticationLive, RpcSerialization.layerJson]),
@@ -147,7 +130,6 @@ export const DashboardServer = Layer.unwrap(
       ),
     );
 
-    // The socket opens once the server has its routes, so Serve never reaches it without them.
     return config.dashboardSocket === null
       ? dashboard
       : Layer.effectDiscard(listenOnServeSocket(server, config.dashboardSocket)).pipe(

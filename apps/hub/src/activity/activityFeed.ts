@@ -15,15 +15,12 @@ import type {
   RunsSnapshot,
 } from "@fleetfrog/protocol/domain/activity";
 
-/** Progress from several runs at once collapses into one update. */
 const settleTime = Duration.millis(150);
 const pruneInterval = Duration.hours(6);
 
-/** Streams of actions and events for the dashboard, re-read from storage after every change. */
 export class ActivityFeed extends Context.Service<
   ActivityFeed,
   {
-    /** Signals that stored runs, batches or events changed. */
     readonly invalidate: Effect.Effect<void>;
     readonly recordEvent: (event: HubEvent, by: Actor) => Effect.Effect<void>;
     readonly watchRuns: Stream.Stream<RunsSnapshot>;
@@ -40,10 +37,6 @@ export class ActivityFeed extends Context.Service<
       const invalidations = yield* PubSub.sliding<void>(1);
       const invalidate = PubSub.publish(invalidations, undefined).pipe(Effect.asVoid);
 
-      /**
-       * Emits on subscribe and again once changes settle. The subscription starts alongside the
-       * first read, so a change made during it is not missed.
-       */
       const onChange = <A, E>(read: Effect.Effect<A, E>) =>
         Stream.merge(Stream.succeed(undefined), Stream.fromPubSub(invalidations)).pipe(
           Stream.debounce(settleTime),

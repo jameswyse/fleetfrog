@@ -14,10 +14,8 @@ export class PairingRefused extends Schema.TaggedError<PairingRefused>()("Pairin
 
 const loopbackHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
-/** Redeems a pairing string with the hub and saves the resulting credentials. */
 export const pairWithHub = Effect.fn("pairWithHub")(function* (options: {
   readonly pairingString: string;
-  /** Allows an unencrypted connection to a hub that is not on this machine. */
   readonly insecure: boolean;
 }) {
   const invite = decodePairingString(options.pairingString);
@@ -48,7 +46,6 @@ export const pairWithHub = Effect.fn("pairWithHub")(function* (options: {
       ? null
       : yield* fetchPinnedCertificate({ url, fingerprint: certificateFingerprint });
 
-  // The code is spent on first use, so confirm the token can be saved before redeeming it.
   yield* ensureConfigWritable;
 
   const client = yield* makePairingClient({ agentUrl: url, certificatePem });

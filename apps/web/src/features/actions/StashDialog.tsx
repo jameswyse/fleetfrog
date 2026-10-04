@@ -10,7 +10,6 @@ import { useStartBatch } from "./useStartBatch.ts";
 import type { Checkout, GitStatus } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
-/** Confirms stashing a checkout's changes, which clears them from its working tree. */
 export function StashDialog({
   repository,
   machine,

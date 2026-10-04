@@ -59,10 +59,6 @@ function UpstreamState({ upstream }: { readonly upstream: Upstream | null }) {
   );
 }
 
-/**
- * The checkout's local branches, each with its upstream and a way to switch to it, and a way to
- * tidy away the ones no longer needed.
- */
 export function BranchesSection({
   repository,
   machine,
@@ -77,7 +73,6 @@ export function BranchesSection({
   const runs = useRuns();
   const [tidying, setTidying] = useState(false);
   const [switching, setSwitching] = useState<string | null>(null);
-  /** A branch to switch to once the developer confirms, while T3 Code works in the checkout. */
   const [confirming, setConfirming] = useState<string | null>(null);
   const agents = busyThreads(machine, [checkout.path]);
   const { start, pending, failure } = useStartBatch();
@@ -91,7 +86,6 @@ export function BranchesSection({
     others.map(({ name }) => [name, switchSkipReason(machine, checkout, name)]),
   );
 
-  // When nothing can be switched to, one reason covers every branch.
   const sharedReason = others.every(({ name }) => reasons.get(name) !== null)
     ? (reasons.get(others[0]?.name ?? "") ?? null)
     : null;
@@ -114,8 +108,6 @@ export function BranchesSection({
       onStarted,
     );
 
-  // Changes are stashed first, and switching under a T3 Code agent part-way through its work
-  // changes its files, so the developer confirms either.
   const switchTo = (branch: string) => {
     if (git.changed.total > 0) {
       setSwitching(branch);

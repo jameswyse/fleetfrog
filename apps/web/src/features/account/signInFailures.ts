@@ -24,10 +24,6 @@ const copy = {
 
 const isSignInFailure = Schema.is(SignInFailure);
 
-/**
- * What to say about a failed sign-in the hub sent the browser back with. Anything the hub doesn't
- * send says nothing, so a link can't put its own words on the page.
- */
 export function signInFailureMessage(failure: string | undefined): string | null {
   return failure !== undefined && isSignInFailure(failure) ? copy[failure] : null;
 }

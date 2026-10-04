@@ -16,7 +16,6 @@ import {
   tailscaleIdentity,
 } from "./serveSocket.ts";
 
-/** Answers with what the hub makes of each request. */
 const probe = HttpRouter.add(
   "GET",
   "/probe",
@@ -31,7 +30,6 @@ const probe = HttpRouter.add(
   }),
 );
 
-/** What Serve sends, and what anyone else on the tailnet could send straight to the hub's port. */
 const serveHeaders = {
   "tailscale-user-login": "ada@example.com",
   "tailscale-user-name": "Ada",
@@ -90,7 +88,6 @@ describe("decodeHeaderWords", () => {
 
   it("decodes the words Tailscale uses for names outside ASCII", () => {
     expect(decodeHeaderWords("=?utf-8?q?Zo=C3=AB_M=C3=BCller?=")).toBe("Zoë Müller");
-    // Go splits long values into several words, and the spaces between them aren't part of it.
     expect(decodeHeaderWords("=?utf-8?q?Zo=C3=AB?= =?utf-8?q?_M=C3=BCller=5F?=")).toBe(
       "Zoë Müller_",
     );

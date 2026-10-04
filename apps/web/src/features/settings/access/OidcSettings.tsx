@@ -20,7 +20,6 @@ import type { AuthSettingsView } from "@fleetfrog/protocol/domain/user";
 
 const decodeOidcInput = Schema.decodeUnknownOption(OidcInput);
 
-/** Which fields need something in them, in the order they're shown. */
 const requiredFields = [
   ["providerName", "Enter a name for the sign-in button."],
   ["issuerUrl", "Enter the issuer URL, starting with https://."],
@@ -28,10 +27,8 @@ const requiredFields = [
   ["dashboardUrl", "Enter the dashboard's URL, starting with https://."],
 ] as const;
 
-/** Anything larger isn't an icon, and the hub refuses it anyway. */
 const maximumIconBytes = 256 * 1024;
 
-/** The sign-in button as people will see it, with the icon from the provider or an upload. */
 function ButtonSection({
   settings,
   name,
@@ -113,7 +110,6 @@ function ProviderForm({
   turningOn,
 }: {
   readonly settings: AuthSettingsView;
-  /** Saving also turns the provider on, as the admin asked from the Authentication page. */
   readonly turningOn: boolean;
 }) {
   const navigate = useNavigate();
@@ -136,7 +132,6 @@ function ProviderForm({
   const label = turningOn && signInOn ? "Save and turn on" : saveLabel;
 
   const turnOn = async () => {
-    // With sign-in off, the provider turns on once the admin signs in through it.
     if (!signInOn) {
       activate.current?.requestSubmit();
 
@@ -337,15 +332,12 @@ function ProviderForm({
           </Button>
         </div>
       </form>
-      {/* The test sign-in is a form post, which the hub accepts only from this page. */}
       <form ref={activate} method="post" action="/auth/oidc/activate" hidden />
     </>
   );
 }
 
-/** The OpenID Connect provider's details, for admins. */
 export function OidcSettings() {
-  // Set when the admin turned OpenID Connect on before it was set up.
   const { enable } = useSearch({ from: "/_app/settings/authentication/oidc" });
   const settings = useHubStream({ key: "auth", open: (client) => client.WatchAuthSettings() });
 

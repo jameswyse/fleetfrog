@@ -1,7 +1,6 @@
 import { useDashboardOutdated } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
 
-/** Says when the hub was updated and the page needs reloading. */
 export function OutdatedNotice() {
   const outdated = useDashboardOutdated();
 

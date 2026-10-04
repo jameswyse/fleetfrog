@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { formatBytes } from "./formatBytes.ts";
 
-/** The number as this machine's locale writes it, so the test holds under any locale. */
 const local = (value: number) =>
   new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(value);
 

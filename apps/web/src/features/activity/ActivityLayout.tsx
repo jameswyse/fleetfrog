@@ -8,7 +8,6 @@ import { Spinner } from "@/ui/Spinner.tsx";
 import { BatchDetailPanel } from "./BatchDetailPanel.tsx";
 import { HistoryFilters } from "./HistoryFilters.tsx";
 
-/** Moving between the running and history pages keeps the history filters. */
 export function ActivityLayout() {
   const { activeBatches } = useRuns();
   const search = useSearch({ from: "/_app/activity" });

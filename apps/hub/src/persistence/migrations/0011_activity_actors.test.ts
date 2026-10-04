@@ -12,7 +12,6 @@ import { migrations } from "../database.ts";
 
 const before = Object.fromEntries(Object.entries(migrations).filter(([name]) => name < "0010"));
 
-/** A database from before sign-in holding settings, a batch and an event, then fully migrated. */
 const OldDatabase = Layer.effectDiscard(
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;

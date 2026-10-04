@@ -17,10 +17,6 @@ import type {
 } from "@fleetfrog/protocol/domain/activity";
 import type { Operation } from "@fleetfrog/protocol/domain/checkout";
 
-/**
- * How Activity names a batch of each kind: `one` goes before the repository it acted on, and
- * `several` stands for a batch across several checkouts.
- */
 const batchPhrases = {
   Fetch: { one: "Fetch", several: "Fetch" },
   Pull: { one: "Pull", several: "Pull" },
@@ -40,7 +36,6 @@ const batchPhrases = {
 
 export function describeBatch({ kind, scope }: Pick<ActionBatch, "kind" | "scope">): string {
   const { one, several } = batchPhrases[kind];
-  // Fetches and pulls cover a whole scope; other batches name each checkout they act on.
   const expanded = kind === "Fetch" || kind === "Pull";
   const things = kind === "Pull" ? "checkout" : "repository";
 
@@ -54,14 +49,12 @@ export function describeBatch({ kind, scope }: Pick<ActionBatch, "kind" | "scope
   });
 }
 
-/** Each tier as a sentence names it after its first word, such as "cleanup actions". */
 export const tierNames = {
   git: "Git",
   cleanup: "cleanup",
   update: "update",
 } satisfies Record<Tier, string>;
 
-/** The first letter capitalised, for a tier name that starts a sentence. */
 function capitalised(text: string): string {
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 }
@@ -122,7 +115,6 @@ export function describeSkip(reason: SkipReason): string {
   });
 }
 
-/** The parts that apply, as sentences without the last full stop, like the other descriptions. */
 function sentences(parts: ReadonlyArray<string | false>): string {
   return parts.filter((part) => part !== false).join(". ");
 }
@@ -178,7 +170,6 @@ function describeResult(result: ActionResult): string {
   });
 }
 
-/** A finished run's result in a few words, with any detail to show after it. */
 export interface OutcomeText {
   readonly summary: string;
   readonly detail: string | null;
@@ -209,7 +200,6 @@ export const outcomeLabels = {
 
 export const outcomeKinds = OutcomeKind.literals;
 
-/** Run states in the order a batch's summary lists them. */
 const summaryOrder: ReadonlyArray<RunStatus> = ["Running", "Queued", ...OutcomeKind.literals];
 
 const countPhrases = {
@@ -223,7 +213,6 @@ const countPhrases = {
   MachineOffline: (value) => `${value} offline`,
 } satisfies Record<RunStatus, (value: number) => string>;
 
-/** Each state some of a batch's runs are in, with its phrase, such as "3 succeeded". */
 export function countParts(
   counts: RunCounts,
 ): ReadonlyArray<{ readonly status: RunStatus; readonly text: string }> {
@@ -232,7 +221,6 @@ export function countParts(
     .map((status) => ({ status, text: countPhrases[status](counts[status]) }));
 }
 
-/** The batch's runs by state, such as "3 succeeded, 1 skipped". */
 export function describeCounts(counts: RunCounts): string {
   return countParts(counts)
     .map(({ text }) => text)
@@ -273,14 +261,12 @@ const waitingVerbs = {
   Purge: "delete permanently",
 } satisfies Record<ActionKind, string>;
 
-/** What a queued or running run is doing, in a word or two: "Cloning", or "Waiting to clone". */
 export function describeActiveRunBriefly(run: ActionRun): string {
   const kind = run.request._tag;
 
   return run.state._tag === "Running" ? activeVerbs[kind] : `Waiting to ${waitingVerbs[kind]}`;
 }
 
-/** What a queued or running run is doing now, with Git's latest progress line. */
 export function describeActiveRun(run: ActionRun): string {
   const brief = describeActiveRunBriefly(run);
 

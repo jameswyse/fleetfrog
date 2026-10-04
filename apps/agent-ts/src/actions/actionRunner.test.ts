@@ -23,7 +23,6 @@ import type { ActionRequest, ActionUpdate } from "@fleetfrog/protocol/domain/act
 import type { AuditEntry } from "../audit/auditLog.ts";
 import type { AgentPolicy } from "../config/agentPolicy.ts";
 
-// The agent's own Git commands, such as the commit a stash makes, need an identity too.
 beforeAll(() => {
   vi.stubEnv("GIT_AUTHOR_NAME", "Test");
   vi.stubEnv("GIT_AUTHOR_EMAIL", "test@example.com");
@@ -50,7 +49,6 @@ function git(cwd: string, ...args: Array<string>): string {
   }).trim();
 }
 
-/** A clone whose upstream has one commit it hasn't fetched yet. */
 function createFixture(root: string) {
   const upstream = path.join(root, "upstream");
   const clone = path.join(root, "projects", "clone");
@@ -71,7 +69,6 @@ const runIds = {
   second: RunId.make("00000000-0000-4000-8000-000000000002"),
 };
 
-/** The checkouts the hub holds once it has applied these reports, by path. */
 function pathsHeldByHub(reports: ReadonlyArray<ScanReport>): Array<string> {
   const paths = new Set<string>();
 
@@ -88,26 +85,19 @@ function pathsHeldByHub(reports: ReadonlyArray<ScanReport>): Array<string> {
   return [...paths].toSorted();
 }
 
-/**
- * A runner over the checkouts a scanner finds in the roots, recording what they report and audit.
- * The scanner's first discovery walk is done already unless `discovered` is given.
- */
 const makeHarness = Effect.fn("makeHarness")(function* (options: {
   readonly roots: ReadonlyArray<string>;
   readonly archiveFolder: string | null;
   readonly trashDirectory: string;
   readonly policy: AgentPolicy;
-  /** Waits for the scanner's first discovery walk, which is done already unless given. */
   readonly discovered?: Effect.Effect<void> | undefined;
 }) {
   const updates = new Map<RunId, Array<ActionUpdate>>();
   const reports: Array<ScanReport> = [];
   const audit: Array<AuditEntry> = [];
-  /** For each rescan, whether it came before any run reported its outcome. */
   const rescannedBeforeFinishing: Array<boolean> = [];
   const signals = new Map<string, Deferred.Deferred<ActionUpdate>>();
 
-  /** Resolves when the run first reports an update of this kind. */
   const signalFor = (runId: RunId, kind: "Started" | "Finished") => {
     const key = `${runId}:${kind}`;
     const existing = signals.get(key);
@@ -174,13 +164,10 @@ const makeHarness = Effect.fn("makeHarness")(function* (options: {
     discover,
     audit,
     rescannedBeforeFinishing,
-    /** The checkouts the hub holds from the scanner's reports so far. */
     reportedPaths: () => pathsHeldByHub(reports),
     updates: (runId: RunId) => (updates.get(runId) ?? []).map(({ _tag }) => _tag),
-    /** Starts an action and waits for its outcome. */
     run: (request: ActionRequest, runId: RunId = runIds.first) =>
       runner.run(runId, request).pipe(Effect.andThen(Deferred.await(signalFor(runId, "Finished")))),
-    /** Inspects a checkout through the runner, as the hub asks for it. */
     inspect: (checkoutPath: string) =>
       runner
         .inspect({ path: checkoutPath, worktree: null })
@@ -191,7 +178,6 @@ const makeHarness = Effect.fn("makeHarness")(function* (options: {
               : Effect.die(new Error(`Inspection failed: ${JSON.stringify(result)}`)),
           ),
         ),
-    /** Inspects a linked worktree of the checkout through the runner. */
     inspectWorktree: (checkoutPath: string, worktree: string) =>
       runner
         .inspect({ path: checkoutPath, worktree })
@@ -276,7 +262,6 @@ describe("action runner", () => {
       expect(git(clone, "rev-parse", "HEAD")).toBe(git(upstream, "rev-parse", "HEAD"));
       expect(updates(runIds.first).at(0)).toBe("Started");
       expect(audit.map(({ event }) => event)).toEqual(["ActionStarted", "ActionFinished"]);
-      // The hub hears the outcome after the checkout's new state, never before it.
       expect(rescannedBeforeFinishing).toEqual([true]);
     }),
   );
@@ -313,7 +298,6 @@ describe("action runner", () => {
       const { runner, run, started, outcome, updates, clone } = yield* setUp();
       const first = yield* Effect.forkChild(run({ _tag: "Pull", path: clone }));
 
-      // The first action holds the repository, so the second can only queue behind it.
       yield* started(runIds.first);
       yield* runner.run(runIds.second, { _tag: "Fetch", path: clone });
       yield* runner.cancel(runIds.second);
@@ -508,7 +492,6 @@ describe("action runner", () => {
 
       expect(ref).toMatch(/^refs\/fleetfrog\/deleted\/\d+\/feature$/);
 
-      // A new branch has the name now, so the deleted one comes back under another.
       git(clone, "branch", "feature");
       expect(
         yield* run(
@@ -601,13 +584,11 @@ describe("action runner", () => {
         },
       });
 
-      // Both worktrees still work where they are now, including the one that moved inside it.
       expect(git(path.join(root, "Archive", "clone-feature"), "branch", "--show-current")).toBe(
         "feature",
       );
       expect(git(path.join(archived, "worktrees", "fix"), "branch", "--show-current")).toBe("fix");
 
-      // The hub already holds all three where they are now, as the next discovery walk finds them.
       const everyArchived = [
         archived,
         path.join(archived, "worktrees", "fix"),
@@ -634,7 +615,6 @@ describe("action runner", () => {
     Effect.gen(function* () {
       const { run, clone, root } = yield* setUp(withCleanup, "Archive");
 
-      // Outside the project folders, each goes to its folder name, which here is the same.
       git(clone, "worktree", "add", "-q", "-b", "a", path.join(root, "one", "shared"));
       git(clone, "worktree", "add", "-q", "-b", "b", path.join(root, "two", "shared"));
       mkdirSync(path.join(root, "Archive", "clone"), { recursive: true });
@@ -691,7 +671,6 @@ describe("action runner", () => {
         /\/detached-[0-9a-f]{7}$/,
       );
 
-      // A change made after the inspection keeps the worktree until it's inspected again.
       writeFileSync(path.join(secrets, "later.txt"), "more\n");
       expect(
         yield* run(
@@ -737,7 +716,6 @@ describe("action runner", () => {
       git(path.join(root, "projects", "before"), "worktree", "add", "-q", "-b", "broken", broken);
       git(path.join(root, "projects", "before"), "worktree", "add", "-q", "-b", "dirty", dirty);
       writeFileSync(path.join(dirty, "notes.txt"), "work in progress\n");
-      // Renaming the main checkout leaves both worktrees pointing at its old place.
       renameSync(path.join(root, "projects", "before"), main);
 
       const location = Option.getOrThrow(yield* locateCheckout(main));
@@ -791,7 +769,6 @@ describe("action runner", () => {
 
       const sha = git(clone, "rev-parse", "stash@{1}");
 
-      // A stash made since renumbers the one to drop, which is found by its commit instead.
       writeFileSync(path.join(clone, "readme.md"), "third idea\n");
       git(clone, "stash", "push", "-q", "-m", "third idea");
 
@@ -1008,7 +985,6 @@ describe("action runner", () => {
 
       const sha = git(clone, "rev-parse", "topic");
 
-      // Both branches changed readme.md, so the rebase stops on a conflict.
       expect(() => git(clone, "rebase", "-q", "main")).toThrow(/could not apply/);
       expect(
         yield* run({ _tag: "DeleteBranches", path: clone, branches: [{ name: "topic", sha }] }),

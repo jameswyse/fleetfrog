@@ -30,7 +30,6 @@ const client = Layer.unwrap(
   }),
 );
 
-/** Every migration by name, in the order they run. */
 export const migrations = {
   "0001_initial": initial,
   "0002_actions": actions,
@@ -52,7 +51,6 @@ export const Migrations = SqliteMigrator.layer({ loader: SqliteMigrator.fromReco
 
 export const Database = Migrations.pipe(Layer.provideMerge(client));
 
-/** A text column holding a JSON document of the given schema. */
 export function JsonColumn<S extends Schema.Top>(schema: S) {
   return Schema.fromJsonString(Schema.toCodecJson(schema));
 }

@@ -13,7 +13,6 @@ export type CheckoutSummary =
       readonly ahead: number;
       readonly behind: number;
       readonly upstream: "tracking" | "none" | "gone";
-      /** GitHub's default branch has commits this checkout has not fetched. */
       readonly remoteMoved: boolean;
       readonly pullRequest: PullRequest | null;
       readonly hasChanges: boolean;
@@ -83,7 +82,6 @@ export function repositoryMatches(options: {
 }): boolean {
   const query = options.query.trim().toLowerCase();
 
-  // The label may be T3 Code's name for the project, so the repository's own name matches too.
   if (
     query !== "" &&
     ![options.repository.label, options.repository.name].some((name) =>
@@ -100,7 +98,6 @@ export function repositoryMatches(options: {
   return options.repository.checkouts.some(({ checkout }) => {
     const summary = summariseCheckout(checkout);
 
-    // An unreadable checkout matches every filter because it needs attention either way.
     if (summary._tag === "Unreadable") {
       return true;
     }
@@ -109,7 +106,6 @@ export function repositoryMatches(options: {
   });
 }
 
-/** Identifies one checkout in the URL: `<machine id>:<path>`. */
 export function checkoutKey({ machineId, checkout }: MachineCheckout): string {
   return `${machineId}:${checkout.path}`;
 }

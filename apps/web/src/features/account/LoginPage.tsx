@@ -49,7 +49,6 @@ function PasswordForm({ redirect }: { readonly redirect: string }) {
           setError(outcome.message);
           email.current?.focus();
         } else {
-          // A full load, so the page starts clean for whoever signed in.
           window.location.assign(redirect);
         }
       }}
@@ -115,7 +114,6 @@ function ProviderButton({
   );
 }
 
-/** Signs in as whoever Tailscale says opened the dashboard, which needs no typing. */
 function TailscaleButton({
   identity,
   redirect,
@@ -144,7 +142,6 @@ function TailscaleButton({
             setPending(false);
             setError(outcome.message);
           } else {
-            // A full load, so the page starts clean for whoever signed in.
             window.location.assign(redirect);
           }
         }}
@@ -202,9 +199,7 @@ function SignInCard({
   );
 }
 
-/** The whole page for anyone signed out, with the frog front and centre. */
 export function LoginPage() {
-  // `failure` is why the last sign-in through the provider didn't work, from the hub's redirect.
   const { redirect, failure } = useSearch({ from: "/login" });
   const session = useSession();
   const target = localPath(redirect);

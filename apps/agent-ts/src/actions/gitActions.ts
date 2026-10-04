@@ -27,22 +27,16 @@ import type { ActionOutput } from "./actionOutput.ts";
 const fetchAll = (location: CheckoutLocation, output: ActionOutput) =>
   runGitAction({
     cwd: location.path,
-    // Tags stay, even where the user's configuration would prune them.
     args: ["fetch", "--all", "--prune", "--no-prune-tags", "--progress"],
     onOutput: output.write,
   });
 
-/** Fetches every remote of the repository. Worktrees share remote-tracking refs, so one is enough. */
 export const fetchRepository = (location: CheckoutLocation, output: ActionOutput) =>
   fetchAll(location, output).pipe(
     Effect.as(succeeded(ActionResult.cases.Fetched.make({}))),
     Effect.catchTag("CommandFailed", failedWith),
   );
 
-/**
- * Fetches and fast-forwards the checked-out branch. The checkout's state is checked before the
- * fetch and again after it, so changes made meanwhile still stop the pull.
- */
 export const pullCheckout = Effect.fn("pullCheckout")(
   function* (location: CheckoutLocation, output: ActionOutput) {
     const before = pullBlocker(yield* readGitStatus(location));
@@ -66,7 +60,6 @@ export const pullCheckout = Effect.fn("pullCheckout")(
       return succeeded(ActionResult.cases.UpToDate.make({}));
     }
 
-    // Git also refuses if the merge would overwrite an untracked file or a change made just now.
     yield* runGitAction({
       cwd: location.path,
       args: ["merge", "--ff-only", "@{upstream}"],
@@ -78,24 +71,18 @@ export const pullCheckout = Effect.fn("pullCheckout")(
   Effect.catchTag("CommandFailed", failedWith),
 );
 
-/** The commit a ref points at, or null when there is no such ref. */
 export const refCommit = (location: CheckoutLocation, ref: string) =>
   runGit(location.path, ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]).pipe(
     Effect.map((output): string | null => output.trim()),
     Effect.orElseSucceed(() => null),
   );
 
-/** Files in a worktree's Git directory naming a branch an operation is part-way through. */
 const operationBranchFiles = [
   path.join("rebase-merge", "head-name"),
   path.join("rebase-apply", "head-name"),
   "BISECT_START",
 ];
 
-/**
- * The branches any worktree of the repository has checked out, this one included, or is part-way
- * through rebasing or bisecting, when HEAD is detached but the branch is still in use.
- */
 const branchesInUse = (location: CheckoutLocation) =>
   Effect.gen(function* () {
     const checkedOut = (yield* listWorktrees(location.path)).flatMap(({ branch }) =>
@@ -127,14 +114,12 @@ const branchesInUse = (location: CheckoutLocation) =>
     return new Set([...checkedOut, ...operating.filter((name) => name !== "")]);
   });
 
-/** Whether Git accepts `name` as a branch name, so it can't be read as anything else. */
 const isBranchName = (location: CheckoutLocation, name: string) =>
   runGit(location.path, ["check-ref-format", `refs/heads/${name}`]).pipe(
     Effect.as(!name.startsWith("-")),
     Effect.orElseSucceed(() => false),
   );
 
-/** A time such as 27/09/2026 14:05 in the machine's own time zone, for a stash message. */
 export function stashDate(now: DateTime.Utc): string {
   const parts = DateTime.toParts(DateTime.setZone(now, DateTime.zoneMakeLocal()));
   const pad = (value: number) => String(value).padStart(2, "0");
@@ -142,11 +127,6 @@ export function stashDate(now: DateTime.Utc): string {
   return `${pad(parts.day)}/${pad(parts.month)}/${parts.year} ${pad(parts.hour)}:${pad(parts.minute)}`;
 }
 
-/**
- * Switches the checkout to one of its local branches, which no other worktree may have checked
- * out. Changes to tracked files are stashed first with `stashChanges`, and otherwise stop the
- * switch, so none are carried across. Commits only a detached HEAD holds go to the trash.
- */
 export const switchBranch = Effect.fn("switchBranch")(
   function* (
     location: CheckoutLocation,
@@ -180,7 +160,6 @@ export const switchBranch = Effect.fn("switchBranch")(
         return skipped(SkipReason.cases.UncommittedChanges.make({ files: stashedFiles }));
       }
 
-      // Untracked files stay, as they would for a switch without changes.
       yield* runGitAction({
         cwd: location.path,
         args: [
@@ -207,10 +186,6 @@ export const switchBranch = Effect.fn("switchBranch")(
   Effect.catchTag("CommandFailed", failedWith),
 );
 
-/**
- * Stashes every change, untracked files included, so the working tree is clean and the changes can
- * be brought back with `git stash pop`. Ignored files stay where they are.
- */
 export const stashChanges = Effect.fn("stashChanges")(
   function* (location: CheckoutLocation, output: ActionOutput) {
     const git = yield* readGitStatus(location);
@@ -239,7 +214,6 @@ export const stashChanges = Effect.fn("stashChanges")(
   Effect.catchTag("CommandFailed", failedWith),
 );
 
-/** Why a clone destination was refused, for each way it can fail the path checks. */
 export const destinationProblems = {
   NotAbsolute: "The destination must be an absolute path or start with ~.",
   Hidden: "The destination can't be in a hidden folder or contain . or .. segments.",
@@ -247,7 +221,6 @@ export const destinationProblems = {
   InArchive: "The destination can't be in the Archive folder.",
 } satisfies Record<Exclude<DestinationCheck["_tag"], "Valid">, string>;
 
-/** The path with every existing ancestor's symbolic links resolved. */
 async function resolveExisting(target: string): Promise<string> {
   const missing: Array<string> = [];
   let existing = target;
@@ -266,11 +239,6 @@ async function resolveExisting(target: string): Promise<string> {
   }
 }
 
-/**
- * Why a destination that passed the path checks still can't be cloned into, or null when it can.
- * Its discovery folder must exist, it must not, and with symbolic links resolved it must still
- * pass the path checks, so a link can't lead the clone elsewhere.
- */
 async function destinationProblem(options: {
   readonly target: string;
   readonly root: string;
@@ -302,10 +270,6 @@ async function destinationProblem(options: {
   return resolved._tag === "Valid" ? null : destinationProblems[resolved._tag];
 }
 
-/**
- * Clones a remote into a new folder inside a discovery folder, checking out its default branch.
- * The destination has already passed the path checks.
- */
 export const cloneRepository = Effect.fn("cloneRepository")(
   function* (
     options: {
@@ -318,7 +282,6 @@ export const cloneRepository = Effect.fn("cloneRepository")(
   ) {
     const url = cloneableUrl(options.url);
 
-    // The URL must already be in the shared form, so nothing else is quietly rewritten.
     if (Option.isNone(url) || url.value !== options.url) {
       return failed("Only HTTPS and SSH remotes without credentials can be cloned.");
     }
@@ -341,7 +304,6 @@ export const cloneRepository = Effect.fn("cloneRepository")(
     yield* runGitAction({
       cwd: options.home,
       args: ["clone", "--progress", "--", options.url, target],
-      // Only the transports the URL check allows, including for anything the clone fetches.
       environment: { GIT_ALLOW_PROTOCOL: "https:ssh" },
       onOutput: output.write,
     });
@@ -351,7 +313,6 @@ export const cloneRepository = Effect.fn("cloneRepository")(
   Effect.catchTag("CommandFailed", failedWith),
 );
 
-/** Why one requested branch must stay, or null when it can be deleted. */
 const branchSkipReason = Effect.fn("branchSkipReason")(function* (options: {
   readonly location: CheckoutLocation;
   readonly name: string;
@@ -373,13 +334,6 @@ const branchSkipReason = Effect.fn("branchSkipReason")(function* (options: {
     : SkipReason.cases.BranchChanged.make({ branch: name });
 });
 
-/**
- * Moves branches to the trash: each is kept as `refs/fleetfrog/deleted/<time>/<name>` and removed
- * from `refs/heads` in one transaction, which Git applies only if every branch in it still points
- * at the commit the dashboard showed. A branch that moved or is in use by a worktree is left out of
- * the transaction and reported as skipped. The default branch can go too, since the dashboard
- * warns about it and it can be had again from its remote.
- */
 export const deleteBranches = Effect.fn("deleteBranches")(
   function* (
     location: CheckoutLocation,
@@ -421,7 +375,6 @@ export const deleteBranches = Effect.fn("deleteBranches")(
       onOutput: output.write,
     });
 
-    // The branch's upstream and other settings go too, as `git branch -D` would remove them.
     yield* Effect.forEach(
       deletable,
       ({ name }) =>
@@ -439,12 +392,10 @@ export const deleteBranches = Effect.fn("deleteBranches")(
   Effect.catchTag("CommandFailed", failedWith),
 );
 
-/** The branch a deleted-branch ref keeps, or null for any other ref. */
 function deletedBranchName(ref: string): string | null {
   return parseDeletedRef(ref)?.name ?? null;
 }
 
-/** The first of `name`, `name-restored`, `name-restored-2` and so on that no branch has. */
 const freeBranchName = Effect.fn("freeBranchName")(function* (
   location: CheckoutLocation,
   name: string,
@@ -459,10 +410,6 @@ const freeBranchName = Effect.fn("freeBranchName")(function* (
   }
 });
 
-/**
- * Recreates a deleted branch at its commit, as `name-restored` when a branch with its name exists
- * now.
- */
 export const restoreBranch = Effect.fn("restoreBranch")(
   function* (location: CheckoutLocation, ref: string, output: ActionOutput) {
     const name = deletedBranchName(ref);
@@ -486,7 +433,6 @@ export const restoreBranch = Effect.fn("restoreBranch")(
   Effect.catchTag("CommandFailed", failedWith),
 );
 
-/** Forgets a deleted branch. Its commits go once Git's garbage collection finds them unreachable. */
 export const purgeBranch = Effect.fn("purgeBranch")(
   function* (location: CheckoutLocation, ref: string, output: ActionOutput) {
     const sha = deletedBranchName(ref) === null ? null : yield* refCommit(location, ref);

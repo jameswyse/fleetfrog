@@ -6,7 +6,6 @@ import { SideDetail, SidePanel } from "../SettingsSection.tsx";
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 import type { T3CodeProvider } from "@fleetfrog/protocol/domain/t3Code";
 
-/** What stands in the way of a coding agent, or null when it's ready. */
 function providerNote(provider: T3CodeProvider): string | null {
   if (!provider.ready) {
     return "not ready";
@@ -15,7 +14,6 @@ function providerNote(provider: T3CodeProvider): string | null {
   return provider.signedIn ? null : "not signed in";
 }
 
-/** T3 Code on this machine, for the side column, while the integration is on. */
 export function T3CodePanel({
   fleet,
   machine,

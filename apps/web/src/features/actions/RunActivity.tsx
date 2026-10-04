@@ -5,11 +5,6 @@ import { progressFraction } from "./runProgress.ts";
 
 import type { ActionRun } from "@fleetfrog/protocol/domain/activity";
 
-/**
- * A queued or running run in a tight space: a word for what it is doing and a bar for how far Git
- * has got, with Git's own progress line in the tooltip. `Stacked` puts the bar under the words;
- * `Inline` puts it beside them, so a cell keeps its height while the run goes.
- */
 export function RunActivity({
   run,
   layout,
@@ -17,7 +12,6 @@ export function RunActivity({
 }: {
   readonly run: ActionRun;
   readonly layout: "Stacked" | "Inline";
-  /** Where the words sit. Inline, a progress bar fills the rest of the line either way. */
   readonly align: "Start" | "Center";
 }) {
   const progress = run.state._tag === "Running" ? run.state.progress : null;

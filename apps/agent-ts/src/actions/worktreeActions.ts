@@ -13,7 +13,6 @@ import type { WorktreeInspection } from "@fleetfrog/protocol/domain/trash";
 import type { CheckoutLocation } from "../git/readCheckout.ts";
 import type { ActionOutput } from "./actionOutput.ts";
 
-/** Git needs forcing twice to remove a locked worktree, and once to forget a missing one. */
 function forceFlags(inspection: WorktreeInspection): ReadonlyArray<string> {
   if (inspection.locked !== null) {
     return ["--force", "--force"];
@@ -22,12 +21,6 @@ function forceFlags(inspection: WorktreeInspection): ReadonlyArray<string> {
   return inspection.missing === null ? [] : ["--force"];
 }
 
-/**
- * Removes a linked worktree of the main checkout, keeping its branch, if it still matches the
- * inspection the dashboard showed. Its changes and untracked files are stashed first, and commits
- * only its detached HEAD holds go to the trash, so only its ignored files are lost. One whose
- * folder is gone is only forgotten, and a locked one is unlocked, both as the dashboard warned.
- */
 export const removeWorktree = Effect.fn("removeWorktree")(
   function* (
     location: Pick<CheckoutLocation, "path" | "commonDirectory">,

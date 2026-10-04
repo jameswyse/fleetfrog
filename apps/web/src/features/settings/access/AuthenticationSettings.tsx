@@ -26,7 +26,6 @@ import type { FieldError } from "./userForm.ts";
 
 const decodeMethodChange = Schema.decodeUnknownOption(MethodChange);
 
-/** Turns password sign-in on, with the admin's own account so they can sign in with it. */
 function TurnOnPasswordsDialog({
   signInOn,
   onClose,
@@ -186,7 +185,6 @@ function TurnOffDialog({ onClose }: { readonly onClose: () => void }) {
 
 type TurningOff = "DisablePasswords" | "DisableProvider" | "DisableTailscale";
 
-/** Confirms turning one way of signing in off while another stays on. */
 function TurnOffMethodDialog({
   change,
   settings,
@@ -253,10 +251,6 @@ function TurnOffMethodDialog({
   );
 }
 
-/**
- * Turning Tailscale on signs the admin in as their own tailnet account, which could be another
- * FleetFrog account than the one they're using, so it asks first.
- */
 function TurnOnTailscaleDialog({
   signInOn,
   onClose,
@@ -305,7 +299,6 @@ function TurnOnTailscaleDialog({
   );
 }
 
-/** With sign-in off, the provider turns on once the admin signs in through it, which proves it works. */
 function SignInThroughProviderDialog({
   providerName,
   onClose,
@@ -320,7 +313,6 @@ function SignInThroughProviderDialog({
           Sign-in is off, so OpenID Connect turns on once you've signed in through {providerName},
           which checks it works. Then everyone has to sign in, and you stay an admin.
         </p>
-        {/* A form post, which the hub accepts only from this page. */}
         <form method="post" action="/auth/oidc/activate" className="flex justify-end gap-3">
           <Button onClick={onClose}>Cancel</Button>
           <Button tone="primary" type="submit">
@@ -339,16 +331,13 @@ type Asking =
   | TurningOff
   | "SignInThroughProvider";
 
-/** The ways of signing in, each on or off by itself. With none, sign-in is off. */
 function MethodsSection({ settings }: { readonly settings: AuthSettingsView }) {
   const { state, save } = useAutoSave();
   const [asking, setAsking] = useState<Asking | null>(null);
-  // Turned on before it's set up, which stays unsaved until the provider's details are saved.
   const [providerWanted, setProviderWanted] = useState(false);
   const signInOn = isSignInOn(settings);
   const providerName = settings.oidc?.providerName ?? "the provider";
 
-  // Turning off the only way in turns sign-in off.
   const turnOff = (change: TurningOff, othersOn: boolean) =>
     setAsking(othersOn ? change : "TurnOff");
 
@@ -506,9 +495,7 @@ function GravatarSection({ settings }: { readonly settings: AuthSettingsView }) 
   );
 }
 
-/** How people sign in to the dashboard, for admins. */
 export function AuthenticationSettings() {
-  // Set by the hub when a test sign-in through the provider didn't work.
   const failure = signInFailureMessage(
     useSearch({ from: "/_app/settings/authentication/" }).failure,
   );

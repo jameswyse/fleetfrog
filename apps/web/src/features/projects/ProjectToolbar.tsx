@@ -11,7 +11,6 @@ import type { Repository } from "@fleetfrog/protocol/domain/fleet";
 
 import type { RepositoryFilter } from "./checkoutSummary.ts";
 
-/** Each filter shows a symbol from the grid's cells, with its name in a tooltip. */
 const filters: ReadonlyArray<{
   readonly value: RepositoryFilter;
   readonly label: string;
@@ -29,7 +28,6 @@ function isTyping(target: EventTarget | null): boolean {
   );
 }
 
-/** Filters repositories by name. Pressing "/" anywhere else on the page moves here. */
 function SearchField({ query }: { readonly query: string }) {
   const navigate = useNavigate({ from: "/" });
   const input = useRef<HTMLInputElement>(null);
@@ -75,11 +73,8 @@ function SearchField({ query }: { readonly query: string }) {
         aria-label="Search repositories"
         aria-keyshortcuts="/"
         placeholder="Search"
-        // Uncontrolled: the router commits search updates in a transition, so a controlled value
-        // would lag behind typing and move the caret.
         defaultValue={query}
         onChange={(event) => search(event.currentTarget.value)}
-        // The browser's own clear button shows only on hover, so the field draws its own.
         className="peer min-h-9 w-56 rounded-md border border-line bg-surface ps-8 pe-9 [&::-webkit-search-cancel-button]:appearance-none"
       />
       <button
@@ -107,7 +102,6 @@ function SearchField({ query }: { readonly query: string }) {
   );
 }
 
-/** Narrows the grid to repositories with changes or out of sync, counting each choice. */
 function FilterPicker({
   repositories,
   filter,

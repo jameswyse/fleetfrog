@@ -14,7 +14,6 @@ import type { WorktreeInspection } from "@fleetfrog/protocol/domain/trash";
 
 import type { CheckoutLocation } from "../git/readCheckout.ts";
 
-/** Changed and untracked paths from `git status --porcelain -z`, each counted once. */
 function countStatus(listing: string) {
   const entries = listing.split("\0");
   let changedFiles = 0;
@@ -28,7 +27,6 @@ function countStatus(listing: string) {
     } else if (entry !== "") {
       changedFiles += 1;
 
-      // A rename or copy is followed by its old path, which isn't a change of its own.
       if (/^[RC]|^.[RC]/.test(entry)) {
         index += 1;
       }
@@ -38,11 +36,6 @@ function countStatus(listing: string) {
   return { changedFiles, untrackedFiles };
 }
 
-/**
- * Reads what removing the linked worktree at `worktree` would do, or returns null when the main
- * checkout at `location` no longer lists it. A worktree whose link to the repository broke, such
- * as after the main checkout moved, is repaired first so Git can read it.
- */
 export const inspectWorktree = Effect.fn("inspectWorktree")(function* (
   location: Pick<CheckoutLocation, "path" | "commonDirectory">,
   worktree: string,

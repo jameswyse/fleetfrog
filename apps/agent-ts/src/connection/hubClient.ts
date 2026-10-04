@@ -12,10 +12,6 @@ import type { Rpc, RpcGroup } from "effect/rpc";
 
 import type { AgentConfig } from "../config/agentConfig.ts";
 
-/**
- * An endpoint below the agent URL, keeping any path prefix a reverse proxy adds. Pairing uses the
- * HTTP scheme that matches the WebSocket one.
- */
 export function hubEndpoint(agentUrl: URL, endpoint: "agent" | "pair"): URL {
   const base = new URL(agentUrl);
 
@@ -32,10 +28,6 @@ export function hubEndpoint(agentUrl: URL, endpoint: "agent" | "pair"): URL {
   return url;
 }
 
-/**
- * Builds the protocol in the caller's scope. `Effect.provide` would close the connection as soon as
- * the client was constructed.
- */
 function clientInCallerScope<Rpcs extends Rpc.Any>(
   group: RpcGroup.RpcGroup<Rpcs>,
   protocol: Layer.Layer<RpcClient.Protocol>,
@@ -47,11 +39,6 @@ function clientInCallerScope<Rpcs extends Rpc.Any>(
 
 export class HubDisconnected extends Schema.TaggedError<HubDisconnected>()("HubDisconnected", {}) {}
 
-/**
- * The agent's authenticated WebSocket client, plus an effect that fails when the socket drops.
- * The RPC protocol reconnects on its own but abandons open streams, so a session must end and
- * start again rather than wait on a stream the new connection knows nothing about.
- */
 export const makeHubClient = Effect.fn("makeHubClient")(function* (config: AgentConfig) {
   const tls = pinnedTlsOptions(config.certificatePem);
   const dropped = yield* Deferred.make<void>();
@@ -62,8 +49,6 @@ export const makeHubClient = Effect.fn("makeHubClient")(function* (config: Agent
       ...tls,
     });
 
-    // Effect's socket removes its own error listener before closing the socket. Closing one that is
-    // still connecting makes `ws` emit an error on the next tick, which would exit the agent.
     socket.on("error", () => undefined);
 
     return socket;
@@ -88,7 +73,6 @@ export const makeHubClient = Effect.fn("makeHubClient")(function* (config: Agent
   };
 });
 
-/** A one-off HTTPS client for the unauthenticated pairing call. */
 export function makePairingClient(options: {
   readonly agentUrl: URL;
   readonly certificatePem: string | null;

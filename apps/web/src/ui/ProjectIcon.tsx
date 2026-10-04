@@ -13,15 +13,10 @@ function isIconName(name: string): name is IconName {
   return knownNames.has(name);
 }
 
-/** Holds the icon's place while its drawing loads, so the name beside it doesn't move. */
 function Placeholder() {
   return <span aria-hidden="true" className="size-4 shrink-0" />;
 }
 
-/**
- * Two characters on a tint of their colour, drawn as T3 Code draws them so a pair always fits the
- * same square.
- */
 function Monogram({ text, color }: { readonly text: string; readonly color: ProjectIconColor }) {
   const characters = [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text)];
 
@@ -52,7 +47,6 @@ function Monogram({ text, color }: { readonly text: string; readonly color: Proj
   );
 }
 
-/** A project's icon from T3 Code. Decorative: the project's name belongs beside it. */
 export function ProjectIcon({ icon }: { readonly icon: Icon }) {
   return IconSchema.match(icon, {
     Lucide: ({ name, color }) =>
@@ -64,7 +58,6 @@ export function ProjectIcon({ icon }: { readonly icon: Icon }) {
           style={{ color: `var(--project-${color})` }}
         />
       ) : (
-        // A newer T3 Code may offer icons this dashboard's Lucide lacks.
         <FolderGit2Icon aria-hidden="true" style={{ color: `var(--project-${color})` }} />
       ),
     Emoji: ({ emoji }) => (

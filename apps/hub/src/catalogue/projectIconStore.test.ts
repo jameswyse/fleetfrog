@@ -43,7 +43,6 @@ it.effect("serves only icons whose bytes match their hash and whose type is an i
       machineId: studio,
       icons: [
         { id: svgId, mediaType: "image/svg+xml", base64: svg.toString("base64") },
-        // Named after other bytes, which browsers would then keep under the wrong name.
         { id: other, mediaType: "image/svg+xml", base64: svg.toString("base64") },
         { id: pageId, mediaType: "text/html", base64: page.toString("base64") },
       ],

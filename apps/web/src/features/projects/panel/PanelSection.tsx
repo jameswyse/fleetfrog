@@ -11,7 +11,6 @@ const tones = {
 
 export type SectionTone = keyof typeof tones;
 
-/** A card in the side panel: a tinted header with an icon, a title and a count, over its content. */
 export function PanelSection({
   title,
   icon: Icon,
@@ -20,7 +19,6 @@ export function PanelSection({
   children,
 }: {
   readonly title: string;
-  /** A Lucide icon, or a logo drawn to the same grid. */
   readonly icon: ComponentType<{ readonly className?: string }>;
   readonly tone: SectionTone;
   readonly count?: number | string;
@@ -49,7 +47,6 @@ export function PanelSection({
   );
 }
 
-/** Labelled facts, the label in a narrow column beside each value. */
 export function Facts({ children }: { readonly children: ReactNode }) {
   return (
     <dl className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-sm">{children}</dl>
@@ -65,10 +62,6 @@ export function Fact({ term, children }: { readonly term: string; readonly child
   );
 }
 
-/**
- * A list that shows its first few items and the rest on request. `total` counts items the agent
- * left out, which can only be mentioned.
- */
 export function ShortList<Item>({
   items,
   total,
@@ -79,7 +72,6 @@ export function ShortList<Item>({
   readonly items: ReadonlyArray<Item>;
   readonly total: number;
   readonly render: (item: Item) => ReactNode;
-  /** Names the items in the button, such as "files". */
   readonly noun: string;
   readonly listClassName?: string;
 }) {

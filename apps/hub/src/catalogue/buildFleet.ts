@@ -17,7 +17,6 @@ const collator = new Intl.Collator("en", { sensitivity: "base", numeric: true })
 
 type CheckoutGroup = [MachineCheckout, ...Array<MachineCheckout>];
 
-/** The remote's repository name, or the most common main-worktree directory name for local-only repositories. */
 function repositoryName(checkouts: CheckoutGroup): string {
   const { identity } = checkouts[0].checkout;
 
@@ -37,11 +36,6 @@ function repositoryName(checkouts: CheckoutGroup): string {
   );
 }
 
-/**
- * What tells a repository apart from others with its name: the owner path on its host, such as
- * `acme` for `acme/shop`, leaving out Azure DevOps' `_git` segment. A local-only repository has no
- * owner, so its root commit stands in.
- */
 function qualifier(identity: Repository["identity"]): string {
   if (identity._tag === "RootCommit") {
     return identity.sha.slice(0, 7);
@@ -52,7 +46,6 @@ function qualifier(identity: Repository["identity"]): string {
   return (owner.at(-1) === "_git" ? owner.slice(0, -1) : owner).join("/");
 }
 
-/** Each name once, or qualified when repositories share it, even differing only in case. */
 function labelsFor(
   repositories: ReadonlyArray<Omit<Repository, "label">>,
 ): Map<RepositoryKey, string> {
@@ -78,10 +71,6 @@ function labelsFor(
   );
 }
 
-/**
- * T3 Code's project for each repository: of the projects whose folder is one of its checkouts, the
- * one changed most recently.
- */
 function t3CodeProjects(
   machines: ReadonlyArray<MachineRecord>,
   checkouts: ReadonlyArray<MachineCheckout>,
@@ -115,10 +104,6 @@ function t3CodeProjects(
   return chosen;
 }
 
-/**
- * Each repository's label: T3 Code's name for its project, or the label that tells it apart by
- * name. A T3 Code name that another repository also goes by keeps that label beside it.
- */
 function withProjectTitles(
   labels: ReadonlyMap<RepositoryKey, string>,
   projects: ReadonlyMap<RepositoryKey, T3CodeProject>,
@@ -147,10 +132,6 @@ function withProjectTitles(
   );
 }
 
-/**
- * Groups checkouts by repository, labelled from `labels`, which tells apart every repository the
- * fleet has. A repository without a label goes by its name.
- */
 function groupRepositories(
   checkouts: ReadonlyArray<MachineCheckout>,
   labels: ReadonlyMap<RepositoryKey, string>,
@@ -191,7 +172,6 @@ function groupRepositories(
     );
 }
 
-/** Groups every machine's checkouts into repositories and attaches live connection state. */
 export function buildFleet(sources: {
   readonly machines: ReadonlyArray<MachineRecord>;
   readonly checkouts: ReadonlyArray<MachineCheckout>;
@@ -238,7 +218,6 @@ export function buildFleet(sources: {
       ? t3CodeProjects(sources.machines, sources.checkouts)
       : new Map<RepositoryKey, T3CodeProject>();
 
-  // Labels tell apart every repository the fleet has, archived or not, so both lists agree.
   const labels = withProjectTitles(
     labelsFor(groupRepositories(sources.checkouts, new Map(), new Map())),
     projects,

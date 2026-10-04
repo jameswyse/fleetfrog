@@ -5,7 +5,6 @@ import { DatabaseSync } from "node:sqlite";
 
 import { supportedT3CodeSchema } from "../../packages/protocol/src/domain/t3Code.ts";
 
-/** Git without the developer's config or `GIT_*` variables. */
 export const gitEnvironment = {
   ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_"))),
   GIT_CONFIG_GLOBAL: "/dev/null",
@@ -84,7 +83,6 @@ export function fixturePaths(directory: string) {
   };
 }
 
-/** Every run gets local repositories and a local remote. No GitHub credentials or network. */
 export function createRepositories(directory: string): void {
   const fixtures = fixturePaths(directory);
 
@@ -171,7 +169,6 @@ export function createRepositories(directory: string): void {
     git(checkout, "remote", "set-head", "origin", "main");
   }
 
-  // The harness rewrites this origin to its loopback HTTPS Git server.
   git(fixtures.clone, "remote", "set-url", "origin", "https://e2e.example.test/clone-project.git");
   const fetchAuthor = path.join(directory, "fetch-author");
 

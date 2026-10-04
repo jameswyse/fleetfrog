@@ -4,12 +4,10 @@ import { FileState } from "@fleetfrog/protocol/domain/checkout";
 
 import type { ChangedFile, Head } from "@fleetfrog/protocol/domain/checkout";
 
-/** Lists sent to the hub stop here; totals still count everything. */
 export const listLimit = 200;
 
 export interface ParsedStatus {
   readonly head: Head;
-  /** The checked-out commit, absent on an unborn branch. */
   readonly commit: string | null;
   readonly changed: { readonly items: ReadonlyArray<ChangedFile>; readonly total: number };
   readonly untracked: { readonly items: ReadonlyArray<string>; readonly total: number };
@@ -22,7 +20,6 @@ function fileState(code: string | undefined): FileState {
   return code !== undefined && isFileState(code) ? code : ".";
 }
 
-/** Ordinary, renamed or copied, and unmerged entries have 8, 9 and 10 fields before the path. */
 function fieldsBeforePath(kind: string | undefined): number {
   if (kind === "1") {
     return 8;
@@ -60,16 +57,11 @@ function headFrom(parts: {
             name: parts.upstream,
             ahead: parts.ahead ?? 0,
             behind: parts.behind ?? 0,
-            // Git omits the ahead/behind header when the upstream ref no longer exists.
             gone: parts.ahead === null,
           },
   };
 }
 
-/**
- * Parses `git status --porcelain=v2 --branch --show-stash -z`.
- * See the "Porcelain Format Version 2" section of git-status(1).
- */
 export function parseStatus(output: string): ParsedStatus {
   const records = output.split("\0");
   let commit: string | null = null;
@@ -115,7 +107,6 @@ export function parseStatus(output: string): ParsedStatus {
       const fields = record.split(" ");
       const path = fields.slice(fieldsBeforePath(kind)).join(" ");
       const states = fields[1] ?? "..";
-      // A rename's original path is the next NUL-separated record.
       const originalPath = kind === "2" ? (records[index + 1] ?? null) : null;
 
       if (kind === "2") {

@@ -9,13 +9,11 @@ export class InvalidPairingCode extends Schema.TaggedError<InvalidPairingCode>()
   {},
 ) {}
 
-/** Served over HTTPS on the agent port. The only agent call that needs no token. */
 export class PairingRpcs extends RpcGroup.make(
   Rpc.make("Pair", {
     payload: {
       code: Schema.String,
       info: MachineInfo,
-      /** Common development folders that exist on the machine, used as its first discovery roots. */
       suggestedRoots: ReportedList(ReportedText),
     },
     success: Schema.Struct({ machineId: MachineId, token: Schema.String }),

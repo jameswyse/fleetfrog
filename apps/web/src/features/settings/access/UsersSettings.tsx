@@ -98,13 +98,11 @@ function UserRow({
   );
 }
 
-/** Everyone who can sign in to the dashboard, for admins. */
 export function UsersSettings() {
   const session = useSession();
   const users = useHubStream({ key: "users", open: (client) => client.WatchUsers() });
   const auth = useHubStream({ key: "auth", open: (client) => client.WatchAuthSettings() });
 
-  // With an admin group, the provider decides the role of everyone who signs in through it.
   const adminGroup =
     auth._tag === "Ready" && auth.value.provider ? (auth.value.oidc?.adminGroup ?? null) : null;
 

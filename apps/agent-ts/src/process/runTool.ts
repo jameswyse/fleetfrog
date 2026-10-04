@@ -10,29 +10,16 @@ export class CommandFailed extends Schema.TaggedError<CommandFailed>()("CommandF
   message: Schema.String,
 }) {}
 
-/**
- * Settings every Git command runs with, so a repository's own configuration can't run programs: no
- * file system monitor and no hooks. Actions add `core.askPass=` for the remotes they reach.
- */
 const gitConfigArgs = ["-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null"];
 
-// Git status reads must not take the index lock and race the developer's own Git commands. The
-// same environment suits the other tools: no prompts and untranslated output.
 const toolEnvironment = {
   ...process.env,
   GIT_OPTIONAL_LOCKS: "0",
   GIT_TERMINAL_PROMPT: "0",
-  // The transports Git may use, so a remote helper such as `ext::` never runs. Clones allow fewer.
   GIT_ALLOW_PROTOCOL: "file:git:http:https:ssh",
   LC_ALL: "C",
 };
 
-/**
- * Actions run Git without a terminal and must fail rather than wait for someone to answer a
- * prompt. With no askpass program, SSH can't ask for a passphrase or a new host key, and Git
- * Credential Manager is told not to open a window. Helpers that answer silently, such as a
- * keychain, still work.
- */
 const promptPrograms = new Set(["GIT_ASKPASS", "SSH_ASKPASS"]);
 
 const actionEnvironment = {
@@ -92,22 +79,14 @@ export function runGit(cwd: string, args: ReadonlyArray<string>) {
   return runTool("git", cwd, args);
 }
 
-/** Git actions that take longer than this are stopped. A clone of a large repository fits. */
 const actionTimeout = Duration.minutes(30);
 const errorLines = 5;
 
-/**
- * Runs Git for an action, passing its output to `onOutput` as it arrives. Git runs in its own
- * session with no terminal, so SSH fails instead of prompting, and with hooks disabled, so no
- * repository code runs. Interrupting stops Git and anything it started.
- */
 export function runGitAction(options: {
   readonly cwd: string;
   readonly args: ReadonlyArray<string>;
   readonly onOutput: (text: string) => void;
-  /** Extra variables, such as `GIT_ALLOW_PROTOCOL` for clones. */
   readonly environment?: Readonly<Record<string, string>>;
-  /** Written to Git's standard input, such as commands for `update-ref --stdin`. */
   readonly input?: string;
 }) {
   const args = [...gitConfigArgs, "-c", "core.askPass=", ...options.args];
@@ -123,8 +102,6 @@ export function runGitAction(options: {
       stdio: ["pipe", "pipe", "pipe"],
     });
 
-    // Git sees the input, or else an immediate end of input, never a terminal. Git may exit
-    // without reading it, which fails the write with EPIPE; its exit status still decides the result.
     child.stdin.on("error", () => {});
     child.stdin.end(options.input ?? "");
 
@@ -164,15 +141,11 @@ export function runGitAction(options: {
       );
     });
 
-    // Interrupting signals the whole process group, which includes SSH, and waits for Git to
-    // exit, so its locks are gone before the next action on the repository starts.
     return Effect.promise(() => {
       if (!exited && child.pid !== undefined) {
         try {
           process.kill(-child.pid, "SIGTERM");
-        } catch {
-          // The group has already exited.
-        }
+        } catch {}
       }
 
       return closed;

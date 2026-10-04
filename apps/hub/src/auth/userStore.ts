@@ -44,20 +44,16 @@ const decodeAvatars = Schema.decodeUnknownEffect(
   Schema.Array(Schema.Struct({ media_type: AvatarMediaType, data: Schema.Uint8Array })),
 );
 
-/** A dashboard user as stored, including what only the hub sees. */
 export interface UserRecord {
   readonly id: UserId;
   readonly email: string;
-  /** The name the user or an admin chose, which the provider's name takes precedence over. */
   readonly displayName: string;
   readonly role: Role;
   readonly passwordHash: string | null;
   readonly oidc: { readonly issuer: string; readonly subject: string } | null;
   readonly providerName: string | null;
   readonly providerPicture: string | null;
-  /** The tailnet login the user signs in through Tailscale as. */
   readonly tailscaleLogin: string | null;
-  /** The content hash of the uploaded picture. */
   readonly avatarId: string | null;
   readonly createdAt: DateTime.Utc;
   readonly lastSignedInAt: DateTime.Utc | null;
@@ -69,20 +65,14 @@ export interface ProviderIdentity {
   readonly email: Email;
   readonly name: string | null;
   readonly picture: string | null;
-  /** The provider's `email_verified` claim, when it sends one. */
   readonly emailVerified: boolean | null;
   readonly role: Role | null;
 }
 
 export interface TailnetUser {
   readonly login: string;
-  /**
-   * The login as the new account's email. Logins always have an email's form, but aren't always
-   * addresses, such as `alice@github`.
-   */
   readonly email: Email;
   readonly name: string;
-  /** Turning Tailscale sign-in on makes the admin who does it an admin. */
   readonly admin: boolean;
 }
 
@@ -113,11 +103,9 @@ function toRecord(row: typeof UserRow.Type): UserRecord {
 
 interface Describing {
   readonly gravatar: boolean;
-  /** Whether people sign in through the provider now, which makes its name and picture win. */
   readonly providerInUse: boolean;
 }
 
-/** The provider's picture wins while it's in use, then an uploaded one, then Gravatar when it's on. */
 function avatarOf(record: UserRecord, { gravatar, providerInUse }: Describing): Avatar {
   if (providerInUse && record.providerPicture !== null) {
     return { _tag: "Provider", url: record.providerPicture };
@@ -150,12 +138,10 @@ export function describeUser(record: UserRecord, describing: Describing): User {
   };
 }
 
-/** Dashboard users, kept in memory and written through to the database. */
 export class UserStore extends Context.Service<
   UserStore,
   {
     readonly records: SubscriptionRef.SubscriptionRef<ReadonlyArray<UserRecord>>;
-    /** Every user as the dashboard shows them, on subscribe and after every change. */
     readonly watch: Stream.Stream<ReadonlyArray<User>>;
     readonly describe: (record: UserRecord) => Effect.Effect<User>;
     readonly find: (id: UserId) => Effect.Effect<UserRecord, UserNotFound>;
@@ -166,7 +152,6 @@ export class UserStore extends Context.Service<
       readonly role: Role;
       readonly passwordHash: string | null;
     }) => Effect.Effect<UserRecord, EmailTaken>;
-    /** Fails rather than leave the hub without an admin. */
     readonly update: (update: {
       readonly userId: UserId;
       readonly email: Email;
@@ -186,22 +171,11 @@ export class UserStore extends Context.Service<
       readonly avatar: UploadedAvatar | null;
     }) => Effect.Effect<void, UserNotFound>;
     readonly findAvatar: (id: string) => Effect.Effect<Option.Option<UploadedAvatar>>;
-    /** Fails rather than leave the hub without an admin. */
     readonly remove: (userId: UserId) => Effect.Effect<void, UserNotFound | LastAdmin>;
     readonly recordSignIn: (userId: UserId) => Effect.Effect<void>;
-    /**
-     * The user the provider signed in, found by their provider account, then by a verified email
-     * that isn't another account's at this provider, or created. Their email, name and picture follow
-     * the provider's. With a role, it replaces theirs, except that the last admin stays one;
-     * without one, a new user is a user.
-     */
     readonly signInFromProvider: (
       identity: ProviderIdentity,
     ) => Effect.Effect<{ readonly user: UserRecord; readonly roleChanged: boolean }, EmailTaken>;
-    /**
-     * The user Tailscale signed in, found by their tailnet login, then by an email that isn't tied
-     * to another login, or created as a user. Turning Tailscale on makes them an admin.
-     */
     readonly signInFromTailscale: (identity: TailnetUser) => Effect.Effect<UserRecord, EmailTaken>;
   }
 >()("fleetfrog/UserStore") {
@@ -220,7 +194,6 @@ export class UserStore extends Context.Service<
         (yield* load).map(toRecord),
       );
 
-      // Checks such as the last admin read memory, so writes run one at a time.
       const writes = yield* Semaphore.make(1);
 
       const write = <A, E>(effect: Effect.Effect<A, E>) =>
@@ -396,8 +369,6 @@ export class UserStore extends Context.Service<
                   ({ oidc }) =>
                     oidc?.issuer === identity.issuer && oidc.subject === identity.subject,
                 ) ??
-                // An account by email, unless another account at this provider already has it or the
-                // provider says the email isn't verified, since either would let someone take it over.
                 all.find(
                   ({ email, oidc }) =>
                     identity.emailVerified !== false &&
@@ -436,7 +407,6 @@ export class UserStore extends Context.Service<
                 identity.role === "user" &&
                 (yield* otherAdmins(existing.id)) === 0;
 
-              // The provider's group can't leave the hub without an admin, so the last one stays.
               const role = demotesLastAdmin ? existing.role : (identity.role ?? existing.role);
 
               if (demotesLastAdmin) {

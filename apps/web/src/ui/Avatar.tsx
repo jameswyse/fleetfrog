@@ -5,7 +5,6 @@ import { Avatar as AvatarSource } from "@fleetfrog/protocol/domain/user";
 const whitespace = /\s+/u;
 const graphemes = new Intl.Segmenter();
 
-/** The first letter of the first and last words, keeping letters built from several characters whole. */
 function initials(name: string): string {
   const words = name.trim().split(whitespace);
   const letters = words.length === 1 ? [words[0]] : [words[0], words.at(-1)];
@@ -16,28 +15,21 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-/** Where to load the picture from, asking for twice the shown size for sharp screens. */
 function pictureUrl(avatar: AvatarSource, size: number): string | null {
   return AvatarSource.match(avatar, {
     Uploaded: ({ id }) => `/avatars/${id}`,
     Provider: ({ url }) => url,
-    // `d=404` makes Gravatar fail rather than draw a stand-in, so the initials show instead.
     Gravatar: ({ hash }) => `https://gravatar.com/avatar/${hash}?s=${size * 2}&d=404`,
     None: () => null,
   });
 }
 
-/**
- * A user's picture over their initials, so the initials show while it loads and stay when there's
- * none or it fails to load. Decorative, since the name always appears beside it.
- */
 export function Avatar({
   user,
   size,
   className = "",
 }: {
   readonly user: { readonly displayName: string; readonly avatar: AvatarSource };
-  /** In CSS pixels. */
   readonly size: number;
   readonly className?: string;
 }) {

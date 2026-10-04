@@ -9,10 +9,6 @@ import { ThemePicker } from "./ThemePicker.tsx";
 
 import type { Preferences } from "@fleetfrog/protocol/domain/preferences";
 
-/**
- * How the dashboard looks, saved for the signed-in user, or for everyone while sign-in is off.
- * Each change applies at once and saves as it is made.
- */
 export function PreferenceSettings({ title }: { readonly title: string }) {
   const themeId = useId();
   const blurId = useId();

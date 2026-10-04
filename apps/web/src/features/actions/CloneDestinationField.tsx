@@ -6,10 +6,6 @@ import type { DestinationDraft } from "./cloneDestinationDraft.ts";
 
 const pathText = "font-mono text-[13px]";
 
-/**
- * Where a clone goes, drawn as one path: the project folder as a chip at the start, chosen from the
- * machine's folders when it has more than one, then the new folder's name, typed in place.
- */
 export function CloneDestinationField({
   id,
   label,
@@ -19,7 +15,6 @@ export function CloneDestinationField({
   describedBy,
   onChange,
 }: {
-  /** The name input's id, for focusing it when the destination has a problem. */
   readonly id: string;
   readonly label: string;
   readonly machine: Machine;
@@ -31,14 +26,12 @@ export function CloneDestinationField({
   const roots = machine.discoveryRoots;
 
   return (
-    // A fieldset won't shrink below its contents unless told to.
     <fieldset className="min-w-0">
       <legend className="text-ink-muted">{label}</legend>
       <div
         className={`mt-1 flex min-h-9 items-center rounded-md border bg-canvas ps-1 has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-accent ${invalid ? "border-danger" : "border-line"}`}
       >
         {roots.length > 1 ? (
-          // A long folder path gives way before the name does.
           <span className="relative flex max-w-[60%] min-w-0 shrink-0">
             <select
               aria-label="Project folder"

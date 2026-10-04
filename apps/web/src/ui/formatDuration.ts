@@ -17,10 +17,6 @@ const formats = {
   second: unitFormat("second"),
 } satisfies Record<Unit, Intl.NumberFormat>;
 
-/**
- * A length of time to the second, in its largest unit and the next one down, such as
- * "4 min 12 sec" or "12 days 3 hr".
- */
 export function formatDuration(milliseconds: number): string {
   const total = Math.round(milliseconds / 1000);
   const index = unitSizes.findIndex(([, size]) => total >= size);

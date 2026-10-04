@@ -7,16 +7,11 @@ import { MachineKind } from "@fleetfrog/protocol/domain/machine";
 
 import type { Machine } from "@fleetfrog/protocol/domain/fleet";
 
-/**
- * Chooses the machine's kind, which picks its icon. The detected kind is marked, and choosing it
- * hands the choice back to detection.
- */
 export function MachineKindPicker({
   machine,
   onChange,
 }: {
   readonly machine: Machine;
-  /** Null to follow what the agent detects. */
   readonly onChange: (kind: MachineKind | null) => void;
 }) {
   const current = machineKind(machine);

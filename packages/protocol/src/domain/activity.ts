@@ -20,7 +20,6 @@ export type BatchId = typeof BatchId.Type;
 export const RunId = Schema.String.pipe(Schema.check(Schema.isUUID()), Schema.brand("RunId"));
 export type RunId = typeof RunId.Type;
 
-/** Which checkouts a fetch or pull covers. */
 export const ActionScope = Schema.TaggedUnion({
   Checkout: { machineId: MachineId, path: Schema.String },
   Repository: { repositoryKey: RepositoryKey },
@@ -31,19 +30,15 @@ export type ActionScope = typeof ActionScope.Type;
 
 export const CloneTarget = Schema.Struct({
   machineId: MachineId,
-  /** May start with `~`. */
   destination: Schema.NonEmptyString,
 });
 export type CloneTarget = typeof CloneTarget.Type;
 
-/** One action addressed to one target on one machine. */
 export const TargetedRun = Schema.Struct({ machineId: MachineId, request: TargetedRequest });
 export type TargetedRun = typeof TargetedRun.Type;
 
-/** The most runs one batch names: far more than a fleet has machines or a page lists checkouts. */
 export const maximumBatchRuns = 1000;
 
-/** What the dashboard asks for. The hub expands it into one run per machine and checkout. */
 export const BatchRequest = Schema.TaggedUnion({
   Fetch: { scope: ActionScope },
   Pull: { scope: ActionScope },
@@ -51,7 +46,6 @@ export const BatchRequest = Schema.TaggedUnion({
     repositoryKey: RepositoryKey,
     targets: Schema.NonEmptyArray(CloneTarget).check(Schema.isMaxLength(maximumBatchRuns)),
   },
-  /** Actions of one kind, each on its own target. */
   Targeted: {
     runs: Schema.NonEmptyArray(TargetedRun).check(
       Schema.isMaxLength(maximumBatchRuns),
@@ -69,10 +63,6 @@ export function batchKind(request: BatchRequest): ActionKind {
   return request._tag === "Targeted" ? request.runs[0].request._tag : request._tag;
 }
 
-/**
- * What a batch covered, with the names as they were when it ran, so history still reads correctly
- * after a machine is renamed or removed.
- */
 export const BatchScope = Schema.TaggedUnion({
   Checkout: { machineName: Schema.String, repositoryName: Schema.String, path: Schema.String },
   Repository: { repositoryName: Schema.String },
@@ -82,7 +72,6 @@ export const BatchScope = Schema.TaggedUnion({
 export type BatchScope = typeof BatchScope.Type;
 
 export const RunState = Schema.TaggedUnion({
-  /** Sent to the agent, which is waiting for the repository or a network slot. */
   Queued: {},
   Running: { startedAt: Schema.DateTimeUtc, progress: Schema.NullOr(Schema.String) },
   Finished: {
@@ -93,7 +82,6 @@ export const RunState = Schema.TaggedUnion({
 });
 export type RunState = typeof RunState.Type;
 
-/** One action on one machine. */
 export const ActionRun = Schema.Struct({
   id: RunId,
   batchId: BatchId,
@@ -101,14 +89,12 @@ export const ActionRun = Schema.Struct({
   machineName: Schema.String,
   repositoryKey: RepositoryKey,
   repositoryName: Schema.String,
-  /** The checkout acted on, or the absolute clone destination. */
   path: Schema.String,
   request: ActionRequest,
   state: RunState,
 });
 export type ActionRun = typeof ActionRun.Type;
 
-/** How many of a batch's runs are in each state. */
 export const RunCounts = Schema.Struct({
   Queued: Count,
   Running: Count,
@@ -122,10 +108,6 @@ export const RunCounts = Schema.Struct({
 export type RunCounts = typeof RunCounts.Type;
 export type RunStatus = keyof RunCounts;
 
-/**
- * Who asked for something, by the name they had then, so history still reads correctly after
- * they're renamed or deleted. Null when sign-in was off.
- */
 export const Actor = Schema.NullOr(Schema.Struct({ userId: UserId, name: Schema.String }));
 export type Actor = typeof Actor.Type;
 
@@ -134,10 +116,8 @@ export const ActionBatch = Schema.Struct({
   kind: ActionKind,
   scope: BatchScope,
   requestedAt: Schema.DateTimeUtc,
-  /** Null while any run is queued or running. */
   finishedAt: Schema.NullOr(Schema.DateTimeUtc),
   counts: RunCounts,
-  /** The machines its runs went to, by the names they had then, in alphabetical order. */
   machineNames: Schema.Array(Schema.String),
   requestedBy: Actor,
 });
@@ -145,7 +125,6 @@ export type ActionBatch = typeof ActionBatch.Type;
 
 export const RunDetail = Schema.Struct({
   run: ActionRun,
-  /** The last lines of Git's output, once the run has finished. */
   output: Schema.Array(Schema.String),
 });
 export type RunDetail = typeof RunDetail.Type;
@@ -156,7 +135,6 @@ export const BatchDetail = Schema.Struct({
 });
 export type BatchDetail = typeof BatchDetail.Type;
 
-/** Changes made from the dashboard, recorded alongside actions. */
 export const HubEvent = Schema.TaggedUnion({
   MachinePaired: { machineId: MachineId, machineName: Schema.String },
   MachineRemoved: { machineId: MachineId, machineName: Schema.String },
@@ -185,11 +163,6 @@ export type ActivityEntry = typeof ActivityEntry.Type;
 
 const activityFilterLimit = 500;
 
-/**
- * Narrows the activity history. A batch matches when one of its runs matches every non-empty list,
- * and a list matches any of its values. Events match only a machine filter, never a repository or
- * outcome.
- */
 export const ActivityFilter = Schema.Struct({
   machineIds: Schema.Array(MachineId).check(Schema.isMaxLength(activityFilterLimit)),
   repositoryKeys: Schema.Array(RepositoryKey).check(Schema.isMaxLength(activityFilterLimit)),
@@ -198,18 +171,14 @@ export const ActivityFilter = Schema.Struct({
 export type ActivityFilter = typeof ActivityFilter.Type;
 
 export const ActivityPage = Schema.Struct({
-  /** Newest first. */
   entries: Schema.Array(ActivityEntry),
   hasMore: Schema.Boolean,
 });
 export type ActivityPage = typeof ActivityPage.Type;
 
 export const RunsSnapshot = Schema.Struct({
-  /** Batches with runs still queued or running, oldest first. */
   activeBatches: Schema.Array(ActionBatch),
-  /** Queued and running runs, oldest first. */
   active: Schema.Array(ActionRun),
-  /** The most recent finished run for each path on each machine. */
   latest: Schema.Array(ActionRun),
 });
 export type RunsSnapshot = typeof RunsSnapshot.Type;

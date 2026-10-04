@@ -31,11 +31,6 @@ function serviceFile(file: string, write: () => Promise<void>) {
 const systemdUnitName = () => `${instanceNamed("fleetfrog")}.service`;
 const launchdLabel = () => instanceNamed("net.fleetfrog.agent");
 
-/**
- * The Node binary the service starts. pnpm links the Node a checkout's `devEngines` names at
- * `node_modules/.bin/node` and moves the link when that version changes, so a service started
- * through the link survives a Node upgrade. Any other Node is used as it is.
- */
 function serviceNode(script: string): string {
   const current = realpathSync(process.execPath);
 
@@ -52,7 +47,6 @@ function serviceNode(script: string): string {
   }
 }
 
-/** The command that starts this agent, pinned to its Node and script. */
 function agentCommand(): ReadonlyArray<string> {
   const script = process.argv[1];
 
@@ -90,10 +84,6 @@ function escapeXml(text: string): string {
     .replaceAll('"', "&quot;");
 }
 
-/**
- * The variables the service starts the agent with: the `PATH` it was installed from, so it finds
- * the same Git, and the instance's name, so it reads that instance's files.
- */
 function serviceEnvironment(): ReadonlyArray<readonly [string, string]> {
   const instance = currentInstance();
 
@@ -128,19 +118,12 @@ WantedBy=default.target
 `;
 }
 
-/** Where launchd writes the agent's output on macOS. On Linux the journal keeps it. */
 function launchdLogPath(): string {
   return path.join(homedir(), "Library", "Logs", `${instanceNamed("fleetfrog-agent")}.log`);
 }
 
-/** At this size the launchd log moves to `<log>.1`, replacing the previous one. */
 const rotateLogAtBytes = 1024 * 1024;
 
-/**
- * Rotates the launchd log once it is too big, when this process's output goes there. launchd has
- * no rotation of its own and opens the log once, in append mode, so the agent keeps a copy and
- * empties the file in place, and later lines start again at its beginning.
- */
 function rotateLog(): void {
   if (process.platform !== "darwin") {
     return;
@@ -156,12 +139,9 @@ function rotateLog(): void {
       copyFileSync(logPath, `${logPath}.1`);
       ftruncateSync(process.stdout.fd, 0);
     }
-  } catch {
-    // Losing a rotation only leaves the log longer, which the next line retries.
-  }
+  } catch {}
 }
 
-/** Adds a logger that rotates the launchd log after each line the other loggers write. */
 export const logRotation = Logger.layer([Logger.make(rotateLog)], { mergeWithExisting: true });
 
 function launchdPlist(): string {
@@ -213,7 +193,6 @@ function ignoreMissing(error: unknown): void {
 
 const launchdDomain = () => `gui/${userInfo().uid}`;
 
-/** Installs and starts the agent as a per-user background service. Returns where it was written. */
 export const installService = Effect.gen(function* () {
   const home = homedir();
 
@@ -224,7 +203,6 @@ export const installService = Effect.gen(function* () {
       await mkdir(path.dirname(plistPath), { recursive: true });
       await writeFile(plistPath, launchdPlist());
     });
-    // Replaces an already loaded copy; failing here only means none was loaded.
     yield* runTool("launchctl", home, ["bootout", launchdDomain(), plistPath]).pipe(Effect.ignore);
     yield* runTool("launchctl", home, ["bootstrap", launchdDomain(), plistPath]);
 
@@ -239,7 +217,6 @@ export const installService = Effect.gen(function* () {
   });
   yield* runTool("systemctl", home, ["--user", "daemon-reload"]);
   yield* runTool("systemctl", home, ["--user", "enable", "--now", systemdUnitName()]);
-  // Picks up a changed unit when the service was already running.
   yield* runTool("systemctl", home, ["--user", "restart", systemdUnitName()]);
 
   return unitPath;

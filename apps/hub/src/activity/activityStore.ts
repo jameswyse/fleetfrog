@@ -26,7 +26,6 @@ import type {
 } from "@fleetfrog/protocol/domain/activity";
 
 const Timestamp = Schema.DateTimeUtcFromString;
-/** The `status` column: where a run is, or how it ended. */
 const StatusColumn = Schema.Union([Schema.Literals(["Queued", "Running"]), OutcomeKind]);
 
 const RunRow = Schema.Struct({
@@ -123,7 +122,6 @@ const noRuns: RunCounts = {
   MachineOffline: 0,
 };
 
-/** A run to record with its batch. Runs that could not be sent carry their outcome already. */
 export interface NewRun {
   readonly id: RunId;
   readonly machineId: MachineId;
@@ -135,13 +133,11 @@ export interface NewRun {
   readonly outcome: ActionOutcome | null;
 }
 
-/** A run that has not finished, and the machine running it. */
 export interface UnfinishedRun {
   readonly runId: RunId;
   readonly machineId: MachineId;
 }
 
-/** Stored action batches, their runs and dashboard events, kept for the retention period. */
 export class ActivityStore extends Context.Service<
   ActivityStore,
   {
@@ -153,7 +149,6 @@ export class ActivityStore extends Context.Service<
       readonly requestedBy: Actor;
       readonly runs: ReadonlyArray<NewRun>;
     }) => Effect.Effect<void>;
-    /** Each returns false when the run is not an unfinished run of that machine. */
     readonly markStarted: (
       run: UnfinishedRun & { readonly at: DateTime.Utc },
     ) => Effect.Effect<boolean>;
@@ -172,7 +167,6 @@ export class ActivityStore extends Context.Service<
     ) => Effect.Effect<ReadonlyArray<UnfinishedRun>>;
     readonly activeBatches: Effect.Effect<ReadonlyArray<ActionBatch>>;
     readonly activeRuns: Effect.Effect<ReadonlyArray<ActionRun>>;
-    /** The newest finished run for each path on each machine, ignoring offline machines. */
     readonly latestRuns: Effect.Effect<ReadonlyArray<ActionRun>>;
     readonly activity: (query: {
       readonly filter: ActivityFilter;
@@ -227,7 +221,6 @@ export class ActivityStore extends Context.Service<
         }));
       });
 
-      /** Records the batch as finished once none of its runs is still going. */
       const settleBatch = (runId: RunId, at: DateTime.Utc) =>
         sql`update action_batches set finished_at = ${DateTime.formatIso(at)}
             where id = (select batch_id from action_runs where id = ${runId})
@@ -352,14 +345,12 @@ export class ActivityStore extends Context.Service<
             .filter(([, values]) => values.length > 0)
             .map(([column, values]) => sql.in(column, values));
 
-          // One run must match every list, so failures on Studio skip a batch that failed elsewhere.
           const batchRows = yield* sql`select * from action_batches as batch where ${
             matching.length === 0
               ? "1=1"
               : sql`exists (select 1 from action_runs where batch_id = batch.id and ${sql.and(matching)})`
           } order by requested_at desc limit ${limit + 1}`.pipe(Effect.flatMap(decodeBatches));
 
-          // Events have no repository or outcome, so those filters leave only batches.
           const eventRows =
             filter.repositoryKeys.length === 0 && filter.outcomes.length === 0
               ? yield* sql`select at, event_json, actor_json from hub_events where ${

@@ -9,19 +9,14 @@ import type { LinkedWorktree } from "@fleetfrog/protocol/domain/checkout";
 
 import type { CheckoutLocation } from "./readCheckout.ts";
 
-/** One record of `git worktree list --porcelain`. The first is always the main worktree. */
 export interface WorktreeRecord {
   readonly path: string;
-  /** The checked-out branch, or null when HEAD is detached. */
   readonly branch: string | null;
-  /** Git has noticed the folder is gone. */
   readonly prunable: boolean;
-  /** Why the worktree is locked against removal, possibly empty, or null when it isn't. */
   readonly locked: string | null;
   readonly bare: boolean;
 }
 
-/** Parses `git worktree list --porcelain`, whose records are separated by blank lines. */
 export function parseWorktreeList(output: string): ReadonlyArray<WorktreeRecord> {
   return output
     .split("\n\n")
@@ -45,14 +40,9 @@ export function parseWorktreeList(output: string): ReadonlyArray<WorktreeRecord>
     });
 }
 
-/** Every worktree of the repository at `directory`, the main one first. */
 export const listWorktrees = (directory: string) =>
   runGit(directory, ["worktree", "list", "--porcelain"]).pipe(Effect.map(parseWorktreeList));
 
-/**
- * Whether the worktree's `.git` file still leads to this repository. It stops doing so when the
- * main checkout moves, since Git records the path.
- */
 async function linksBack(worktree: string, commonDirectory: string): Promise<boolean> {
   try {
     const link = (await readFile(path.join(worktree, ".git"), "utf8")).trim();
@@ -72,7 +62,6 @@ async function linksBack(worktree: string, commonDirectory: string): Promise<boo
   }
 }
 
-/** The clone's linked worktrees, each with whether its folder is there and still linked. */
 export const readLinkedWorktrees = Effect.fn("readLinkedWorktrees")(function* (
   location: Pick<CheckoutLocation, "path" | "commonDirectory">,
 ) {
@@ -95,7 +84,6 @@ export const readLinkedWorktrees = Effect.fn("readLinkedWorktrees")(function* (
   );
 });
 
-/** Linked worktrees whose folders still exist, which moving the clone would break. */
 export const countLinkedWorktrees = (location: CheckoutLocation) =>
   readLinkedWorktrees(location).pipe(
     Effect.map((worktrees) => worktrees.filter(({ state }) => state !== "Missing").length),

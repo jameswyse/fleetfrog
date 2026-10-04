@@ -1,6 +1,3 @@
-// Prints the release notes for a version, such as `node scripts/release/notes.mjs 0.1.0`. Every
-// package shares one version and a change that names several packages appears in each of their
-// changelogs, so the notes merge those sections and list each change once.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -22,7 +19,6 @@ const changelogs = ["apps", "packages"]
   .filter((changelog) => existsSync(changelog));
 
 const kinds = ["Major Changes", "Minor Changes", "Patch Changes"];
-// Each change, with the most significant kind any package gave it.
 const changes = new Map();
 
 for (const changelog of changelogs) {
@@ -60,7 +56,6 @@ for (const changelog of changelogs) {
       record();
       change = line;
     } else if (change !== undefined) {
-      // A change's later paragraphs and lists are indented beneath it.
       change = `${change}\n${line}`;
     }
   }

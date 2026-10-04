@@ -1,4 +1,3 @@
-/** The frog, drawn 160 units wide, in its brand colours in both themes. */
 function FrogArt() {
   return (
     <g stroke="#073E30" strokeWidth="8.5" strokeLinecap="round" strokeLinejoin="round" fill="none">
@@ -12,7 +11,6 @@ function FrogArt() {
   );
 }
 
-/** The frog on its own, such as for the sign-in page. */
 export function FrogMark({ className = "" }: { readonly className?: string }) {
   return (
     <svg viewBox="0 3 158 119" role="img" aria-label="FleetFrog" className={className}>
@@ -21,10 +19,6 @@ export function FrogMark({ className = "" }: { readonly className?: string }) {
   );
 }
 
-/**
- * The FleetFrog wordmark, inline so its lettering follows the theme. The frog keeps its brand
- * colours in both themes.
- */
 export function Logo({ className = "" }: { readonly className?: string }) {
   return (
     <svg viewBox="0 0 304 64" role="img" aria-label="FleetFrog" className={className}>

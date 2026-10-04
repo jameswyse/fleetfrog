@@ -12,7 +12,6 @@ export interface FieldError {
   readonly message: string;
 }
 
-/** What's wrong with each field, or null when it's fine. */
 const problems = {
   displayName: (values: FormData) =>
     formText(values, "displayName").trim() === "" ? "Enter a name." : null,
@@ -33,7 +32,6 @@ const problems = {
       : "The passwords don't match.",
 } satisfies Record<Field, (values: FormData, passwordOptional: boolean) => string | null>;
 
-/** Checks the form's fields in order, focusing the first invalid one. */
 export function checkFields(
   form: HTMLFormElement,
   fields: ReadonlyArray<Field>,

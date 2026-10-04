@@ -12,7 +12,6 @@ import type { ActionScope } from "@fleetfrog/protocol/domain/activity";
 import type { Checkout, GitStatus } from "@fleetfrog/protocol/domain/checkout";
 import type { Fleet, Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
-/** Why the machine can't run an action now, or null when it can. The agent has the final say. */
 export function machineBlocker(machine: Machine, kind: ActionKind): string | null {
   const blocker = actionBlocker(machine, kind);
 
@@ -25,7 +24,6 @@ export function machineBlocker(machine: Machine, kind: ActionKind): string | nul
   return detail ?? summary;
 }
 
-/** Why a machine can't take a clone, or null when it can. */
 export function cloneBlocker(machine: Machine): string | null {
   return (
     machineBlocker(machine, "Clone") ??
@@ -53,7 +51,6 @@ const destinationHints = {
   InArchive: "Choose a folder outside the Archive folder.",
 } as const;
 
-/** Why a clone destination won't work on this machine, or null when it looks fine. */
 export function cloneDestinationProblem(options: {
   readonly destination: string;
   readonly machine: Machine;
@@ -83,10 +80,6 @@ export function cloneDestinationProblem(options: {
     : null;
 }
 
-/**
- * Why an action on this checkout would be skipped as last scanned, or null when it would go ahead:
- * the machine can't take it, or the checkout's state rules it out.
- */
 function checkoutSkipReason(
   machine: Machine,
   checkout: Checkout,
@@ -99,7 +92,6 @@ function checkoutSkipReason(
     return blocked;
   }
 
-  // An unreadable checkout is read again by the agent, which then decides.
   if (checkout.status._tag === "Failed") {
     return null;
   }
@@ -109,17 +101,14 @@ function checkoutSkipReason(
   return reason === null ? null : describeSkip(reason);
 }
 
-/** Why a pull would skip this checkout as last scanned, or null when it would go ahead. */
 export function pullSkipReason(machine: Machine, checkout: Checkout): string | null {
   return checkoutSkipReason(machine, checkout, "Pull", pullBlocker);
 }
 
-/** Why stashing would skip this checkout as last scanned, or null when it would go ahead. */
 export function stashSkipReason(machine: Machine, checkout: Checkout): string | null {
   return checkoutSkipReason(machine, checkout, "Stash", stashBlocker);
 }
 
-/** Why switching this checkout to `branch` would be skipped as last scanned, or null. */
 export function switchSkipReason(
   machine: Machine,
   checkout: Checkout,
@@ -128,10 +117,8 @@ export function switchSkipReason(
   return checkoutSkipReason(machine, checkout, "Switch", (git) => switchBlocker(git, branch));
 }
 
-/** The scopes a pull asks to confirm, because they can cover more than one checkout. */
 export type PullScope = Exclude<ActionScope, { _tag: "Checkout" }>;
 
-/** Every checkout a pull would cover, with why it would be skipped as of the last scan. */
 export function pullTargets(fleet: Fleet, scope: PullScope) {
   const machines = new Map(fleet.machines.map((machine) => [machine.id, machine]));
 
@@ -150,7 +137,6 @@ export function pullTargets(fleet: Fleet, scope: PullScope) {
     );
 }
 
-/** Whether a pull over this scope would change at least one checkout, as of the last scan. */
 export function canPull(fleet: Fleet, scope: PullScope): boolean {
   return pullTargets(fleet, scope).some(({ skip }) => skip === null);
 }

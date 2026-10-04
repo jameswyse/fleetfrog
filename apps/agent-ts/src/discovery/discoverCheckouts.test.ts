@@ -8,7 +8,6 @@ import { Effect } from "effect";
 import { temporaryDirectory } from "../testing/temporaryDirectory.ts";
 import { discoverCheckouts } from "./discoverCheckouts.ts";
 
-// Keeps the developer's global Git configuration, such as commit signing, out of the fixture.
 const gitEnvironment = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null" };
 
 function createRepository(directory: string): void {

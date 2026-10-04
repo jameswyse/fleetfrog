@@ -6,7 +6,6 @@ import { LoginThrottle } from "./loginThrottle.ts";
 
 import type { Attempt } from "./loginThrottle.ts";
 
-/** Makes failed attempts, returning how many the throttle let through. */
 const fail = (attempt: Attempt, times: number) =>
   LoginThrottle.use((throttle) =>
     Effect.forEach(Array.from({ length: times }), () => throttle.reserve(attempt)).pipe(
@@ -20,7 +19,6 @@ it.effect("lets five attempts at an email through, then makes each wait longer",
   Effect.gen(function* () {
     const throttle = yield* LoginThrottle;
 
-    // Sent all at once, the extra guesses are refused rather than all checked.
     expect(yield* fail(ada, 8)).toBe(5);
     expect(yield* throttle.reserve({ ...ada, address: "10.0.0.2" })).toEqual(
       Option.some(Duration.seconds(30)),
@@ -65,7 +63,6 @@ it.effect("caps the wait at 15 minutes, clears it on success and forgets old fai
   Effect.gen(function* () {
     const throttle = yield* LoginThrottle;
 
-    // Each failure comes as soon as the previous wait is over, until the wait reaches its cap.
     for (let i = 0; i < 12; i++) {
       yield* TestClock.adjust(Duration.minutes(i === 0 ? 0 : 15));
       yield* fail(ada, 1);

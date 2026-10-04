@@ -16,13 +16,11 @@ const schemes = [
   readonly Icon: LucideIcon;
 }>;
 
-/** The colour scheme as three buttons, the current one pressed. */
 export function ThemePicker({
   labelledBy,
   onPick,
   className = "",
 }: {
-  /** The id of the text that labels the group. */
   readonly labelledBy: string;
   readonly onPick: (colorScheme: ColorScheme) => void;
   readonly className?: string;

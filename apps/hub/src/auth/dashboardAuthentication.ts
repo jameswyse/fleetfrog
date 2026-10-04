@@ -10,7 +10,6 @@ import {
 
 import { DashboardSessions } from "./dashboardSessions.ts";
 
-/** Checks the session on every call, so a role change or sign-out applies at once. */
 export const DashboardAuthenticationLive = Layer.effect(DashboardAuthentication)(
   Effect.gen(function* () {
     const sessions = yield* DashboardSessions;

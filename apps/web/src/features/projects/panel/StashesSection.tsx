@@ -17,14 +17,12 @@ import { PanelSection, ShortList } from "./PanelSection.tsx";
 import type { Checkout, GitStatus, Stash } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine } from "@fleetfrog/protocol/domain/fleet";
 
-/** A stash the dashboard can name exactly, by its commit. */
 type KnownStash = Stash & { readonly sha: string };
 
 function isKnown(stash: Stash): stash is KnownStash {
   return stash.sha !== null;
 }
 
-/** Confirms dropping stashes, which go to the trash. */
 function DropStashesDialog({
   machine,
   checkout,
@@ -92,7 +90,6 @@ function DropStashesDialog({
   );
 }
 
-/** The checkout's stashes, each of which can be dropped into the trash, or all at once. */
 export function StashesSection({
   machine,
   checkout,

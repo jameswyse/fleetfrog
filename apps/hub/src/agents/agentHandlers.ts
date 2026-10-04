@@ -45,7 +45,6 @@ export const AgentHandlers = AgentRpcs.toLayer(
         Effect.gen(function* () {
           const { id } = yield* CurrentMachine;
 
-          // A kind of report from a newer agent that this hub doesn't know is left for later.
           if (!isScanReport(report)) {
             return yield* Effect.logWarning(`Ignored a report this hub can't read: ${report._tag}`);
           }
@@ -88,7 +87,6 @@ export const AgentHandlers = AgentRpcs.toLayer(
             return dispatcher.receive({ machineId: id, runId, update });
           }
 
-          // A newer agent's outcome still ends the run, so the hub doesn't wait on it forever.
           return update._tag === "Finished" && "output" in update
             ? dispatcher.receive({
                 machineId: id,

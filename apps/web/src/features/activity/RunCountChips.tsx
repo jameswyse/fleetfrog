@@ -24,7 +24,6 @@ const dotClasses = {
   clean: "bg-clean",
 } satisfies Record<ChipTone, string>;
 
-/** The colour a state has in a batch's result, as a decorative dot beside its name. */
 export function StatusDot({ status }: { readonly status: RunStatus }) {
   return (
     <span
@@ -34,7 +33,6 @@ export function StatusDot({ status }: { readonly status: RunStatus }) {
   );
 }
 
-/** A batch's runs by state, such as "3 succeeded" beside "1 failed". */
 export function RunCountChips({ counts }: { readonly counts: RunCounts }) {
   return (
     <span className="flex flex-wrap gap-1.5">

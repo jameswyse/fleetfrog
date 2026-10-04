@@ -12,7 +12,6 @@ const decodeRows = Schema.decodeUnknownEffect(
   Schema.Array(Schema.Struct({ polling_json: PollingJson })),
 );
 
-/** Hub-wide polling intervals, persisted and observable. */
 export class PollingStore extends Context.Service<
   PollingStore,
   {

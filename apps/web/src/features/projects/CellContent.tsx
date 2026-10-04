@@ -10,7 +10,6 @@ export const problemWords = {
   UpstreamGone: "The upstream branch was deleted",
 } satisfies Record<CellProblem, string>;
 
-/** A state symbol, with its meaning in a tooltip and for screen readers. */
 export function Glyph({
   className,
   symbol,
@@ -28,7 +27,6 @@ export function Glyph({
   );
 }
 
-/** Problems, uncommitted changes, commits to push or pull, or a tick when there is nothing to do. */
 export function CellState({ cell }: { readonly cell: CellSummary }) {
   const glyphs = [
     cell.problem !== null && (
@@ -80,7 +78,6 @@ export function CellState({ cell }: { readonly cell: CellSummary }) {
   );
 }
 
-/** What else the cell holds, when there is more than one of anything: "7 branches · 2 worktrees". */
 export function describeHoldings(cell: CellSummary): string {
   return [
     cell.branches > 1 && plural(cell.branches, "branch", "branches"),
@@ -93,19 +90,13 @@ export function describeHoldings(cell: CellSummary): string {
     .join(" · ");
 }
 
-/**
- * A cell's two short lines: the branch with its state, then what else it holds or what is running
- * on it. A branch other than the default stands out; the default branch recedes.
- */
 export function CellContent({
   cell,
   activity,
   align,
 }: {
   readonly cell: CellSummary;
-  /** Shown in place of the holdings while an action runs. */
   readonly activity: ReactNode;
-  /** The grid centres its cells; lists start at the leading edge. */
   readonly align: "Start" | "Center";
 }) {
   const holdings = describeHoldings(cell);

@@ -20,18 +20,12 @@ import type { CheckoutLocation } from "../git/readCheckout.ts";
 import type { ActionOutput } from "./actionOutput.ts";
 import type { Move } from "./checkoutMove.ts";
 
-/** What the machine's configuration says about where checkouts live. */
 export interface Folders {
   readonly roots: ReadonlyArray<string>;
   readonly archiveFolder: string | null;
   readonly home: string;
 }
 
-/**
- * Moves a checkout into the Archive folder, at the same path below it as it had below its project
- * folder, and records where it came from. Its linked worktrees move too, each the same way, and
- * Git relinks them. A place something is already at gets a number added, as `-2` and so on.
- */
 export const archiveCheckout = Effect.fn("archiveCheckout")(
   function* (location: CheckoutLocation, folders: Folders, output: ActionOutput) {
     const archive = archivePath(folders);
@@ -91,7 +85,6 @@ export const archiveCheckout = Effect.fn("archiveCheckout")(
 
     const archived = planned.move.main.to;
 
-    // The record travelled with the checkout. It now lists only the worktrees that moved.
     yield* writeArchiveRecord(path.join(archived, ".git"), record(result.worktrees, archivedAt));
 
     return succeeded(
@@ -101,10 +94,6 @@ export const archiveCheckout = Effect.fn("archiveCheckout")(
   Effect.catchTag("CommandFailed", failedWith),
 );
 
-/**
- * The recorded path of an archived worktree, when it's a place inside a project folder. The record
- * is a file in the checkout, so a worktree's path is checked as the main checkout's is.
- */
 function returnablePath(originalPath: string, folders: Folders): string | null {
   const checked = checkFolderPath({ path: originalPath, home: folders.home });
 
@@ -121,12 +110,6 @@ function returnablePath(originalPath: string, folders: Folders): string | null {
     : null;
 }
 
-/**
- * Moves an archived checkout back where it was archived from, or below the first project folder
- * when that place is no longer in one, with a number added when something is there now. The
- * worktrees archived alongside it go back likewise. Every worktree is relinked, including ones
- * that stay.
- */
 export const unarchiveCheckout = Effect.fn("unarchiveCheckout")(
   function* (location: CheckoutLocation, folders: Folders, output: ActionOutput) {
     const archive = archivePath(folders);
@@ -135,7 +118,6 @@ export const unarchiveCheckout = Effect.fn("unarchiveCheckout")(
       return skipped(SkipReason.cases.NoArchiveFolder.make({}));
     }
 
-    // A linked worktree goes back with its main checkout, never on its own.
     if (location.worktree._tag === "Linked") {
       return skipped(SkipReason.cases.IsWorktree.make({}));
     }
@@ -153,7 +135,6 @@ export const unarchiveCheckout = Effect.fn("unarchiveCheckout")(
 
     const record = yield* readArchiveRecord(location.commonDirectory);
 
-    // A worktree moved or removed since it was archived isn't at its archived path, so it stays.
     const returning = new Map(
       Option.isSome(record)
         ? record.value.worktrees.map(({ originalPath, archivedPath }) => [

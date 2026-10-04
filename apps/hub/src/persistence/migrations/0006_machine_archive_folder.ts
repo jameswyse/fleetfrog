@@ -1,7 +1,6 @@
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 
-/** The Archive folder moves from one hub-wide setting to each machine, which keeps its value. */
 export default Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 

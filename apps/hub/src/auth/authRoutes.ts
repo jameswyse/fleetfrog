@@ -34,7 +34,6 @@ import type { UserRecord } from "./userStore.ts";
 const sessionJson = HttpServerResponse.schemaJson(Schema.toCodecJson(Session));
 const failureJson = HttpServerResponse.schemaJson(Schema.toCodecJson(LoginFailure));
 
-/** Browsers drop a `Secure` cookie sent over plain HTTP, so it's secure only behind HTTPS. */
 function cookieOptions(request: HttpServerRequest.HttpServerRequest) {
   return {
     httpOnly: true,
@@ -49,7 +48,6 @@ function cookieOptions(request: HttpServerRequest.HttpServerRequest) {
 const forbidden = HttpServerResponse.text("Forbidden.", { status: 403 });
 const decodeEmail = Schema.decodeUnknownOption(Email);
 
-/** Describes the session of the signed-in user, if any, for the dashboard. */
 const describeSession = Effect.fnUntraced(function* (userId: UserId | null) {
   const auth = yield* AuthSettingsStore;
   const preferences = yield* PreferencesStore;
@@ -83,7 +81,6 @@ const describeSession = Effect.fnUntraced(function* (userId: UserId | null) {
   });
 });
 
-/** Starts a session for the user and answers with it, setting its cookie. */
 const signIn = Effect.fnUntraced(function* (userId: UserId) {
   const sessions = yield* DashboardSessions;
   const request = yield* HttpServerRequest.HttpServerRequest;
@@ -117,7 +114,6 @@ const session = HttpRouter.add(
       return response;
     }
 
-    // Each visit keeps the session going for another full lifetime.
     yield* sessions.extend(viewer.sessionHash);
 
     return yield* HttpServerResponse.setCookie(response, sessionCookie, token, {
@@ -205,15 +201,10 @@ const logout = HttpRouter.add(
   }).pipe(Effect.orDie),
 );
 
-/** Why a change to how people sign in was refused, for the admin who asked. */
 function refuse(reason: string) {
   return HttpServerResponse.text(reason, { status: 409 });
 }
 
-/**
- * The account of the tailnet user who sent the request, found or created, or why there isn't
- * one. Turning Tailscale sign-in on makes that account an admin.
- */
 const tailnetAccount = Effect.fnUntraced(function* (options: { readonly admin: boolean }) {
   const request = yield* HttpServerRequest.HttpServerRequest;
   const identity = tailscaleIdentity(request);
@@ -253,7 +244,6 @@ const tailnetAccount = Effect.fnUntraced(function* (options: { readonly admin: b
   );
 });
 
-/** Signs in the tailnet user Tailscale Serve says sent the request, from the sign-in page. */
 const tailscaleSignIn = HttpRouter.add(
   "POST",
   "/auth/tailscale",
@@ -276,10 +266,6 @@ const tailscaleSignIn = HttpRouter.add(
 
 const noOtherWayIn = "Turn on another way of signing in first, or turn sign-in off.";
 
-/**
- * Why turning a way of signing in off would lock out the admin doing it, if it would: sign-in
- * stays on, so they need another way in that works for their own account.
- */
 function lockoutReason(
   settings: AuthSettings,
   self: UserRecord,
@@ -303,7 +289,6 @@ function lockoutReason(
     },
     {
       method: "tailscale",
-      // Without Serve in front of the hub, nobody can sign in through Tailscale.
       on: settings.tailscale && tailscaleAvailable,
       usable: self.tailscaleLogin !== null,
       fix: "sign in through Tailscale once",
@@ -359,13 +344,10 @@ const changeMethods = HttpRouter.add(
     const change = body.value;
     const wasOn = isSignInOn(settings);
     const providerName = settings.oidc?.providerName ?? "the provider";
-    // With sign-in on, only a signed-in admin gets this far.
     const signedIn = viewer.value._tag === "SignedIn" ? viewer.value : null;
     const self = signedIn === null ? null : yield* users.find(signedIn.userId).pipe(Effect.orDie);
-    // The session as it is after the change.
     const current = describeSession(signedIn?.userId ?? null).pipe(Effect.flatMap(sessionJson));
 
-    // Turns one way of signing in off, as long as the admin keeps another way in.
     const turnOff = (method: keyof SignInSwitches) =>
       Effect.gen(function* () {
         if (signedIn === null || self === null) {
@@ -399,7 +381,6 @@ const changeMethods = HttpRouter.add(
       }
 
       case "EnablePasswords": {
-        // The admin's own account, found by email or created, becomes an admin with this password.
         const passwordHash = yield* hashPassword(change.password);
         const existing = yield* users.findByEmail(change.email);
 
@@ -428,7 +409,6 @@ const changeMethods = HttpRouter.add(
           return yield* current;
         }
 
-        // Everyone using the dashboard with sign-in off now has to sign in.
         yield* sessions.endAll;
 
         return yield* signIn(userId);
@@ -469,7 +449,6 @@ const changeMethods = HttpRouter.add(
 
         yield* auth.update({ ...settings, tailscale: true });
 
-        // Everyone using the dashboard with sign-in off now has to sign in.
         if (!wasOn) {
           yield* sessions.endAll;
         }
@@ -489,14 +468,8 @@ const changeMethods = HttpRouter.add(
   }).pipe(Effect.orDie),
 );
 
-/** Binds a provider sign-in to the browser that started it, so a stolen callback link is useless. */
 const oidcStateCookie = "fleetfrog_oidc_state";
 
-/**
- * Where a failed provider sign-in sends the browser, with the kind of failure for the dashboard to
- * explain. The details, which can name groups, emails and the provider's own words, go only to
- * the log.
- */
 function failed({ intent, kind, detail }: Pick<OidcFailure, "intent" | "kind" | "detail">) {
   const page = intent === "Activate" ? "/settings/authentication" : "/login";
 
@@ -508,12 +481,10 @@ function failed({ intent, kind, detail }: Pick<OidcFailure, "intent" | "kind" | 
   );
 }
 
-/** The dashboard's router doesn't log requests, so a crash during a provider sign-in says why here. */
 function logSignInFailure(cause: Cause.Cause<unknown>) {
   return Effect.logError("Sign-in through the provider failed", cause);
 }
 
-/** Sends the browser to the provider, remembering the attempt in a cookie bound to this browser. */
 const toProvider = Effect.fnUntraced(function* (request: {
   readonly intent: OidcIntent;
   readonly redirect: string;
@@ -524,7 +495,6 @@ const toProvider = Effect.fnUntraced(function* (request: {
   return yield* provider.start(request).pipe(
     Effect.flatMap(({ url, state }) =>
       HttpServerResponse.setCookie(
-        // 303 so a form's POST becomes a GET at the provider.
         HttpServerResponse.redirect(url, { status: 303 }),
         oidcStateCookie,
         state,
@@ -535,7 +505,6 @@ const toProvider = Effect.fnUntraced(function* (request: {
   );
 });
 
-/** Signing in through the provider, from the sign-in page. */
 const oidcStart = HttpRouter.add(
   "GET",
   "/auth/oidc/start",
@@ -557,10 +526,6 @@ const oidcStart = HttpRouter.add(
   }).pipe(Effect.orDie, Effect.tapCause(logSignInFailure)),
 );
 
-/**
- * An admin's test sign-in, which turns the provider on once it works. It's a POST from the
- * dashboard, so a link on another site can't switch how everyone signs in.
- */
 const oidcActivate = HttpRouter.add(
   "POST",
   "/auth/oidc/activate",
@@ -624,12 +589,10 @@ const oidcCallback = HttpRouter.add(
 
       yield* auth.update({ ...settings, provider: true });
 
-      // With sign-in off until now, everyone using the dashboard has to sign in.
       if (!isSignInOn(settings)) {
         yield* sessions.endAll;
       }
     } else if (roleChanged) {
-      // Open sockets carry what the old role could see, so they close.
       yield* sessions.endForUser(user.id);
     }
 
@@ -649,10 +612,6 @@ const oidcCallback = HttpRouter.add(
   }).pipe(Effect.orDie, Effect.tapCause(logSignInFailure)),
 );
 
-/**
- * Uploaded pictures by the hash of their bytes, so browsers keep each one for good. Only PNG,
- * JPEG and WebP are accepted, and they're sandboxed like project icons all the same.
- */
 const avatars = HttpRouter.add(
   "GET",
   "/avatars/:id",
@@ -677,10 +636,6 @@ const avatars = HttpRouter.add(
   }),
 );
 
-/**
- * The provider's sign-in button icon by the hash of its bytes, so browsers keep it for good. It
- * shows on the sign-in page, so it's public. An SVG is sandboxed and never runs a script.
- */
 const providerIcon = HttpRouter.add(
   "GET",
   "/auth/provider-icon/:id",
@@ -705,7 +660,6 @@ const providerIcon = HttpRouter.add(
   }),
 );
 
-/** Sign-in over plain HTTP, since the dashboard socket needs the session cookie first. */
 export const AuthRoutes = Layer.mergeAll(
   session,
   login,

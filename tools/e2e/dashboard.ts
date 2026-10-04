@@ -8,7 +8,6 @@ import type { RpcClientError } from "effect/rpc";
 
 type DashboardClient = RpcClient.FromGroup<typeof DashboardRpcs, RpcClientError.RpcClientError>;
 
-/** Uses the same typed WebSocket RPCs as the dashboard, with no test routes on the hub. */
 export function withDashboard<A, E>(
   url: string,
   use: (client: DashboardClient) => Effect.Effect<A, E>,

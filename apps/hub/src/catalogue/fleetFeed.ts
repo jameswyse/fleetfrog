@@ -10,17 +10,13 @@ import { CheckoutStore } from "./checkoutStore.ts";
 
 import type { Fleet } from "@fleetfrog/protocol/domain/fleet";
 
-/** Bursts of reports during a scan collapse into one dashboard update. */
 const settleTime = Duration.millis(150);
 
-/** The dashboard's view of the fleet, rebuilt from storage whenever something changes. */
 export class FleetFeed extends Context.Service<
   FleetFeed,
   {
-    /** Signals that stored machines or checkouts changed. */
     readonly invalidate: Effect.Effect<void>;
     readonly current: Effect.Effect<Fleet>;
-    /** Emits the fleet on subscribe and again after every change. */
     readonly watch: Stream.Stream<Fleet>;
   }
 >()("fleetfrog/FleetFeed") {

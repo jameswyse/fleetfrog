@@ -7,14 +7,9 @@ import { Placement } from "@fleetfrog/protocol/domain/checkout";
 
 import type { CheckoutLocation } from "../git/readCheckout.ts";
 
-/**
- * Where FleetFrog moved an archived checkout from, kept in its Git directory so it travels with
- * the checkout and never shows up as a change.
- */
 const ArchiveRecord = Schema.Struct({
   originalPath: Schema.String,
   archivedAt: Schema.DateTimeUtcFromString,
-  /** The linked worktrees that moved with it. Absent from records that predate them. */
   worktrees: Schema.Array(
     Schema.Struct({ originalPath: Schema.String, archivedPath: Schema.String }),
   ).pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed([]))),
@@ -29,7 +24,6 @@ function recordPath(commonDirectory: string): string {
   return path.join(commonDirectory, "fleetfrog-archive.json");
 }
 
-/** Saves the record, returning why it couldn't be saved, or null. */
 export const writeArchiveRecord = (commonDirectory: string, record: ArchiveRecord) =>
   Effect.promise(() =>
     writeFile(recordPath(commonDirectory), `${encodeRecord(record)}\n`).then(
@@ -38,20 +32,14 @@ export const writeArchiveRecord = (commonDirectory: string, record: ArchiveRecor
     ),
   );
 
-/** Removes the record if there is one. A checkout without one is simply not archived. */
 export const removeArchiveRecord = (commonDirectory: string) =>
   Effect.promise(() => rm(recordPath(commonDirectory), { force: true }).catch(() => undefined));
 
-/** The checkout's record, or none for one put in the archive by hand. */
 export const readArchiveRecord = (commonDirectory: string) =>
   Effect.promise(() => readFile(recordPath(commonDirectory), "utf8").catch(() => "")).pipe(
     Effect.map(decodeRecord),
   );
 
-/**
- * How an archived checkout came to be there, from its clone's record. A linked worktree has its own
- * original path in the record. One put in the archive by hand has no record.
- */
 export const archivedPlacement = (
   location: Pick<CheckoutLocation, "path" | "commonDirectory" | "worktree">,
 ) =>

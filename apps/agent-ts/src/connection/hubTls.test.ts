@@ -44,7 +44,6 @@ function createCertificate(options: { readonly directory: string; readonly name:
   };
 }
 
-/** The hub's certificate and an impostor's, in a directory removed when the test ends. */
 const certificates = temporaryDirectory("fleetfrog-tls-").pipe(
   Effect.map((directory) => ({
     hub: createCertificate({ directory, name: "hub" }),
@@ -52,7 +51,6 @@ const certificates = temporaryDirectory("fleetfrog-tls-").pipe(
   })),
 );
 
-/** A TLS server presenting the hub certificate, closed when the test's scope ends. */
 const hubServer = (hub: ReturnType<typeof createCertificate>) =>
   Effect.acquireRelease(
     Effect.callback<Server>((resume) => {
@@ -67,14 +65,12 @@ const hubServer = (hub: ReturnType<typeof createCertificate>) =>
     Effect.flatMap((server) => {
       const address = server.address();
 
-      // A TCP server reports an address object; a string would mean a pipe or socket path.
       return address instanceof Object
         ? Effect.succeed(address.port)
         : Effect.die(new Error("The test server is not listening on a TCP port."));
     }),
   );
 
-/** Connects with the agent's pinned options, succeeding only if the handshake is accepted. */
 function handshake(options: { readonly port: number; readonly pinned: string }) {
   return Effect.callback<"accepted" | "rejected">((resume) => {
     const socket = connect({

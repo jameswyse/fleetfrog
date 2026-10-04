@@ -10,7 +10,6 @@ import { machineBlocker } from "../actions/actionAvailability.ts";
 import type { Checkout, LinkedWorktree } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine } from "@fleetfrog/protocol/domain/fleet";
 
-/** A folder that moves, and where to. */
 export interface FolderMove {
   readonly from: string;
   readonly to: string;
@@ -20,10 +19,8 @@ export type ArchivePlan =
   | {
       readonly _tag: "Ready";
       readonly destination: string;
-      /** Linked worktrees that move along, each the same way. */
       readonly worktrees: ReadonlyArray<FolderMove>;
     }
-  /** The machine has no Archive folder it can use yet, which the developer can set. */
   | { readonly _tag: "NeedsFolder"; readonly problem: string | null }
   | { readonly _tag: "Blocked"; readonly reason: string };
 
@@ -38,10 +35,6 @@ function roots(machine: Machine): ReadonlyArray<string> {
 const unusableFolderReason =
   "The Archive folder holds one of this machine's project folders, so the agent ignores it";
 
-/**
- * Whether the machine's Archive folder still passes the checks it was saved with. Changing the
- * project folders afterwards can make it hold one, and the agent then ignores it.
- */
 function archiveFolderUsable(machine: Machine): boolean {
   return (
     machine.archiveFolder !== null &&
@@ -53,18 +46,12 @@ function archiveFolderUsable(machine: Machine): boolean {
   );
 }
 
-/** The linked worktrees whose folders still exist, as the checkout lists them. */
 export function linkedWorktrees(checkout: Checkout): ReadonlyArray<LinkedWorktree> {
   return checkout.status._tag === "Read"
     ? checkout.status.git.worktrees.filter(({ state }) => state !== "Missing")
     : [];
 }
 
-/**
- * Where archiving the checkout would move it, whether the machine needs an Archive folder first,
- * or why it can't be archived, as last scanned. A linked worktree is archived with its main
- * checkout, so the caller plans for that instead.
- */
 export function planArchive(options: {
   readonly machine: Machine;
   readonly checkout: Checkout;
@@ -104,14 +91,12 @@ export function planArchive(options: {
   return {
     _tag: "Ready",
     destination: destinationOf(checkout.path),
-    // A worktree inside the checkout's own folder moves with it.
     worktrees: linkedWorktrees(checkout)
       .filter(({ path }) => !isWithin(path, checkout.path))
       .map(({ path }) => ({ from: path, to: destinationOf(path) })),
   };
 }
 
-/** Where unarchiving the checkout would move it back to, or why it can't move back. */
 export function planUnarchive(options: {
   readonly machine: Machine;
   readonly checkout: Checkout;

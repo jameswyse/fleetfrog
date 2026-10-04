@@ -97,7 +97,6 @@ describe("system info parsing", () => {
       "Pages occupied by compressor:                  93297.",
     ].join("\n");
 
-    // (398384 - 13391 + 153098 + 93297) pages of 16 KiB.
     expect(parseVmStat(output)).toBe(631_388 * 16_384);
     expect(parseVmStat("Pages free: 12.")).toBeNull();
   });

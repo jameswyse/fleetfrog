@@ -11,7 +11,6 @@ import { migrations } from "../database.ts";
 const before = Object.fromEntries(Object.entries(migrations).filter(([name]) => name < "0014"));
 const ada = UserId.make("0b8f6a52-7f9e-4c55-9a8e-2f4a1c9d3e10");
 
-/** A hub on 0.4 with its settings saved and one user, then fully migrated. */
 const Migrated = PreferencesStore.layer.pipe(
   Layer.provide(
     Layer.effectDiscard(
@@ -43,7 +42,6 @@ const Migrated = PreferencesStore.layer.pipe(
   Layer.provide(SqliteClient.layer({ filename: ":memory:" })),
 );
 
-/** A new hub, which has no settings row until something is saved. */
 const Fresh = PreferencesStore.layer.pipe(
   Layer.provide(SqliteMigrator.layer({ loader: SqliteMigrator.fromRecord(migrations) })),
   Layer.provide(SqliteClient.layer({ filename: ":memory:" })),

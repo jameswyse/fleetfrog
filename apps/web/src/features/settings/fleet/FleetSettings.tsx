@@ -23,12 +23,10 @@ function MachineRow({ fleet, machine }: { readonly fleet: Fleet; readonly machin
   const { system } = machine.info;
   const { usage, connection } = machine;
   const online = connection._tag === "Online";
-  // Readings from a machine that is offline are its last ones, so they are shown faded.
   const readingClass = `${cellClass} ${online ? "" : "opacity-60"}`;
 
   return (
     <tr
-      // The name is the keyboard route to the machine; the whole row opens it by pointer.
       onClick={(event) => {
         if (!(event.target instanceof Element && event.target.closest("a") !== null)) {
           void navigate({ to: "/settings/fleet/$machineId", params: { machineId: machine.id } });
@@ -90,7 +88,6 @@ function MachineRow({ fleet, machine }: { readonly fleet: Fleet; readonly machin
   );
 }
 
-/** Every paired machine side by side, each opening its own settings. */
 export function FleetSettings() {
   const hub = useHub();
   const fleet = knownFleet(hub);
@@ -119,7 +116,6 @@ export function FleetSettings() {
         </div>
       )}
       {fleet !== null && fleet.machines.length > 0 && (
-        // Positioned so screen-reader text in the cells is clipped here instead of widening the page.
         <div className="relative overflow-x-auto rounded-xl border border-line bg-surface">
           <table className="w-full min-w-3xl text-sm">
             <caption className="sr-only">

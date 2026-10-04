@@ -12,13 +12,10 @@ function failed(message: string): FolderOutcome {
   return FolderOutcome.cases.Failed.make({ message });
 }
 
-/** Asks agents to create their missing project folders and waits for each answer. */
 export class FolderRequests extends Context.Service<
   FolderRequests,
   {
-    /** Creates one of the machine's project folders, or says why it couldn't. */
     readonly create: (machineId: MachineId, path: string) => Effect.Effect<FolderOutcome>;
-    /** Takes an agent's answer. Only the machine that was asked can answer. */
     readonly answer: (answer: {
       readonly machineId: MachineId;
       readonly requestId: string;
@@ -29,7 +26,6 @@ export class FolderRequests extends Context.Service<
   static readonly layer = Layer.effect(this)(
     Effect.gen(function* () {
       const sessions = yield* AgentSessions;
-      // Creating a folder is quick, so an agent that takes longer than this has gone quiet.
       const queries = makeAgentQueries({ timeout: Duration.seconds(20), unanswered: failed });
 
       return {

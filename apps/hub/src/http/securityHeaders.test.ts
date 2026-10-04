@@ -34,7 +34,6 @@ const routes = Layer.mergeAll(
   bodyLimit(ByteSize.bytes(16)),
 );
 
-/** Serves the routes on a free port for the test and gives their address. */
 const served = Effect.gen(function* () {
   const context = yield* Layer.build(
     HttpRouter.serve(routes, { disableLogger: true }).pipe(
@@ -85,8 +84,6 @@ describe("bodyLimit", () => {
 
       const small = yield* post("x".repeat(16));
 
-      // Node drops the connection once the body runs past the limit, so the request either fails
-      // or is answered with 413.
       const refused = yield* post("x".repeat(17)).pipe(
         Effect.map((response) => response.status === 413),
         Effect.catch(() => Effect.succeed(true)),

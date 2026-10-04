@@ -76,7 +76,6 @@ export async function runCommand(
   }
 }
 
-/** Stops processes on teardown but retains the sandbox and logs for inspection. */
 export async function startEnvironment(signal: AbortSignal) {
   signal.throwIfAborted();
   const directory = mkdtempSync("/tmp/fleetfrog-e2e-");
@@ -88,7 +87,6 @@ export async function startEnvironment(signal: AbortSignal) {
   const agentUrl = `ws://127.0.0.1:${agentPort}`;
   const environment: NodeJS.ProcessEnv = {};
 
-  // Do not inherit a developer's hub, instance, Tailscale sockets or data paths.
   for (const [key, value] of Object.entries(process.env)) {
     if (!key.startsWith("FLEETFROG_") && !key.startsWith("GIT_")) {
       environment[key] = value;
@@ -177,9 +175,7 @@ export async function startEnvironment(signal: AbortSignal) {
         if (response.ok) {
           ready = true;
         }
-      } catch {
-        // The process has started but its HTTP listener is not ready yet.
-      }
+      } catch {}
 
       if (!ready && Date.now() >= deadline) {
         throw new Error(`Hub did not start within 30 seconds. See ${directory}/hub.log`);
@@ -212,7 +208,6 @@ export async function startEnvironment(signal: AbortSignal) {
               ...environment,
               FLEETFROG_CONFIG_DIR: path.join(directory, `${target.prefix}-config`),
               XDG_DATA_HOME: path.join(directory, `${target.prefix}-data`),
-              // The agent writes its action log here, defaulting to ~/.local/state.
               XDG_STATE_HOME: path.join(directory, `${target.prefix}-state`),
               T3CODE_HOME: path.join(
                 directory,

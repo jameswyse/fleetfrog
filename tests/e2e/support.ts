@@ -38,7 +38,6 @@ export function requireIsolatedTrash() {
   }
 }
 
-/** An Archive or Trash entry by exact repository name, so archive-project skips agent-archive-project. */
 export function cleanupEntry(screen: Screen, name: string) {
   return screen.getByRole("listitem").filter({ has: screen.getByText(name, { exact: true }) });
 }

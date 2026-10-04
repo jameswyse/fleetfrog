@@ -16,14 +16,9 @@ const decodeRows = Schema.decodeUnknownEffect(
   Schema.Array(Schema.Struct({ preferences: Schema.NullOr(PreferencesJson) })),
 );
 
-/**
- * Each user's preferences in their row, and those everyone shares while sign-in is off in the
- * settings row. A user or hub that never saved any has the defaults.
- */
 export class PreferencesStore extends Context.Service<
   PreferencesStore,
   {
-    /** The user's preferences, or with null everyone's while sign-in is off. */
     readonly get: (userId: UserId | null) => Effect.Effect<Preferences>;
     readonly set: (userId: UserId | null, preferences: Preferences) => Effect.Effect<void>;
   }
@@ -44,8 +39,7 @@ export class PreferencesStore extends Context.Service<
           ),
         set: (userId, preferences) =>
           (userId === null
-            ? // The settings row may not exist yet, and it needs polling intervals to be created.
-              sql`insert into settings ${sql.insert({
+            ? sql`insert into settings ${sql.insert({
                 id: 1,
                 polling_json: encodePolling(defaultPollingSettings),
                 open_preferences_json: encodePreferences(preferences),

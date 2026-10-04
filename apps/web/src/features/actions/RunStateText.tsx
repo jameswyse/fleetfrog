@@ -15,10 +15,6 @@ const outcomeTones = {
   MachineOffline: "text-ink-muted",
 } satisfies Record<OutcomeKind, string>;
 
-/**
- * A run's state in one line: what it is doing now, or how it ended, why and when. `RunActivity`
- * shows a running one where there is less room.
- */
 export function RunStateText({ run }: { readonly run: ActionRun }) {
   const { state } = run;
 

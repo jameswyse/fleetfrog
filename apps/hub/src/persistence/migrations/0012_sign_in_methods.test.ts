@@ -19,7 +19,6 @@ const oidc = {
   requiredGroup: null,
 };
 
-/** The settings as 0.2.0 stored them, with one mode, then fully migrated. */
 const storedAs = (mode: "none" | "local" | "oidc") =>
   AuthSettingsStore.layer.pipe(
     Layer.provide(

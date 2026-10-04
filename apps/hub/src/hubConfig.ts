@@ -1,6 +1,5 @@
 import { Config, Context, Layer, Schema } from "effect";
 
-/** An agent endpoint such as `wss://fleetfrog.example.com`. */
 const WebSocketUrl = Schema.String.check(
   Schema.makeFilter(
     (url) =>
@@ -11,29 +10,18 @@ const WebSocketUrl = Schema.String.check(
 
 export const AgentTransport = Config.Literals(["self-signed", "none"], "FLEETFROG_AGENT_TLS");
 
-/** Hub settings read from the environment at start-up. */
 export class HubConfig extends Context.Service<
   HubConfig,
   {
     readonly dataDirectory: string;
-    /** The address both ports listen on, or null for every interface. */
     readonly host: string | null;
     readonly dashboardPort: number;
     readonly agentPort: number;
-    /** `none` serves agents over plain WebSocket for a reverse proxy that terminates TLS. */
     readonly agentTls: "self-signed" | "none";
-    /** The public agent URL, when agents cannot reach the hub on the dashboard's host. */
     readonly agentUrl: string | null;
-    /** tailscaled's local API socket, shared from a sidecar whose Tailscale Serve fronts the hub. */
     readonly tailscaleSocket: string | null;
-    /**
-     * A Unix socket the dashboard also listens on, for Tailscale Serve alone to reach. Only
-     * requests on it are trusted to say which tailnet user sent them.
-     */
     readonly dashboardSocket: string | null;
-    /** Built dashboard files. Absent in development, where Vite serves the dashboard. */
     readonly webRoot: string | null;
-    /** `none` turns sign-in off whatever the settings say, for an admin who can't sign in. */
     readonly authModeOverride: "none" | null;
   }
 >()("fleetfrog/HubConfig") {

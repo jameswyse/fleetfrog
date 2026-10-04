@@ -18,12 +18,10 @@ import type { Fleet, Machine, MachineCheckout, Repository } from "@fleetfrog/pro
 
 import type { ProjectSelection, SelectionHistory } from "../ProjectGrid.tsx";
 
-/** The last part of a path: a checkout's own folder, which tells worktrees apart. */
 function folderName(path: string): string {
   return path.split("/").findLast((part) => part !== "") ?? path;
 }
 
-/** Every checkout of the repository on this machine, each with its branch and state. */
 function CheckoutPicker({
   entries,
   current,
@@ -82,10 +80,6 @@ function CheckoutPicker({
   );
 }
 
-/**
- * One repository on one machine: its checkouts, then everything about the chosen one, or its clone
- * when the machine doesn't have it.
- */
 export function CellPanel({
   fleet,
   repository,
@@ -99,7 +93,6 @@ export function CellPanel({
   readonly fleet: Fleet;
   readonly repository: Repository;
   readonly machine: Machine;
-  /** The checkout to show, when the machine has several. */
   readonly path: string | null;
   readonly headingId: string;
   readonly onSelect: (selection: ProjectSelection, history: SelectionHistory) => void;
@@ -117,7 +110,6 @@ export function CellPanel({
         title={
           <>
             <Crumb>
-              {/* The repository on every machine, where "Every machine" used to lead. */}
               <button
                 type="button"
                 onClick={() => onSelect({ repository: repository.key, machine: null }, "Push")}
@@ -139,7 +131,6 @@ export function CellPanel({
         actions={<RepositoryActions fleet={fleet} repository={repository} />}
         onClose={onClose}
       />
-      {/* A finished clone swaps the clone form for the checkout, taking focus with it. */}
       <FocusHeading key={cell === null ? "missing" : "present"} targetId={headingId} />
       {cell === null || entry === undefined ? (
         <div className="space-y-3 px-4 pb-6">
@@ -155,7 +146,6 @@ export function CellPanel({
               return problem === null ? [] : [{ other, problem }];
             })
             .map(({ other, problem }) => (
-              // The grid shows the cell in red for a problem in any checkout, so say which.
               <div
                 key={other.checkout.path}
                 className="flex items-start gap-2 rounded-xl border border-danger/30 bg-danger-soft px-3 py-2.5 text-sm text-danger"

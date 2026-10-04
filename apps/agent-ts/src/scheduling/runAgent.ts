@@ -20,7 +20,6 @@ import type { AgentConfig } from "../config/agentConfig.ts";
 
 export class NotPaired extends Schema.TaggedError<NotPaired>()("NotPaired", {}) {}
 
-/** The hub no longer accepts this machine's token, usually because it was removed from the dashboard. */
 export class MachineRemoved extends Schema.TaggedError<MachineRemoved>()("MachineRemoved", {}) {}
 
 type Configuration = (typeof HubCommand.cases.Configure)["Type"];
@@ -31,16 +30,13 @@ const isHubCommand = Schema.is(HubCommand);
 
 const firstRetryDelay = Duration.seconds(1);
 const maximumRetryDelay = Duration.seconds(60);
-/** Disk space and load change slowly, and a minute keeps the dashboard current enough. */
 const usageInterval = Duration.minutes(1);
-/** A connection that lasted this long was healthy, so the next retry starts from the shortest delay. */
 const healthyConnection = Duration.seconds(60);
 
 function sameList(left: ReadonlyArray<string>, right: ReadonlyArray<string>): boolean {
   return left.length === right.length && left.every((item, index) => item === right[index]);
 }
 
-/** Every action this agent knows, with the tiers its policy allows. A damaged policy allows none. */
 const readCapabilities = loadPolicy.pipe(
   Effect.map(({ allowedTiers }): AgentCapabilities => ({
     actions: ActionKind.literals,
@@ -58,13 +54,11 @@ const readCapabilities = loadPolicy.pipe(
   })),
 );
 
-/** Says once, rather than every heartbeat, that the policy can't be read. */
 const warnIfUnreadable = (capabilities: AgentCapabilities) =>
   capabilities.policyReadable
     ? Effect.void
     : Effect.logWarning(`The policy at ${policyPath()} can't be read, so no actions are allowed`);
 
-/** One connection to the hub: follows its commands until the connection ends. */
 const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
   const { client, disconnected } = yield* makeHubClient(config);
   const info = yield* readMachineInfo;
@@ -98,7 +92,6 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
     audit: writeAuditEntry,
   });
 
-  /** The owner may change the policy at any time, so each heartbeat checks it. */
   const readvertise = readCapabilities.pipe(
     Effect.flatMap((current) => {
       if (
@@ -154,13 +147,11 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
         Effect.catchCause((cause) => Effect.logWarning("Status scan failed", cause)),
       );
 
-  /** Restarts both timers, keeping each on its cadence from its last completed pass. */
   const schedule = Effect.fnUntraced(function* ({
     current,
     discoverNow,
   }: {
     readonly current: Configuration;
-    /** Starts a discovery walk immediately instead of waiting out its interval. */
     readonly discoverNow: boolean;
   }) {
     const now = yield* Clock.currentTimeMillis;
@@ -177,7 +168,6 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
         ? Duration.seconds(current.schedule.statusSeconds)
         : remaining(current.schedule.statusSeconds, lastStatusAt);
 
-    // Passes run in the session's scope, so restarting the timers never cuts a scan short.
     const every = (seconds: number, pass: Effect.Effect<void>) =>
       Effect.forkIn(pass, sessionScope).pipe(
         Effect.flatMap(Fiber.join),
@@ -223,7 +213,6 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
           `Skipped a command this agent can't read: ${received._tag}`,
         );
 
-        // A run the hub is waiting on ends as failed, rather than staying queued forever.
         return received.runId === undefined
           ? skipping
           : skipping.pipe(
@@ -246,8 +235,6 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
 
       return HubCommand.match(received, {
         Configure: (next) => {
-          // Each of these changes where checkouts are found or what's reported about them, so
-          // discovery runs again at once.
           const discoveryChanged =
             configuration === null ||
             !sameList(configuration.discoveryRoots, next.discoveryRoots) ||
@@ -274,7 +261,6 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
             audit: writeAuditEntry,
           }).pipe(
             Effect.tap((outcome) => client.ReportFolder({ requestId, outcome })),
-            // Rediscovers so the hub sees the folder, including one that was there all along.
             Effect.flatMap((outcome) =>
               outcome._tag === "Failed" || configuration === null
                 ? Effect.void
@@ -284,7 +270,6 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
               Effect.logWarning("Could not answer a folder request", cause),
             ),
           ),
-        // An inspection fetches and measures, so it runs beside the commands that follow it.
         Inspect: ({ requestId, path, worktree }) =>
           actions.inspect({ path, worktree }).pipe(
             Effect.flatMap((result) => client.ReportInspection({ requestId, result })),
@@ -294,7 +279,6 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
             Effect.forkIn(sessionScope),
             Effect.asVoid,
           ),
-        // This agent doesn't advertise `updatesItself`, so only a confused hub asks.
         Update: ({ version }) =>
           client
             .ReportUpdateFailure({ version, message: runsFromSource })
@@ -310,7 +294,6 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
   );
 });
 
-/** Stays connected to the hub, reconnecting with backoff, until the machine is removed. */
 export const runAgent = Effect.gen(function* () {
   const config = yield* loadAgentConfig;
 
@@ -318,7 +301,6 @@ export const runAgent = Effect.gen(function* () {
     return yield* new NotPaired();
   }
 
-  // An update may have added tiers this machine's owner hasn't decided yet.
   yield* recordPolicyDefaults.pipe(
     Effect.flatMap((defaulted) =>
       defaulted.length === 0
@@ -335,7 +317,6 @@ export const runAgent = Effect.gen(function* () {
   const connectOnce = Effect.gen(function* () {
     const startedAt = yield* Clock.currentTimeMillis;
 
-    // Only a removed machine stops the agent. Everything else, including defects, is retried.
     yield* Effect.scoped(runSession(config.value)).pipe(
       Effect.andThen(Effect.logInfo("The hub closed the connection")),
       Effect.catchIf(

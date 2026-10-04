@@ -4,7 +4,6 @@ import { requestHub } from "@/rpc/hubConnection.ts";
 
 import type { BatchId, BatchRequest } from "@fleetfrog/protocol/domain/activity";
 
-/** Starts a batch of actions, tracking the request and any refusal to show beside the control. */
 export function useStartBatch() {
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();

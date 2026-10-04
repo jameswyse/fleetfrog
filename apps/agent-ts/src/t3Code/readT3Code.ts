@@ -27,7 +27,6 @@ import type {
 
 const v2Database = "statev2.sqlite";
 
-/** Where T3 Code keeps its database, following its `T3CODE_HOME` setting. */
 export function t3CodeDatabasePath(): string {
   const userdata = path.join(process.env.T3CODE_HOME ?? path.join(homedir(), ".t3"), "userdata");
   const v2 = path.join(userdata, v2Database);
@@ -35,7 +34,6 @@ export function t3CodeDatabasePath(): string {
   return existsSync(v2) ? v2 : path.join(userdata, "state.sqlite");
 }
 
-/** Every column read below, checked first so a changed schema is named rather than misread. */
 const requiredColumns = {
   effect_sql_migrations: ["migration_id", "name"],
   projection_projects: [
@@ -86,7 +84,6 @@ const V2ThreadRow = Schema.Struct({
   ),
 });
 
-/** A row T3 Code wrote in a shape this agent doesn't expect is left out, not the whole read. */
 const decodeProject = Schema.decodeUnknownOption(ProjectRow);
 const decodeV1Thread = Schema.decodeUnknownOption(ThreadRow);
 
@@ -164,7 +161,6 @@ const v2Layout: Layout = {
   decodeThread: decodeV2Thread,
 };
 
-/** T3 Code's own icon format. A Lucide icon with monogram text shows as the monogram. */
 const StoredIcon = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("lucide"),
@@ -179,7 +175,6 @@ const StoredIcon = Schema.Union([
 
 const decodeStoredIcon = Schema.decodeUnknownOption(Schema.fromJsonString(StoredIcon));
 
-/** The icon picked in T3 Code, null for none, or `Unreadable` for one stored in a form this can't read. */
 function pickedIcon(json: string | null): ProjectIcon | "Unreadable" | null {
   if (json === null) {
     return null;
@@ -209,10 +204,6 @@ function normalise(title: string): string {
   return title.normalize("NFKC").trim();
 }
 
-/**
- * T3 Code's own icon for a project with none: two characters of its name, such as `AS` for
- * "Agent Skills", in a colour picked from the name.
- */
 export function defaultMonogram(title: string): ProjectIcon {
   const words = normalise(title).match(/[\p{L}\p{N}]+/gu) ?? [];
   const first = words[0];
@@ -237,7 +228,6 @@ export function defaultMonogram(title: string): ProjectIcon {
   return ProjectIcon.cases.Monogram.make({ text, color: colours[hash] ?? "blue" });
 }
 
-/** The files T3 Code tries, in its order, when a project has no icon of its own. */
 const faviconCandidates = [
   "favicon.svg",
   "favicon.ico",
@@ -273,14 +263,8 @@ const imageTypes = new Map([
   [".webp", "image/webp"],
 ]);
 
-/** Larger files are left out, since every dashboard downloads each icon. */
 const maximumIconBytes = 256 * 1024;
 
-/**
- * The image at `relativePath` in the project folder, or null when there's no usable one. The
- * repository decides what's there, so a link out of the folder, such as `favicon.svg` pointing at a
- * private key, is refused, and a file that can't be read is simply not an icon.
- */
 async function readImage(folder: string, relativePath: string): Promise<ProjectIconFile | null> {
   const file = await realpath(path.resolve(folder, relativePath)).catch(() => null);
   const mediaType = file === null ? undefined : imageTypes.get(path.extname(file).toLowerCase());
@@ -306,7 +290,6 @@ async function readImage(folder: string, relativePath: string): Promise<ProjectI
       };
 }
 
-/** The image T3 Code shows for a project without a picked icon: the one set, or the first found. */
 async function findFavicon(
   folder: string,
   faviconPath: string | null,
@@ -330,7 +313,6 @@ function threadState(row: ThreadRow): T3CodeThreadState {
   return row.working !== 0 ? "Working" : "Idle";
 }
 
-/** How long an idle thread stays in the reading after it last changed. */
 const recentThreadMillis = 14 * 24 * 60 * 60 * 1000;
 
 class Unreadable extends Schema.TaggedError<Unreadable>()("Unreadable", {
@@ -338,18 +320,12 @@ class Unreadable extends Schema.TaggedError<Unreadable>()("Unreadable", {
   schema: Schema.NullOr(T3CodeSchema),
 }) {}
 
-/** The rows that decode, and how many didn't. */
 function decodeRows<A>(rows: ReadonlyArray<unknown>, decode: (row: unknown) => Option.Option<A>) {
   const decoded = rows.flatMap((row) => Option.toArray(decode(row)));
 
   return { decoded, unread: rows.length - decoded.length };
 }
 
-/**
- * Reads the rows FleetFrog uses in one read transaction, closing the database straight after. T3
- * Code keeps it in WAL mode, so reading never blocks its writes, and closing at once lets it
- * checkpoint the log. The read is synchronous, so it waits only briefly for a lock.
- */
 function readRows(file: string) {
   const database = new DatabaseSync(file, { readOnly: true, timeout: 500 });
 
@@ -410,22 +386,15 @@ function readRows(file: string) {
   }
 }
 
-/** The path with symbolic links resolved, as Git reports checkouts, or unchanged if it's missing. */
 const resolvePath = (file: string) => realpath(file).catch(() => file);
 
 const describe = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
-/**
- * What T3 Code has on this machine: its projects and their threads, and with `projectIcons`, the
- * image files its projects show as icons. `favicons` remembers each project's image between reads,
- * so emptying it looks for them again.
- */
 export const readT3Code = Effect.fn("readT3Code")(function* (options: {
   readonly database: string;
   readonly projectIcons: boolean;
   readonly favicons: Map<string, ProjectIconFile | null>;
 }) {
-  // The database sits in T3 Code's `userdata` folder, beside its runtime file and below its home.
   const userdata = path.dirname(options.database);
   const server = yield* readT3CodeServer(userdata);
   const providers = yield* readT3CodeProviders(path.join(path.dirname(userdata), "caches"));
@@ -499,7 +468,6 @@ export const readT3Code = Effect.fn("readT3Code")(function* (options: {
           unreadIcons += 1;
         }
 
-        // An icon that can't be read falls back to what T3 Code shows for a project without one.
         const own = picked === "Unreadable" ? null : picked;
 
         const image =
@@ -526,7 +494,6 @@ export const readT3Code = Effect.fn("readT3Code")(function* (options: {
 
   const folders = new Map(projects.map((project) => [project.id, project.path]));
   const recentSince = DateTime.toEpochMillis(yield* DateTime.now) - recentThreadMillis;
-  // A thread of a deleted project has nowhere to work, so it's left out.
   const current = rows.success.threads.decoded.filter(({ project_id }) => folders.has(project_id));
 
   const threads = yield* Effect.promise(() =>

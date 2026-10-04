@@ -6,15 +6,9 @@ import { onSessionChange } from "@/rpc/session.ts";
 import type { HubResult } from "@/rpc/hubConnection.ts";
 import type { Preferences } from "@fleetfrog/protocol/domain/preferences";
 
-/*
- * The hub keeps each user's preferences, and the browser keeps a copy of the last ones it saw, so
- * they apply before the hub answers. The script in `index.html` reads these keys to apply them
- * before the page first paints, so a change to their names or values has to change it as well.
- */
 const colorSchemeKey = "fleetfrog.colorScheme";
 const blurPersonalKey = "fleetfrog.blurPersonal";
 
-/** Browsers that block site data throw on any use of storage. */
 function readItem(key: string): string | null {
   try {
     return localStorage.getItem(key);
@@ -30,9 +24,7 @@ function writeItem(key: string, value: string | null): void {
     } else {
       localStorage.setItem(key, value);
     }
-  } catch {
-    // The hub still has them, so the next page load applies them once it answers.
-  }
+  } catch {}
 }
 
 function loadCopy(): Preferences {
@@ -49,7 +41,6 @@ function saveCopy({ colorScheme, blurPersonal }: Preferences): void {
   writeItem(blurPersonalKey, blurPersonal ? "on" : null);
 }
 
-/** Sets the attributes `styles.css` switches on: none means the system's colours and no blur. */
 function apply({ colorScheme, blurPersonal }: Preferences): void {
   const root = document.documentElement;
 
@@ -87,10 +78,8 @@ function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-/** Follows the preferences the hub has for whoever is signed in, and those other tabs save. */
 export function startPreferences(): void {
   onSessionChange((state) => {
-    // Signed out, the page keeps the last ones it saw.
     if (state._tag === "Known" && state.session._tag !== "SignedOut") {
       saveCopy(state.session.preferences);
       show(state.session.preferences);
@@ -108,10 +97,6 @@ export function usePreferences(): Preferences {
   return useSyncExternalStore(subscribe, () => preferences);
 }
 
-/**
- * Applies the change at once and saves it for the signed-in user, or for everyone while sign-in is
- * off. If the save fails, the change lasts until the page next hears from the hub.
- */
 export function changePreferences(change: Partial<Preferences>): Promise<HubResult<void>> {
   const next = { ...preferences, ...change };
 

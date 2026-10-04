@@ -15,7 +15,6 @@ import { LoadPills, UsageBar } from "./SystemMeters.tsx";
 
 import type { Machine } from "@fleetfrog/protocol/domain/fleet";
 
-/** How long the machine has been up: until now while it's connected, or until it was last seen. */
 function Uptime({
   machine,
   bootedAt,
@@ -36,7 +35,6 @@ function Uptime({
     : `${formatDuration(DateTime.toEpochMillis(connection.lastSeenAt) - booted)} when last seen`;
 }
 
-/** Hardware, software and resources as the agent last reported them, for the side column. */
 export function SystemPanel({ machine }: { readonly machine: Machine }) {
   const { system } = machine.info;
   const { usage } = machine;

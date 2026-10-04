@@ -24,8 +24,6 @@ function tick() {
   }
 }
 
-// One shared clock keeps every relative time on the page in step. It runs only while something
-// on the page is showing the time.
 function subscribe(listener: () => void) {
   listeners.add(listener);
 
@@ -44,7 +42,6 @@ function subscribe(listener: () => void) {
   };
 }
 
-/** The current time in epoch milliseconds, updated on each tick of the shared clock. */
 export function useNow(): number {
   return useSyncExternalStore(subscribe, () => now);
 }

@@ -19,7 +19,6 @@ const navigation = [
   { to: "/settings", label: "Settings", adminOnly: true },
 ] as const;
 
-/** How many runs are queued or running, linking to where they can be followed. */
 function RunningIndicator() {
   const { active } = useRuns();
 
@@ -48,11 +47,8 @@ export function AppShell() {
   const signedOut = isSignedOut(session);
   const hub = useHub();
   const fleet = knownFleet(hub);
-  // Settings is where an integration that needs attention says so, which people rarely visit.
   const settingsAttention = fleet !== null && t3CodeIssues(fleet).length > 0;
 
-  // The session can end while a page is open, such as when someone signs out elsewhere. Loading
-  // the route again sends them to the sign-in page.
   useEffect(() => {
     if (signedOut) {
       void router.invalidate();
@@ -64,8 +60,6 @@ export function AppShell() {
   }
 
   return (
-    // A page marked `data-fills-viewport` gets exactly the window's height and scrolls inside
-    // itself, so its toolbars and header rows can stay in view.
     <div className="flex min-h-dvh flex-col has-[[data-fills-viewport]]:h-dvh">
       <a
         href="#content"
@@ -86,7 +80,6 @@ export function AppShell() {
                   <li key={to}>
                     <Link
                       to={to}
-                      // Settings stays current on every settings page; Projects only on its own.
                       activeOptions={{ exact: to === "/", includeSearch: false }}
                       className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-ink-muted hover:bg-surface-raised hover:text-ink aria-[current=page]:bg-surface-raised aria-[current=page]:text-ink"
                     >

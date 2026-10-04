@@ -6,7 +6,6 @@ import { shortProcessorName } from "./systemFormat.ts";
 
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 
-/** Whether the machine is connected, and since or until when, in words. */
 export function ConnectionText({ machine }: { readonly machine: Machine }) {
   const { connection } = machine;
 
@@ -27,7 +26,6 @@ export function ConnectionText({ machine }: { readonly machine: Machine }) {
   );
 }
 
-/** Whether the machine is connected, with a coloured dot. */
 export function ConnectionStatus({ machine }: { readonly machine: Machine }) {
   const online = machine.connection._tag === "Online";
 
@@ -44,7 +42,6 @@ export function ConnectionStatus({ machine }: { readonly machine: Machine }) {
   );
 }
 
-/** How each tier reads in a list of what a machine allows. */
 const tierPhrases = {
   git: "Git actions",
   cleanup: "cleanup actions",
@@ -57,7 +54,6 @@ function capitalised(text: string): string {
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 }
 
-/** What the hub may ask this machine to do, as its owner's policy allows. */
 export function ActionsText({ machine }: { readonly machine: Machine }) {
   if (machine.connection._tag === "Offline") {
     return <>Known when the machine is online</>;
@@ -77,7 +73,6 @@ export function ActionsText({ machine }: { readonly machine: Machine }) {
   }
 
   const { allowedTiers, updatesItself } = machine.connection.capabilities;
-  // Only an agent that can update itself has use for the update tier.
   const tiers = Tier.literals.filter((tier) => tier !== "update" || updatesItself);
   const allowed = tiers.filter((tier) => allowedTiers.includes(tier));
   const denied = tiers.filter((tier) => !allowedTiers.includes(tier));
@@ -112,7 +107,6 @@ export function describePlatform(machine: Machine): string {
   return machine.info.platform === "darwin" ? "macOS" : "Linux";
 }
 
-/** What the machine is, briefly: its model, processor and operating system. */
 export function describeHardware(machine: Machine): string {
   const { system } = machine.info;
 

@@ -27,8 +27,6 @@ const sameSettings = Schema.toEquivalence(SettingsSchema);
 
 function SettingsSwitches({ saved }: { readonly saved: Settings }) {
   const { state, save } = useAutoSave();
-  // Switches move as they're flipped, before the hub sends the saved settings back, and each change
-  // builds on the last, so flipping two quickly saves both.
   const [draft, setDraft] = useState<Settings | null>(null);
 
   if (draft !== null && sameSettings(draft, saved)) {
@@ -46,7 +44,6 @@ function SettingsSwitches({ saved }: { readonly saved: Settings }) {
       requestHub((client) => client.UpdateIntegrations({ integrations: { t3Code: changed } })),
     );
 
-    // The switches go back to what the hub has, and the status beside them says why.
     if (result._tag === "Failure") {
       setDraft(null);
     }
@@ -149,10 +146,6 @@ function MachinesSection({ fleet }: { readonly fleet: Fleet }) {
   );
 }
 
-/**
- * T3 Code projects whose folder isn't a repository FleetFrog has, such as one that was moved or
- * deleted, or one outside the project folders while finding those is off.
- */
 function UnmatchedSection({ fleet }: { readonly fleet: Fleet }) {
   const unmatched = fleet.machines.flatMap((machine) =>
     unmatchedProjects(fleet, machine).map((project) => ({ machine, project })),
@@ -185,7 +178,6 @@ function UnmatchedSection({ fleet }: { readonly fleet: Fleet }) {
   );
 }
 
-/** Each T3 Code version running in the fleet, with the machines running it. */
 function versionsInUse(fleet: Fleet) {
   const machines = new Map<string, Array<string>>();
 
@@ -229,7 +221,6 @@ function AboutPanel({ fleet }: { readonly fleet: Fleet }) {
   );
 }
 
-/** Whether and how FleetFrog reads T3 Code, and what it found on each machine. */
 export function T3CodeSettings() {
   const hub = useHub();
   const fleet = knownFleet(hub);

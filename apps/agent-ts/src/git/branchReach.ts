@@ -13,7 +13,6 @@ import type { DeletedBranch, DroppedStash, LocalBranch } from "@fleetfrog/protoc
 
 import type { ParsedBranch } from "./parseBranches.ts";
 
-/** Reads remote-tracking branches, deleted branches and dropped stashes in one pass. */
 export const refFormat = [
   "%(refname)",
   "%(objectname)",
@@ -29,20 +28,12 @@ export const refPatterns = [
 ];
 
 export interface ParsedRefs {
-  /**
-   * Every remote-tracking branch with its commit, as `<ref> <sha>`, leaving out symbolic refs
-   * such as `origin/HEAD`.
-   */
   readonly remoteRefs: ReadonlyArray<string>;
-  /** The ref `origin/HEAD` points at, such as `refs/remotes/origin/main`. */
   readonly defaultRef: string | null;
-  /** Newest first. */
   readonly deleted: ReadonlyArray<DeletedBranch>;
-  /** Newest first. */
   readonly droppedStashes: ReadonlyArray<DroppedStash>;
 }
 
-/** Parses `git for-each-ref <refPatterns> --format=<refFormat>`. */
 export function parseRefs(output: string): ParsedRefs {
   const remoteRefs: Array<string> = [];
   const deleted: Array<DeletedBranch> = [];
@@ -90,7 +81,6 @@ export function parseRefs(output: string): ParsedRefs {
   return { remoteRefs, defaultRef, deleted, droppedStashes };
 }
 
-/** The local branches whose tips are in `ref`, such as the default branch. */
 const branchesIn = (directory: string, ref: string | null) =>
   ref === null
     ? Effect.succeed(new Set<string>())
@@ -101,10 +91,6 @@ const branchesIn = (directory: string, ref: string | null) =>
         `--merged=${ref}`,
       ]).pipe(Effect.map((output) => new Set(output.split("\n").filter((name) => name !== ""))));
 
-/**
- * Counts of commits in no remote-tracking branch, by tip, for each repository. They only change
- * when the remote-tracking branches do, so status passes reuse them.
- */
 const localCommitCache = new Map<
   string,
   { readonly remotes: string; readonly counts: Map<string, number> }
@@ -113,7 +99,6 @@ const localCommitCache = new Map<
 const countLocalCommits = Effect.fn("countLocalCommits")(function* (options: {
   readonly directory: string;
   readonly commonDirectory: string;
-  /** The remote-tracking branches and their commits, which the counts depend on. */
   readonly remotes: string;
   readonly sha: string;
 }) {
@@ -143,10 +128,6 @@ const countLocalCommits = Effect.fn("countLocalCommits")(function* (options: {
   return count;
 });
 
-/**
- * Adds to each branch where its tip is: in the default branch, on a remote, or only here. A tip is
- * on a remote exactly when no commit before it is only here.
- */
 export const readBranchTips = Effect.fn("readBranchTips")(function* (options: {
   readonly directory: string;
   readonly commonDirectory: string;

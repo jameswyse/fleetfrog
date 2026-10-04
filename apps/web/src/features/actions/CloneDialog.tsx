@@ -15,7 +15,6 @@ import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 
 import type { DestinationDraft } from "./cloneDestinationDraft.ts";
 
-/** Chooses machines to clone a repository onto, each with a destination it can edit. */
 export function CloneDialog({
   fleet,
   repository,
@@ -45,7 +44,6 @@ export function CloneDialog({
         machine,
         blocked: cloneBlocker(machine),
         draft: draftFromSuggestion({ machine, suggestion, repositoryName: repository.name }),
-        // Said before anything is chosen, so a mistyped default folder is fixed first.
         warning:
           suggestion !== null && rootMissing
             ? `Its folder ${suggestion.root.path} doesn't exist. Choose another destination or fix the folder on the Machines page.`

@@ -1,24 +1,9 @@
-/*
- * The hero's backdrop: a grid of dots, like the dashboard's grid of repositories against machines.
- * As in the dashboard, amber dots have uncommitted changes and violet ones have commits to push or
- * pull, and ripples through the pond tidy them back to green. The frog's landing sends a ripple
- * across the whole pond, a click or tap in the hero sends another, and smaller ones start on their
- * own now and then while new changes turn up. Dots fade behind the text, so it stays easy to read.
- */
-
-/** The distance between neighbouring dots, in CSS pixels. */
 const spacing = 28;
-/** How far a ripple's crest travels each millisecond, in CSS pixels. */
 const rippleSpeed = 0.3;
-/** How wide a ripple's crest is, in CSS pixels. */
 const crestWidth = 56;
-/** How long a dot takes to fade from one status to the next, in milliseconds. */
 const fadeDuration = 700;
-/** The share of dots that start untidy, and the most that become untidy again. */
 const untidyShare = 0.07;
-/** How far a ripple has to lift an untidy dot to tidy it. */
 const tidyingLift = 0.35;
-/** How far dots fade in beside the text, in CSS pixels. */
 const quietMargin = 48;
 
 type Status = "clean" | "changes" | "sync";
@@ -26,10 +11,8 @@ type Status = "clean" | "changes" | "sync";
 interface Dot {
   readonly x: number;
   readonly y: number;
-  /** How visible the dot is, from 1 in open water down to a trace behind the text. */
   readonly presence: number;
   status: Status;
-  /** The status before the last change, which fades out as the current one fades in. */
   previous: Status;
   changedAt: number;
 }
@@ -38,7 +21,6 @@ interface Ripple {
   readonly x: number;
   readonly y: number;
   readonly startedAt: number;
-  /** How far the ripple travels before it has faded completely, in CSS pixels. */
   readonly reach: number;
 }
 
@@ -50,7 +32,6 @@ function untidyStatus(): Status {
   return Math.random() < 0.65 ? "changes" : "sync";
 }
 
-/** How far a ripple lifts a dot: 1 on the crest as the ripple starts, fading as it spreads. */
 function lift(ripple: Ripple, dot: Dot, now: number): number {
   const radius = (now - ripple.startedAt) * rippleSpeed;
   const strength = 1 - radius / ripple.reach;
@@ -64,7 +45,6 @@ function lift(ripple: Ripple, dot: Dot, now: number): number {
   return strength * Math.exp(-offset * offset);
 }
 
-/** How visible a dot at a point is, given the boxes of text it has to stay out of the way of. */
 function presenceAt(x: number, y: number, quiet: readonly DOMRect[]): number {
   let nearest = Infinity;
 
@@ -102,7 +82,6 @@ export function startPond(
   } satisfies Record<Status, string>;
 
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
-  // The frog lands as its entrance animation ends.
   const landsAt = performance.now() + 400;
   let landed = false;
   let width = 0;
@@ -160,7 +139,6 @@ export function startPond(
   function layout(): void {
     const box = canvas.getBoundingClientRect();
     const ratio = Math.min(devicePixelRatio, 2);
-    // Line the grid up with the frog, so it sits on a column and a row.
     const centre = frogCentre();
 
     const quiet = text.map((element) => {
@@ -241,7 +219,6 @@ export function startPond(
 
   new ResizeObserver(layout).observe(canvas);
 
-  // One callback can report several changes, so only the last shows whether the hero is visible now.
   new IntersectionObserver((entries) => {
     onScreen = entries.at(-1)?.isIntersecting ?? false;
 

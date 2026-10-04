@@ -7,11 +7,9 @@ import type { DeletedBranch, DroppedStash } from "@fleetfrog/protocol/domain/che
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 import type { TrashedCheckout } from "@fleetfrog/protocol/domain/trash";
 
-/** One thing in a machine's trash, with what the dashboard shows about it. */
 export interface TrashEntry {
   readonly key: string;
   readonly machine: Machine;
-  /** The repository's label, or the checkout's folder name when no machine has it any more. */
   readonly repositoryLabel: string;
   readonly target: TrashTarget;
   readonly deletedAt: DateTime.Utc;
@@ -21,10 +19,8 @@ export interface TrashEntry {
     | { readonly _tag: "Checkout"; readonly checkout: TrashedCheckout };
 }
 
-/** Everything in every machine's trash, most recently deleted first. */
 export function trashEntries(fleet: Fleet): ReadonlyArray<TrashEntry> {
   const machines = new Map(fleet.machines.map((machine) => [machine.id, machine]));
-  // Archived checkouts keep their deleted branches too.
   const repositories = [...fleet.repositories, ...fleet.archive];
   const labels = new Map(repositories.map(({ key, label }) => [key, label]));
 
@@ -76,7 +72,6 @@ export function trashEntries(fleet: Fleet): ReadonlyArray<TrashEntry> {
   );
 }
 
-/** Whether two trash targets name the same thing. */
 export function sameTarget(left: TrashTarget, right: TrashTarget): boolean {
   if (left._tag === "Checkout") {
     return right._tag === "Checkout" && right.id === left.id;

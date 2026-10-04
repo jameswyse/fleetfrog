@@ -8,10 +8,6 @@ export type SaveState =
   | { readonly _tag: "Saved" }
   | { readonly _tag: "Failed"; readonly message: string };
 
-/**
- * Saves each change as it is made and remembers how the latest save went. Each save also hands
- * back its result, for anything that has to wait until the change is saved.
- */
 export function useAutoSave() {
   const [state, setState] = useState<SaveState>({ _tag: "Idle" });
 
@@ -32,7 +28,6 @@ export function useAutoSave() {
   return { state, save };
 }
 
-/** How the latest automatic save went. The region stays mounted so each change is announced. */
 export function SaveStatus({ state }: { readonly state: SaveState }) {
   return (
     <p role="status" className="text-sm">

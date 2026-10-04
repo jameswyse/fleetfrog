@@ -27,7 +27,6 @@ import type { Fleet, Machine, Repository } from "@fleetfrog/protocol/domain/flee
 
 const names = new Intl.ListFormat("en", { type: "conjunction" });
 
-/** Whether the machine has the repository, as far as its scans can tell. */
 function Whereabouts({
   fleet,
   repository,
@@ -64,11 +63,9 @@ function Whereabouts({
   );
 }
 
-/** A clone underway: its progress, Git's own line, and where to follow it. */
 function Cloning({ run }: { readonly run: ActionRun }) {
   return (
     <div
-      // Takes focus if the button that started it went away with focus on it.
       ref={(node) => {
         const focused = document.activeElement;
 
@@ -94,7 +91,6 @@ function Cloning({ run }: { readonly run: ActionRun }) {
   );
 }
 
-/** Where the clone comes from and goes, prefilled with the folder the clone dialog suggests. */
 function CloneForm({
   fleet,
   repository,
@@ -106,7 +102,6 @@ function CloneForm({
   readonly repository: Repository;
   readonly machine: Machine;
   readonly source: string;
-  /** Why the last clone here failed, if it did. */
   readonly lastFailure: string | null;
 }) {
   const suggestion = suggestCloneDestination({
@@ -202,10 +197,6 @@ function CloneForm({
   );
 }
 
-/**
- * A repository on a machine that doesn't have it: whether that's certain, then its clone, which
- * can start from here, is under way, or can't happen and why.
- */
 export function CloneSections({
   fleet,
   repository,

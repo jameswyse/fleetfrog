@@ -4,9 +4,7 @@ import { cloneDestinationProblem } from "./actionAvailability.ts";
 
 import type { DiscoveryRoot, Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
-/** A clone destination as it is edited: one of the machine's project folders, and a path inside it. */
 export interface DestinationDraft {
-  /** The project folder as the owner wrote it, such as `~/Projects`. */
   readonly root: string;
   readonly name: string;
 }
@@ -14,11 +12,6 @@ export interface DestinationDraft {
 const trailingSlashes = /\/+$/;
 const leadingSlashes = /^\/+/;
 
-/**
- * The suggested destination split at its project folder. Both are expanded against the home
- * directory first, since a suggestion can write a folder as `~/Projects` that the owner wrote in
- * full, or the other way round.
- */
 export function draftFromSuggestion(options: {
   readonly machine: {
     readonly info: Pick<Machine["info"], "homeDirectory">;
@@ -50,7 +43,6 @@ export function draftPath(draft: DestinationDraft): string {
   return `${draft.root.replace(trailingSlashes, "")}/${draft.name.trim().replace(leadingSlashes, "")}`;
 }
 
-/** Why the draft won't work on this machine, or null when it looks fine. */
 export function draftProblem(options: {
   readonly draft: DestinationDraft;
   readonly machine: Machine;

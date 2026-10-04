@@ -1,7 +1,3 @@
-/**
- * An on/off control for a setting that applies without a separate save. Give it an `id` and label
- * it with a `<label>`, or give it an `aria-label`.
- */
 export function Switch({
   checked,
   onChange,

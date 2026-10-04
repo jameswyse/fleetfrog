@@ -9,7 +9,6 @@ import { TestClock } from "effect/testing";
 import { temporaryDirectory } from "../testing/temporaryDirectory.ts";
 import { defaultMonogram, readT3Code } from "./readT3Code.ts";
 
-/** The part of T3 Code's schema FleetFrog reads, at migration 54. */
 function createDatabase(file: string, options: { readonly withoutColumn?: string } = {}) {
   const database = new DatabaseSync(file);
 
@@ -77,10 +76,8 @@ const readIn = (home: string, file = "state.sqlite") =>
     favicons: new Map(),
   });
 
-/** When the tests read, so which idle threads count as recent doesn't depend on today's date. */
 const now = Date.parse("2026-09-27T00:00:00.000Z");
 
-/** The SHA-256 of `<svg/>`, the icon the tests write. */
 const svgHash = "d4dc56669143034f31aa309635d4113d9ad76a02b1739da22c965ed2049be9e6";
 
 describe("defaultMonogram", () => {
@@ -168,8 +165,6 @@ describe("readT3Code", () => {
           base64: Buffer.from("<svg/>").toString("base64"),
         },
       ]);
-      // Newest first, without the archived thread that has no worktree, the deleted project's, or
-      // the idle one from months ago, which still counts.
       expect(
         status.reading.threads.map(({ title, path: folder, worktree: own, state }) => ({
           title,

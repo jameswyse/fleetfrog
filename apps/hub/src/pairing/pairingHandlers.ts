@@ -40,7 +40,6 @@ export const PairingHandlers = PairingRpcs.toLayer(
               machineId,
               machineName: machineLabel({ customName: null, info }),
             },
-            // The agent pairs itself with a code, so no one in the dashboard did this.
             null,
           );
           yield* Effect.logInfo("Paired machine").pipe(

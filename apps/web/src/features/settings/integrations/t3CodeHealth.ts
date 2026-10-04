@@ -5,7 +5,6 @@ import { schemaDrift, supportedT3CodeSchema } from "@fleetfrog/protocol/domain/t
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 import type { T3CodeSchema } from "@fleetfrog/protocol/domain/t3Code";
 
-/** Something about T3 Code on a machine that its owner should look at. */
 export type T3CodeIssue =
   | { readonly _tag: "Unreadable"; readonly machine: Machine; readonly message: string }
   | { readonly _tag: "UnreadRecords"; readonly machine: Machine; readonly count: number }
@@ -16,10 +15,6 @@ export type T3CodeIssue =
       readonly direction: "Newer" | "Older";
     };
 
-/**
- * Machines whose T3 Code FleetFrog can't read in full, or whose schema differs from the one it was
- * built for.
- */
 export function t3CodeIssues(fleet: Fleet): ReadonlyArray<T3CodeIssue> {
   return fleet.machines.flatMap((machine): ReadonlyArray<T3CodeIssue> => {
     const reading = machine.t3Code?.reading;
@@ -45,7 +40,6 @@ export function t3CodeIssues(fleet: Fleet): ReadonlyArray<T3CodeIssue> {
   });
 }
 
-/** The issue in a sentence, naming the machine. */
 export function describeIssue(issue: T3CodeIssue): string {
   const name = machineLabel(issue.machine);
 

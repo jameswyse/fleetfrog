@@ -27,7 +27,6 @@ import { T3CodePanel } from "./T3CodePanel.tsx";
 
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 
-/** The last rescan request, reported beside its button. Its wording carries the outcome. */
 type Notice =
   | { readonly _tag: "None" }
   | { readonly _tag: "Succeeded"; readonly message: string }
@@ -86,7 +85,6 @@ function RemoveMachineDialog({
   );
 }
 
-/** Where the machine stands now, for the side column. */
 function StatusPanel({ fleet, machine }: { readonly fleet: Fleet; readonly machine: Machine }) {
   const repositories = repositoryCount(fleet, machine);
   const { githubCli } = machine.info;
@@ -135,7 +133,6 @@ function StatusPanel({ fleet, machine }: { readonly fleet: Fleet; readonly machi
   );
 }
 
-/** The machine's saved settings. Each one saves itself as it changes. */
 function ConfigurationSection({
   fleet,
   machine,
@@ -170,7 +167,6 @@ function ConfigurationSection({
 
   return (
     <SettingsSection title="Configuration" status={<SaveStatus state={state} />}>
-      {/* Keyed on the saved values, so a change from the hub replaces what is shown. */}
       <SettingsRow
         title="Display name"
         description={`Shown instead of the computer's own name, ${computerName}. Leave it empty to use that.`}
@@ -224,7 +220,6 @@ function ConfigurationSection({
             )
           }
           createFolder={
-            // An agent that can't create folders, or isn't allowed to, gets no button to try.
             machine.connection._tag === "Online" &&
             machine.connection.capabilities.createsFolders &&
             machine.connection.capabilities.allowedTiers.includes("git")
@@ -252,7 +247,6 @@ function ConfigurationSection({
   );
 }
 
-/** Things to do to the machine now, apart from its saved configuration. */
 function ActionsSection({ fleet, machine }: { readonly fleet: Fleet; readonly machine: Machine }) {
   const [rescanning, startRescan] = useTransition();
   const [notice, setNotice] = useState<Notice>({ _tag: "None" });
@@ -351,7 +345,6 @@ export function MachineSettings() {
     );
   }
 
-  // Keyed on the machine so drafts and notices never carry over to another machine.
   return (
     <SidebarPage
       key={machine.id}

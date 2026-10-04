@@ -11,7 +11,6 @@ import { UserStore } from "./userStore.ts";
 
 import type { Role } from "@fleetfrog/protocol/domain/user";
 
-/** A fresh, fully migrated database for each test. */
 const TestStore = UserStore.layer.pipe(
   Layer.provideMerge(AuthSettingsStore.layer),
   Layer.provide(Migrations.pipe(Layer.provideMerge(SqliteClient.layer({ filename: ":memory:" })))),
@@ -80,7 +79,6 @@ it.effect(
       const users = yield* UserStore;
       const local = yield* create("ada@example.com", "admin");
 
-      // Another admin, so the provider's group may demote Ada.
       yield* create("cy@example.com", "admin");
 
       const identity = {
@@ -101,7 +99,6 @@ it.effect(
       expect(first.user.role).toBe("admin");
       expect(first.user.providerName).toBe("Ada Lovelace");
 
-      // The provider changed their email; the provider account still finds them.
       const moved = yield* users.signInFromProvider({
         ...identity,
         email: Email.make("ada@newmail.example"),
@@ -234,7 +231,6 @@ it.effect("links a Tailscale sign-in by email, then follows the tailnet login", 
 
     expect(first).toMatchObject({ id: local.id, tailscaleLogin: "ada@example.com" });
 
-    // Ada moves to another email, and someone else takes the old one.
     yield* users.update({
       userId: local.id,
       email: Email.make("ada@work.example"),

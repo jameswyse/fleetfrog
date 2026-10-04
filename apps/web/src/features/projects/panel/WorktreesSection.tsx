@@ -21,7 +21,6 @@ const stateNotes = {
   Broken: "Link broken",
 } satisfies Record<LinkedWorktree["state"], string | null>;
 
-/** The clone's linked worktrees, as its main checkout lists them, each of which can be removed. */
 export function WorktreesSection({
   machine,
   checkout,
@@ -58,7 +57,6 @@ export function WorktreesSection({
                   {note !== null && <span className="text-changes"> · {note}</span>}
                 </span>
                 {thread !== undefined && (
-                  // The thread T3 Code made it for says whether it's still needed.
                   <span className="mt-0.5 flex items-start gap-1 text-xs text-ink-muted">
                     <BotIcon aria-hidden="true" className="size-3.5 shrink-0" />
                     <span className="min-w-0">

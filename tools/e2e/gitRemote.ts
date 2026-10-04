@@ -8,7 +8,6 @@ import { Predicate } from "effect";
 
 import { gitEnvironment } from "./repositories.ts";
 
-/** Serve the fixture's bare remote using Git's HTTPS protocol and a sandbox certificate. */
 export async function startGitRemote(directory: string) {
   const certificate = path.join(directory, "git-remote.crt");
   const key = path.join(directory, "git-remote.key");

@@ -20,7 +20,6 @@ import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
 import type { ArchivePlan } from "./archiveAvailability.ts";
 
-/** Asks for the machine's Archive folder, after which the dialog shows where the checkout goes. */
 function ChooseArchiveFolder({
   machine,
   problem,
@@ -91,10 +90,6 @@ function ArchiveMoves({
   );
 }
 
-/**
- * Confirms moving a checkout into the Archive folder, showing where it will go, or first asks for
- * the machine's Archive folder when it has none it can use.
- */
 export function ArchiveDialog({
   repository,
   machine,
@@ -104,9 +99,7 @@ export function ArchiveDialog({
 }: {
   readonly repository: Repository;
   readonly machine: Machine;
-  /** The main checkout to archive. */
   readonly checkout: Checkout;
-  /** The linked worktree the developer chose to archive, which goes with its main checkout. */
   readonly fromWorktree: string | null;
   readonly onClose: () => void;
 }) {

@@ -2,7 +2,6 @@ import { formatLoad, percent } from "./systemFormat.ts";
 
 import type { SystemUsage } from "@fleetfrog/protocol/domain/machine";
 
-/** The bar's colour at each level of use, from the highest threshold down. */
 const usageFills = [
   { from: 0.9, fill: "bg-danger" },
   { from: 0.8, fill: "bg-changes" },
@@ -21,7 +20,6 @@ function Bar({ share, className }: { readonly share: number; readonly className:
 
 const clamp = (share: number) => Math.min(1, Math.max(0, share));
 
-/** How full something is: the amounts above a bar coloured by `usageFills`. */
 export function UsageBar({
   used,
   total,
@@ -46,13 +44,11 @@ export function UsageBar({
   );
 }
 
-/** A usage bar small enough for a table cell, with the amounts in its tooltip. */
 export function UsageMeter({
   usedShare,
   description,
 }: {
   readonly usedShare: number;
-  /** Such as "9.7 GB of 16 GB". */
   readonly description: string;
 }) {
   const share = clamp(usedShare);
@@ -66,10 +62,6 @@ export function UsageMeter({
   );
 }
 
-/**
- * How hard the processor is working, judged per core: below 0.7 leaves room to spare, and from 1
- * work is waiting for a core.
- */
 const loadLevels = [
   { level: "light", below: 0.7, tone: "border-clean/30 bg-clean/10 text-clean" },
   { level: "busy", below: 1, tone: "border-changes/30 bg-changes-soft text-changes" },
@@ -80,10 +72,6 @@ const loadLevels = [
   },
 ] as const;
 
-/**
- * The load average over 1, 5 and 15 minutes as coloured pills. Labelled pills name each period;
- * bare ones leave that to a heading, such as a table column's.
- */
 export function LoadPills({
   loadAverage,
   cores,

@@ -35,7 +35,6 @@ const MachineRow = Schema.Struct({
   last_status_at: Schema.NullOr(Timestamp),
 });
 
-/** A paired machine as stored. Connection state lives with the agent sessions, not here. */
 export interface MachineRecord {
   readonly id: MachineId;
   readonly info: MachineInfo;
@@ -43,12 +42,9 @@ export interface MachineRecord {
   readonly customKind: MachineKind | null;
   readonly discoveryRoots: ReadonlyArray<string>;
   readonly archiveFolder: string | null;
-  /** What the agent found at each folder on its last walk, which may predate the current list. */
   readonly rootStatuses: ReadonlyArray<ReportedRoot>;
   readonly usage: SystemUsage | null;
-  /** The checkouts in the machine's trash, as it last reported them. */
   readonly trash: ReadonlyArray<TrashedCheckout>;
-  /** What the agent last read from T3 Code, kept while the integration is off. */
   readonly t3Code: T3CodeStatus | null;
   readonly pairedAt: DateTime.Utc;
   readonly lastSeenAt: DateTime.Utc | null;
@@ -63,10 +59,6 @@ const encodeRootStatuses = Schema.encodeSync(JsonColumn(Schema.Array(ReportedRoo
 const encodeUsage = Schema.encodeSync(JsonColumn(SystemUsage));
 const encodeTrash = Schema.encodeSync(JsonColumn(Schema.Array(TrashedCheckout)));
 const encodeT3Code = Schema.encodeSync(JsonColumn(T3CodeStatus));
-/**
- * T3 Code's shapes change often, and agents resend what they read on every change, so a stored
- * reading this hub can't decode counts as none rather than failing every machine query.
- */
 const decodeT3Code = Schema.decodeUnknownOption(JsonColumn(T3CodeStatus));
 
 export class MachineStore extends Context.Service<
@@ -154,7 +146,6 @@ export class MachineStore extends Context.Service<
           ),
         );
 
-      /** Runs an update that must touch exactly one machine and returns its id. */
       const updateOne = (
         machineId: MachineId,
         statement: Effect.Effect<ReadonlyArray<unknown>, SqlError.SqlError>,

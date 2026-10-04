@@ -2,7 +2,6 @@ import { gitHost, HostIcon } from "@/ui/HostIcon.tsx";
 
 import type { RepositoryIdentity } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
-/** Where the repository lives, as its host's logo and its path there, linking to it. */
 export function RepositoryLink({ identity }: { readonly identity: RepositoryIdentity }) {
   const host = gitHost(identity);
 

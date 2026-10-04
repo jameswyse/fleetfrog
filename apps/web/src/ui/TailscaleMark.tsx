@@ -1,4 +1,3 @@
-/** Tailscale's mark: a three-by-three grid of dots, with the middle row and bottom centre solid. */
 export function TailscaleMark({ className }: { readonly className?: string }) {
   const solid = new Set(["0,1", "1,1", "2,1", "1,2"]);
 

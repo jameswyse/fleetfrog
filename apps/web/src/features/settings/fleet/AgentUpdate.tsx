@@ -13,12 +13,10 @@ import { SettingsRow } from "../SettingsSection.tsx";
 import type { AgentUpdate } from "@fleetfrog/protocol/domain/agentUpdate";
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 
-/** The agent's changes up to the hub's version, as `fleetfrog update` links to them. */
 function changelogUrl(hubVersion: string): string {
   return `https://github.com/jameswyse/fleetfrog/blob/v${hubVersion}/apps/agent-rs/CHANGELOG.md`;
 }
 
-/** Why an agent behind the hub hasn't updated yet, and what to do about it. */
 function describeVersion(machine: Machine, hubVersion: string): string {
   const { agentVersion } = machine.info;
 
@@ -57,7 +55,6 @@ function updateLabel({
   return failure === null ? `Update to ${hubVersion}` : "Try again";
 }
 
-/** Offers to update the machine's agent while it runs an older version than the hub. */
 export function AgentUpdateRow({
   fleet,
   machine,
@@ -125,7 +122,6 @@ export function AgentUpdateRow({
   );
 }
 
-/** Beside a machine in the Fleet list, when its agent is behind the hub or updating. */
 export function AgentUpdateChip({
   fleet,
   machine,
@@ -148,7 +144,6 @@ export function AgentUpdateChip({
   );
 }
 
-/** Updates every agent the hub can update now. Shown only while there is one. */
 export function UpdateAllAgents({ fleet }: { readonly fleet: Fleet }) {
   const [requesting, startRequest] = useTransition();
   const [error, setError] = useState<string | null>(null);

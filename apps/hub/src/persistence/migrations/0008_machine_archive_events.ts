@@ -1,10 +1,6 @@
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 
-/**
- * Archive folder changes recorded while the folder was a hub-wide setting become one event for
- * each machine paired at the time, as 0006 gave each of those machines the folder.
- */
 export default Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 

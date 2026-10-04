@@ -40,7 +40,6 @@ function stateFrom(result: HubResult<InspectionResult>): InspectionState {
   };
 }
 
-/** What happens to the worktree's contents, each as a short line. Nothing here is lost. */
 function keptWork(inspection: WorktreeInspection): ReadonlyArray<string> {
   const lines: Array<string> = [];
   const { changedFiles, untrackedFiles, unreachableCommits, locked } = inspection;
@@ -141,11 +140,6 @@ function InspectionDetails({
   );
 }
 
-/**
- * Removes a linked worktree after showing what happens to its contents: changes are stashed and
- * a detached HEAD's own commits kept in the trash, so only ignored files are lost. The machine
- * checks the worktree hasn't changed since before removing it.
- */
 export function RemoveWorktreeDialog({
   machine,
   mainPath,
@@ -153,7 +147,6 @@ export function RemoveWorktreeDialog({
   onClose,
 }: {
   readonly machine: Machine;
-  /** The main checkout the worktree belongs to. */
   readonly mainPath: string;
   readonly worktree: string;
   readonly onClose: () => void;

@@ -16,7 +16,6 @@ import { useStartBatch } from "../actions/useStartBatch.ts";
 
 import type { HubState } from "@/rpc/hubConnection.ts";
 
-/** A menu of actions across every machine, beside the grid's filters. */
 export function FleetActions({ hub }: { readonly hub: HubState }) {
   const fetching = useStartBatch();
   const [pulling, setPulling] = useState(false);

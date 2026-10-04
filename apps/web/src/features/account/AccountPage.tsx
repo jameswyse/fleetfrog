@@ -17,7 +17,6 @@ import type { User } from "@fleetfrog/protocol/domain/user";
 const inputClass =
   "min-h-9 w-64 max-w-full rounded-md border border-line bg-canvas px-2.5 text-sm aria-invalid:border-danger";
 
-/** A stable region under a form, announcing how its last submission went. */
 function Result({
   id,
   result,
@@ -34,7 +33,6 @@ function Result({
   );
 }
 
-/** The user's picture, name, email and role. Picture and name save as soon as they change. */
 function ProfileSection({ user }: { readonly user: User }) {
   const nameId = useId();
   const picker = useRef<HTMLInputElement>(null);
@@ -60,7 +58,6 @@ function ProfileSection({ user }: { readonly user: User }) {
   const saveName = async (input: HTMLInputElement) => {
     const displayName = input.value.trim();
 
-    // An empty name isn't allowed, so it goes back to the saved one.
     if (displayName === "" || displayName === user.displayName) {
       input.value = user.displayName;
 
@@ -120,7 +117,6 @@ function ProfileSection({ user }: { readonly user: User }) {
           user.displayNameFromProvider ? (
             <p className="text-sm">{user.displayName}</p>
           ) : (
-            // Keyed on the saved name, so a change from elsewhere replaces what is shown.
             <input
               key={user.displayName}
               id={nameId}
@@ -209,7 +205,6 @@ function PasswordSection({ email }: { readonly email: string }) {
           });
         }}
       >
-        {/* Tells password managers which account the new password is for. */}
         <input hidden readOnly name="username" autoComplete="username" value={email} />
         {(
           [
@@ -244,10 +239,6 @@ function PasswordSection({ email }: { readonly email: string }) {
   );
 }
 
-/**
- * The signed-in user's profile, password and preferences. With sign-in off, or when the hub never
- * said who is signed in, the preferences everyone shares, under Appearance.
- */
 export function AccountPage() {
   const session = useSession();
 

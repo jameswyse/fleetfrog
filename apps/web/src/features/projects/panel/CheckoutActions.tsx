@@ -29,10 +29,6 @@ import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
 import type { ArchivePlan } from "../../archive/archiveAvailability.ts";
 
-/**
- * Actions for one checkout, from fetching to archiving or trashing it, with what is running on it
- * now or how its last action ended.
- */
 export function CheckoutActions({
   repository,
   machine,
@@ -55,7 +51,6 @@ export function CheckoutActions({
   const stashBlocked = stashSkipReason(machine, checkout);
   const linked = checkout.worktree._tag === "Linked" ? checkout.worktree.mainPath : null;
 
-  // A linked worktree is archived with its main checkout.
   const archiveTarget =
     linked === null
       ? checkout
@@ -71,8 +66,6 @@ export function CheckoutActions({
         }
       : planArchive({ machine, checkout: archiveTarget });
 
-  // A linked worktree is removed from its main checkout rather than moved to the trash.
-  // Archiving and the trash are cleanup, which only admins see.
   const mayClean = useMayRun("Trash");
   const trashBlocked = machineBlocker(machine, linked === null ? "Trash" : "RemoveWorktree");
   const scope = { _tag: "Checkout", machineId: machine.id, path: checkout.path } as const;
@@ -93,7 +86,6 @@ export function CheckoutActions({
         </Button>
         <Button
           disabled={pullBlocked !== null || active !== undefined || pending}
-          // Pulling under a T3 Code agent part-way through its work asks first.
           onClick={() => (agents.length > 0 ? setDialog("pull") : start({ _tag: "Pull", scope }))}
         >
           Pull

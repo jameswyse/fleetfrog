@@ -9,10 +9,6 @@ import { makeHubClient } from "./hubClient.ts";
 
 import type { Server, Socket } from "node:net";
 
-/**
- * A TCP server that accepts connections but never answers the WebSocket handshake, so the agent's
- * socket stays connecting. `accepted` completes when the first connection arrives.
- */
 const silentServer = (accepted: Deferred.Deferred<void>) =>
   Effect.acquireRelease(
     Effect.callback<{ readonly server: Server; readonly sockets: Set<Socket> }>((resume) => {
@@ -37,7 +33,6 @@ const silentServer = (accepted: Deferred.Deferred<void>) =>
     Effect.flatMap(({ server }) => {
       const address = server.address();
 
-      // A TCP server reports an address object; a string would mean a pipe or socket path.
       return address instanceof Object
         ? Effect.succeed(address.port)
         : Effect.die(new Error("The test server is not listening on a TCP port."));
@@ -45,8 +40,6 @@ const silentServer = (accepted: Deferred.Deferred<void>) =>
   );
 
 describe("hub client", () => {
-  // The agent ends its session while the RPC protocol may be mid-reconnect. Closing a `ws` socket
-  // that is still connecting emits "error" on the next tick, and an unhandled one exits Node.
   it.live("closes a connection that is still opening without an unhandled error", () =>
     Effect.gen(function* () {
       const accepted = yield* Deferred.make<void>();
@@ -60,7 +53,6 @@ describe("hub client", () => {
           certificatePem: null,
         }).pipe(Effect.andThen(Deferred.await(accepted))),
       );
-      // Let the error the aborted handshake schedules fire before the test ends.
       yield* Effect.sleep("50 millis");
     }),
   );

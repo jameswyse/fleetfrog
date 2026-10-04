@@ -23,7 +23,6 @@ function RoleField({
   disabledReason,
 }: {
   readonly defaultValue: User["role"];
-  /** Why the role can't change, such as for the admin's own account. */
   readonly disabledReason: string | null;
 }) {
   return (
@@ -85,7 +84,6 @@ export function AddUserDialog({
   passwordsOn,
   onClose,
 }: {
-  /** Whether people sign in with passwords, which makes one required. */
   readonly passwordsOn: boolean;
   readonly onClose: () => void;
 }) {
@@ -201,7 +199,6 @@ export function EditUserDialog({
 }: {
   readonly user: User;
   readonly isMe: boolean;
-  /** The provider group that makes people admins, when the provider decides roles. */
   readonly roleFromGroup: string | null;
   readonly onClose: () => void;
 }) {
@@ -222,7 +219,6 @@ export function EditUserDialog({
           const found = checkFields(form, ["displayName", "email"]);
           const values = new FormData(form);
           const email = decodeEmail(formText(values, "email"));
-          // A disabled select isn't submitted, so the role stays as it was.
           const role = roleLocked ? Option.some(user.role) : decodeRole(formText(values, "role"));
 
           setErrors(found);

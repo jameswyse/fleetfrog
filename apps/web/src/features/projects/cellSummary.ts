@@ -5,33 +5,21 @@ import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 
 import type { CheckoutSummary } from "./checkoutSummary.ts";
 
-/** Something a person has to sort out by hand, which the cell shows in red. */
 export type CellProblem = "Unreadable" | "Conflicts" | "UpstreamGone";
 
-/** One repository on one machine, boiled down to what its cell in the grid shows. */
 export interface CellSummary {
-  /** Each clone's main worktree before any linked worktrees, in path order within each. */
   readonly entries: ReadonlyArray<MachineCheckout>;
-  /** The checkout the cell speaks for: the first clone's main worktree. */
   readonly primary: MachineCheckout;
-  /** The primary checkout's branch, or null when it couldn't be read. */
   readonly branch: string | null;
-  /** The primary checkout is on a branch other than GitHub's default branch. */
   readonly offDefault: boolean;
-  /** Changed and untracked files across every checkout. */
   readonly changes: number;
-  /** Stashes across every clone. Worktrees of one clone share its stashes. */
   readonly stashes: number;
-  /** The primary checkout's commits to push and to pull. */
   readonly ahead: number;
   readonly behind: number;
-  /** GitHub's default branch has commits the primary checkout hasn't fetched. */
   readonly remoteMoved: boolean;
-  /** Local branches in the primary checkout's clone. */
   readonly branches: number;
   readonly worktrees: number;
   readonly clones: number;
-  /** Open pull requests from branches checked out here. */
   readonly pullRequests: number;
   readonly problem: CellProblem | null;
 }
@@ -56,7 +44,6 @@ function problemOf(summaries: ReadonlyArray<CheckoutSummary>): CellProblem | nul
   return read.some(({ upstream }) => upstream === "gone") ? "UpstreamGone" : null;
 }
 
-/** The cell for a repository's checkouts on one machine, or null when it has none there. */
 export function summariseCell(entries: ReadonlyArray<MachineCheckout>): CellSummary | null {
   const sorted = entries.toSorted(
     (left, right) =>
@@ -101,15 +88,10 @@ export function summariseCell(entries: ReadonlyArray<MachineCheckout>): CellSumm
   };
 }
 
-/** A repository's cell on one machine, or null when the machine has none of its checkouts. */
 export function cellFor(repository: Repository, machineId: MachineId): CellSummary | null {
   return summariseCell(repository.checkouts.filter((entry) => entry.machineId === machineId));
 }
 
-/**
- * Every open pull request any machine knows of. Each checkout reports only those from its own local
- * branches, so no single reading has them all.
- */
 export function openPullRequests(repository: Repository) {
   const pulls = new Map(
     repository.checkouts.flatMap(({ checkout }) =>
@@ -120,7 +102,6 @@ export function openPullRequests(repository: Repository) {
   return [...pulls.values()].toSorted((left, right) => right.number - left.number);
 }
 
-/** The newest GitHub reading any machine has for the repository. */
 export function latestGithub(repository: Repository) {
   return repository.checkouts
     .flatMap(({ checkout }) => (checkout.github === null ? [] : [checkout.github]))

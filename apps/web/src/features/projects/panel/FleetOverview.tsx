@@ -29,7 +29,6 @@ import type { Fleet, Machine, Repository } from "@fleetfrog/protocol/domain/flee
 import type { CellSummary } from "../cellSummary.ts";
 import type { ProjectSelection, SelectionHistory } from "../ProjectGrid.tsx";
 
-/** A repository on one machine, with what its cell in the grid shows. */
 interface FleetCell {
   readonly repository: Repository;
   readonly machine: Machine;
@@ -48,7 +47,6 @@ function fleetCells(fleet: Fleet): ReadonlyArray<FleetCell> {
 
 const listClassName = "-mx-1.5 space-y-0.5";
 
-/** A cell in one line: the repository, its machine and a symbol, opening the cell when chosen. */
 function CellRow({
   item,
   onSelect,
@@ -56,7 +54,6 @@ function CellRow({
 }: {
   readonly item: FleetCell;
   readonly onSelect: (selection: ProjectSelection, history: SelectionHistory) => void;
-  /** The symbol and count, or a short note, at the end of the line. */
   readonly children: ReactNode;
 }) {
   return (
@@ -124,7 +121,6 @@ function MachineRow({ fleet, machine }: { readonly fleet: Fleet; readonly machin
     </>
   );
 
-  // Users can't open Settings, so for them the row isn't a link.
   return (
     <li>
       {role === "admin" ? (
@@ -142,7 +138,6 @@ function MachineRow({ fleet, machine }: { readonly fleet: Fleet; readonly machin
   );
 }
 
-/** What the panel shows when nothing is chosen. */
 export function FleetOverview({
   fleet,
   headingId,

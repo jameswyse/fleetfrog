@@ -10,7 +10,6 @@ const tones = {
 
 export type ChipTone = keyof typeof tones;
 
-/** A short status label. The text carries the meaning; colour only reinforces it. */
 export function Chip({
   tone,
   children,

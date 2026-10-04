@@ -10,7 +10,6 @@ import { migrations } from "../database.ts";
 
 const before = Object.fromEntries(Object.entries(migrations).filter(([name]) => name < "0013"));
 
-/** A hub on 0.3 with passwords on and one user, then fully migrated. */
 const Migrated = UserStore.layer.pipe(
   Layer.provideMerge(AuthSettingsStore.layer),
   Layer.provide(

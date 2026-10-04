@@ -16,8 +16,6 @@ import type { PairingOffer } from "@fleetfrog/protocol/dashboard/rpcs";
 
 const loopbackHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
-// Browsers only expose the clipboard API on HTTPS or localhost, and the dashboard is often served
-// over plain HTTP on a LAN address.
 const clipboardAvailable = window.isSecureContext && "clipboard" in navigator;
 
 const installCommand =
@@ -34,7 +32,6 @@ type OfferState =
   | { readonly _tag: "Ready"; readonly offer: PairingOffer; readonly command: string }
   | { readonly _tag: "Failed"; readonly message: string };
 
-/** The outcome of copying one command. A new code makes an older outcome irrelevant. */
 type CopyOutcome =
   | { readonly _tag: "Copied"; readonly command: string }
   | { readonly _tag: "Failed"; readonly command: string };
@@ -55,15 +52,12 @@ function CopyFailed() {
   );
 }
 
-/** Creates a one-time pairing code and watches for the new machine to connect. */
 export function PairMachine() {
   const navigate = useNavigate();
   const hub = useHub();
   const now = useNow();
   const fleet = knownFleet(hub);
 
-  // The machines paired before this page opened. Opened directly, the page renders before the
-  // fleet arrives, so they come from the first fleet it sees rather than an empty list.
   const [knownMachines, setKnownMachines] = useState<ReadonlySet<string> | null>(() =>
     fleet === null ? null : new Set(fleet.machines.map(({ id }) => id)),
   );
@@ -206,7 +200,6 @@ export function PairMachine() {
             {paired === undefined && expired && "This code has expired. Create a new code to pair."}
           </p>
           {paired !== undefined && (
-            // Pairing replaces the controls that had focus, so focus moves to the only next step.
             <Button
               tone="primary"
               autoFocus
