@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { readFile, realpath, stat } from "node:fs/promises";
-import { homedir } from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
@@ -15,6 +14,7 @@ import {
   T3CodeSchema,
 } from "@fleetfrog/protocol/domain/t3Code";
 
+import { t3CodeHome } from "../config/environment.ts";
 import { readT3CodeProviders, readT3CodeServer } from "./readT3CodeApp.ts";
 
 import type { ProjectIconFile } from "@fleetfrog/protocol/agent/rpcs";
@@ -28,7 +28,7 @@ import type {
 const v2Database = "statev2.sqlite";
 
 export function t3CodeDatabasePath(): string {
-  const userdata = path.join(process.env.T3CODE_HOME ?? path.join(homedir(), ".t3"), "userdata");
+  const userdata = path.join(t3CodeHome(), "userdata");
   const v2 = path.join(userdata, v2Database);
 
   return existsSync(v2) ? v2 : path.join(userdata, "state.sqlite");

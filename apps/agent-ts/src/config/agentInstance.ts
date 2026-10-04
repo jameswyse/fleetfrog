@@ -1,8 +1,4 @@
-export const instanceVariable = "FLEETFROG_INSTANCE";
-
-export function currentInstance(): string | undefined {
-  return process.env[instanceVariable] || undefined;
-}
+import { currentInstance } from "./environment.ts";
 
 export function isValidInstanceName(name: string): boolean {
   return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name);

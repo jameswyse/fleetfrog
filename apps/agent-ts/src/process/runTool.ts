@@ -2,6 +2,7 @@ import { execFile, spawn } from "node:child_process";
 
 import { Duration, Effect, Schema } from "effect";
 
+import { inheritedEnvironment } from "../config/environment.ts";
 import { redactCredentials } from "./redactCredentials.ts";
 
 export class CommandFailed extends Schema.TaggedError<CommandFailed>()("CommandFailed", {
@@ -13,7 +14,7 @@ export class CommandFailed extends Schema.TaggedError<CommandFailed>()("CommandF
 const gitConfigArgs = ["-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null"];
 
 const toolEnvironment = {
-  ...process.env,
+  ...inheritedEnvironment(),
   GIT_OPTIONAL_LOCKS: "0",
   GIT_TERMINAL_PROMPT: "0",
   GIT_ALLOW_PROTOCOL: "file:git:http:https:ssh",

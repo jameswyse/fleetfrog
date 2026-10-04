@@ -10,6 +10,7 @@ import { TestClock } from "effect/testing";
 import { RunId } from "@fleetfrog/protocol/domain/activity";
 import { nothingUnique, TrashId } from "@fleetfrog/protocol/domain/trash";
 
+import { inheritedEnvironment } from "../config/environment.ts";
 import { locateCheckout } from "../git/readCheckout.ts";
 import { readLinkedWorktrees } from "../git/worktrees.ts";
 import { makeScanner } from "../scheduling/scanner.ts";
@@ -39,7 +40,7 @@ function git(cwd: string, ...args: Array<string>): string {
     cwd,
     encoding: "utf8",
     env: {
-      ...process.env,
+      ...inheritedEnvironment(),
       GIT_AUTHOR_NAME: "Test",
       GIT_AUTHOR_EMAIL: "test@example.com",
       GIT_COMMITTER_NAME: "Test",

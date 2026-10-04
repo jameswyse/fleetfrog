@@ -7,6 +7,7 @@ import { expect } from "e2e";
 import { Schema } from "effect";
 
 import { MachineId } from "../../packages/protocol/src/domain/machine.ts";
+import { inheritedEnvironment } from "../../tools/e2e/environment.ts";
 import { fixturePaths, sandboxDirectory } from "../../tools/e2e/repositories.ts";
 import { fleetSnapshot, machineSettings } from "./support.ts";
 
@@ -236,13 +237,12 @@ test("[deterministic] pairing codes rotate, pair a temporary agent and remove it
   }
 
   execFileSync(path.resolve("apps/agent-rs/dist/fleetfrog"), ["pair", invitation], {
-    env: {
-      ...process.env,
+    env: inheritedEnvironment({
       FLEETFROG_INSTANCE: "e2e",
       FLEETFROG_CONFIG_DIR: path.join(directory, "paired-agent-config"),
       XDG_DATA_HOME: path.join(directory, "paired-agent-data"),
       XDG_STATE_HOME: path.join(directory, "paired-agent-state"),
-    },
+    }),
     stdio: "pipe",
   });
   await expect(screen.getByRole("status").filter({ hasText: "is paired" })).toBeVisible();

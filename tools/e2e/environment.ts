@@ -53,6 +53,12 @@ async function stop(child: ChildProcess): Promise<void> {
   }
 }
 
+export function inheritedEnvironment(
+  overrides: Readonly<Record<string, string>>,
+): NodeJS.ProcessEnv {
+  return { ...process.env, ...overrides };
+}
+
 export async function runCommand(
   executable: string,
   arguments_: readonly string[],

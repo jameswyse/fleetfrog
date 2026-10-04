@@ -5,6 +5,7 @@ import path from "node:path";
 import { DateTime, Effect } from "effect";
 
 import { instanceNamed } from "../config/agentInstance.ts";
+import { stateHome } from "../config/environment.ts";
 
 import type { ActionOutcome, ActionRequest, Tier } from "@fleetfrog/protocol/domain/action";
 import type { RunId } from "@fleetfrog/protocol/domain/activity";
@@ -35,10 +36,7 @@ export function auditLogPath(): string {
   const directory =
     process.platform === "darwin"
       ? path.join(homedir(), "Library", "Logs", instanceNamed("FleetFrog"))
-      : path.join(
-          process.env.XDG_STATE_HOME ?? path.join(homedir(), ".local", "state"),
-          instanceNamed("fleetfrog"),
-        );
+      : path.join(stateHome(), instanceNamed("fleetfrog"));
 
   return path.join(directory, "actions.log");
 }

@@ -8,6 +8,16 @@ import type { RpcClientError } from "effect/rpc";
 
 type DashboardClient = RpcClient.FromGroup<typeof DashboardRpcs, RpcClientError.RpcClientError>;
 
+export function dashboardUrl(): string {
+  const url = process.env.FLEETFROG_E2E_URL;
+
+  if (url === undefined) {
+    throw new Error("The e2e dashboard URL is missing.");
+  }
+
+  return url;
+}
+
 export function withDashboard<A, E>(
   url: string,
   use: (client: DashboardClient) => Effect.Effect<A, E>,

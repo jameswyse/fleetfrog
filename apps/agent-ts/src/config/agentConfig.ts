@@ -1,6 +1,5 @@
 import { constants } from "node:fs";
 import { access, chmod, mkdir, readFile, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import path from "node:path";
 
 import { Effect, Option, Schema } from "effect";
@@ -8,6 +7,7 @@ import { Effect, Option, Schema } from "effect";
 import { MachineId } from "@fleetfrog/protocol/domain/machine";
 
 import { instanceNamed } from "./agentInstance.ts";
+import { configDirectoryOverride, configHome } from "./environment.ts";
 
 export const AgentConfig = Schema.Struct({
   agentUrl: Schema.String,
@@ -22,13 +22,7 @@ const decodeConfig = Schema.decodeUnknownEffect(AgentConfigJson);
 const encodeConfig = Schema.encodeSync(AgentConfigJson);
 
 export function configDirectory(): string {
-  return (
-    process.env.FLEETFROG_CONFIG_DIR ??
-    path.join(
-      process.env.XDG_CONFIG_HOME ?? path.join(homedir(), ".config"),
-      instanceNamed("fleetfrog"),
-    )
-  );
+  return configDirectoryOverride() ?? path.join(configHome(), instanceNamed("fleetfrog"));
 }
 
 export function configPath(): string {

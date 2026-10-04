@@ -6,16 +6,14 @@ import { Effect, Option, Schema } from "effect";
 
 import { TrashedCheckout } from "@fleetfrog/protocol/domain/trash";
 
+import { dataHome } from "../config/environment.ts";
+
 import type { TrashId } from "@fleetfrog/protocol/domain/trash";
 
 export function defaultTrashDirectory(): string {
   return process.platform === "darwin"
     ? path.join(homedir(), "Library", "Application Support", "FleetFrog", "Trash")
-    : path.join(
-        process.env.XDG_DATA_HOME ?? path.join(homedir(), ".local", "share"),
-        "fleetfrog",
-        "trash",
-      );
+    : path.join(dataHome(), "fleetfrog", "trash");
 }
 
 const ItemJson = Schema.fromJsonString(Schema.toCodecJson(TrashedCheckout));

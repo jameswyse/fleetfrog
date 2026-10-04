@@ -1,7 +1,7 @@
 import { expect } from "e2e";
 import { Effect, Option, Stream } from "effect";
 
-import { withDashboard } from "../../tools/e2e/dashboard.ts";
+import { dashboardUrl, withDashboard } from "../../tools/e2e/dashboard.ts";
 
 import type { App, Screen } from "e2e";
 
@@ -15,13 +15,7 @@ export async function openCheckout(app: App, screen: Screen, name: string) {
 }
 
 export function fleetSnapshot() {
-  const url = process.env.FLEETFROG_E2E_URL;
-
-  if (url === undefined) {
-    throw new Error("The e2e dashboard URL is missing.");
-  }
-
-  return withDashboard(url, (client) =>
+  return withDashboard(dashboardUrl(), (client) =>
     client.WatchFleet().pipe(Stream.runHead, Effect.map(Option.getOrThrow)),
   );
 }

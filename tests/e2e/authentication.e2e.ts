@@ -1,6 +1,7 @@
 import { beforeEach, afterEach, test } from "@e2e-dev/web";
 import { expect } from "e2e";
 
+import { dashboardUrl } from "../../tools/e2e/dashboard.ts";
 import { startIdentityProvider } from "../../tools/e2e/oidc.ts";
 
 import type { App, Screen } from "e2e";
@@ -32,11 +33,7 @@ beforeEach(async ({ app, screen }) => {
 });
 
 afterEach(async () => {
-  const url = process.env.FLEETFROG_E2E_URL;
-
-  if (url === undefined) {
-    throw new Error("The e2e dashboard URL is missing.");
-  }
+  const url = dashboardUrl();
 
   const headers = { "Content-Type": "application/json", Origin: url };
 

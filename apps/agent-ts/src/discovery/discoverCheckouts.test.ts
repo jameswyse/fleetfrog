@@ -5,10 +5,11 @@ import path from "node:path";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 
+import { inheritedEnvironment } from "../config/environment.ts";
 import { temporaryDirectory } from "../testing/temporaryDirectory.ts";
 import { discoverCheckouts } from "./discoverCheckouts.ts";
 
-const gitEnvironment = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null" };
+const gitEnvironment = { ...inheritedEnvironment(), GIT_CONFIG_GLOBAL: "/dev/null" };
 
 function createRepository(directory: string): void {
   mkdirSync(directory, { recursive: true });

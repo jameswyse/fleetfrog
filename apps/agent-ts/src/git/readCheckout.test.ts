@@ -5,6 +5,7 @@ import path from "node:path";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Option } from "effect";
 
+import { inheritedEnvironment } from "../config/environment.ts";
 import { temporaryDirectory } from "../testing/temporaryDirectory.ts";
 import { locateCheckout, readGitStatus } from "./readCheckout.ts";
 
@@ -13,7 +14,7 @@ function git(cwd: string, ...args: Array<string>): string {
     cwd,
     encoding: "utf8",
     env: {
-      ...process.env,
+      ...inheritedEnvironment(),
       GIT_AUTHOR_NAME: "Test",
       GIT_AUTHOR_EMAIL: "test@example.com",
       GIT_COMMITTER_NAME: "Test",

@@ -13,7 +13,13 @@ import path from "node:path";
 import { Effect, Logger, Schema } from "effect";
 
 import { isMissingFile } from "../config/agentConfig.ts";
-import { currentInstance, instanceNamed, instanceVariable } from "../config/agentInstance.ts";
+import { instanceNamed } from "../config/agentInstance.ts";
+import {
+  configHome,
+  currentInstance,
+  executableSearchPath,
+  instanceVariable,
+} from "../config/environment.ts";
 import { runTool } from "../process/runTool.ts";
 
 export class ServiceFileFailed extends Schema.TaggedError<ServiceFileFailed>()(
@@ -60,12 +66,7 @@ function agentCommand(): ReadonlyArray<string> {
 }
 
 function systemdUnitPath(): string {
-  return path.join(
-    process.env.XDG_CONFIG_HOME ?? path.join(homedir(), ".config"),
-    "systemd",
-    "user",
-    systemdUnitName(),
-  );
+  return path.join(configHome(), "systemd", "user", systemdUnitName());
 }
 
 function launchdPlistPath(): string {
@@ -88,7 +89,7 @@ function serviceEnvironment(): ReadonlyArray<readonly [string, string]> {
   const instance = currentInstance();
 
   return [
-    ["PATH", process.env.PATH ?? ""],
+    ["PATH", executableSearchPath()],
     ...(instance === undefined ? [] : [[instanceVariable, instance] as const]),
   ];
 }
