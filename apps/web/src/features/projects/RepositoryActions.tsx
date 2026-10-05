@@ -1,13 +1,25 @@
 import { useState } from "react";
 
-import { ArrowDownToLineIcon, CloudDownloadIcon, FolderDownIcon } from "lucide-react";
+import {
+  ArrowDownToLineIcon,
+  CheckIcon,
+  CloudDownloadIcon,
+  FolderDownIcon,
+  FolderPlusIcon,
+  PinIcon,
+  PinOffIcon,
+} from "lucide-react";
 
 import { Menu, MenuItem } from "@/ui/Menu.tsx";
 
-import { canPull, cloneBlocker, machineBlocker } from "../actions/actionAvailability.ts";
+import { canFetch, canPull, cloneBlocker } from "../actions/actionAvailability.ts";
 import { CloneDialog } from "../actions/CloneDialog.tsx";
 import { PullDialog } from "../actions/PullDialog.tsx";
 import { useStartBatch } from "../actions/useStartBatch.ts";
+import { changeProjectLayout, usePreferences } from "../preferences/preferences.ts";
+import { GroupDialog } from "./GroupDialog.tsx";
+import { moveToGroup, setPinned } from "./layoutChanges.ts";
+import { groupOf } from "./projectLayout.ts";
 
 import type { Fleet, Repository } from "@fleetfrog/protocol/domain/fleet";
 
@@ -18,15 +30,11 @@ export function RepositoryActions({
   readonly fleet: Fleet;
   readonly repository: Repository;
 }) {
-  const [dialog, setDialog] = useState<"pull" | "clone" | null>(null);
+  const [dialog, setDialog] = useState<"pull" | "clone" | "group" | null>(null);
   const { start, pending, failure } = useStartBatch();
-  const machines = new Map(fleet.machines.map((machine) => [machine.id, machine]));
-
-  const canFetch = repository.checkouts.some(({ machineId }) => {
-    const machine = machines.get(machineId);
-
-    return machine !== undefined && machineBlocker(machine, "Fetch") === null;
-  });
+  const { projects: layout } = usePreferences();
+  const pinned = layout.pinned.includes(repository.key);
+  const current = groupOf(layout, repository);
 
   const holders = new Set(repository.checkouts.map(({ machineId }) => machineId));
 
@@ -43,7 +51,7 @@ export function RepositoryActions({
           <>
             <MenuItem
               icon={<CloudDownloadIcon />}
-              disabled={!canFetch || pending}
+              disabled={!canFetch(fleet, [repository]) || pending}
               onClick={() => start({ _tag: "Fetch", scope }, close)}
             >
               {pending ? "Starting…" : "Fetch on every machine"}
@@ -68,6 +76,50 @@ export function RepositoryActions({
             >
               Clone to another machine
             </MenuItem>
+            <div className="my-1 border-t border-line" />
+            <MenuItem
+              icon={pinned ? <PinOffIcon /> : <PinIcon />}
+              onClick={() => {
+                close();
+                void changeProjectLayout((previous) =>
+                  setPinned(previous, repository.key, !pinned),
+                );
+              }}
+            >
+              {pinned ? "Unpin" : "Pin to top"}
+            </MenuItem>
+            <div className="my-1 border-t border-line" />
+            <p className="px-3 pt-1 pb-0.5 text-xs font-medium text-ink-muted">Group</p>
+            <div className="max-h-56 overflow-auto">
+              {layout.groups.map((group) => {
+                const member = group.id === current?.id;
+
+                return (
+                  <MenuItem
+                    key={group.id}
+                    icon={<CheckIcon className={member ? "text-accent" : "invisible"} />}
+                    aria-pressed={member}
+                    onClick={() => {
+                      close();
+                      void changeProjectLayout((previous) =>
+                        moveToGroup(previous, repository.key, member ? null : group.id),
+                      );
+                    }}
+                  >
+                    <span className="truncate">{group.name}</span>
+                  </MenuItem>
+                );
+              })}
+            </div>
+            <MenuItem
+              icon={<FolderPlusIcon />}
+              onClick={() => {
+                close();
+                setDialog("group");
+              }}
+            >
+              New group…
+            </MenuItem>
             <p role="status" className="px-3 text-sm text-danger">
               {failure}
             </p>
@@ -79,6 +131,14 @@ export function RepositoryActions({
       )}
       {dialog === "clone" && (
         <CloneDialog fleet={fleet} repository={repository} onClose={() => setDialog(null)} />
+      )}
+      {dialog === "group" && (
+        <GroupDialog
+          repositories={fleet.repositories}
+          group={null}
+          initialMembers={[repository.key]}
+          onClose={() => setDialog(null)}
+        />
       )}
     </>
   );

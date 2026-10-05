@@ -3,9 +3,11 @@ import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { knownFleet, useHub } from "@/rpc/hubConnection.ts";
 import { useRole } from "@/rpc/session.ts";
 
+import { usePreferences } from "../preferences/preferences.ts";
 import { repositoryMatches } from "./checkoutSummary.ts";
 import { projectPanelId, ProjectPanel } from "./panel/ProjectPanel.tsx";
 import { findGridCell, ProjectGrid } from "./ProjectGrid.tsx";
+import { arrangeProjects } from "./projectLayout.ts";
 import { ProjectToolbar } from "./ProjectToolbar.tsx";
 
 import type { ReactNode } from "react";
@@ -38,6 +40,7 @@ export function ProjectsPage() {
   const navigate = useNavigate({ from: "/" });
   const filter = search.filter ?? "all";
   const query = search.q ?? "";
+  const { projects: layout } = usePreferences();
 
   const fleet = knownFleet(hub);
 
@@ -77,9 +80,15 @@ export function ProjectsPage() {
     );
   }
 
-  const visible = repositories.filter((repository) =>
-    repositoryMatches({ repository, filter, query }),
-  );
+  const searching = query.trim() !== "";
+
+  const arrangement = arrangeProjects({
+    repositories,
+    layout,
+    matches: (repository) => repositoryMatches({ repository, filter, query }),
+    filtering: searching || filter !== "all",
+    searching,
+  });
 
   const selection: ProjectSelection | null =
     search.repo === undefined ? null : { repository: search.repo, machine: search.machine ?? null };
@@ -130,13 +139,15 @@ export function ProjectsPage() {
             Repositories appear once an agent finishes searching its project folders.
           </EmptyState>
         )}
-        {repositories.length > 0 && visible.length === 0 && (
+        {repositories.length > 0 && arrangement.sections.length === 0 && (
           <p className="py-16 text-center text-sm text-ink-muted">No repositories match.</p>
         )}
-        {visible.length > 0 && (
+        {arrangement.sections.length > 0 && (
           <ProjectGrid
             fleet={fleet}
-            repositories={visible}
+            arrangement={arrangement}
+            live={hub._tag === "Live"}
+            searching={searching}
             selection={selection}
             onSelect={select}
           />

@@ -31,6 +31,7 @@ export function Dialog({
         if (!node.open) {
           opener.current = document.activeElement;
           node.showModal();
+          node.querySelector<HTMLElement>("[data-autofocus]")?.focus();
         }
 
         return () => {

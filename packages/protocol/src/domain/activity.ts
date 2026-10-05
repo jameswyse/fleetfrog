@@ -20,9 +20,19 @@ export type BatchId = typeof BatchId.Type;
 export const RunId = Schema.String.pipe(Schema.check(Schema.isUUID()), Schema.brand("RunId"));
 export type RunId = typeof RunId.Type;
 
+export const maximumBatchRuns = 1000;
+
+export const maximumGroupNameLength = 100;
+
+export const GroupName = Schema.String.check(Schema.isMaxLength(maximumGroupNameLength));
+
 export const ActionScope = Schema.TaggedUnion({
   Checkout: { machineId: MachineId, path: Schema.String },
   Repository: { repositoryKey: RepositoryKey },
+  Repositories: {
+    groupName: GroupName,
+    repositoryKeys: Schema.NonEmptyArray(RepositoryKey).check(Schema.isMaxLength(maximumBatchRuns)),
+  },
   Machine: { machineId: MachineId },
   All: {},
 });
@@ -37,7 +47,12 @@ export type CloneTarget = typeof CloneTarget.Type;
 export const TargetedRun = Schema.Struct({ machineId: MachineId, request: TargetedRequest });
 export type TargetedRun = typeof TargetedRun.Type;
 
-export const maximumBatchRuns = 1000;
+export const RepositoryClone = Schema.Struct({
+  repositoryKey: RepositoryKey,
+  machineId: MachineId,
+  destination: Schema.NonEmptyString,
+});
+export type RepositoryClone = typeof RepositoryClone.Type;
 
 export const BatchRequest = Schema.TaggedUnion({
   Fetch: { scope: ActionScope },
@@ -45,6 +60,10 @@ export const BatchRequest = Schema.TaggedUnion({
   Clone: {
     repositoryKey: RepositoryKey,
     targets: Schema.NonEmptyArray(CloneTarget).check(Schema.isMaxLength(maximumBatchRuns)),
+  },
+  CloneRepositories: {
+    groupName: GroupName,
+    clones: Schema.NonEmptyArray(RepositoryClone).check(Schema.isMaxLength(maximumBatchRuns)),
   },
   Targeted: {
     runs: Schema.NonEmptyArray(TargetedRun).check(
@@ -60,12 +79,17 @@ export const BatchRequest = Schema.TaggedUnion({
 export type BatchRequest = typeof BatchRequest.Type;
 
 export function batchKind(request: BatchRequest): ActionKind {
-  return request._tag === "Targeted" ? request.runs[0].request._tag : request._tag;
+  if (request._tag === "Targeted") {
+    return request.runs[0].request._tag;
+  }
+
+  return request._tag === "CloneRepositories" ? "Clone" : request._tag;
 }
 
 export const BatchScope = Schema.TaggedUnion({
   Checkout: { machineName: Schema.String, repositoryName: Schema.String, path: Schema.String },
   Repository: { repositoryName: Schema.String },
+  Group: { groupName: Schema.String, repositories: Count },
   Machine: { machineName: Schema.String },
   All: {},
 });

@@ -9,12 +9,12 @@ import { useHubStream } from "@/rpc/useHubStream.ts";
 import { Button } from "@/ui/Button.tsx";
 import { formText } from "@/ui/formText.ts";
 import { SidebarPage } from "@/ui/SidebarLayout.tsx";
+import { TextField } from "@/ui/TextField.tsx";
 import { isSignInOn, OidcInput } from "@fleetfrog/protocol/domain/user";
 
 import { ProviderButtonContent, providerButtonClass } from "../../account/ProviderButton.tsx";
 import { SettingsSection } from "../SettingsSection.tsx";
 import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
-import { TextField } from "./TextField.tsx";
 
 import type { FormEvent } from "react";
 

@@ -7,9 +7,9 @@ import { requestHub } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
 import { Dialog } from "@/ui/Dialog.tsx";
 import { formText } from "@/ui/formText.ts";
+import { TextField } from "@/ui/TextField.tsx";
 import { minimumPasswordLength, Role } from "@fleetfrog/protocol/domain/user";
 
-import { TextField } from "./TextField.tsx";
 import { checkFields, decodeEmail, messageFor } from "./userForm.ts";
 
 import type { FormEvent } from "react";

@@ -235,6 +235,88 @@ describe("planBatch", () => {
     }),
   );
 
+  it.effect("acts on a group's repositories and names the group", () =>
+    Effect.gen(function* () {
+      const docsKey = RepositoryKey.make("remote:github.com/acme/docs");
+
+      const shopFleet = fleetWith([
+        { machineId: online.id, checkout: checkout("/home/dev/Projects/shop") },
+      ]);
+
+      const fleet: Fleet = {
+        ...shopFleet,
+        repositories: [
+          ...shopFleet.repositories,
+          {
+            key: docsKey,
+            identity: { _tag: "Remote", host: "github.com", path: "acme/docs" },
+            name: "docs",
+            label: "docs",
+            icon: null,
+            checkouts: [
+              {
+                machineId: online.id,
+                checkout: {
+                  ...checkout("/home/dev/Projects/docs"),
+                  identity: { _tag: "Remote", host: "github.com", path: "acme/docs" },
+                  originUrl: "git@github.com:acme/docs.git",
+                },
+              },
+            ],
+          },
+        ],
+      };
+
+      const pull = yield* planBatch(
+        {
+          _tag: "Pull",
+          scope: {
+            _tag: "Repositories",
+            groupName: "Work",
+            repositoryKeys: [docsKey, RepositoryKey.make("remote:github.com/acme/gone")],
+          },
+        },
+        fleet,
+      );
+
+      expect(pull.runs.map(({ path }) => path)).toEqual(["/home/dev/Projects/docs"]);
+      expect(pull.scope).toEqual({ _tag: "Group", groupName: "Work", repositories: 1 });
+
+      const clone = yield* planBatch(
+        {
+          _tag: "CloneRepositories",
+          groupName: "Work",
+          clones: [
+            { repositoryKey: shopKey, machineId: offline.id, destination: "~/Projects/shop" },
+            { repositoryKey: docsKey, machineId: offline.id, destination: "~/Projects/docs" },
+          ],
+        },
+        fleet,
+      );
+
+      expect(clone.kind).toBe("Clone");
+      expect(clone.scope).toEqual({ _tag: "Group", groupName: "Work", repositories: 2 });
+      expect(clone.runs.map(({ path, request }) => ({ path, request }))).toEqual([
+        {
+          path: "/home/dev/Projects/shop",
+          request: {
+            _tag: "Clone",
+            url: "git@github.com:acme/shop.git",
+            destination: "~/Projects/shop",
+          },
+        },
+        {
+          path: "/home/dev/Projects/docs",
+          request: {
+            _tag: "Clone",
+            url: "git@github.com:acme/docs.git",
+            destination: "~/Projects/docs",
+          },
+        },
+      ]);
+    }),
+  );
+
   it.effect("refuses what it can't plan", () =>
     Effect.gen(function* () {
       const noOrigin = fleetWith([

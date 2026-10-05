@@ -119,11 +119,19 @@ export function switchSkipReason(
 
 export type PullScope = Exclude<ActionScope, { _tag: "Checkout" }>;
 
+function inScope(repository: Repository, scope: PullScope): boolean {
+  if (scope._tag === "Repository") {
+    return repository.key === scope.repositoryKey;
+  }
+
+  return scope._tag !== "Repositories" || scope.repositoryKeys.includes(repository.key);
+}
+
 export function pullTargets(fleet: Fleet, scope: PullScope) {
   const machines = new Map(fleet.machines.map((machine) => [machine.id, machine]));
 
   return fleet.repositories
-    .filter((repository) => scope._tag !== "Repository" || repository.key === scope.repositoryKey)
+    .filter((repository) => inScope(repository, scope))
     .flatMap((repository) =>
       repository.checkouts
         .filter(({ machineId }) => scope._tag !== "Machine" || machineId === scope.machineId)
@@ -135,6 +143,18 @@ export function pullTargets(fleet: Fleet, scope: PullScope) {
             : [{ repository, machine, checkout, skip: pullSkipReason(machine, checkout) }];
         }),
     );
+}
+
+export function canFetch(fleet: Fleet, repositories: ReadonlyArray<Repository>): boolean {
+  const machines = new Map(fleet.machines.map((machine) => [machine.id, machine]));
+
+  return repositories.some(({ checkouts }) =>
+    checkouts.some(({ machineId }) => {
+      const machine = machines.get(machineId);
+
+      return machine !== undefined && machineBlocker(machine, "Fetch") === null;
+    }),
+  );
 }
 
 export function canPull(fleet: Fleet, scope: PullScope): boolean {

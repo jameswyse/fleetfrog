@@ -5,6 +5,7 @@ import { SearchIcon, XIcon } from "lucide-react";
 
 import { repositoryMatches } from "./checkoutSummary.ts";
 import { FleetActions } from "./FleetActions.tsx";
+import { ViewControls } from "./ViewControls.tsx";
 
 import type { HubState } from "@/rpc/hubConnection.ts";
 import type { Repository } from "@fleetfrog/protocol/domain/fleet";
@@ -174,7 +175,8 @@ export function ProjectToolbar({
     <div className="flex max-w-projects flex-wrap items-center gap-x-3 gap-y-2">
       <SearchField query={query} />
       <FilterPicker repositories={repositories} filter={filter} query={query} />
-      <div className="ms-auto">
+      <div className="ms-auto flex flex-wrap items-center gap-2">
+        <ViewControls repositories={repositories} />
         <FleetActions hub={hub} />
       </div>
     </div>

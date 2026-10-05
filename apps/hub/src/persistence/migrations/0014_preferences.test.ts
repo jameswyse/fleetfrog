@@ -3,6 +3,7 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { SqlClient } from "effect/sql";
 
+import { defaultPreferences, defaultProjectLayout } from "@fleetfrog/protocol/domain/preferences";
 import { UserId } from "@fleetfrog/protocol/domain/user";
 
 import { PreferencesStore } from "../../settings/preferencesStore.ts";
@@ -39,7 +40,7 @@ const Migrated = PreferencesStore.layer.pipe(
       }),
     ),
   ),
-  Layer.provide(SqliteClient.layer({ filename: ":memory:" })),
+  Layer.provideMerge(SqliteClient.layer({ filename: ":memory:" })),
 );
 
 const Fresh = PreferencesStore.layer.pipe(
@@ -51,16 +52,23 @@ describe("0014_preferences", () => {
   it.effect("gives existing users and the open dashboard the defaults, then keeps each apart", () =>
     Effect.gen(function* () {
       const preferences = yield* PreferencesStore;
-      const defaults = { colorScheme: "system", blurPersonal: false };
 
-      expect(yield* preferences.get(ada)).toEqual(defaults);
-      expect(yield* preferences.get(null)).toEqual(defaults);
+      const dark = {
+        colorScheme: "dark",
+        blurPersonal: true,
+        projects: defaultProjectLayout,
+      } as const;
 
-      yield* preferences.set(ada, { colorScheme: "dark", blurPersonal: true });
-      yield* preferences.set(null, { colorScheme: "light", blurPersonal: false });
+      const light = { ...dark, colorScheme: "light", blurPersonal: false } as const;
 
-      expect(yield* preferences.get(ada)).toEqual({ colorScheme: "dark", blurPersonal: true });
-      expect(yield* preferences.get(null)).toEqual({ colorScheme: "light", blurPersonal: false });
+      expect(yield* preferences.get(ada)).toEqual(defaultPreferences);
+      expect(yield* preferences.get(null)).toEqual(defaultPreferences);
+
+      yield* preferences.set(ada, dark);
+      yield* preferences.set(null, light);
+
+      expect(yield* preferences.get(ada)).toEqual(dark);
+      expect(yield* preferences.get(null)).toEqual(light);
     }).pipe(Effect.provide(Migrated)),
   );
 
@@ -68,9 +76,26 @@ describe("0014_preferences", () => {
     Effect.gen(function* () {
       const preferences = yield* PreferencesStore;
 
-      yield* preferences.set(null, { colorScheme: "dark", blurPersonal: true });
+      const dark = { ...defaultPreferences, colorScheme: "dark", blurPersonal: true } as const;
 
-      expect(yield* preferences.get(null)).toEqual({ colorScheme: "dark", blurPersonal: true });
+      yield* preferences.set(null, dark);
+
+      expect(yield* preferences.get(null)).toEqual(dark);
     }).pipe(Effect.provide(Fresh)),
+  );
+
+  it.effect("reads preferences saved before project layouts with the default layout", () =>
+    Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      const preferences = yield* PreferencesStore;
+
+      yield* sql`update users set preferences_json = ${JSON.stringify({ colorScheme: "dark", blurPersonal: true })} where id = ${ada}`;
+
+      expect(yield* preferences.get(ada)).toEqual({
+        colorScheme: "dark",
+        blurPersonal: true,
+        projects: defaultProjectLayout,
+      });
+    }).pipe(Effect.provide(Migrated)),
   );
 });

@@ -12,12 +12,12 @@ import { Dialog } from "@/ui/Dialog.tsx";
 import { formText } from "@/ui/formText.ts";
 import { SidebarPage } from "@/ui/SidebarLayout.tsx";
 import { Switch } from "@/ui/Switch.tsx";
+import { TextField } from "@/ui/TextField.tsx";
 import { MethodChange } from "@fleetfrog/protocol/dashboard/auth";
 import { isSignInOn, minimumPasswordLength } from "@fleetfrog/protocol/domain/user";
 
 import { SettingsRow, SettingsSection } from "../SettingsSection.tsx";
 import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
-import { TextField } from "./TextField.tsx";
 import { checkFields, messageFor } from "./userForm.ts";
 
 import type { FormEvent } from "react";

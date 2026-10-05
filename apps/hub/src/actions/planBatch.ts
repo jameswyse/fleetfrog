@@ -19,7 +19,7 @@ import type {
   ActionRequest,
   TargetedRequest,
 } from "@fleetfrog/protocol/domain/action";
-import type { BatchScope, TargetedRun } from "@fleetfrog/protocol/domain/activity";
+import type { BatchScope, RepositoryClone, TargetedRun } from "@fleetfrog/protocol/domain/activity";
 import type { Fleet, Machine, MachineCheckout, Repository } from "@fleetfrog/protocol/domain/fleet";
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 import type { TrashedCheckout } from "@fleetfrog/protocol/domain/trash";
@@ -146,6 +146,15 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
             scope: { _tag: "Repository", repositoryName: repository.label },
           })),
         ),
+      Repositories: ({ groupName, repositoryKeys }): Effect.Effect<Resolved, PlanError> => {
+        const keys = new Set(repositoryKeys);
+        const repositories = fleet.repositories.filter(({ key }) => keys.has(key));
+
+        return Effect.succeed<Resolved>({
+          targets: allTargets.filter(({ repository }) => keys.has(repository.key)),
+          scope: { _tag: "Group", groupName, repositories: repositories.length },
+        });
+      },
       Machine: ({ machineId }): Effect.Effect<Resolved, PlanError> =>
         findMachine(machineId).pipe(
           Effect.map((machine): Resolved => ({
@@ -166,6 +175,29 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
         path: target.entry.checkout.path,
         request: actionRequest,
         outcome: actionBlocker(machine, actionRequest._tag),
+      };
+    });
+
+  const cloneRun = ({
+    repositoryKey,
+    machineId,
+    destination,
+  }: RepositoryClone): Effect.Effect<PlannedRun, PlanError> =>
+    Effect.gen(function* () {
+      const repository = yield* findRepository(repositoryKey);
+      const machine = yield* findMachine(machineId);
+      const url = cloneSource(repository);
+
+      if (url === undefined) {
+        return yield* new NoCloneSource();
+      }
+
+      return {
+        machine,
+        repository,
+        path: expandHome(destination.trim(), machine.info.homeDirectory),
+        request: { _tag: "Clone", url, destination: destination.trim() },
+        outcome: actionBlocker(machine, "Clone"),
       };
     });
 
@@ -287,27 +319,28 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
     Clone: ({ repositoryKey, targets }): Effect.Effect<BatchPlan, PlanError> =>
       Effect.gen(function* () {
         const repository = yield* findRepository(repositoryKey);
-        const url = cloneSource(repository);
-
-        if (url === undefined) {
-          return yield* new NoCloneSource();
-        }
 
         const runs = yield* Effect.forEach(targets, ({ machineId, destination }) =>
-          findMachine(machineId).pipe(
-            Effect.map((machine): PlannedRun => ({
-              machine,
-              repository,
-              path: expandHome(destination.trim(), machine.info.homeDirectory),
-              request: { _tag: "Clone", url, destination: destination.trim() },
-              outcome: actionBlocker(machine, "Clone"),
-            })),
-          ),
+          cloneRun({ repositoryKey, machineId, destination }),
         );
 
         return {
           kind: "Clone",
           scope: { _tag: "Repository", repositoryName: repository.label },
+          runs,
+        };
+      }),
+    CloneRepositories: ({ groupName, clones }): Effect.Effect<BatchPlan, PlanError> =>
+      Effect.gen(function* () {
+        const runs = yield* Effect.forEach(clones, cloneRun);
+
+        return {
+          kind: "Clone",
+          scope: {
+            _tag: "Group",
+            groupName,
+            repositories: new Set(runs.map(({ repository }) => repository.key)).size,
+          },
           runs,
         };
       }),

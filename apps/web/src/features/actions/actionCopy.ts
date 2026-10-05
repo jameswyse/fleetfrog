@@ -43,6 +43,13 @@ export function describeBatch({ kind, scope }: Pick<ActionBatch, "kind" | "scope
     Checkout: ({ repositoryName, machineName }) => `${one} ${repositoryName} on ${machineName}`,
     Repository: ({ repositoryName }) =>
       kind === "Clone" ? `Clone ${repositoryName}` : `${one} ${repositoryName} on every machine`,
+    Group: ({ groupName, repositories }) => {
+      if (kind === "Clone") {
+        return `Clone ${plural(repositories, "repository", "repositories")} in ${groupName}`;
+      }
+
+      return expanded ? `${one} every ${things} in ${groupName}` : `${several} in ${groupName}`;
+    },
     Machine: ({ machineName }) =>
       expanded ? `${one} every ${things} on ${machineName}` : `${several} on ${machineName}`,
     All: () => (expanded ? `${one} every ${things}` : `${several} on several machines`),

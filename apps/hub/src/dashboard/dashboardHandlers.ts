@@ -119,6 +119,10 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
           All: () => sessions.refresh("all"),
           Machine: ({ machineId }) =>
             machines.find(machineId).pipe(Effect.andThen(sessions.refresh([machineId]))),
+          Machines: ({ machineIds }) =>
+            Effect.forEach(machineIds, machines.find).pipe(
+              Effect.andThen(sessions.refresh(machineIds)),
+            ),
         }),
       RenameMachine: (rename) =>
         Effect.gen(function* () {
