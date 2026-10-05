@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 
 import { startPreferences } from "./features/preferences/preferences.ts";
+import { startProjectLayout } from "./features/projects/projectLayoutStore.ts";
 import { routeTree } from "./routeTree.gen.ts";
 import { startHubConnection } from "./rpc/hubConnection.ts";
 import { startSession } from "./rpc/session.ts";
@@ -25,6 +26,7 @@ if (root === null) {
 }
 
 startPreferences();
+startProjectLayout();
 startSession();
 startHubConnection();
 createRoot(root).render(

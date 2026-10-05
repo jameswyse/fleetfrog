@@ -5,7 +5,7 @@ import type {
   ProjectGroup,
   ProjectLayout,
   ProjectSort,
-} from "@fleetfrog/protocol/domain/preferences";
+} from "@fleetfrog/protocol/domain/projectLayout";
 import type { RepositoryIdentity } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
 export type ProjectSection =
@@ -114,6 +114,32 @@ export function groupOf(
   return layout.groups.find(({ repositories }) => repositories.includes(repository.key)) ?? null;
 }
 
+export const restSectionId = "rest";
+
+export function homeSectionId(
+  layout: ProjectLayout,
+  repository: Pick<Repository, "identity">,
+): string {
+  return layout.groupByOwner ? ownerSectionId(repository.identity) : restSectionId;
+}
+
+export function sectionIdOf(
+  layout: ProjectLayout,
+  repository: Pick<Repository, "key" | "identity">,
+): string {
+  if (layout.pinned.includes(repository.key)) {
+    return pinnedSectionId;
+  }
+
+  const group = groupOf(layout, repository);
+
+  if (group !== null) {
+    return groupSectionId(group);
+  }
+
+  return homeSectionId(layout, repository);
+}
+
 function ownerSections(repositories: ReadonlyArray<Repository>) {
   const owners = new Map<
     string,
@@ -162,8 +188,10 @@ export function arrangeProjects(options: {
   readonly matches: (repository: Repository) => boolean;
   readonly filtering: boolean;
   readonly searching: boolean;
+  readonly dragging?: Repository | null;
 }): Arrangement {
   const { layout } = options;
+  const dragging = options.dragging ?? null;
   const pinned = new Set(layout.pinned);
   const placed = new Set<Repository["key"]>();
 
@@ -202,10 +230,17 @@ export function arrangeProjects(options: {
   const rest = take(() => true);
 
   if (layout.groupByOwner) {
-    candidates.push(...ownerSections(rest));
+    const outside = dragging !== null && !rest.includes(dragging) ? [dragging] : [];
+
+    candidates.push(
+      ...ownerSections([...rest, ...outside]).map((owner) => ({
+        ...owner,
+        members: owner.members.filter((member) => !outside.includes(member)),
+      })),
+    );
   } else {
     candidates.push({
-      id: "rest",
+      id: restSectionId,
       section: {
         _tag: "Rest",
         title: layout.groups.length > 0 ? "Ungrouped" : "Other repositories",
@@ -214,14 +249,27 @@ export function arrangeProjects(options: {
     });
   }
 
-  const headed = candidates.some(
-    ({ section, members }) =>
-      section._tag === "Group" || (section._tag !== "Rest" && members.length > 0),
+  const destinations = new Set(
+    dragging === null
+      ? []
+      : [
+          ...(pinned.has(dragging.key) ? [] : [pinnedSectionId]),
+          ...(sectionIdOf(layout, dragging) === homeSectionId(layout, dragging)
+            ? []
+            : [homeSectionId(layout, dragging)]),
+        ],
   );
+
+  const headed =
+    destinations.size > 0 ||
+    candidates.some(
+      ({ section, members }) =>
+        section._tag === "Group" || (section._tag !== "Rest" && members.length > 0),
+    );
 
   const sections = candidates.flatMap(({ id, section, members }) => {
     const repositories = sortRepositories(members.filter(options.matches), layout.sort);
-    const keepEmpty = section._tag === "Group" && !options.filtering;
+    const keepEmpty = (section._tag === "Group" && !options.filtering) || destinations.has(id);
 
     if (repositories.length === 0 && !keepEmpty) {
       return [];

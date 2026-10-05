@@ -22,15 +22,15 @@ import { cloneSource } from "@fleetfrog/protocol/domain/cloneDestination";
 import { canFetch, canPull, cloneBlocker } from "../actions/actionAvailability.ts";
 import { PullDialog } from "../actions/PullDialog.tsx";
 import { useStartBatch } from "../actions/useStartBatch.ts";
-import { changeProjectLayout, usePreferences } from "../preferences/preferences.ts";
 import { GroupCloneDialog } from "./GroupCloneDialog.tsx";
 import { GroupDialog } from "./GroupDialog.tsx";
-import { deleteGroup, moveGroup } from "./layoutChanges.ts";
+import { deleteGroup, placeGroup } from "./layoutChanges.ts";
 import { sectionTitle } from "./projectLayout.ts";
+import { changeProjectLayout, useProjectLayout } from "./projectLayoutStore.ts";
 
 import type { Fleet, Repository } from "@fleetfrog/protocol/domain/fleet";
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
-import type { ProjectGroup } from "@fleetfrog/protocol/domain/preferences";
+import type { ProjectGroup } from "@fleetfrog/protocol/domain/projectLayout";
 
 import type { ProjectSection } from "./projectLayout.ts";
 
@@ -41,7 +41,7 @@ function DeleteGroupDialog({
   readonly group: ProjectGroup;
   readonly onClose: () => void;
 }) {
-  const { projects: layout } = usePreferences();
+  const layout = useProjectLayout();
   const [failure, setFailure] = useState<string | null>(null);
   const [deleting, startDeleting] = useTransition();
   const destination = layout.groupByOwner ? "their owners' sections" : "Ungrouped";
@@ -97,7 +97,7 @@ export function SectionActions({
   readonly repositories: ReadonlyArray<Repository>;
   readonly live: boolean;
 }) {
-  const { projects: layout } = usePreferences();
+  const layout = useProjectLayout();
   const [dialog, setDialog] = useState<SectionDialog | null>(null);
   const fetching = useStartBatch();
   const [rescanning, startRescan] = useTransition();
@@ -105,6 +105,8 @@ export function SectionActions({
   const title = sectionTitle(section);
   const group = section._tag === "Group" ? section.group : null;
   const groupIndex = group === null ? -1 : layout.groups.findIndex(({ id }) => id === group.id);
+  const above = groupIndex > 0 ? layout.groups[groupIndex - 1] : undefined;
+  const below = groupIndex === -1 ? undefined : layout.groups[groupIndex + 1];
   const machines = new Map(fleet.machines.map((machine) => [machine.id, machine]));
   const [first, ...others] = repositories.map(({ key }) => key);
 
@@ -219,18 +221,26 @@ export function SectionActions({
                 </MenuItem>
                 <MenuItem
                   icon={<ArrowUpIcon />}
-                  disabled={groupIndex <= 0}
+                  disabled={above === undefined}
                   onClick={() => {
-                    void changeProjectLayout((current) => moveGroup(current, group.id, -1));
+                    if (above !== undefined) {
+                      void changeProjectLayout((current) =>
+                        placeGroup(current, group.id, { side: "Before", targetId: above.id }),
+                      );
+                    }
                   }}
                 >
                   Move up
                 </MenuItem>
                 <MenuItem
                   icon={<ArrowDownIcon />}
-                  disabled={groupIndex === -1 || groupIndex >= layout.groups.length - 1}
+                  disabled={below === undefined}
                   onClick={() => {
-                    void changeProjectLayout((current) => moveGroup(current, group.id, 1));
+                    if (below !== undefined) {
+                      void changeProjectLayout((current) =>
+                        placeGroup(current, group.id, { side: "After", targetId: below.id }),
+                      );
+                    }
                   }}
                 >
                   Move down

@@ -10,15 +10,17 @@ import { TextField } from "@/ui/TextField.tsx";
 import {
   maximumProjectGroupNameLength,
   ProjectGroupId,
-} from "@fleetfrog/protocol/domain/preferences";
+} from "@fleetfrog/protocol/domain/projectLayout";
 
-import { changeProjectLayout, usePreferences } from "../preferences/preferences.ts";
-import { saveGroup } from "./layoutChanges.ts";
+import { editGroup } from "./layoutChanges.ts";
 import { groupOf } from "./projectLayout.ts";
+import { changeProjectLayout, useProjectLayout } from "./projectLayoutStore.ts";
 
 import type { Repository } from "@fleetfrog/protocol/domain/fleet";
-import type { ProjectGroup } from "@fleetfrog/protocol/domain/preferences";
+import type { ProjectGroup } from "@fleetfrog/protocol/domain/projectLayout";
 import type { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
+
+import type { GroupEdit } from "./layoutChanges.ts";
 
 function nameProblem(name: string, others: ReadonlyArray<ProjectGroup>): string | null {
   const trimmed = name.trim();
@@ -47,7 +49,7 @@ export function GroupDialog({
   readonly initialMembers?: ReadonlyArray<RepositoryKey>;
   readonly onClose: () => void;
 }) {
-  const { projects: layout } = usePreferences();
+  const layout = useProjectLayout();
   const [name, setName] = useState(group?.name ?? "");
   const [query, setQuery] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
@@ -55,9 +57,11 @@ export function GroupDialog({
   const [saving, startSaving] = useTransition();
   const [id] = useState(() => group?.id ?? ProjectGroupId.make(crypto.randomUUID()));
 
-  const [members, setMembers] = useState<ReadonlySet<RepositoryKey>>(
+  const [initial] = useState<ReadonlySet<RepositoryKey>>(
     () => new Set(group?.repositories ?? initialMembers),
   );
+
+  const [members, setMembers] = useState<ReadonlySet<RepositoryKey>>(initial);
 
   const others = layout.groups.filter((other) => other.id !== id);
   const pinned = new Set(layout.pinned);
@@ -96,14 +100,16 @@ export function GroupDialog({
       return;
     }
 
-    const saved: ProjectGroup = {
+    const groupEdit: GroupEdit = {
       id,
       name: name.trim(),
-      repositories: repositories.flatMap(({ key }) => (members.has(key) ? [key] : [])),
+      members: [...members],
+      added: [...members].filter((key) => !initial.has(key)),
+      removed: [...initial].filter((key) => !members.has(key)),
     };
 
     startSaving(async () => {
-      const result = await changeProjectLayout((current) => saveGroup(current, saved));
+      const result = await changeProjectLayout((current) => editGroup(current, groupEdit));
 
       if (result._tag === "Failure") {
         setFailure(`Couldn't save the group. ${result.message}`);

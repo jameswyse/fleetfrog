@@ -10,10 +10,12 @@ import {
   RunId,
   RunsSnapshot,
 } from "../domain/activity.ts";
+import { Count } from "../domain/count.ts";
 import { Fleet, FolderOutcome } from "../domain/fleet.ts";
 import { MachineId, MachineKind } from "../domain/machine.ts";
 import { PollingSettings } from "../domain/polling.ts";
 import { Preferences } from "../domain/preferences.ts";
+import { ProjectLayout, SavedProjectLayout } from "../domain/projectLayout.ts";
 import { RepositoryKey } from "../domain/repositoryIdentity.ts";
 import { IntegrationSettings } from "../domain/t3Code.ts";
 import { InspectionResult } from "../domain/trash.ts";
@@ -50,6 +52,11 @@ export class CurrentViewer extends Context.Service<CurrentViewer, Viewer>()(
 ) {}
 
 export class NotSignedIn extends Schema.TaggedError<NotSignedIn>()("NotSignedIn", {}) {}
+
+export class ProjectLayoutChanged extends Schema.TaggedError<ProjectLayoutChanged>()(
+  "ProjectLayoutChanged",
+  { current: SavedProjectLayout },
+) {}
 
 export class Forbidden extends Schema.TaggedError<Forbidden>()("Forbidden", {}) {}
 
@@ -230,6 +237,11 @@ export class DashboardRpcs extends RpcGroup.make(
   Rpc.make("SetPreferences", {
     payload: { preferences: Preferences },
     error: NotSignedIn,
+  }).annotate(Access, "user"),
+  Rpc.make("SetProjectLayout", {
+    payload: { layout: ProjectLayout, revision: Count },
+    success: Schema.Struct({ revision: Count }),
+    error: Schema.Union([NotSignedIn, ProjectLayoutChanged]),
   }).annotate(Access, "user"),
   Rpc.make("ChangePassword", {
     payload: { currentPassword: PasswordAttempt, newPassword: Password },

@@ -15,6 +15,7 @@ import { isCrossOrigin } from "../http/sameOrigin.ts";
 import { clientAddress, tailscaleIdentity } from "../http/serveSocket.ts";
 import { HubConfig } from "../hubConfig.ts";
 import { PreferencesStore } from "../settings/preferencesStore.ts";
+import { ProjectLayoutStore } from "../settings/projectLayoutStore.ts";
 import { AuthSettingsStore } from "./authSettingsStore.ts";
 import { DashboardSessions, sessionCookie, sessionLifetime } from "./dashboardSessions.ts";
 import { LoginThrottle } from "./loginThrottle.ts";
@@ -51,6 +52,7 @@ const decodeEmail = Schema.decodeUnknownOption(Email);
 const describeSession = Effect.fnUntraced(function* (userId: UserId | null) {
   const auth = yield* AuthSettingsStore;
   const preferences = yield* PreferencesStore;
+  const projectLayouts = yield* ProjectLayoutStore;
   const users = yield* UserStore;
   const request = yield* HttpServerRequest.HttpServerRequest;
   const { oidc } = yield* SubscriptionRef.get(auth.settings);
@@ -58,7 +60,10 @@ const describeSession = Effect.fnUntraced(function* (userId: UserId | null) {
   const { passwords, provider, tailscale } = yield* auth.methods;
 
   if (!isSignInOn({ passwords, provider, tailscale })) {
-    return Session.cases.Open.make({ preferences: yield* preferences.get(null) });
+    return Session.cases.Open.make({
+      preferences: yield* preferences.get(null),
+      projectLayout: yield* projectLayouts.get(null),
+    });
   }
 
   const methods: SignInMethods = {
@@ -78,6 +83,7 @@ const describeSession = Effect.fnUntraced(function* (userId: UserId | null) {
     methods,
     user,
     preferences: yield* preferences.get(userId),
+    projectLayout: yield* projectLayouts.get(userId),
   });
 });
 

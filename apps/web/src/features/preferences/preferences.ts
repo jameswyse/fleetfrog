@@ -2,10 +2,9 @@ import { useSyncExternalStore } from "react";
 
 import { requestHub } from "@/rpc/hubConnection.ts";
 import { onSessionChange } from "@/rpc/session.ts";
-import { defaultPreferences } from "@fleetfrog/protocol/domain/preferences";
 
 import type { HubResult } from "@/rpc/hubConnection.ts";
-import type { Preferences, ProjectLayout } from "@fleetfrog/protocol/domain/preferences";
+import type { Preferences } from "@fleetfrog/protocol/domain/preferences";
 
 const colorSchemeKey = "fleetfrog.colorScheme";
 const blurPersonalKey = "fleetfrog.blurPersonal";
@@ -30,11 +29,10 @@ function writeItem(key: string, value: string | null): void {
   } catch {}
 }
 
-function loadCopy(base: Preferences): Preferences {
+function loadCopy(): Preferences {
   const colorScheme = readItem(colorSchemeKey);
 
   return {
-    ...base,
     colorScheme: colorScheme === "light" || colorScheme === "dark" ? colorScheme : "system",
     blurPersonal: readItem(blurPersonalKey) === "on",
   };
@@ -57,14 +55,13 @@ function apply({ colorScheme, blurPersonal }: Preferences): void {
   root.toggleAttribute("data-blur-personal", blurPersonal);
 }
 
-let preferences = loadCopy(defaultPreferences);
+let preferences = loadCopy();
 const listeners = new Set<() => void>();
 
 function show(next: Preferences): void {
   if (
     next.colorScheme === preferences.colorScheme &&
-    next.blurPersonal === preferences.blurPersonal &&
-    next.projects === preferences.projects
+    next.blurPersonal === preferences.blurPersonal
   ) {
     return;
   }
@@ -93,7 +90,7 @@ export function startPreferences(): void {
 
   window.addEventListener("storage", (event) => {
     if (event.key === null || event.key === colorSchemeKey || event.key === blurPersonalKey) {
-      show(loadCopy(preferences));
+      show(loadCopy());
     }
   });
 }
@@ -109,18 +106,4 @@ export function changePreferences(change: Partial<Preferences>): Promise<HubResu
   show(next);
 
   return requestHub((client) => client.SetPreferences({ preferences: next }));
-}
-
-export async function changeProjectLayout(
-  change: (layout: ProjectLayout) => ProjectLayout,
-): Promise<HubResult<void>> {
-  const previous = preferences.projects;
-  const projects = change(previous);
-  const result = await changePreferences({ projects });
-
-  if (result._tag === "Failure" && preferences.projects === projects) {
-    show({ ...preferences, projects: previous });
-  }
-
-  return result;
 }

@@ -28,6 +28,7 @@ import { Database } from "./persistence/database.ts";
 import { IntegrationsStore } from "./settings/integrationsStore.ts";
 import { PollingStore } from "./settings/pollingStore.ts";
 import { PreferencesStore } from "./settings/preferencesStore.ts";
+import { ProjectLayoutStore } from "./settings/projectLayoutStore.ts";
 
 const Hub = Layer.merge(AgentServer, DashboardServer).pipe(
   Layer.provide(ActionDispatcher.layer),
@@ -45,6 +46,7 @@ const Hub = Layer.merge(AgentServer, DashboardServer).pipe(
       PollingStore.layer,
       IntegrationsStore.layer,
       PreferencesStore.layer,
+      ProjectLayoutStore.layer,
       ProjectIconStore.layer,
       DashboardPresence.layer,
       LoginThrottle.layer,

@@ -3,14 +3,16 @@ import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { knownFleet, useHub } from "@/rpc/hubConnection.ts";
 import { useRole } from "@/rpc/session.ts";
 
-import { usePreferences } from "../preferences/preferences.ts";
 import { repositoryMatches } from "./checkoutSummary.ts";
 import { projectPanelId, ProjectPanel } from "./panel/ProjectPanel.tsx";
 import { findGridCell, ProjectGrid } from "./ProjectGrid.tsx";
 import { arrangeProjects } from "./projectLayout.ts";
+import { useProjectLayout } from "./projectLayoutStore.ts";
 import { ProjectToolbar } from "./ProjectToolbar.tsx";
 
 import type { ReactNode } from "react";
+
+import type { Repository } from "@fleetfrog/protocol/domain/fleet";
 
 import type { ProjectSelection, SelectionHistory } from "./ProjectGrid.tsx";
 
@@ -40,7 +42,7 @@ export function ProjectsPage() {
   const navigate = useNavigate({ from: "/" });
   const filter = search.filter ?? "all";
   const query = search.q ?? "";
-  const { projects: layout } = usePreferences();
+  const layout = useProjectLayout();
 
   const fleet = knownFleet(hub);
 
@@ -82,13 +84,17 @@ export function ProjectsPage() {
 
   const searching = query.trim() !== "";
 
-  const arrangement = arrangeProjects({
-    repositories,
-    layout,
-    matches: (repository) => repositoryMatches({ repository, filter, query }),
-    filtering: searching || filter !== "all",
-    searching,
-  });
+  const arrange = (dragging: Repository | null) =>
+    arrangeProjects({
+      repositories,
+      layout,
+      matches: (repository) => repositoryMatches({ repository, filter, query }),
+      filtering: searching || filter !== "all",
+      searching,
+      dragging,
+    });
+
+  const arrangement = arrange(null);
 
   const selection: ProjectSelection | null =
     search.repo === undefined ? null : { repository: search.repo, machine: search.machine ?? null };
@@ -145,7 +151,7 @@ export function ProjectsPage() {
         {arrangement.sections.length > 0 && (
           <ProjectGrid
             fleet={fleet}
-            arrangement={arrangement}
+            arrange={arrange}
             live={hub._tag === "Live"}
             searching={searching}
             selection={selection}

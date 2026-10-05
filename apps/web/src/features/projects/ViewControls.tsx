@@ -5,11 +5,11 @@ import { ArrowDownUpIcon, ChevronDownIcon, FolderPlusIcon, LayersIcon } from "lu
 import { Menu, MenuItem } from "@/ui/Menu.tsx";
 import { Switch } from "@/ui/Switch.tsx";
 
-import { changeProjectLayout, usePreferences } from "../preferences/preferences.ts";
 import { GroupDialog } from "./GroupDialog.tsx";
+import { changeProjectLayout, useProjectLayout } from "./projectLayoutStore.ts";
 
 import type { Repository } from "@fleetfrog/protocol/domain/fleet";
-import type { ProjectSort } from "@fleetfrog/protocol/domain/preferences";
+import type { ProjectSort } from "@fleetfrog/protocol/domain/projectLayout";
 
 const triggerClass =
   "inline-flex min-h-9 items-center gap-2 rounded-md border border-line bg-surface px-3 text-sm font-medium hover:bg-surface-raised";
@@ -33,7 +33,7 @@ const sorts: ReadonlyArray<{
 ];
 
 function SortMenu() {
-  const { projects: layout } = usePreferences();
+  const layout = useProjectLayout();
   const current = sorts.find(({ value }) => value === layout.sort) ?? sorts[0];
 
   return (
@@ -84,7 +84,7 @@ function SortMenu() {
 }
 
 function GroupsMenu({ repositories }: { readonly repositories: ReadonlyArray<Repository> }) {
-  const { projects: layout } = usePreferences();
+  const layout = useProjectLayout();
   const ownerId = useId();
   const [creating, setCreating] = useState(false);
 

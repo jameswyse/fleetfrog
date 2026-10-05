@@ -19,6 +19,7 @@ import { activityActors } from "./migrations/0011_activity_actors.ts";
 import { signInMethods } from "./migrations/0012_sign_in_methods.ts";
 import { tailscaleSignIn } from "./migrations/0013_tailscale_sign_in.ts";
 import { preferences } from "./migrations/0014_preferences.ts";
+import { projectLayouts } from "./migrations/0015_project_layouts.ts";
 
 const client = Layer.unwrap(
   Effect.gen(function* () {
@@ -45,6 +46,7 @@ export const migrations = {
   "0012_sign_in_methods": signInMethods,
   "0013_tailscale_sign_in": tailscaleSignIn,
   "0014_preferences": preferences,
+  "0015_project_layouts": projectLayouts,
 };
 
 export const Migrations = SqliteMigrator.layer({ loader: SqliteMigrator.fromRecord(migrations) });

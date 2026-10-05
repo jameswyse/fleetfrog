@@ -16,10 +16,10 @@ import { canFetch, canPull, cloneBlocker } from "../actions/actionAvailability.t
 import { CloneDialog } from "../actions/CloneDialog.tsx";
 import { PullDialog } from "../actions/PullDialog.tsx";
 import { useStartBatch } from "../actions/useStartBatch.ts";
-import { changeProjectLayout, usePreferences } from "../preferences/preferences.ts";
 import { GroupDialog } from "./GroupDialog.tsx";
 import { moveToGroup, setPinned } from "./layoutChanges.ts";
 import { groupOf } from "./projectLayout.ts";
+import { changeProjectLayout, useProjectLayout } from "./projectLayoutStore.ts";
 
 import type { Fleet, Repository } from "@fleetfrog/protocol/domain/fleet";
 
@@ -32,7 +32,7 @@ export function RepositoryActions({
 }) {
   const [dialog, setDialog] = useState<"pull" | "clone" | "group" | null>(null);
   const { start, pending, failure } = useStartBatch();
-  const { projects: layout } = usePreferences();
+  const layout = useProjectLayout();
   const pinned = layout.pinned.includes(repository.key);
   const current = groupOf(layout, repository);
 

@@ -1,6 +1,7 @@
 import { Schema } from "effect";
 
 import { Preferences } from "../domain/preferences.ts";
+import { SavedProjectLayout } from "../domain/projectLayout.ts";
 import { DisplayName, Email, Password, PasswordAttempt, User } from "../domain/user.ts";
 
 export const TailscaleIdentity = Schema.Struct({
@@ -19,9 +20,14 @@ export const SignInMethods = Schema.Struct({
 export type SignInMethods = typeof SignInMethods.Type;
 
 export const Session = Schema.TaggedUnion({
-  Open: { preferences: Preferences },
+  Open: { preferences: Preferences, projectLayout: SavedProjectLayout },
   SignedOut: { methods: SignInMethods },
-  SignedIn: { methods: SignInMethods, user: User, preferences: Preferences },
+  SignedIn: {
+    methods: SignInMethods,
+    user: User,
+    preferences: Preferences,
+    projectLayout: SavedProjectLayout,
+  },
 });
 export type Session = typeof Session.Type;
 

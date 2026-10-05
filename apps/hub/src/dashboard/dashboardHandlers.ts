@@ -41,6 +41,7 @@ import { PairingOffers } from "../pairing/pairingOffers.ts";
 import { IntegrationsStore } from "../settings/integrationsStore.ts";
 import { PollingStore } from "../settings/pollingStore.ts";
 import { PreferencesStore } from "../settings/preferencesStore.ts";
+import { ProjectLayoutStore } from "../settings/projectLayoutStore.ts";
 import { DashboardPresence } from "./dashboardPresence.ts";
 
 import type { Actor, HubEvent } from "@fleetfrog/protocol/domain/activity";
@@ -62,6 +63,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
     const updates = yield* AgentUpdates;
     const users = yield* UserStore;
     const preferences = yield* PreferencesStore;
+    const projectLayouts = yield* ProjectLayoutStore;
     const auth = yield* AuthSettingsStore;
     const oidc = yield* OidcSignIn;
     const throttle = yield* LoginThrottle;
@@ -281,6 +283,12 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
           const record = yield* ownRecord;
 
           return yield* preferences.set(record.id, payload.preferences);
+        }),
+      SetProjectLayout: ({ layout, revision }) =>
+        Effect.gen(function* () {
+          const userId = (yield* CurrentViewer)._tag === "Anyone" ? null : (yield* ownRecord).id;
+
+          return { revision: yield* projectLayouts.save(userId, layout, revision) };
         }),
       ChangePassword: ({ currentPassword, newPassword }) =>
         Effect.gen(function* () {

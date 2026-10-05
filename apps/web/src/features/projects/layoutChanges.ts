@@ -1,11 +1,14 @@
-import { groupSectionId } from "./projectLayout.ts";
+import { groupSectionId, sectionIdOf } from "./projectLayout.ts";
 
+import type { Repository } from "@fleetfrog/protocol/domain/fleet";
 import type {
   ProjectGroup,
   ProjectGroupId,
   ProjectLayout,
-} from "@fleetfrog/protocol/domain/preferences";
+} from "@fleetfrog/protocol/domain/projectLayout";
 import type { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
+
+import type { ProjectSection } from "./projectLayout.ts";
 
 export function setPinned(
   layout: ProjectLayout,
@@ -17,19 +20,36 @@ export function setPinned(
   return { ...layout, pinned: pinned ? [...others, repository] : others };
 }
 
-export function saveGroup(layout: ProjectLayout, saved: ProjectGroup): ProjectLayout {
-  const members = new Set(saved.repositories);
+export interface GroupEdit {
+  readonly id: ProjectGroupId;
+  readonly name: string;
+  readonly members: ReadonlyArray<RepositoryKey>;
+  readonly added: ReadonlyArray<RepositoryKey>;
+  readonly removed: ReadonlyArray<RepositoryKey>;
+}
 
-  const groups = layout.groups.map((group) =>
-    group.id === saved.id
+export function editGroup(layout: ProjectLayout, edit: GroupEdit): ProjectLayout {
+  const existing = layout.groups.find(({ id }) => id === edit.id);
+  const removed = new Set(edit.removed);
+
+  const repositories =
+    existing === undefined
+      ? edit.members
+      : [
+          ...existing.repositories.filter((key) => !removed.has(key)),
+          ...edit.added.filter((key) => !existing.repositories.includes(key)),
+        ];
+
+  const claimed = new Set(repositories);
+  const saved: ProjectGroup = { id: edit.id, name: edit.name, repositories };
+
+  const others = layout.groups.map((group) =>
+    group.id === edit.id
       ? saved
-      : { ...group, repositories: group.repositories.filter((key) => !members.has(key)) },
+      : { ...group, repositories: group.repositories.filter((key) => !claimed.has(key)) },
   );
 
-  return {
-    ...layout,
-    groups: groups.some(({ id }) => id === saved.id) ? groups : [...groups, saved],
-  };
+  return { ...layout, groups: existing === undefined ? [...others, saved] : others };
 }
 
 export function moveToGroup(
@@ -37,6 +57,10 @@ export function moveToGroup(
   repository: RepositoryKey,
   groupId: ProjectGroupId | null,
 ): ProjectLayout {
+  if (groupId !== null && !layout.groups.some(({ id }) => id === groupId)) {
+    return layout;
+  }
+
   return {
     ...layout,
     groups: layout.groups.map((group) => {
@@ -57,22 +81,52 @@ export function deleteGroup(layout: ProjectLayout, groupId: ProjectGroupId): Pro
   };
 }
 
-export function moveGroup(
+export function placeGroup(
   layout: ProjectLayout,
   groupId: ProjectGroupId,
-  offset: -1 | 1,
+  placement: { readonly side: "Before" | "After"; readonly targetId: ProjectGroupId },
 ): ProjectLayout {
-  const from = layout.groups.findIndex(({ id }) => id === groupId);
-  const to = from + offset;
-  const moving = layout.groups[from];
+  const moving = layout.groups.find(({ id }) => id === groupId);
+  const others = layout.groups.filter(({ id }) => id !== groupId);
+  const target = others.findIndex(({ id }) => id === placement.targetId);
 
-  if (moving === undefined || to < 0 || to >= layout.groups.length) {
+  if (moving === undefined || target === -1) {
     return layout;
   }
 
-  const groups = layout.groups.toSpliced(from, 1).toSpliced(to, 0, moving);
+  const at = placement.side === "Before" ? target : target + 1;
 
-  return { ...layout, groups };
+  return { ...layout, groups: others.toSpliced(at, 0, moving) };
+}
+
+export function dropRepository(
+  layout: ProjectLayout,
+  repository: Pick<Repository, "key" | "identity">,
+  target: { readonly id: string; readonly section: ProjectSection },
+): ProjectLayout | null {
+  if (sectionIdOf(layout, repository) === target.id) {
+    return null;
+  }
+
+  const { section } = target;
+
+  if (section._tag === "Pinned") {
+    return setPinned(layout, repository.key, true);
+  }
+
+  const unpinned = setPinned(layout, repository.key, false);
+
+  if (section._tag === "Group") {
+    const { id } = section.group;
+
+    return layout.groups.some((group) => group.id === id)
+      ? moveToGroup(unpinned, repository.key, id)
+      : null;
+  }
+
+  const ungrouped = moveToGroup(unpinned, repository.key, null);
+
+  return sectionIdOf(ungrouped, repository) === target.id ? ungrouped : null;
 }
 
 export function setCollapsed(

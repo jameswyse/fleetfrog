@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 
 import { BotIcon, ChevronDownIcon, ChevronRightIcon, FolderIcon, PinIcon } from "lucide-react";
 
@@ -10,24 +10,25 @@ import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { RunActivity } from "../actions/RunActivity.tsx";
 import { activeRunOn } from "../actions/runLookup.ts";
-import { changeProjectLayout, usePreferences } from "../preferences/preferences.ts";
 import { busyThreads } from "../t3Code/t3CodeLookup.ts";
 import { CellContent } from "./CellContent.tsx";
 import { cellFor } from "./cellSummary.ts";
 import { repositoryMatches } from "./checkoutSummary.ts";
 import { GroupDialog } from "./GroupDialog.tsx";
-import { setCollapsed, setPinned } from "./layoutChanges.ts";
+import { dropRepository, placeGroup, setCollapsed, setPinned } from "./layoutChanges.ts";
 import { MachineActions } from "./MachineActions.tsx";
 import { MissingCellContent } from "./MissingCell.tsx";
 import { sectionTitle, visibleRows } from "./projectLayout.ts";
+import { changeProjectLayout, useProjectLayout } from "./projectLayoutStore.ts";
 import { RepositoryActions } from "./RepositoryActions.tsx";
 import { SectionActions } from "./SectionActions.tsx";
 
-import type { KeyboardEvent } from "react";
+import type { DragEvent, KeyboardEvent } from "react";
 
 import type { RunsSnapshot } from "@fleetfrog/protocol/domain/activity";
 import type { Fleet, Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
+import type { ProjectGroupId, ProjectLayout } from "@fleetfrog/protocol/domain/projectLayout";
 import type { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
 import type { ArrangedSection, Arrangement, ProjectSection } from "./projectLayout.ts";
@@ -201,6 +202,53 @@ function MatrixCell({
   );
 }
 
+type Dragged =
+  | { readonly _tag: "Repository"; readonly repository: Repository }
+  | { readonly _tag: "Group"; readonly groupId: ProjectGroupId };
+
+type DropState = "Idle" | "Available" | "Over";
+
+interface Drag {
+  readonly dragged: Dragged | null;
+  readonly over: string | null;
+  readonly start: (dragged: Dragged, event: DragEvent) => void;
+  readonly end: () => void;
+  readonly hover: (sectionId: string | null) => void;
+}
+
+function dropChange(
+  dragged: Dragged | null,
+  arranged: ArrangedSection,
+  layout: ProjectLayout,
+): ((layout: ProjectLayout) => ProjectLayout) | null {
+  if (dragged === null) {
+    return null;
+  }
+
+  if (dragged._tag === "Repository") {
+    return dropRepository(layout, dragged.repository, arranged) === null
+      ? null
+      : (current) => dropRepository(current, dragged.repository, arranged) ?? current;
+  }
+
+  const { section } = arranged;
+
+  if (section._tag !== "Group" || section.group.id === dragged.groupId) {
+    return null;
+  }
+
+  const ids = layout.groups.map(({ id }) => id);
+  const side = ids.indexOf(dragged.groupId) < ids.indexOf(section.group.id) ? "After" : "Before";
+
+  return (current) => placeGroup(current, dragged.groupId, { side, targetId: section.group.id });
+}
+
+const dropStateClasses = {
+  Idle: "bg-canvas",
+  Available: "bg-canvas shadow-[inset_0_0_0_1px_var(--accent)]",
+  Over: "bg-accent-soft shadow-[inset_0_0_0_2px_var(--accent)]",
+} satisfies Record<DropState, string>;
+
 function SectionIcon({ section }: { readonly section: ProjectSection }) {
   if (section._tag === "Pinned") {
     return <PinIcon aria-hidden="true" className="size-4 fill-current text-accent" />;
@@ -253,22 +301,27 @@ function SectionHeader({
   bodyId,
   live,
   searching,
+  dropState,
+  drag,
 }: {
   readonly fleet: Fleet;
   readonly arranged: ArrangedSection;
   readonly bodyId: string;
   readonly live: boolean;
   readonly searching: boolean;
+  readonly dropState: DropState;
+  readonly drag: Drag;
 }) {
   const { id, section, repositories, collapsed } = arranged;
   const title = sectionTitle(section);
+  const group = section._tag === "Group" ? section.group : null;
 
   return (
     <tr>
       <th
         colSpan={fleet.machines.length + 1}
         scope="rowgroup"
-        className="sticky top-[3.0625rem] z-[2] border-b border-line bg-canvas p-0 text-start font-normal"
+        className={`sticky top-[3.0625rem] z-[2] border-b border-line p-0 text-start font-normal transition-colors motion-reduce:transition-none ${dropStateClasses[dropState]}`}
       >
         <div className="sticky start-0 flex h-10 w-fit max-w-full items-center gap-2 ps-2 pe-4">
           <button
@@ -277,6 +330,13 @@ function SectionHeader({
             aria-controls={bodyId}
             disabled={searching}
             title={searching ? "Sections stay open while you search" : undefined}
+            draggable={group !== null}
+            onDragStart={(event) => {
+              if (group !== null) {
+                drag.start({ _tag: "Group", groupId: group.id }, event);
+              }
+            }}
+            onDragEnd={drag.end}
             onClick={() => {
               void changeProjectLayout((layout) => setCollapsed(layout, id, !collapsed));
             }}
@@ -325,13 +385,13 @@ function EmptyGroupRow({
     <tr>
       <td colSpan={fleet.machines.length + 1} className="border-b border-line bg-surface p-0">
         <div className="sticky start-0 flex w-fit items-center gap-1 px-4 py-3 text-sm text-ink-muted">
-          No repositories in this group yet.
+          Drag repositories here, or
           <button
             type="button"
             onClick={() => setEditing(true)}
             className="rounded px-1 font-medium text-accent-text hover:underline"
           >
-            Add repositories
+            choose some
           </button>
         </div>
         {editing && (
@@ -347,7 +407,7 @@ function EmptyGroupRow({
 }
 
 function PinToggle({ repository }: { readonly repository: Repository }) {
-  const { projects: layout } = usePreferences();
+  const layout = useProjectLayout();
   const pinned = layout.pinned.includes(repository.key);
 
   return (
@@ -373,6 +433,7 @@ function RepositoryRow({
   runs,
   selection,
   onSelect,
+  drag,
 }: {
   readonly fleet: Fleet;
   readonly repository: Repository;
@@ -380,7 +441,11 @@ function RepositoryRow({
   readonly runs: RunsSnapshot;
   readonly selection: ProjectSelection | null;
   readonly onSelect: (selection: ProjectSelection, history: SelectionHistory) => void;
+  readonly drag: Drag;
 }) {
+  const dragging =
+    drag.dragged?._tag === "Repository" && drag.dragged.repository.key === repository.key;
+
   const rowSelection = { repository: repository.key, machine: null };
   const host = gitHost(repository.identity);
 
@@ -390,12 +455,17 @@ function RepositoryRow({
   const rowSelected = selection?.repository === repository.key && selection.machine === null;
 
   return (
-    <tr className="group/row">
+    <tr className={`group/row ${dragging ? "opacity-50" : ""}`}>
       <th
         scope="row"
         className={`sticky start-0 z-[1] h-px border-e border-b border-line p-0 text-start align-middle font-medium ${rowSelected ? selectedRowBackground : "bg-surface"}`}
       >
-        <div className={`flex h-full ${nameColumnWidth} items-center gap-0.5 pe-2`}>
+        <div
+          draggable
+          onDragStart={(event) => drag.start({ _tag: "Repository", repository }, event)}
+          onDragEnd={drag.end}
+          className={`flex h-full ${nameColumnWidth} items-center gap-0.5 pe-2`}
+        >
           <button
             type="button"
             data-cell={`${row}:0`}
@@ -455,6 +525,7 @@ function SectionBody({
   searching,
   selection,
   onSelect,
+  drag,
 }: {
   readonly fleet: Fleet;
   readonly arranged: ArrangedSection;
@@ -465,12 +536,54 @@ function SectionBody({
   readonly searching: boolean;
   readonly selection: ProjectSelection | null;
   readonly onSelect: (selection: ProjectSelection, history: SelectionHistory) => void;
+  readonly drag: Drag;
 }) {
   const bodyId = useId();
-  const { section, repositories, collapsed } = arranged;
+  const layout = useProjectLayout();
+  const { id, section, repositories, collapsed } = arranged;
+  const change = dropChange(drag.dragged, arranged, layout);
+  let dropState: DropState = "Idle";
+
+  if (change !== null) {
+    dropState = drag.over === id ? "Over" : "Available";
+  }
 
   return (
-    <tbody id={bodyId}>
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- The section accepts dragged repositories and groups. Its menus and each repository's menu make the same moves from the keyboard.
+    <tbody
+      id={bodyId}
+      onDragOver={(event) => {
+        if (change === null) {
+          return;
+        }
+
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+
+        if (drag.over !== id) {
+          drag.hover(id);
+        }
+      }}
+      onDragLeave={(event) => {
+        const entered = event.relatedTarget;
+
+        if (
+          drag.over === id &&
+          !(entered instanceof Node && event.currentTarget.contains(entered))
+        ) {
+          drag.hover(null);
+        }
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+
+        if (change !== null) {
+          void changeProjectLayout(change);
+        }
+
+        drag.end();
+      }}
+    >
       {headed && (
         <SectionHeader
           fleet={fleet}
@@ -478,7 +591,19 @@ function SectionBody({
           bodyId={bodyId}
           live={live}
           searching={searching}
+          dropState={dropState}
+          drag={drag}
         />
+      )}
+      {!collapsed && section._tag !== "Group" && repositories.length === 0 && (
+        <tr>
+          <td
+            colSpan={fleet.machines.length + 1}
+            className="border-b border-line bg-surface px-4 py-3 text-sm text-ink-muted"
+          >
+            <span className="sticky start-4">Drop here</span>
+          </td>
+        </tr>
       )}
       {!collapsed && section._tag === "Group" && repositories.length === 0 && (
         <EmptyGroupRow fleet={fleet} group={section.group} />
@@ -493,6 +618,7 @@ function SectionBody({
             runs={runs}
             selection={selection}
             onSelect={onSelect}
+            drag={drag}
           />
         ))}
     </tbody>
@@ -501,14 +627,14 @@ function SectionBody({
 
 export function ProjectGrid({
   fleet,
-  arrangement,
+  arrange,
   live,
   searching,
   selection,
   onSelect,
 }: {
   readonly fleet: Fleet;
-  readonly arrangement: Arrangement;
+  readonly arrange: (dragging: Repository | null) => Arrangement;
   readonly live: boolean;
   readonly searching: boolean;
   readonly selection: ProjectSelection | null;
@@ -516,7 +642,30 @@ export function ProjectGrid({
 }) {
   const runs = useRuns();
   const { machines } = fleet;
+  const [dragged, setDragged] = useState<Dragged | null>(null);
+  const [over, setOver] = useState<string | null>(null);
+  const startFrame = useRef(0);
+  const arrangement = arrange(dragged?._tag === "Repository" ? dragged.repository : null);
   const rows = visibleRows(arrangement);
+
+  const drag: Drag = {
+    dragged,
+    over,
+    start: (next, event) => {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData(
+        "text/plain",
+        next._tag === "Repository" ? next.repository.label : next.groupId,
+      );
+      startFrame.current = requestAnimationFrame(() => setDragged(next));
+    },
+    end: () => {
+      cancelAnimationFrame(startFrame.current);
+      setDragged(null);
+      setOver(null);
+    },
+    hover: setOver,
+  };
 
   const firstRows = arrangement.sections.reduce<ReadonlyArray<number>>(
     (starts, { repositories, collapsed }, index) => [
@@ -595,6 +744,7 @@ export function ProjectGrid({
             searching={searching}
             selection={selection}
             onSelect={onSelect}
+            drag={drag}
           />
         ))}
       </table>
