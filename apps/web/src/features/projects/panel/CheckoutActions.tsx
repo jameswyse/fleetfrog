@@ -1,7 +1,7 @@
 import { useState, useTransition } from "react";
 
 import { Link } from "@tanstack/react-router";
-import { ArchiveIcon, Trash2Icon } from "lucide-react";
+import { ArchiveIcon, Trash2Icon, Undo2Icon } from "lucide-react";
 
 import { requestHub, useRuns } from "@/rpc/hubConnection.ts";
 import { useMayRun } from "@/rpc/session.ts";
@@ -9,10 +9,13 @@ import { Button } from "@/ui/Button.tsx";
 import { Menu, MenuItem } from "@/ui/Menu.tsx";
 
 import {
+  discardSkipReason,
+  hiddenTrashReason,
   machineBlocker,
   pullSkipReason,
   stashSkipReason,
 } from "../../actions/actionAvailability.ts";
+import { DiscardDialog } from "../../actions/DiscardDialog.tsx";
 import { activeRunFor, latestRunFor } from "../../actions/runLookup.ts";
 import { RunStateText } from "../../actions/RunStateText.tsx";
 import { StashDialog } from "../../actions/StashDialog.tsx";
@@ -38,7 +41,10 @@ export function CheckoutActions({
   readonly machine: Machine;
   readonly checkout: Checkout;
 }) {
-  const [dialog, setDialog] = useState<"pull" | "stash" | "archive" | "trash" | null>(null);
+  const [dialog, setDialog] = useState<"pull" | "stash" | "discard" | "archive" | "trash" | null>(
+    null,
+  );
+
   const runs = useRuns();
   const { start, pending, failure } = useStartBatch();
   const [cancelling, startCancel] = useTransition();
@@ -49,6 +55,8 @@ export function CheckoutActions({
   const git = checkout.status._tag === "Read" ? checkout.status.git : null;
   const hasChanges = git !== null && git.changed.total + git.untracked.total > 0;
   const stashBlocked = stashSkipReason(machine, checkout);
+  const hiddenTrash = hiddenTrashReason(repository, machine, checkout);
+  const discardBlocked = discardSkipReason(machine, checkout) ?? hiddenTrash;
   const linked = checkout.worktree._tag === "Linked" ? checkout.worktree.mainPath : null;
 
   const archiveTarget =
@@ -109,6 +117,23 @@ export function CheckoutActions({
           >
             {(close) => (
               <>
+                {hasChanges && (
+                  <>
+                    <MenuItem
+                      icon={<Undo2Icon />}
+                      disabled={discardBlocked !== null || active !== undefined}
+                      onClick={() => {
+                        close();
+                        setDialog("discard");
+                      }}
+                    >
+                      Discard changes…
+                    </MenuItem>
+                    {discardBlocked !== null && (
+                      <p className="px-3 pb-2 text-xs text-ink-muted">{discardBlocked}.</p>
+                    )}
+                  </>
+                )}
                 <MenuItem
                   icon={<ArchiveIcon />}
                   disabled={archive._tag === "Blocked" || active !== undefined}
@@ -202,6 +227,15 @@ export function CheckoutActions({
           onClose={() => setDialog(null)}
         />
       )}
+      {dialog === "discard" && git !== null && (
+        <DiscardDialog
+          repository={repository}
+          machine={machine}
+          checkout={checkout}
+          git={git}
+          onClose={() => setDialog(null)}
+        />
+      )}
       {dialog === "trash" && linked === null && (
         <TrashCheckoutDialog
           label={repository.label}
@@ -215,6 +249,7 @@ export function CheckoutActions({
           machine={machine}
           mainPath={linked}
           worktree={checkout.path}
+          discardUnavailable={hiddenTrash}
           onClose={() => setDialog(null)}
         />
       )}

@@ -7,6 +7,7 @@ use crate::time::{Utc, stash_date};
 
 use super::Context;
 use super::detached::keep_detached_commits;
+use super::stashes::{stash_tip, trash_new_stash};
 
 /// Git needs forcing twice to remove a locked worktree, and once to forget a missing one.
 fn force_flags(inspection: &WorktreeInspection) -> &'static [&'static str] {
@@ -21,14 +22,15 @@ fn force_flags(inspection: &WorktreeInspection) -> &'static [&'static str] {
 
 /// Removes a linked worktree of the main checkout at `path`, keeping its branch, if it still
 /// matches the inspection the dashboard showed. Its changes and untracked files are stashed first,
-/// and commits only its detached HEAD holds go to the trash, so only its ignored files are lost.
-/// One whose folder is gone is only forgotten, and a locked one is unlocked, both as the dashboard
-/// warned.
+/// or moved to the trash with `discard_changes`, and commits only its detached HEAD holds go to
+/// the trash, so only its ignored files are lost. One whose folder is gone is only forgotten, and a
+/// locked one is unlocked, both as the dashboard warned.
 pub async fn remove_worktree(
     path: &str,
     common_directory: &str,
     worktree: &str,
     fingerprint: &str,
+    discard_changes: bool,
     context: &Context<'_>,
 ) -> Result<ActionOutcome, GitError> {
     let Some(inspection) =
@@ -41,13 +43,21 @@ pub async fn remove_worktree(
         return Ok(skipped(SkipReason::ChangedSinceInspection));
     }
 
-    let stashed_files = inspection.changed_files + inspection.untracked_files;
+    let changed_files = inspection.changed_files + inspection.untracked_files;
+    let mut discarded = false;
 
-    if stashed_files > 0 {
+    if changed_files > 0 {
+        let verb = if discard_changes {
+            "Discarded"
+        } else {
+            "Stashed"
+        };
         let message = format!(
-            "Stashed from FleetFrog before removing the worktree at {worktree} on {}",
+            "{verb} from FleetFrog before removing the worktree at {worktree} on {}",
             stash_date(Utc::now())
         );
+
+        let before = stash_tip(worktree).await?;
 
         run_git_action(
             GitAction::new(
@@ -64,6 +74,10 @@ pub async fn remove_worktree(
             context.cancel,
         )
         .await?;
+
+        if discard_changes {
+            discarded = trash_new_stash(worktree, before.as_deref(), context).await?;
+        }
     }
 
     let saved_commits = if inspection.unreachable_commits > 0 {
@@ -77,8 +91,15 @@ pub async fn remove_worktree(
     args.push(worktree);
     run_git_action(GitAction::new(path, &args, context.output), context.cancel).await?;
 
+    let (stashed_files, discarded_files) = match (discard_changes, discarded) {
+        (false, _) => (changed_files, 0),
+        (true, true) => (0, changed_files),
+        (true, false) => (0, 0),
+    };
+
     Ok(succeeded(ActionResult::WorktreeRemoved {
         stashed_files,
+        discarded_files,
         saved_commits,
         deleted_ignored: inspection.ignored.total,
     }))

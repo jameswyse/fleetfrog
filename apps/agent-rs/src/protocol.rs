@@ -50,12 +50,13 @@ impl Tier {
 }
 
 /// Every action this agent knows, in the protocol's order.
-pub const ACTION_KINDS: [&str; 14] = [
+pub const ACTION_KINDS: [&str; 15] = [
     "Fetch",
     "Pull",
     "Clone",
     "Switch",
     "Stash",
+    "Discard",
     "DeleteBranches",
     "RemoveWorktree",
     "DropStashes",
@@ -105,8 +106,13 @@ pub enum ActionRequest {
         branch: String,
         #[serde(default)]
         stash_changes: bool,
+        #[serde(default)]
+        discard_changes: bool,
     },
     Stash {
+        path: String,
+    },
+    Discard {
         path: String,
     },
     DeleteBranches {
@@ -117,6 +123,8 @@ pub enum ActionRequest {
         path: String,
         worktree: String,
         fingerprint: String,
+        #[serde(default)]
+        discard_changes: bool,
     },
     DropStashes {
         path: String,
@@ -153,7 +161,10 @@ impl ActionRequest {
             ActionRequest::Fetch { .. }
             | ActionRequest::Pull { .. }
             | ActionRequest::Clone { .. }
-            | ActionRequest::Switch { .. }
+            | ActionRequest::Switch {
+                discard_changes: false,
+                ..
+            }
             | ActionRequest::Stash { .. } => Tier::Git,
             _ => Tier::Cleanup,
         }
@@ -197,6 +208,7 @@ pub enum SkipReason {
     UnpushedCommits { commits: Count },
     OperationInProgress { operation: Operation },
     NothingToStash,
+    NoChanges,
     AlreadyOnBranch,
     BranchInUse,
     NoSuchBranch,
@@ -245,9 +257,13 @@ pub enum ActionResult {
     Switched {
         branch: String,
         stashed_files: Count,
+        discarded_files: Count,
         saved_commits: Count,
     },
     Stashed {
+        files: Count,
+    },
+    Discarded {
         files: Count,
     },
     BranchesDeleted {
@@ -264,6 +280,7 @@ pub enum ActionResult {
     },
     WorktreeRemoved {
         stashed_files: Count,
+        discarded_files: Count,
         saved_commits: Count,
         deleted_ignored: Count,
     },
@@ -962,12 +979,13 @@ mod tests {
         let outcome = succeeded(ActionResult::Switched {
             branch: "main".into(),
             stashed_files: 1,
+            discarded_files: 0,
             saved_commits: 0,
         });
 
         assert_eq!(
             serde_json::to_value(outcome).unwrap(),
-            json!({"_tag": "Succeeded", "result": {"_tag": "Switched", "branch": "main", "stashedFiles": 1, "savedCommits": 0}})
+            json!({"_tag": "Succeeded", "result": {"_tag": "Switched", "branch": "main", "stashedFiles": 1, "discardedFiles": 0, "savedCommits": 0}})
         );
         assert_eq!(
             serde_json::to_value(skipped(SkipReason::OperationInProgress {
@@ -993,11 +1011,31 @@ mod tests {
 
         match command {
             HubCommand::RunAction {
-                request: ActionRequest::Switch { stash_changes, .. },
+                request:
+                    request @ ActionRequest::Switch {
+                        stash_changes,
+                        discard_changes,
+                        ..
+                    },
                 ..
-            } => assert!(!stash_changes),
+            } => {
+                assert!(!stash_changes);
+                assert!(!discard_changes);
+                assert_eq!(request.tier(), Tier::Git);
+            }
             other => panic!("unexpected {other:?}"),
         }
+
+        let discarding: ActionRequest = serde_json::from_value(json!({
+            "_tag": "Switch",
+            "path": "/p",
+            "branch": "b",
+            "stashChanges": true,
+            "discardChanges": true
+        }))
+        .unwrap();
+
+        assert_eq!(discarding.tier(), Tier::Cleanup);
 
         let configure: HubCommand = serde_json::from_value(json!({
             "_tag": "Configure",

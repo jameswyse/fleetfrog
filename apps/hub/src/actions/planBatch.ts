@@ -6,6 +6,7 @@ import {
   NothingToRun,
   RepositoryNotFound,
 } from "@fleetfrog/protocol/dashboard/rpcs";
+import { requestTier } from "@fleetfrog/protocol/domain/action";
 import { actionBlocker } from "@fleetfrog/protocol/domain/actionAvailability";
 import { ActionScope, BatchRequest } from "@fleetfrog/protocol/domain/activity";
 import { clonePath } from "@fleetfrog/protocol/domain/checkout";
@@ -45,6 +46,7 @@ type PlanError = MachineNotFound | RepositoryNotFound | NothingToRun | NoCloneSo
 const targetPlacements = {
   Switch: "Active",
   Stash: "Active",
+  Discard: "Active",
   DeleteBranches: "Either",
   RemoveWorktree: "Either",
   DropStashes: "Either",
@@ -359,7 +361,7 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
                 machine,
                 ...found,
                 request: targeted,
-                outcome: actionBlocker(machine, kind),
+                outcome: actionBlocker(machine, kind, requestTier(targeted)),
               }));
             }),
         ).pipe(Effect.map((found) => found.flatMap((run) => Option.toArray(run))));

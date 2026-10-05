@@ -30,8 +30,8 @@ use crate::scanner::Scanner;
 
 use super::archive::{Folders, archive_checkout, unarchive_checkout};
 use super::git_actions::{
-    clone_repository, delete_branches, destination_problem, fetch_repository, pull_checkout,
-    purge_branch, restore_branch, stash_changes, switch_branch,
+    clone_repository, delete_branches, destination_problem, discard_changes, fetch_repository,
+    pull_checkout, purge_branch, restore_branch, stash_changes, switch_branch,
 };
 use super::stashes::{drop_stashes, purge_stash, restore_stash};
 use super::trash::{delete_checkout, purge_checkout, restore_checkout, trash_checkout};
@@ -50,8 +50,14 @@ const PROGRESS_INTERVAL: Duration = Duration::from_secs(1);
 enum Work {
     Fetch(CheckoutLocation),
     Pull(CheckoutLocation),
-    Switch(CheckoutLocation, String, bool),
+    Switch {
+        location: CheckoutLocation,
+        branch: String,
+        stash_changes: bool,
+        discard_changes: bool,
+    },
     Stash(CheckoutLocation),
+    Discard(CheckoutLocation),
     DeleteBranches(CheckoutLocation, Vec<BranchAtCommit>),
     DropStashes(CheckoutLocation, Vec<StashAtCommit>),
     RestoreBranch(CheckoutLocation, String),
@@ -65,6 +71,7 @@ enum Work {
         common_directory: String,
         worktree: String,
         fingerprint: String,
+        discard_changes: bool,
     },
     Trash {
         location: CheckoutLocation,
@@ -309,10 +316,15 @@ impl ActionRunner {
                 path,
                 branch,
                 stash_changes,
-            } => with_location(path, false, &|location| {
-                Work::Switch(location, branch.clone(), *stash_changes)
+                discard_changes,
+            } => with_location(path, false, &|location| Work::Switch {
+                location,
+                branch: branch.clone(),
+                stash_changes: *stash_changes,
+                discard_changes: *discard_changes,
             }),
             ActionRequest::Stash { path } => at_checkout(path, false, Work::Stash),
+            ActionRequest::Discard { path } => at_checkout(path, false, Work::Discard),
             ActionRequest::DeleteBranches { path, branches } => {
                 with_location(path, false, &|location| {
                     Work::DeleteBranches(location, branches.clone())
@@ -327,6 +339,7 @@ impl ActionRunner {
                 path,
                 worktree,
                 fingerprint,
+                discard_changes,
             } => match self.main_location(path, worktree) {
                 None => no_checkout(path),
                 Some((path, common_directory)) => Plan::Ready {
@@ -337,6 +350,7 @@ impl ActionRunner {
                         common_directory,
                         worktree: worktree.clone(),
                         fingerprint: fingerprint.clone(),
+                        discard_changes: *discard_changes,
                     },
                 },
             },
@@ -454,10 +468,14 @@ impl ActionRunner {
         let result: Result<ActionOutcome, GitError> = match work {
             Work::Fetch(location) => fetch_repository(location, context).await,
             Work::Pull(location) => pull_checkout(location, context).await,
-            Work::Switch(location, branch, stash) => {
-                switch_branch(location, branch, *stash, context).await
-            }
+            Work::Switch {
+                location,
+                branch,
+                stash_changes,
+                discard_changes,
+            } => switch_branch(location, branch, *stash_changes, *discard_changes, context).await,
             Work::Stash(location) => stash_changes(location, context).await,
+            Work::Discard(location) => discard_changes(location, context).await,
             Work::DeleteBranches(location, branches) => {
                 delete_branches(location, branches, context).await
             }
@@ -477,7 +495,18 @@ impl ActionRunner {
                 common_directory,
                 worktree,
                 fingerprint,
-            } => remove_worktree(path, common_directory, worktree, fingerprint, context).await,
+                discard_changes,
+            } => {
+                remove_worktree(
+                    path,
+                    common_directory,
+                    worktree,
+                    fingerprint,
+                    *discard_changes,
+                    context,
+                )
+                .await
+            }
             Work::Trash {
                 location,
                 fingerprint,
@@ -578,8 +607,9 @@ impl ActionRunner {
             },
             Work::Fetch(location)
             | Work::Pull(location)
-            | Work::Switch(location, ..)
+            | Work::Switch { location, .. }
             | Work::Stash(location)
+            | Work::Discard(location)
             | Work::DeleteBranches(location, _)
             | Work::DropStashes(location, _)
             | Work::RestoreBranch(location, _)

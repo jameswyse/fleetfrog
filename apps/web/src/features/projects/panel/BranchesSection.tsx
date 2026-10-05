@@ -6,7 +6,11 @@ import { useRuns } from "@/rpc/hubConnection.ts";
 import { useMayRun } from "@/rpc/session.ts";
 import { Button } from "@/ui/Button.tsx";
 
-import { machineBlocker, switchSkipReason } from "../../actions/actionAvailability.ts";
+import {
+  hiddenTrashReason,
+  machineBlocker,
+  switchSkipReason,
+} from "../../actions/actionAvailability.ts";
 import { activeRunFor } from "../../actions/runLookup.ts";
 import { useStartBatch } from "../../actions/useStartBatch.ts";
 import {
@@ -101,7 +105,13 @@ export function BranchesSection({
         runs: [
           {
             machineId: machine.id,
-            request: { _tag: "Switch", path: checkout.path, branch, stashChanges: false },
+            request: {
+              _tag: "Switch",
+              path: checkout.path,
+              branch,
+              stashChanges: false,
+              discardChanges: false,
+            },
           },
         ],
       },
@@ -203,6 +213,7 @@ export function BranchesSection({
           checkout={checkout}
           branch={switching}
           changedFiles={git.changed.total}
+          discardUnavailable={hiddenTrashReason(repository, machine, checkout)}
           onClose={() => setSwitching(null)}
         />
       )}

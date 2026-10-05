@@ -90,6 +90,7 @@ export function WorktreesSection({
           machine={machine}
           mainPath={checkout.path}
           worktree={removing.path}
+          discardUnavailable={null}
           onClose={() => setRemoving(null)}
         />
       )}

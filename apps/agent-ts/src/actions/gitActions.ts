@@ -7,7 +7,7 @@ import { ActionOutcome, ActionResult, SkipReason } from "@fleetfrog/protocol/dom
 import { deletedBranchPrefix, parseDeletedRef } from "@fleetfrog/protocol/domain/checkout";
 import { checkCloneDestination, expandHome } from "@fleetfrog/protocol/domain/cloneDestination";
 import { pullBlocker } from "@fleetfrog/protocol/domain/pullEligibility";
-import { stashBlocker } from "@fleetfrog/protocol/domain/stashEligibility";
+import { discardBlocker, stashBlocker } from "@fleetfrog/protocol/domain/stashEligibility";
 import { switchBlocker } from "@fleetfrog/protocol/domain/switchEligibility";
 
 import { isMissingFile } from "../config/agentConfig.ts";
@@ -16,6 +16,7 @@ import { cloneableUrl } from "../git/remoteIdentity.ts";
 import { listWorktrees } from "../git/worktrees.ts";
 import { runGit, runGitAction } from "../process/runTool.ts";
 import { keepDetachedCommits } from "./detachedCommits.ts";
+import { fileCounts, nothingDiscarded, stashTip, trashNewStash } from "./discardedChanges.ts";
 import { failed, failedWith, skipped, succeeded } from "./outcomes.ts";
 
 import type { BranchAtCommit } from "@fleetfrog/protocol/domain/action";
@@ -130,7 +131,11 @@ export function stashDate(now: DateTime.Utc): string {
 export const switchBranch = Effect.fn("switchBranch")(
   function* (
     location: CheckoutLocation,
-    options: { readonly branch: string; readonly stashChanges: boolean },
+    options: {
+      readonly branch: string;
+      readonly stashChanges: boolean;
+      readonly discardChanges: boolean;
+    },
     output: ActionOutput,
   ) {
     const { branch } = options;
@@ -153,12 +158,16 @@ export const switchBranch = Effect.fn("switchBranch")(
       return skipped(SkipReason.cases.BranchInUse.make({}));
     }
 
-    const stashedFiles = git.changed.total;
+    const changedFiles = git.changed.total;
+    let discarded = false;
 
-    if (stashedFiles > 0) {
-      if (!options.stashChanges) {
-        return skipped(SkipReason.cases.UncommittedChanges.make({ files: stashedFiles }));
+    if (changedFiles > 0) {
+      if (!options.stashChanges && !options.discardChanges) {
+        return skipped(SkipReason.cases.UncommittedChanges.make({ files: changedFiles }));
       }
+
+      const verb = options.discardChanges ? "Discarded" : "Stashed";
+      const before = yield* stashTip(location.path);
 
       yield* runGitAction({
         cwd: location.path,
@@ -166,11 +175,21 @@ export const switchBranch = Effect.fn("switchBranch")(
           "stash",
           "push",
           "--message",
-          `Stashed from FleetFrog before switching to ${branch} on ${stashDate(yield* DateTime.now)}`,
+          `${verb} from FleetFrog before switching to ${branch} on ${stashDate(yield* DateTime.now)}`,
         ],
         onOutput: output.write,
       });
+
+      if (options.discardChanges) {
+        discarded = yield* trashNewStash(location.path, before, output);
+      }
     }
+
+    const { stashedFiles, discardedFiles } = fileCounts({
+      files: changedFiles,
+      discardChanges: options.discardChanges,
+      discarded,
+    });
 
     const savedCommits =
       git.head._tag === "Detached" ? yield* keepDetachedCommits(location.path, output) : 0;
@@ -181,7 +200,9 @@ export const switchBranch = Effect.fn("switchBranch")(
       onOutput: output.write,
     });
 
-    return succeeded(ActionResult.cases.Switched.make({ branch, stashedFiles, savedCommits }));
+    return succeeded(
+      ActionResult.cases.Switched.make({ branch, stashedFiles, discardedFiles, savedCommits }),
+    );
   },
   Effect.catchTag("CommandFailed", failedWith),
 );
@@ -209,6 +230,40 @@ export const stashChanges = Effect.fn("stashChanges")(
 
     return succeeded(
       ActionResult.cases.Stashed.make({ files: git.changed.total + git.untracked.total }),
+    );
+  },
+  Effect.catchTag("CommandFailed", failedWith),
+);
+
+export const discardChanges = Effect.fn("discardChanges")(
+  function* (location: CheckoutLocation, output: ActionOutput) {
+    const git = yield* readGitStatus(location);
+    const blocker = discardBlocker(git);
+
+    if (blocker !== null) {
+      return skipped(blocker);
+    }
+
+    const before = yield* stashTip(location.path);
+
+    yield* runGitAction({
+      cwd: location.path,
+      args: [
+        "stash",
+        "push",
+        "--include-untracked",
+        "--message",
+        `Discarded from FleetFrog on ${stashDate(yield* DateTime.now)}`,
+      ],
+      onOutput: output.write,
+    });
+
+    if (!(yield* trashNewStash(location.path, before, output))) {
+      return failed(nothingDiscarded);
+    }
+
+    return succeeded(
+      ActionResult.cases.Discarded.make({ files: git.changed.total + git.untracked.total }),
     );
   },
   Effect.catchTag("CommandFailed", failedWith),

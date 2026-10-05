@@ -1,10 +1,12 @@
 import { Schema } from "effect";
 
 import {
+  actionTiers,
   ActionKind,
   ActionOutcome,
   ActionRequest,
   OutcomeKind,
+  requestTier,
   TargetedRequest,
 } from "./action.ts";
 import { Count } from "./count.ts";
@@ -13,6 +15,8 @@ import { PollingSettings } from "./polling.ts";
 import { RepositoryKey } from "./repositoryIdentity.ts";
 import { IntegrationSettings } from "./t3Code.ts";
 import { UserId } from "./user.ts";
+
+import type { Tier } from "./action.ts";
 
 export const BatchId = Schema.String.pipe(Schema.check(Schema.isUUID()), Schema.brand("BatchId"));
 export type BatchId = typeof BatchId.Type;
@@ -84,6 +88,17 @@ export function batchKind(request: BatchRequest): ActionKind {
   }
 
   return request._tag === "CloneRepositories" ? "Clone" : request._tag;
+}
+
+export function batchTier(request: BatchRequest): Tier {
+  if (
+    request._tag === "Targeted" &&
+    request.runs.some((run) => requestTier(run.request) === "cleanup")
+  ) {
+    return "cleanup";
+  }
+
+  return actionTiers[batchKind(request)];
 }
 
 export const BatchScope = Schema.TaggedUnion({

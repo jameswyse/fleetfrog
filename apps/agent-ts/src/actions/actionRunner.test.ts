@@ -1,6 +1,14 @@
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "@effect/vitest";
@@ -17,6 +25,7 @@ import { makeScanner } from "../scheduling/scanner.ts";
 import { temporaryDirectory } from "../testing/temporaryDirectory.ts";
 import { listTrash } from "../trash/trashFolder.ts";
 import { makeActionRunner } from "./actionRunner.ts";
+import { nothingDiscarded } from "./discardedChanges.ts";
 
 import type { ScanReport } from "@fleetfrog/protocol/agent/rpcs";
 import type { ActionRequest, ActionUpdate } from "@fleetfrog/protocol/domain/action";
@@ -376,7 +385,13 @@ describe("action runner", () => {
       writeFileSync(path.join(clone, "notes.txt"), "untracked\n");
 
       expect(
-        yield* run({ _tag: "Switch", path: clone, branch: "feature", stashChanges: false }),
+        yield* run({
+          _tag: "Switch",
+          path: clone,
+          branch: "feature",
+          stashChanges: false,
+          discardChanges: false,
+        }),
       ).toMatchObject({
         outcome: { _tag: "Succeeded", result: { _tag: "Switched", branch: "feature" } },
       });
@@ -392,7 +407,13 @@ describe("action runner", () => {
       writeFileSync(path.join(clone, "readme.md"), "edited\n");
 
       expect(
-        yield* run({ _tag: "Switch", path: clone, branch: "feature", stashChanges: false }),
+        yield* run({
+          _tag: "Switch",
+          path: clone,
+          branch: "feature",
+          stashChanges: false,
+          discardChanges: false,
+        }),
       ).toMatchObject({
         outcome: { _tag: "Skipped", reason: { _tag: "UncommittedChanges", files: 1 } },
       });
@@ -408,7 +429,13 @@ describe("action runner", () => {
       writeFileSync(path.join(clone, "readme.md"), "edited\n");
 
       expect(
-        yield* run({ _tag: "Switch", path: clone, branch: "feature", stashChanges: true }),
+        yield* run({
+          _tag: "Switch",
+          path: clone,
+          branch: "feature",
+          stashChanges: true,
+          discardChanges: false,
+        }),
       ).toMatchObject({
         outcome: {
           _tag: "Succeeded",
@@ -431,7 +458,13 @@ describe("action runner", () => {
       const sha = git(clone, "rev-parse", "HEAD");
 
       expect(
-        yield* run({ _tag: "Switch", path: clone, branch: "main", stashChanges: false }),
+        yield* run({
+          _tag: "Switch",
+          path: clone,
+          branch: "main",
+          stashChanges: false,
+          discardChanges: false,
+        }),
       ).toMatchObject({
         outcome: { _tag: "Succeeded", result: { _tag: "Switched", savedCommits: 1 } },
       });
@@ -448,7 +481,13 @@ describe("action runner", () => {
       git(clone, "worktree", "add", "-q", "-b", "feature", path.join(root, "feature"));
 
       expect(
-        yield* run({ _tag: "Switch", path: clone, branch: "feature", stashChanges: false }),
+        yield* run({
+          _tag: "Switch",
+          path: clone,
+          branch: "feature",
+          stashChanges: false,
+          discardChanges: false,
+        }),
       ).toMatchObject({
         outcome: { _tag: "Skipped", reason: { _tag: "BranchInUse" } },
       });
@@ -468,6 +507,104 @@ describe("action runner", () => {
       expect(git(clone, "status", "--porcelain")).toBe("");
       expect(git(clone, "stash", "list")).toContain("Stashed from FleetFrog");
     }),
+  );
+
+  it.effect(
+    "discards tracked and untracked changes into the trash, where they can be restored",
+    () =>
+      Effect.gen(function* () {
+        const { run, clone } = yield* setUp(withCleanup);
+
+        writeFileSync(path.join(clone, "readme.md"), "edited\n");
+        writeFileSync(path.join(clone, "notes.txt"), "untracked\n");
+
+        expect(yield* run({ _tag: "Discard", path: clone })).toMatchObject({
+          outcome: { _tag: "Succeeded", result: { _tag: "Discarded", files: 2 } },
+        });
+        expect(git(clone, "status", "--porcelain")).toBe("");
+        expect(git(clone, "stash", "list")).toBe("");
+
+        const ref = git(clone, "for-each-ref", "--format=%(refname)", "refs/fleetfrog/stashes");
+
+        expect(
+          yield* run(
+            { _tag: "Restore", target: { _tag: "Stash", path: clone, ref } },
+            runIds.second,
+          ),
+        ).toMatchObject({ outcome: { _tag: "Succeeded", result: { _tag: "Restored" } } });
+
+        git(clone, "stash", "pop", "-q");
+
+        expect(readFileSync(path.join(clone, "readme.md"), "utf8")).toBe("edited\n");
+        expect(existsSync(path.join(clone, "notes.txt"))).toBe(true);
+      }),
+  );
+
+  it.effect("leaves an older stash alone when Git finds nothing it can discard", () =>
+    Effect.gen(function* () {
+      const { run, clone, upstream } = yield* setUp(withCleanup);
+
+      writeFileSync(path.join(clone, "readme.md"), "kept in a stash\n");
+      git(clone, "stash", "push", "-q", "-m", "user stash");
+      git(clone, "-c", "protocol.file.allow=always", "submodule", "add", "-q", upstream, "sub");
+      git(clone, "commit", "-q", "-m", "Add submodule");
+      writeFileSync(path.join(clone, "sub", "readme.md"), "submodule edit\n");
+
+      expect(yield* run({ _tag: "Discard", path: clone })).toMatchObject({
+        outcome: { _tag: "Failed", message: nothingDiscarded },
+      });
+      expect(git(clone, "stash", "list")).toContain("user stash");
+      expect(git(clone, "for-each-ref", "refs/fleetfrog/stashes")).toBe("");
+    }),
+  );
+
+  it.effect("has nothing to discard in a clean checkout", () =>
+    Effect.gen(function* () {
+      const { run, clone } = yield* setUp(withCleanup);
+
+      expect(yield* run({ _tag: "Discard", path: clone })).toMatchObject({
+        outcome: { _tag: "Skipped", reason: { _tag: "NoChanges" } },
+      });
+    }),
+  );
+
+  it.effect(
+    "discards changes to tracked files before switching only where cleanup is allowed",
+    () =>
+      Effect.gen(function* () {
+        const request = {
+          _tag: "Switch",
+          branch: "feature",
+          stashChanges: false,
+          discardChanges: true,
+        } as const;
+
+        const gitOnly = yield* setUp();
+
+        git(gitOnly.clone, "branch", "feature");
+        writeFileSync(path.join(gitOnly.clone, "readme.md"), "edited\n");
+
+        expect(yield* gitOnly.run({ ...request, path: gitOnly.clone })).toMatchObject({
+          outcome: { _tag: "Skipped", reason: { _tag: "NotAllowed", tier: "cleanup" } },
+        });
+
+        const { run, clone } = yield* setUp(withCleanup);
+
+        git(clone, "branch", "feature");
+        writeFileSync(path.join(clone, "readme.md"), "edited\n");
+
+        expect(yield* run({ ...request, path: clone })).toMatchObject({
+          outcome: {
+            _tag: "Succeeded",
+            result: { _tag: "Switched", stashedFiles: 0, discardedFiles: 1 },
+          },
+        });
+        expect(git(clone, "branch", "--show-current")).toBe("feature");
+        expect(git(clone, "stash", "list")).toBe("");
+        expect(
+          git(clone, "for-each-ref", "--format=%(refname)", "refs/fleetfrog/stashes"),
+        ).not.toBe("");
+      }),
   );
 
   it.effect("moves branches to the trash and restores them at the same commit", () =>
@@ -664,6 +801,7 @@ describe("action runner", () => {
           path: clone,
           worktree: detached,
           fingerprint: lonely.fingerprint,
+          discardChanges: false,
         }),
       ).toMatchObject({
         outcome: { _tag: "Succeeded", result: { _tag: "WorktreeRemoved", savedCommits: 1 } },
@@ -680,11 +818,44 @@ describe("action runner", () => {
             path: clone,
             worktree: secrets,
             fingerprint: withSecrets.fingerprint,
+            discardChanges: false,
           },
           runIds.second,
         ),
       ).toMatchObject({ outcome: { _tag: "Skipped", reason: { _tag: "ChangedSinceInspection" } } });
       expect(existsSync(secrets)).toBe(true);
+    }),
+  );
+
+  it.effect("discards a worktree's changes into the trash instead of stashing when asked", () =>
+    Effect.gen(function* () {
+      const { run, clone, root, inspectWorktree } = yield* setUp(withCleanup);
+      const feature = path.join(root, "feature");
+
+      git(clone, "worktree", "add", "-q", "-b", "feature", feature);
+      writeFileSync(path.join(feature, "notes.txt"), "work in progress\n");
+
+      const inspection = yield* inspectWorktree(clone, feature);
+
+      expect(
+        yield* run({
+          _tag: "RemoveWorktree",
+          path: clone,
+          worktree: feature,
+          fingerprint: inspection.fingerprint,
+          discardChanges: true,
+        }),
+      ).toMatchObject({
+        outcome: {
+          _tag: "Succeeded",
+          result: { _tag: "WorktreeRemoved", stashedFiles: 0, discardedFiles: 1 },
+        },
+      });
+      expect(existsSync(feature)).toBe(false);
+      expect(git(clone, "stash", "list")).toBe("");
+      expect(
+        git(clone, "for-each-ref", "--format=%(contents:subject)", "refs/fleetfrog/stashes"),
+      ).toContain("Discarded from FleetFrog before removing the worktree");
     }),
   );
 
@@ -742,7 +913,7 @@ describe("action runner", () => {
         const { fingerprint } = yield* harness.inspectWorktree(main, worktree);
 
         return yield* harness.run(
-          { _tag: "RemoveWorktree", path: main, worktree, fingerprint },
+          { _tag: "RemoveWorktree", path: main, worktree, fingerprint, discardChanges: false },
           runId,
         );
       });

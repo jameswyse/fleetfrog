@@ -6,12 +6,10 @@ import {
   ArrowUpIcon,
   CloudDownloadIcon,
   FolderDownIcon,
-  FolderSearchIcon,
   PencilIcon,
   Trash2Icon,
 } from "lucide-react";
 
-import { requestHub } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
 import { Dialog } from "@/ui/Dialog.tsx";
 import { Menu, MenuItem } from "@/ui/Menu.tsx";
@@ -29,7 +27,6 @@ import { sectionTitle } from "./projectLayout.ts";
 import { changeProjectLayout, useProjectLayout } from "./projectLayoutStore.ts";
 
 import type { Fleet, Repository } from "@fleetfrog/protocol/domain/fleet";
-import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 import type { ProjectGroup } from "@fleetfrog/protocol/domain/projectLayout";
 
 import type { ProjectSection } from "./projectLayout.ts";
@@ -100,14 +97,11 @@ export function SectionActions({
   const layout = useProjectLayout();
   const [dialog, setDialog] = useState<SectionDialog | null>(null);
   const fetching = useStartBatch();
-  const [rescanning, startRescan] = useTransition();
-  const [rescanFailure, setRescanFailure] = useState<string | null>(null);
   const title = sectionTitle(section);
   const group = section._tag === "Group" ? section.group : null;
   const groupIndex = group === null ? -1 : layout.groups.findIndex(({ id }) => id === group.id);
   const above = groupIndex > 0 ? layout.groups[groupIndex - 1] : undefined;
   const below = groupIndex === -1 ? undefined : layout.groups[groupIndex + 1];
-  const machines = new Map(fleet.machines.map((machine) => [machine.id, machine]));
   const [first, ...others] = repositories.map(({ key }) => key);
 
   const scope =
@@ -119,12 +113,6 @@ export function SectionActions({
           repositoryKeys: [first, ...others],
         } as const);
 
-  const holders: ReadonlyArray<MachineId> = [
-    ...new Set(
-      repositories.flatMap(({ checkouts }) => checkouts.map(({ machineId }) => machineId)),
-    ),
-  ];
-
   const canClone = fleet.machines.some(
     (machine) =>
       cloneBlocker(machine) === null &&
@@ -135,14 +123,10 @@ export function SectionActions({
       ),
   );
 
-  const online = holders.filter(
-    (machineId) => machines.get(machineId)?.connection._tag === "Online",
-  );
-
   const count = plural(repositories.length, "repository", "repositories");
 
   const failure =
-    fetching.failure === null ? rescanFailure : `Couldn't start the fetch. ${fetching.failure}`;
+    fetching.failure === null ? null : `Couldn't start the fetch. ${fetching.failure}`;
 
   const open = (next: SectionDialog, close: () => void) => {
     close();
@@ -182,34 +166,6 @@ export function SectionActions({
                   onClick={() => open("clone", close)}
                 >
                   Clone to a machine…
-                </MenuItem>
-                <MenuItem
-                  icon={<FolderSearchIcon />}
-                  disabled={!live || online.length === 0 || rescanning}
-                  onClick={() =>
-                    startRescan(async () => {
-                      const [head, ...rest] = online;
-
-                      if (head === undefined) {
-                        return;
-                      }
-
-                      const result = await requestHub((client) =>
-                        client.Refresh({
-                          target: { _tag: "Machines", machineIds: [head, ...rest] },
-                        }),
-                      );
-
-                      if (result._tag === "Failure") {
-                        setRescanFailure(`Couldn't start a rescan. ${result.message}`);
-                      } else {
-                        setRescanFailure(null);
-                        close();
-                      }
-                    })
-                  }
-                >
-                  {rescanning ? "Requesting rescan…" : `Rescan ${plural(online.length, "machine")}`}
                 </MenuItem>
               </>
             )}

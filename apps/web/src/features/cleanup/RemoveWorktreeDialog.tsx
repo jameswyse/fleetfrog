@@ -10,6 +10,7 @@ import { plural } from "@/ui/plural.ts";
 import { Spinner } from "@/ui/Spinner.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
+import { ChangesChoice } from "../actions/ChangesChoice.tsx";
 import { useStartBatch } from "../actions/useStartBatch.ts";
 import { busyThreads, worktreeThread } from "../t3Code/t3CodeLookup.ts";
 import { BusyThreadsNotice, WorktreeThreadNote } from "../t3Code/T3CodeNotices.tsx";
@@ -17,6 +18,8 @@ import { BusyThreadsNotice, WorktreeThreadNote } from "../t3Code/T3CodeNotices.t
 import type { HubResult } from "@/rpc/hubConnection.ts";
 import type { Machine } from "@fleetfrog/protocol/domain/fleet";
 import type { InspectionResult, WorktreeInspection } from "@fleetfrog/protocol/domain/trash";
+
+import type { ChangesHandling } from "../actions/ChangesChoice.tsx";
 
 type InspectionState =
   | { readonly _tag: "Checking" }
@@ -42,20 +45,7 @@ function stateFrom(result: HubResult<InspectionResult>): InspectionState {
 
 function keptWork(inspection: WorktreeInspection): ReadonlyArray<string> {
   const lines: Array<string> = [];
-  const { changedFiles, untrackedFiles, unreachableCommits, locked } = inspection;
-
-  if (changedFiles + untrackedFiles > 0) {
-    const parts = [
-      changedFiles > 0 && plural(changedFiles, "changed file"),
-      untrackedFiles > 0 && plural(untrackedFiles, "untracked file"),
-    ].filter((part) => part !== false);
-
-    const one = changedFiles + untrackedFiles === 1;
-
-    lines.push(
-      `Its ${parts.join(" and ")} ${one ? "is" : "are"} stashed first, so you can bring ${one ? "it" : "them"} back from the Stashes list.`,
-    );
-  }
+  const { unreachableCommits, locked } = inspection;
 
   if (unreachableCommits > 0) {
     lines.push(
@@ -89,15 +79,30 @@ function MissingNote({ parentMissing }: { readonly parentMissing: boolean }) {
   );
 }
 
+function changesSummary({ changedFiles, untrackedFiles }: WorktreeInspection): string {
+  const parts = [
+    changedFiles > 0 && plural(changedFiles, "changed file"),
+    untrackedFiles > 0 && plural(untrackedFiles, "untracked file"),
+  ].filter((part) => part !== false);
+
+  return `It has ${parts.join(" and ")}.`;
+}
+
 function InspectionDetails({
   inspection,
   machine,
+  handling,
+  onHandlingChange,
+  discardUnavailable,
 }: {
   readonly inspection: WorktreeInspection;
   readonly machine: Machine;
+  readonly handling: ChangesHandling;
+  readonly onHandlingChange: (next: ChangesHandling) => void;
+  readonly discardUnavailable: string | null;
 }) {
   const kept = keptWork(inspection);
-  const { ignored, caches } = inspection;
+  const { ignored, caches, changedFiles, untrackedFiles } = inspection;
 
   return (
     <>
@@ -112,6 +117,19 @@ function InspectionDetails({
             .map(({ path }) => path)
             .join(" and ")} go too, and tools rebuild them.`}
       </p>
+      {changedFiles + untrackedFiles > 0 && (
+        <>
+          <p>{changesSummary(inspection)}</p>
+          <ChangesChoice
+            machine={machine}
+            value={handling}
+            onChange={onHandlingChange}
+            stash="They go into a stash first, and you can bring them back from the Stashes list."
+            discard="They go to the Trash instead of the Stashes list."
+            unavailable={discardUnavailable}
+          />
+        </>
+      )}
       {kept.length > 0 && (
         <ul className="ms-5 list-disc space-y-1">
           {kept.map((line) => (
@@ -144,15 +162,18 @@ export function RemoveWorktreeDialog({
   machine,
   mainPath,
   worktree,
+  discardUnavailable,
   onClose,
 }: {
   readonly machine: Machine;
   readonly mainPath: string;
   readonly worktree: string;
+  readonly discardUnavailable: string | null;
   readonly onClose: () => void;
 }) {
   const { start, pending, failure } = useStartBatch();
   const [state, setState] = useState<InspectionState>({ _tag: "Checking" });
+  const [handling, setHandling] = useState<ChangesHandling>("Stash");
 
   useEffect(() => {
     let current = true;
@@ -178,6 +199,17 @@ export function RemoveWorktreeDialog({
 
   const agents = busyThreads(machine, [worktree]);
 
+  const discarding =
+    handling === "Discard" &&
+    inspection !== null &&
+    inspection.changedFiles + inspection.untrackedFiles > 0;
+
+  let submitLabel = discarding ? "Discard changes and remove" : "Remove worktree";
+
+  if (pending) {
+    submitLabel = "Starting…";
+  }
+
   return (
     <Dialog title="Remove this worktree?" onClose={onClose}>
       <div className="space-y-4 text-sm">
@@ -186,7 +218,7 @@ export function RemoveWorktreeDialog({
           <BusyThreadsNotice
             threads={agents}
             where="in this worktree"
-            consequence="Removing it stashes the changes it's making and deletes the folder it works in."
+            consequence={`Removing it ${discarding ? "discards" : "stashes"} the changes it's making and deletes the folder it works in.`}
           />
         ) : (
           <WorktreeThreadNote thread={worktreeThread(machine, worktree)} />
@@ -204,7 +236,13 @@ export function RemoveWorktreeDialog({
         )}
         {inspection !== null &&
           (inspection.missing === null ? (
-            <InspectionDetails inspection={inspection} machine={machine} />
+            <InspectionDetails
+              inspection={inspection}
+              machine={machine}
+              handling={handling}
+              onHandlingChange={setHandling}
+              discardUnavailable={discardUnavailable}
+            />
           ) : (
             <MissingNote parentMissing={inspection.missing.parentMissing} />
           ))}
@@ -229,6 +267,7 @@ export function RemoveWorktreeDialog({
                           path: mainPath,
                           worktree,
                           fingerprint: inspection.fingerprint,
+                          discardChanges: discarding,
                         },
                       },
                     ],
@@ -237,7 +276,7 @@ export function RemoveWorktreeDialog({
                 )
               }
             >
-              {pending ? "Starting…" : "Remove worktree"}
+              {submitLabel}
             </Button>
           )}
         </div>

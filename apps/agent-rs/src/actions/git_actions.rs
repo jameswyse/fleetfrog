@@ -13,6 +13,7 @@ use crate::time::{Utc, stash_date};
 
 use super::Context;
 use super::detached::keep_detached_commits;
+use super::stashes::{stash_tip, trash_new_stash};
 
 /// Why a pull would skip this checkout, or None when it can go ahead. A pull only fast-forwards,
 /// so the checkout must be on a branch with an upstream, with nothing to push and no changes to
@@ -57,6 +58,13 @@ pub fn stash_blocker(git: &GitStatus) -> Option<SkipReason> {
         Some(SkipReason::NothingToStash)
     } else {
         None
+    }
+}
+
+pub fn discard_blocker(git: &GitStatus) -> Option<SkipReason> {
+    match stash_blocker(git) {
+        Some(SkipReason::NothingToStash) => Some(SkipReason::NoChanges),
+        blocker => blocker,
     }
 }
 
@@ -165,6 +173,8 @@ pub async fn ref_commit(path: &str, name: &str) -> Option<String> {
 }
 
 /// Files in a worktree's Git directory naming a branch an operation is part-way through.
+const NOTHING_DISCARDED: &str = "Git found no changes it could stash, so nothing was discarded. Changes inside a submodule have to be discarded in the submodule.";
+
 const OPERATION_BRANCH_FILES: [&str; 3] = [
     "rebase-merge/head-name",
     "rebase-apply/head-name",
@@ -205,12 +215,14 @@ async fn is_branch_name(path: &str, name: &str) -> bool {
 }
 
 /// Switches the checkout to one of its local branches, which no other worktree may have checked
-/// out. Changes to tracked files are stashed first with `stash_changes`, and otherwise stop the
-/// switch. Commits only a detached HEAD holds go to the trash.
+/// out. Changes to tracked files are stashed first with `stash_changes`, moved to the trash with
+/// `discard_changes`, and otherwise stop the switch. Commits only a detached HEAD holds go to the
+/// trash.
 pub async fn switch_branch(
     location: &CheckoutLocation,
     branch: &str,
     stash_changes: bool,
+    discard_changes: bool,
     context: &Context<'_>,
 ) -> Result<ActionOutcome, GitError> {
     let status = git::read_git_status(location).await?;
@@ -231,20 +243,28 @@ pub async fn switch_branch(
         return Ok(skipped(SkipReason::BranchInUse));
     }
 
-    let stashed_files = status.changed.total;
+    let changed_files = status.changed.total;
+    let mut discarded = false;
 
-    if stashed_files > 0 {
-        if !stash_changes {
+    if changed_files > 0 {
+        if !stash_changes && !discard_changes {
             return Ok(skipped(SkipReason::UncommittedChanges {
-                files: stashed_files,
+                files: changed_files,
             }));
         }
 
         // Untracked files stay, as they would for a switch without changes.
+        let verb = if discard_changes {
+            "Discarded"
+        } else {
+            "Stashed"
+        };
         let message = format!(
-            "Stashed from FleetFrog before switching to {branch} on {}",
+            "{verb} from FleetFrog before switching to {branch} on {}",
             stash_date(Utc::now())
         );
+
+        let before = stash_tip(&location.path).await?;
 
         run_git_action(
             GitAction::new(
@@ -255,6 +275,10 @@ pub async fn switch_branch(
             context.cancel,
         )
         .await?;
+
+        if discard_changes {
+            discarded = trash_new_stash(&location.path, before.as_deref(), context).await?;
+        }
     }
 
     let saved_commits = if status.head == Head::Detached {
@@ -273,9 +297,16 @@ pub async fn switch_branch(
     )
     .await?;
 
+    let (stashed_files, discarded_files) = match (discard_changes, discarded) {
+        (false, _) => (changed_files, 0),
+        (true, true) => (0, changed_files),
+        (true, false) => (0, 0),
+    };
+
     Ok(succeeded(ActionResult::Switched {
         branch: branch.to_string(),
         stashed_files,
+        discarded_files,
         saved_commits,
     }))
 }
@@ -311,6 +342,44 @@ pub async fn stash_changes(
     .await?;
 
     Ok(succeeded(ActionResult::Stashed {
+        files: status.changed.total + status.untracked.total,
+    }))
+}
+
+pub async fn discard_changes(
+    location: &CheckoutLocation,
+    context: &Context<'_>,
+) -> Result<ActionOutcome, GitError> {
+    let status = git::read_git_status(location).await?;
+
+    if let Some(reason) = discard_blocker(&status) {
+        return Ok(skipped(reason));
+    }
+
+    let message = format!("Discarded from FleetFrog on {}", stash_date(Utc::now()));
+    let before = stash_tip(&location.path).await?;
+
+    run_git_action(
+        GitAction::new(
+            &location.path,
+            &[
+                "stash",
+                "push",
+                "--include-untracked",
+                "--message",
+                &message,
+            ],
+            context.output,
+        ),
+        context.cancel,
+    )
+    .await?;
+
+    if !trash_new_stash(&location.path, before.as_deref(), context).await? {
+        return Ok(failed(NOTHING_DISCARDED));
+    }
+
+    Ok(succeeded(ActionResult::Discarded {
         files: status.changed.total + status.untracked.total,
     }))
 }

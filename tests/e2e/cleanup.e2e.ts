@@ -70,6 +70,34 @@ test("[deterministic] stash tracked and untracked files, drop to trash and resto
   expect(git(fixtures.stash, "rev-parse", "stash@{0}")).toBe(sha);
 });
 
+test("[deterministic] discard changes moves them to the trash and restores them as a stash", async ({
+  app,
+  screen,
+}) => {
+  requireIsolatedTrash();
+  await openCheckout(app, screen, "discard-project");
+  await screen.getByRole("button", { name: "More actions for this checkout" }).click();
+  await screen.getByRole("button", { name: "Discard changes…", exact: true }).click();
+  const dialog = screen.getByRole("dialog", { name: "Discard changes in discard-project?" });
+  await expect(dialog).toContainText("1 changed file and 1 untracked file");
+  await expect(dialog).toContainText("Cleanup → Trash");
+  await dialog.getByRole("button", { name: "Discard 2 files", exact: true }).click();
+  await expect.poll(() => git(fixtures.discard, "status", "--porcelain")).toBe("");
+  expect(readFileSync(path.join(fixtures.discard, "README.md"), "utf8")).toBe("discard-project\n");
+  expect(existsSync(path.join(fixtures.discard, "notes.txt"))).toBe(false);
+  expect(readFileSync(path.join(fixtures.discard, "ignored.txt"), "utf8")).toBe(
+    "Ignored content to keep\n",
+  );
+  expect(git(fixtures.discard, "stash", "list")).toBe("");
+  await app.open("/cleanup/trash");
+  const entry = screen.getByRole("listitem").filter({ hasText: "Stash in discard-project" });
+  await expect(entry).toBeVisible();
+  await entry.getByRole("button", { name: "Restore", exact: true }).click();
+  await expect(entry).toBeHidden();
+  expect(git(fixtures.discard, "show", "stash@{0}:README.md")).toBe("Tracked changes to discard");
+  expect(git(fixtures.discard, "show", "stash@{0}^3:notes.txt")).toBe("Untracked notes to discard");
+});
+
 test("[deterministic] tidy branches protects the current branch and restores local-only commits", async ({
   app,
   screen,
@@ -191,7 +219,7 @@ test("[deterministic] worktree removal stashes changes and preserves its branch"
   await screen.getByRole("button", { name: "Remove worktree…", exact: true }).click();
   const dialog = screen.getByRole("dialog", { name: "Remove this worktree?", exact: true });
   await expect(dialog).toContainText("ignored.txt");
-  await expect(dialog).toContainText("stashed first");
+  await expect(dialog.getByRole("radio", { name: /Stash them/ })).toBeChecked();
   await dialog.getByRole("button", { name: "Remove worktree", exact: true }).click();
   await expect.poll(() => existsSync(fixtures.removableWorktree)).toBe(false);
   expect(git(fixtures.removeWorktree, "branch", "--list", "feature/e2e")).toContain("feature/e2e");

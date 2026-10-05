@@ -15,7 +15,7 @@ import {
   viewerRole,
   WrongPassword,
 } from "@fleetfrog/protocol/dashboard/rpcs";
-import { batchKind } from "@fleetfrog/protocol/domain/activity";
+import { batchTier } from "@fleetfrog/protocol/domain/activity";
 import { checkArchiveFolder } from "@fleetfrog/protocol/domain/archiveFolder";
 import { FolderOutcome, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 import { mayRun } from "@fleetfrog/protocol/domain/user";
@@ -121,10 +121,6 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
           All: () => sessions.refresh("all"),
           Machine: ({ machineId }) =>
             machines.find(machineId).pipe(Effect.andThen(sessions.refresh([machineId]))),
-          Machines: ({ machineIds }) =>
-            Effect.forEach(machineIds, machines.find).pipe(
-              Effect.andThen(sessions.refresh(machineIds)),
-            ),
         }),
       RenameMachine: (rename) =>
         Effect.gen(function* () {
@@ -236,7 +232,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
       CreatePairingOffer: () => offers.create,
       StartBatch: ({ request }) =>
         Effect.gen(function* () {
-          if (!mayRun(viewerRole(yield* CurrentViewer), batchKind(request))) {
+          if (!mayRun(viewerRole(yield* CurrentViewer), batchTier(request))) {
             return yield* new Forbidden();
           }
 

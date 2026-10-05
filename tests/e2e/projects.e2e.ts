@@ -51,9 +51,9 @@ test("[deterministic] switching a dirty checkout preserves the changes in a stas
     .getByRole("button", { name: /main/ })
     .click();
   await screen.getByRole("button", { name: "Switch to feature/e2e", exact: true }).click();
-  const dialog = screen.getByRole("dialog", { name: "Stash changes and switch to feature/e2e?" });
+  const dialog = screen.getByRole("dialog", { name: "Switch to feature/e2e?" });
 
-  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("radio", { name: /Stash them/ })).toBeChecked();
   await dialog.getByRole("button", { name: "Stash and switch" }).click();
   await expect(dialog).toBeHidden();
   await expect(screen.getByRole("button", { name: "Switch to main", exact: true })).toBeVisible();
@@ -64,6 +64,32 @@ test("[deterministic] switching a dirty checkout preserves the changes in a stas
     "Uncommitted fixture changes",
   );
   expect(git(fixtures.dirtySwitch, "status", "--porcelain")).toBe("");
+});
+
+test("[deterministic] switching can discard the changes into the trash instead", async ({
+  app,
+  screen,
+}) => {
+  await app.open("/");
+  await screen
+    .getByRole("row", { name: /discard-switch-project/ })
+    .getByRole("button", { name: /main/ })
+    .click();
+  await screen.getByRole("button", { name: "Switch to feature/e2e", exact: true }).click();
+  const dialog = screen.getByRole("dialog", { name: "Switch to feature/e2e?" });
+
+  await dialog.getByRole("radio", { name: /Discard them/ }).check();
+  await expect(dialog).toContainText("Cleanup → Trash");
+  await dialog.getByRole("button", { name: "Discard and switch" }).click();
+  await expect(dialog).toBeHidden();
+  await expect
+    .poll(() => git(fixtures.discardSwitch, "branch", "--show-current"))
+    .toBe("feature/e2e");
+  expect(git(fixtures.discardSwitch, "stash", "list")).toBe("");
+  expect(git(fixtures.discardSwitch, "status", "--porcelain")).toBe("");
+  expect(
+    git(fixtures.discardSwitch, "for-each-ref", "--format=%(refname)", "refs/fleetfrog/stashes"),
+  ).toMatch(/^refs\/fleetfrog\/stashes\//);
 });
 
 test("[deterministic] pull fast-forwards from a local bare remote", async ({ app, screen }) => {

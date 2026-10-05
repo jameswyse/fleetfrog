@@ -15,3 +15,9 @@ export function stashBlocker(git: GitStatus): SkipReason | null {
     ? SkipReason.cases.NothingToStash.make({})
     : null;
 }
+
+export function discardBlocker(git: GitStatus): SkipReason | null {
+  const blocker = stashBlocker(git);
+
+  return blocker?._tag === "NothingToStash" ? SkipReason.cases.NoChanges.make({}) : blocker;
+}

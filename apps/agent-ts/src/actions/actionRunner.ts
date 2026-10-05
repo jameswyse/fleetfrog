@@ -9,7 +9,7 @@ import {
   ActionUpdate,
   SkipReason,
   TrashTarget,
-  actionTiers,
+  requestTier,
 } from "@fleetfrog/protocol/domain/action";
 import { checkCloneDestination } from "@fleetfrog/protocol/domain/cloneDestination";
 import { InspectionResult } from "@fleetfrog/protocol/domain/trash";
@@ -27,6 +27,7 @@ import {
   pullCheckout,
   purgeBranch,
   restoreBranch,
+  discardChanges,
   stashChanges,
   switchBranch,
 } from "./gitActions.ts";
@@ -78,6 +79,7 @@ const interruption = {
   Clone: "Cancellable",
   Switch: "Atomic",
   Stash: "Atomic",
+  Discard: "Atomic",
   DeleteBranches: "Atomic",
   RemoveWorktree: "Atomic",
   DropStashes: "Atomic",
@@ -237,7 +239,11 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
 
   const worktreeRemovalPlan = (
     path: string,
-    removal: { readonly worktree: string; readonly fingerprint: string },
+    removal: {
+      readonly worktree: string;
+      readonly fingerprint: string;
+      readonly discardChanges: boolean;
+    },
   ): Plan => {
     const location = mainLocation(path, removal.worktree);
 
@@ -280,8 +286,9 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
       Switch: ({ path, ...target }) =>
         checkoutPlan(path, "Local", (location, output) => switchBranch(location, target, output)),
       Stash: ({ path }) => checkoutPlan(path, "Local", stashChanges),
-      RemoveWorktree: ({ path, worktree, fingerprint }) =>
-        worktreeRemovalPlan(path, { worktree, fingerprint }),
+      Discard: ({ path }) => checkoutPlan(path, "Local", discardChanges),
+      RemoveWorktree: ({ path, worktree, fingerprint, discardChanges: discard }) =>
+        worktreeRemovalPlan(path, { worktree, fingerprint, discardChanges: discard }),
       DropStashes: ({ path, stashes }) =>
         checkoutPlan(path, "Local", (location, output) => dropStashes(location, stashes, output)),
       Archive: ({ path }) => movePlan(path, "Projects", archiveCheckout),
@@ -477,7 +484,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
     settle: (performed: Performed) => void,
   ) =>
     Effect.gen(function* () {
-      const tier = actionTiers[request._tag];
+      const tier = requestTier(request);
       const refusal = yield* policyRefusal(tier);
 
       if (refusal !== null) {

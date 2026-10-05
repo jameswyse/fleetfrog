@@ -33,13 +33,20 @@ export const ActionRequest = Schema.TaggedUnion({
     path: Schema.String,
     branch: RefName,
     stashChanges: Schema.Boolean.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(false))),
+    discardChanges: Schema.Boolean.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(false))),
   },
   Stash: { path: Schema.String },
+  Discard: { path: Schema.String },
   DeleteBranches: {
     path: Schema.String,
     branches: Schema.NonEmptyArray(BranchAtCommit).check(Schema.isMaxLength(maximumListedItems)),
   },
-  RemoveWorktree: { path: Schema.String, worktree: Schema.String, fingerprint: Schema.String },
+  RemoveWorktree: {
+    path: Schema.String,
+    worktree: Schema.String,
+    fingerprint: Schema.String,
+    discardChanges: Schema.Boolean.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(false))),
+  },
   DropStashes: {
     path: Schema.String,
     stashes: Schema.NonEmptyArray(Schema.Struct({ index: Count, sha: Schema.String })).check(
@@ -67,6 +74,7 @@ export const ActionKind = Schema.Literals([
   "Clone",
   "Switch",
   "Stash",
+  "Discard",
   "DeleteBranches",
   "RemoveWorktree",
   "DropStashes",
@@ -85,6 +93,7 @@ export const actionTiers = {
   Clone: "git",
   Switch: "git",
   Stash: "git",
+  Discard: "cleanup",
   DeleteBranches: "cleanup",
   RemoveWorktree: "cleanup",
   DropStashes: "cleanup",
@@ -96,9 +105,16 @@ export const actionTiers = {
   Purge: "cleanup",
 } as const satisfies Record<ActionRequest["_tag"], Tier>;
 
+export function requestTier(request: ActionRequest): Tier {
+  return request._tag === "Switch" && request.discardChanges
+    ? "cleanup"
+    : actionTiers[request._tag];
+}
+
 export const TargetedRequest = Schema.Union([
   ActionRequest.cases.Switch,
   ActionRequest.cases.Stash,
+  ActionRequest.cases.Discard,
   ActionRequest.cases.DeleteBranches,
   ActionRequest.cases.RemoveWorktree,
   ActionRequest.cases.DropStashes,
@@ -154,6 +170,7 @@ export const SkipReason = Schema.TaggedUnion({
   UnpushedCommits: { commits: Count },
   OperationInProgress: { operation: Operation },
   NothingToStash: {},
+  NoChanges: {},
   AlreadyOnBranch: {},
   BranchInUse: {},
   NoSuchBranch: {},
@@ -188,8 +205,10 @@ export const ActionResult = Schema.TaggedUnion({
     branch: ReportedText,
     stashedFiles: Count.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(0))),
     savedCommits: Count.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(0))),
+    discardedFiles: Count.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(0))),
   },
   Stashed: { files: Count },
+  Discarded: { files: Count },
   BranchesDeleted: {
     branches: Count,
     skipped: ReportedList(Schema.Struct({ branch: ReportedText, reason: SkipReason })).pipe(
@@ -210,6 +229,7 @@ export const ActionResult = Schema.TaggedUnion({
   },
   WorktreeRemoved: {
     stashedFiles: Count.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(0))),
+    discardedFiles: Count.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(0))),
     savedCommits: Count.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(0))),
     deletedIgnored: Count.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(0))),
   },

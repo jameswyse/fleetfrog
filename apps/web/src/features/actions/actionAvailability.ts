@@ -2,7 +2,7 @@ import { actionBlocker } from "@fleetfrog/protocol/domain/actionAvailability";
 import { checkCloneDestination } from "@fleetfrog/protocol/domain/cloneDestination";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 import { pullBlocker } from "@fleetfrog/protocol/domain/pullEligibility";
-import { stashBlocker } from "@fleetfrog/protocol/domain/stashEligibility";
+import { discardBlocker, stashBlocker } from "@fleetfrog/protocol/domain/stashEligibility";
 import { switchBlocker } from "@fleetfrog/protocol/domain/switchEligibility";
 
 import { describeOutcome, describeSkip } from "./actionCopy.ts";
@@ -107,6 +107,28 @@ export function pullSkipReason(machine: Machine, checkout: Checkout): string | n
 
 export function stashSkipReason(machine: Machine, checkout: Checkout): string | null {
   return checkoutSkipReason(machine, checkout, "Stash", stashBlocker);
+}
+
+export function discardSkipReason(machine: Machine, checkout: Checkout): string | null {
+  return checkoutSkipReason(machine, checkout, "Discard", discardBlocker);
+}
+
+export function hiddenTrashReason(
+  repository: Repository,
+  machine: Machine,
+  checkout: Checkout,
+): string | null {
+  if (checkout.worktree._tag !== "Linked") {
+    return null;
+  }
+
+  const { mainPath } = checkout.worktree;
+
+  return repository.checkouts.some(
+    (entry) => entry.machineId === machine.id && entry.checkout.path === mainPath,
+  )
+    ? null
+    : `FleetFrog doesn't list ${mainPath}, the checkout this worktree belongs to, so the Trash couldn't show what you discard`;
 }
 
 export function switchSkipReason(

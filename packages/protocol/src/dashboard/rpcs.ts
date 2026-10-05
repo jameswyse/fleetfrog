@@ -136,7 +136,6 @@ export const activityLimit = 1000;
 export const RefreshTarget = Schema.TaggedUnion({
   All: {},
   Machine: { machineId: MachineId },
-  Machines: { machineIds: Schema.NonEmptyArray(MachineId).check(Schema.isMaxLength(1000)) },
 });
 export type RefreshTarget = typeof RefreshTarget.Type;
 

@@ -1,8 +1,6 @@
 import { Schema, SchemaTransformation, Struct } from "effect";
 
-import { actionTiers } from "./action.ts";
-
-import type { ActionKind } from "./action.ts";
+import type { Tier } from "./action.ts";
 
 export const UserId = Schema.String.pipe(Schema.check(Schema.isUUID()), Schema.brand("UserId"));
 export type UserId = typeof UserId.Type;
@@ -10,8 +8,8 @@ export type UserId = typeof UserId.Type;
 export const Role = Schema.Literals(["admin", "user"]);
 export type Role = typeof Role.Type;
 
-export function mayRun(role: Role, kind: ActionKind): boolean {
-  return role === "admin" || actionTiers[kind] === "git";
+export function mayRun(role: Role, tier: Tier): boolean {
+  return role === "admin" || tier === "git";
 }
 
 export const Email = Schema.Trim.pipe(

@@ -5,6 +5,7 @@ import { ActionResult, SkipReason } from "@fleetfrog/protocol/domain/action";
 import { inspectWorktree } from "../inspect/inspectWorktree.ts";
 import { runGitAction } from "../process/runTool.ts";
 import { keepDetachedCommits } from "./detachedCommits.ts";
+import { fileCounts, stashTip, trashNewStash } from "./discardedChanges.ts";
 import { stashDate } from "./gitActions.ts";
 import { failedWith, skipped, succeeded } from "./outcomes.ts";
 
@@ -24,7 +25,11 @@ function forceFlags(inspection: WorktreeInspection): ReadonlyArray<string> {
 export const removeWorktree = Effect.fn("removeWorktree")(
   function* (
     location: Pick<CheckoutLocation, "path" | "commonDirectory">,
-    options: { readonly worktree: string; readonly fingerprint: string },
+    options: {
+      readonly worktree: string;
+      readonly fingerprint: string;
+      readonly discardChanges: boolean;
+    },
     output: ActionOutput,
   ) {
     const { worktree } = options;
@@ -39,9 +44,13 @@ export const removeWorktree = Effect.fn("removeWorktree")(
     }
 
     const force = forceFlags(inspection);
-    const stashedFiles = inspection.changedFiles + inspection.untrackedFiles;
+    const changedFiles = inspection.changedFiles + inspection.untrackedFiles;
+    const verb = options.discardChanges ? "Discarded" : "Stashed";
+    let discarded = false;
 
-    if (stashedFiles > 0) {
+    if (changedFiles > 0) {
+      const before = yield* stashTip(worktree);
+
       yield* runGitAction({
         cwd: worktree,
         args: [
@@ -49,10 +58,14 @@ export const removeWorktree = Effect.fn("removeWorktree")(
           "push",
           "--include-untracked",
           "--message",
-          `Stashed from FleetFrog before removing the worktree at ${worktree} on ${stashDate(yield* DateTime.now)}`,
+          `${verb} from FleetFrog before removing the worktree at ${worktree} on ${stashDate(yield* DateTime.now)}`,
         ],
         onOutput: output.write,
       });
+
+      if (options.discardChanges) {
+        discarded = yield* trashNewStash(worktree, before, output);
+      }
     }
 
     const savedCommits =
@@ -66,7 +79,7 @@ export const removeWorktree = Effect.fn("removeWorktree")(
 
     return succeeded(
       ActionResult.cases.WorktreeRemoved.make({
-        stashedFiles,
+        ...fileCounts({ files: changedFiles, discardChanges: options.discardChanges, discarded }),
         savedCommits,
         deletedIgnored: inspection.ignored.total,
       }),

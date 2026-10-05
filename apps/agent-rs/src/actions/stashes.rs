@@ -11,6 +11,46 @@ use crate::time::Utc;
 use super::Context;
 use super::git_actions::ref_commit;
 
+pub async fn stash_tip(cwd: &str) -> Result<Option<String>, GitError> {
+    let sha = run_git(cwd, &["stash", "list", "-1", "--format=%H"]).await?;
+    let sha = sha.trim();
+
+    Ok((!sha.is_empty()).then(|| sha.to_string()))
+}
+
+pub async fn trash_new_stash(
+    cwd: &str,
+    before: Option<&str>,
+    context: &Context<'_>,
+) -> Result<bool, GitError> {
+    let Some(sha) = stash_tip(cwd).await? else {
+        return Ok(false);
+    };
+
+    if before == Some(sha.as_str()) {
+        return Ok(false);
+    }
+
+    let kept = format!("{DROPPED_STASH_PREFIX}{}/0", Utc::now().millis());
+
+    run_git_action(
+        GitAction::new(cwd, &["update-ref", &kept, &sha, ""], context.output),
+        context.cancel,
+    )
+    .await?;
+    run_git_action(
+        GitAction::new(
+            cwd,
+            &["stash", "drop", "--quiet", "stash@{0}"],
+            context.output,
+        ),
+        context.cancel,
+    )
+    .await?;
+
+    Ok(true)
+}
+
 /// The commit each stash is, by index, newest first as `git stash list` numbers them.
 async fn stash_commits(location: &CheckoutLocation) -> Result<Vec<String>, GitError> {
     Ok(run_git(&location.path, &["stash", "list", "--format=%H"])
@@ -141,4 +181,78 @@ pub async fn purge_stash(
     .await?;
 
     Ok(succeeded(ActionResult::Purged))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::output::ActionOutput;
+    use crate::process::Cancel;
+    use std::path::PathBuf;
+    use std::process::Command;
+
+    fn git(cwd: &PathBuf, args: &[&str]) -> String {
+        let output = Command::new("git")
+            .args(["-c", "user.name=Test", "-c", "user.email=test@example.com"])
+            .args(args)
+            .current_dir(cwd)
+            .env("GIT_CONFIG_GLOBAL", "/dev/null")
+            .output()
+            .unwrap();
+
+        assert!(output.status.success(), "git {args:?} failed");
+        String::from_utf8(output.stdout).unwrap().trim().to_string()
+    }
+
+    #[tokio::test]
+    async fn trashes_only_a_stash_the_push_made() {
+        let root = std::env::temp_dir().join(format!(
+            "fleetfrog-stashes-{}-{}",
+            std::process::id(),
+            Utc::now().millis()
+        ));
+
+        std::fs::create_dir_all(&root).unwrap();
+        git(&root, &["init", "-q", "-b", "main"]);
+        std::fs::write(root.join("readme.md"), "one\n").unwrap();
+        git(&root, &["add", "."]);
+        git(&root, &["commit", "-q", "-m", "First"]);
+        std::fs::write(root.join("readme.md"), "kept\n").unwrap();
+        git(&root, &["stash", "push", "-q", "-m", "user stash"]);
+
+        let cwd = root.to_str().unwrap();
+        let output = ActionOutput::new();
+        let cancel = Cancel::new();
+        let context = Context {
+            output: &output,
+            cancel: &cancel,
+        };
+        let before = stash_tip(cwd).await.unwrap();
+
+        assert!(before.is_some());
+        assert!(
+            !trash_new_stash(cwd, before.as_deref(), &context)
+                .await
+                .unwrap()
+        );
+        assert!(git(&root, &["stash", "list"]).contains("user stash"));
+
+        std::fs::write(root.join("readme.md"), "discarded\n").unwrap();
+        git(&root, &["stash", "push", "-q", "-m", "discarded"]);
+
+        assert!(
+            trash_new_stash(cwd, before.as_deref(), &context)
+                .await
+                .unwrap()
+        );
+        assert_eq!(
+            git(&root, &["stash", "list", "--format=%s"]),
+            "On main: user stash"
+        );
+        assert!(
+            git(&root, &["for-each-ref", "--format=%(refname)"]).contains(DROPPED_STASH_PREFIX)
+        );
+
+        std::fs::remove_dir_all(&root).unwrap();
+    }
 }

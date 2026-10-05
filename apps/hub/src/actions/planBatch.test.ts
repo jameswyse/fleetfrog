@@ -354,6 +354,42 @@ describe("planBatch", () => {
     }),
   );
 
+  it.effect("needs the cleanup tier for a switch that discards changes", () =>
+    Effect.gen(function* () {
+      const switcher = machine("eeeeeeee-0000-4000-8000-000000000000", {
+        capabilities: { ...everything, actions: ["Switch", "Discard"] },
+      });
+
+      const fleet: Fleet = {
+        ...fleetWith([{ machineId: switcher.id, checkout: checkout("/home/dev/Projects/shop") }]),
+        machines: [switcher],
+      };
+
+      const outcomeOf = (discardChanges: boolean) =>
+        planBatch(
+          {
+            _tag: "Targeted",
+            runs: [
+              {
+                machineId: switcher.id,
+                request: {
+                  _tag: "Switch",
+                  path: "/home/dev/Projects/shop",
+                  branch: "main",
+                  stashChanges: true,
+                  discardChanges,
+                },
+              },
+            ],
+          },
+          fleet,
+        ).pipe(Effect.map(({ runs }) => runs.map(({ outcome }) => outcomeName(outcome))));
+
+      expect(yield* outcomeOf(false)).toEqual([null]);
+      expect(yield* outcomeOf(true)).toEqual(["NotAllowed"]);
+    }),
+  );
+
   it.effect("acts on archived checkouts only for actions that may reach them", () =>
     Effect.gen(function* () {
       const archivedShop = {
@@ -394,6 +430,7 @@ describe("planBatch", () => {
           path: "/home/dev/Archive/shop",
           worktree: "/w",
           fingerprint: "f",
+          discardChanges: false,
         }),
       ).toEqual(["/home/dev/Archive/shop"]);
     }),

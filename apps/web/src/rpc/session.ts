@@ -3,6 +3,7 @@ import { useSyncExternalStore } from "react";
 import { Option, Schema } from "effect";
 
 import { LoginFailure, Session } from "@fleetfrog/protocol/dashboard/auth";
+import { actionTiers } from "@fleetfrog/protocol/domain/action";
 import { mayRun } from "@fleetfrog/protocol/domain/user";
 
 import type { MethodChange } from "@fleetfrog/protocol/dashboard/auth";
@@ -53,7 +54,7 @@ export function useRole(): Role {
 }
 
 export function useMayRun(kind: ActionKind): boolean {
-  return mayRun(useRole(), kind);
+  return mayRun(useRole(), actionTiers[kind]);
 }
 
 export function isSignedOut(current: SessionState): boolean {

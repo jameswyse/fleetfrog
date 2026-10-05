@@ -23,6 +23,7 @@ const batchPhrases = {
   Clone: { one: "Clone", several: "Clone" },
   Switch: { one: "Switch branch in", several: "Switch branches" },
   Stash: { one: "Stash changes in", several: "Stash changes" },
+  Discard: { one: "Discard changes in", several: "Discard changes" },
   DeleteBranches: { one: "Delete branches in", several: "Delete branches" },
   RemoveWorktree: { one: "Remove a worktree of", several: "Remove worktrees" },
   DropStashes: { one: "Drop stashes in", several: "Drop stashes" },
@@ -86,6 +87,7 @@ export function describeSkip(reason: SkipReason): string {
     OperationInProgress: ({ operation }) =>
       `${operationNames[operation]} is in progress. Finish or abort it first`,
     NothingToStash: () => "There are no changes to stash",
+    NoChanges: () => "There are no changes to discard",
     AlreadyOnBranch: () => "Already on that branch",
     BranchInUse: () =>
       "Another worktree has that branch checked out. Switch that worktree to another branch, or remove it, first",
@@ -132,14 +134,17 @@ function describeResult(result: ActionResult): string {
     FastForwarded: ({ commits }) => `Pulled ${plural(commits, "commit")}`,
     UpToDate: () => "Already up to date",
     Cloned: () => "Cloned",
-    Switched: ({ branch, stashedFiles, savedCommits }) =>
+    Switched: ({ branch, stashedFiles, discardedFiles, savedCommits }) =>
       sentences([
         `Switched to ${branch}`,
         stashedFiles > 0 && `Stashed ${plural(stashedFiles, "changed file")} first`,
+        discardedFiles > 0 &&
+          `Discarded ${plural(discardedFiles, "changed file")} into the trash first`,
         savedCommits > 0 &&
           `Kept ${plural(savedCommits, "commit")} from the detached HEAD in the trash`,
       ]),
     Stashed: ({ files }) => `Stashed ${plural(files, "file")}`,
+    Discarded: ({ files }) => `Discarded ${plural(files, "changed file")} into the trash`,
     BranchesDeleted: ({ branches, skipped }) => {
       const moved = `Moved ${plural(branches, "branch", "branches")} to the trash`;
 
@@ -151,10 +156,12 @@ function describeResult(result: ActionResult): string {
       `Archived to ${path}${worktrees.length > 0 ? `, with ${plural(worktrees.length, "worktree")}` : ""}`,
     Unarchived: ({ path, worktrees }) =>
       `Moved back to ${path}${worktrees.length > 0 ? `, with ${plural(worktrees.length, "worktree")}` : ""}`,
-    WorktreeRemoved: ({ stashedFiles, savedCommits, deletedIgnored }) =>
+    WorktreeRemoved: ({ stashedFiles, discardedFiles, savedCommits, deletedIgnored }) =>
       sentences([
         "Removed the worktree",
         stashedFiles > 0 && `Stashed ${plural(stashedFiles, "changed file")} first`,
+        discardedFiles > 0 &&
+          `Discarded ${plural(discardedFiles, "changed file")} into the trash first`,
         savedCommits > 0 && `Kept ${plural(savedCommits, "commit")} in the trash`,
         deletedIgnored > 0 &&
           `Deleted ${plural(deletedIgnored, "ignored file or folder", "ignored files or folders")}`,
@@ -240,6 +247,7 @@ const activeVerbs = {
   Clone: "Cloning",
   Switch: "Switching branch",
   Stash: "Stashing",
+  Discard: "Discarding changes",
   DeleteBranches: "Deleting branches",
   RemoveWorktree: "Removing a worktree",
   DropStashes: "Dropping stashes",
@@ -257,6 +265,7 @@ const waitingVerbs = {
   Clone: "clone",
   Switch: "switch branch",
   Stash: "stash",
+  Discard: "discard changes",
   DeleteBranches: "delete branches",
   RemoveWorktree: "remove a worktree",
   DropStashes: "drop stashes",

@@ -16,10 +16,12 @@ const projectNames = [
   "clean-project",
   "dirty-project",
   "dirty-switch-project",
+  "discard-switch-project",
   "archive-project",
   "agent-switch-project",
   "agent-archive-project",
   "stash-project",
+  "discard-project",
   "branches-project",
   "trash-project",
   "purge-project",
@@ -56,6 +58,7 @@ export function fixturePaths(directory: string) {
     archive,
     secondProjects: path.join(directory, "second-projects"),
     stash: path.join(projects, "stash-project"),
+    discard: path.join(projects, "discard-project"),
     branches: path.join(projects, "branches-project"),
     trash: path.join(projects, "trash-project"),
     purge: path.join(projects, "purge-project"),
@@ -74,6 +77,7 @@ export function fixturePaths(directory: string) {
     clean: path.join(projects, "clean-project"),
     dirty: path.join(projects, "dirty-project"),
     dirtySwitch: path.join(projects, "dirty-switch-project"),
+    discardSwitch: path.join(projects, "discard-switch-project"),
     pull: path.join(projects, "pull-project"),
     filter: path.join(projects, "filter-project"),
     archiveProject: path.join(projects, "archive-project"),
@@ -106,8 +110,12 @@ export function createRepositories(directory: string): void {
 
   writeFileSync(path.join(fixtures.dirty, "README.md"), "Uncommitted fixture changes\n");
   writeFileSync(path.join(fixtures.dirtySwitch, "README.md"), "Uncommitted fixture changes\n");
+  writeFileSync(path.join(fixtures.discardSwitch, "README.md"), "Changes to discard\n");
   writeFileSync(path.join(fixtures.stash, "README.md"), "Tracked stash changes\n");
   writeFileSync(path.join(fixtures.stash, "notes.txt"), "Untracked stash changes\n");
+  writeFileSync(path.join(fixtures.discard, "README.md"), "Tracked changes to discard\n");
+  writeFileSync(path.join(fixtures.discard, "notes.txt"), "Untracked notes to discard\n");
+  writeFileSync(path.join(fixtures.discard, "ignored.txt"), "Ignored content to keep\n");
   writeFileSync(path.join(fixtures.trash, "notes.txt"), "Restore these notes\n");
   writeFileSync(path.join(fixtures.trash, "ignored.txt"), "Restore ignored content\n");
   git(fixtures.removeWorktree, "worktree", "add", fixtures.removableWorktree, "feature/e2e");
