@@ -1,5 +1,17 @@
 # @fleetfrog/hub
 
+## 0.6.0
+
+### Minor Changes
+
+- 2b0e49a: Pin repositories to the top of the Projects page, sort by name, recent commits or what needs attention, and group repositories into named groups or by owner, with fetch, pull, clone and rescan for a whole group.
+- 597b8a7: Discard a checkout's uncommitted changes from its More menu, and choose to discard rather than stash changes when switching branches or removing a worktree. Discarded changes go to Cleanup → Trash, where they can be restored until the Trash is emptied. Discarding needs the cleanup tier. Group actions no longer offer Rescan.
+- 3c18a69: Drag repositories onto Pinned, a group or back to their own section, and drag groups to reorder them. Choose a different folder for any repository when cloning a group. Pins, groups and other Projects layout changes now stay in step across tabs and devices instead of overwriting each other.
+
+### Patch Changes
+
+- 8f1765c: Run the hub on loopback under `pnpm dev`, and pass `FLEETFROG_*` settings through to development servers. Set `FLEETFROG_HOST=0.0.0.0` to pair agents on other machines.
+
 ## 0.5.3
 
 ### Patch Changes
