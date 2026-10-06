@@ -1,5 +1,11 @@
 # @fleetfrog/hub
 
+## 0.6.1
+
+### Patch Changes
+
+- 57cb148: Refresh runtime dependencies and build tooling, including fixes for vulnerable development dependencies.
+
 ## 0.6.0
 
 ### Minor Changes
