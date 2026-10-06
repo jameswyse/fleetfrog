@@ -1,5 +1,12 @@
 # @fleetfrog/web
 
+## 0.6.1
+
+### Patch Changes
+
+- 8dc54a0: Expect T3 Code's database schema at migration 58, so machines on the current T3 Code no longer show a newer-schema warning.
+- 57cb148: Refresh runtime dependencies and build tooling, including fixes for vulnerable development dependencies.
+
 ## 0.6.0
 
 ### Minor Changes

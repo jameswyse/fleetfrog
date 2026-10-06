@@ -1,6 +1,6 @@
 {
   "name": "@fleetfrog/agent-rs",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "private": true,
   "description": "The FleetFrog agent as a native Rust binary. It speaks the same protocol as apps/agent-ts and shares its files on the machine.",
   "license": "MIT",
