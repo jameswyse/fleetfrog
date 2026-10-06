@@ -33,14 +33,14 @@
     "verify:uncached": "pnpm verify --force"
   },
   "devDependencies": {
-    "@ai-sdk/openai": "4.0.83",
+    "@ai-sdk/openai": "4.0.84",
     "@changesets/cli": "3.0.3",
-    "@e2e-dev/web": "0.11.1",
+    "@e2e-dev/web": "0.13.0",
     "@effect/tsgo": "catalog:",
     "@jameswyse/oxc-config": "0.2.0",
     "@types/node": "catalog:",
-    "ai": "7.0.127",
-    "e2e": "0.15.1",
+    "ai": "7.0.128",
+    "e2e": "0.18.0",
     "effect": "catalog:",
     "husky": "9.1.7",
     "lint-staged.sh": "0.6.9",
@@ -48,13 +48,13 @@
     "oxlint": "catalog:",
     "oxlint-tsgolint": "7.0.2003",
     "playwright": "1.63.0",
-    "turbo": "2.11.6",
+    "turbo": "2.11.7",
     "typescript": "catalog:"
   },
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "12.8.1"
+      "version": "12.9.1"
     },
     "runtime": {
       "name": "node",
@@ -62,5 +62,5 @@
       "onFail": "download"
     }
   },
-  "packageManager": "pnpm@12.8.1"
+  "packageManager": "pnpm@12.9.1"
 }

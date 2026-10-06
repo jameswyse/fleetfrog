@@ -17,13 +17,13 @@ futures-util = { version = "0.3.34", default-features = false, features = ["sink
 # Pinned to the release that accepts only ASCII host names, which keeps Unicode tables out of the
 # binary. Remote hosts are ASCII in practice, and a Unicode one is refused rather than misread.
 idna_adapter = "=1.0.0"
-libc = "0.2.189"
+libc = "0.2.190"
 ring = "0.17.14"
 rusqlite = { version = "0.40.2", default-features = false, features = ["bundled"] }
 rustls = { version = "0.23.45", default-features = false, features = ["ring", "std", "tls12"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
-tokio = { version = "1.53.1", default-features = false, features = [
+tokio = { version = "1.53.2", default-features = false, features = [
   "io-util",
   "macros",
   "net",

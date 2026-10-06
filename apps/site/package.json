@@ -23,7 +23,7 @@
     "@tailwindcss/vite": "4.3.3",
     "tailwindcss": "4.3.3",
     "typescript": "catalog:",
-    "vite": "8.3.1",
-    "wrangler": "4.145.0"
+    "vite": "catalog:",
+    "wrangler": "4.148.0"
   }
 }

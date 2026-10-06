@@ -6,23 +6,24 @@ cargo:
   enabled: true
 
 catalog:
-  "@effect/platform-node": 4.0.0
-  "@effect/sql-sqlite-node": 4.0.0
-  "@effect/tsgo": 0.47.2
-  "@effect/vitest": 4.0.0
-  "@types/node": 26.6.3
+  "@effect/platform-node": 4.0.1
+  "@effect/sql-sqlite-node": 4.0.1
+  "@effect/tsgo": 0.49.0
+  "@effect/vitest": 4.0.1
+  "@types/node": 26.6.4
   "@types/react": 19.3.0
   "@types/react-dom": 19.3.0
-  effect: 4.0.0
+  effect: 4.0.1
   openid-client: 6.8.8
-  oxfmt: 0.71.0
+  oxfmt: 0.72.0
   # The root prepare script runs `effect-tsgo patch --oxlint`, which fails on oxlint versions newer
   # than the pinned @effect/tsgo supports. Move oxlint only as far as it allows.
-  oxlint: 1.86.0
+  oxlint: 1.87.0
   react: 19.3.0
   react-dom: 19.3.0
   tsdown: 0.23.0
   typescript: 7.0.2
+  vite: 8.3.3
   vitest: 5.0.3
 
 minimumReleaseAge: 1440
@@ -30,62 +31,36 @@ minimumReleaseAge: 1440
 # stops resolving that version.
 minimumReleaseAgeExclude:
   - "@jameswyse/oxc-config@0.2.0"
-  - "@effect/platform-node@4.0.0"
-  - "@effect/platform-node-shared@4.0.0"
-  - "@effect/sql-sqlite-node@4.0.0"
-  - "@effect/vitest@4.0.0"
-  - "effect@4.0.0"
-  - "@oxfmt/binding-android-arm-eabi@0.71.0"
-  - "@oxfmt/binding-android-arm64@0.71.0"
-  - "@oxfmt/binding-darwin-arm64@0.71.0"
-  - "@oxfmt/binding-darwin-x64@0.71.0"
-  - "@oxfmt/binding-freebsd-x64@0.71.0"
-  - "@oxfmt/binding-linux-arm-gnueabihf@0.71.0"
-  - "@oxfmt/binding-linux-arm-musleabihf@0.71.0"
-  - "@oxfmt/binding-linux-arm64-gnu@0.71.0"
-  - "@oxfmt/binding-linux-arm64-musl@0.71.0"
-  - "@oxfmt/binding-linux-ppc64-gnu@0.71.0"
-  - "@oxfmt/binding-linux-riscv64-gnu@0.71.0"
-  - "@oxfmt/binding-linux-riscv64-musl@0.71.0"
-  - "@oxfmt/binding-linux-s390x-gnu@0.71.0"
-  - "@oxfmt/binding-linux-x64-gnu@0.71.0"
-  - "@oxfmt/binding-linux-x64-musl@0.71.0"
-  - "@oxfmt/binding-openharmony-arm64@0.71.0"
-  - "@oxfmt/binding-win32-arm64-msvc@0.71.0"
-  - "@oxfmt/binding-win32-ia32-msvc@0.71.0"
-  - "@oxfmt/binding-win32-x64-msvc@0.71.0"
-  - "oxfmt@0.71.0"
-  - "@cloudflare/workerd-darwin-64@1.20260930.2"
-  - "@cloudflare/workerd-darwin-arm64@1.20260930.2"
-  - "@cloudflare/workerd-linux-64@1.20260930.2"
-  - "@cloudflare/workerd-linux-arm64@1.20260930.2"
-  - "@cloudflare/workerd-windows-64@1.20260930.2"
-  - "@effect/tsgo-darwin-arm64@0.47.2"
-  - "@effect/tsgo-darwin-x64@0.47.2"
-  - "@effect/tsgo-linux-arm@0.47.2"
-  - "@effect/tsgo-linux-arm64@0.47.2"
-  - "@effect/tsgo-linux-x64@0.47.2"
-  - "@effect/tsgo-win32-arm64@0.47.2"
-  - "@effect/tsgo-win32-x64@0.47.2"
-  - "@effect/tsgo@0.47.2"
-  - "miniflare@5.20260930.0-alpha"
   - "@tanstack/react-router@1.170.41"
   - "@tanstack/router-cli@1.167.40"
   - "@tanstack/router-core@1.171.34"
   - "@tanstack/router-generator@1.167.40"
   - "@tanstack/router-plugin@1.168.42"
-  - "turbo@2.11.6"
-  - "@turbo/darwin-64@2.11.6"
-  - "@turbo/darwin-arm64@2.11.6"
-  - "@turbo/linux-64@2.11.6"
-  - "@turbo/linux-arm64@2.11.6"
-  - "@turbo/windows-64@2.11.6"
-  - "@turbo/windows-arm64@2.11.6"
   - "vitest@5.0.3"
   - "@vitest/mocker@5.0.3"
   - "@vitest/spy@5.0.3"
-  - "workerd@1.20260930.2"
-  - "wrangler@4.145.0"
+  - "launch-editor@2.14.2"
+  - "@e2e-dev/web@0.13.0"
+  - "e2e@0.18.0"
+  - "@effect/tsgo@0.49.0"
+  - "@effect/tsgo-darwin-arm64@0.49.0"
+  - "@effect/tsgo-darwin-x64@0.49.0"
+  - "@effect/tsgo-linux-arm@0.49.0"
+  - "@effect/tsgo-linux-arm64@0.49.0"
+  - "@effect/tsgo-linux-x64@0.49.0"
+  - "@effect/tsgo-win32-arm64@0.49.0"
+  - "@effect/tsgo-win32-x64@0.49.0"
+  - "vite@8.3.3"
+  - "tinybench@6.2.1"
+  - "wrangler@4.148.0"
+  - "workerd@1.20261006.1"
+  - "@cloudflare/workerd-darwin-64@1.20261006.1"
+  - "@cloudflare/workerd-darwin-arm64@1.20261006.1"
+  - "@cloudflare/workerd-linux-64@1.20261006.1"
+  - "@cloudflare/workerd-linux-arm64@1.20261006.1"
+  - "@cloudflare/workerd-windows-64@1.20261006.1"
+  - "miniflare@5.20261006.0-alpha"
+  - "electron-to-chromium@1.5.446"
 minimumReleaseAgeExcludePrune: true
 strictDepBuilds: true
 # Wrangler, for the website, runs without these packages' install scripts: pnpm installs their
@@ -96,6 +71,9 @@ allowBuilds:
 blockExoticSubdeps: true
 savePrefix: ""
 cleanupUnusedCatalogs: true
+
+overrides:
+  "miniflare@5.20261006.0-alpha>sharp": 0.35.5
 
 update:
   ignoreDeps:
