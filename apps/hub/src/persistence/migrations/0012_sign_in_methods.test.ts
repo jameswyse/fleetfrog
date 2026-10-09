@@ -54,6 +54,7 @@ const storedAs = (mode: "none" | "local" | "oidc") =>
         dashboardSocket: null,
         webRoot: null,
         authModeOverride: null,
+        demo: false,
       }),
     ),
   );

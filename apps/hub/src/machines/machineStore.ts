@@ -72,6 +72,7 @@ export class MachineStore extends Context.Service<
       readonly tokenHash: string;
       readonly info: MachineInfo;
       readonly discoveryRoots: ReadonlyArray<string>;
+      readonly pairedAt: DateTime.Utc;
     }) => Effect.Effect<void>;
     readonly recordConnection: (connection: {
       readonly machineId: MachineId;
@@ -181,14 +182,12 @@ export class MachineStore extends Context.Service<
             Effect.orDie,
           ),
         create: Effect.fn("MachineStore.create")(function* (machine) {
-          const pairedAt = yield* now;
-
           yield* sql`insert into machines ${sql.insert({
             id: machine.id,
             token_hash: machine.tokenHash,
             info_json: encodeInfo(machine.info),
             discovery_roots_json: encodeRoots(machine.discoveryRoots),
-            paired_at: pairedAt,
+            paired_at: DateTime.formatIso(machine.pairedAt),
           })}`;
         }, Effect.orDie),
         recordConnection: Effect.fn("MachineStore.recordConnection")(function* ({

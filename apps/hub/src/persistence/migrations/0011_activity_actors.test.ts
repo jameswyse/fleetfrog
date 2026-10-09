@@ -65,6 +65,7 @@ const TestStores = Layer.mergeAll(ActivityStore.layer, AuthSettingsStore.layer).
       dashboardSocket: null,
       webRoot: null,
       authModeOverride: null,
+      demo: false,
     }),
   ),
 );

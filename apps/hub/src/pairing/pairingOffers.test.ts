@@ -21,6 +21,7 @@ const TestOffers = PairingOffers.layer.pipe(
       dashboardSocket: null,
       webRoot: null,
       authModeOverride: null,
+      demo: false,
     }),
     Layer.succeed(AgentCertificate)({
       tls: { certificatePem: "unused", privateKeyPem: "unused", fingerprint: "AB:CD" },

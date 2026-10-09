@@ -23,6 +23,7 @@ export class HubConfig extends Context.Service<
     readonly dashboardSocket: string | null;
     readonly webRoot: string | null;
     readonly authModeOverride: "none" | null;
+    readonly demo: boolean;
   }
 >()("fleetfrog/HubConfig") {
   static readonly layer = Layer.effect(this)(
@@ -43,6 +44,7 @@ export class HubConfig extends Context.Service<
       authModeOverride: Config.Literals(["none"], "FLEETFROG_AUTH_MODE").pipe(
         Config.withDefault(null),
       ),
+      demo: Config.Boolean("FLEETFROG_DEMO").pipe(Config.withDefault(false)),
     }),
   );
 }

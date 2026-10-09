@@ -23,7 +23,11 @@ import { projectLayouts } from "./migrations/0015_project_layouts.ts";
 
 const client = Layer.unwrap(
   Effect.gen(function* () {
-    const { dataDirectory } = yield* HubConfig;
+    const { dataDirectory, demo } = yield* HubConfig;
+
+    if (demo) {
+      return SqliteClient.layer({ filename: ":memory:" });
+    }
 
     mkdirSync(dataDirectory, { recursive: true });
 

@@ -23,7 +23,7 @@ export class AgentCertificate extends Context.Service<
     Effect.gen(function* () {
       const config = yield* HubConfig;
 
-      if (config.agentTls === "none") {
+      if (config.agentTls === "none" || config.demo) {
         return { tls: null };
       }
 

@@ -26,6 +26,7 @@ const TestStore = UserStore.layer.pipe(
       dashboardSocket: null,
       webRoot: null,
       authModeOverride: null,
+      demo: false,
     }),
   ),
 );

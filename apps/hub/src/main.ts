@@ -1,5 +1,5 @@
 import { NodeRuntime } from "@effect/platform-node";
-import { Layer } from "effect";
+import { Effect, Layer } from "effect";
 
 import { ActionDispatcher } from "./actions/actionDispatcher.ts";
 import { ActivityFeed } from "./activity/activityFeed.ts";
@@ -20,6 +20,7 @@ import { FleetFeed } from "./catalogue/fleetFeed.ts";
 import { ProjectIconStore } from "./catalogue/projectIconStore.ts";
 import { DashboardPresence } from "./dashboard/dashboardPresence.ts";
 import { DashboardServer } from "./dashboard/dashboardServer.ts";
+import { DemoFleet } from "./demo/demoFleet.ts";
 import { HubConfig } from "./hubConfig.ts";
 import { MachineStore } from "./machines/machineStore.ts";
 import { AgentCertificate } from "./pairing/agentCertificate.ts";
@@ -30,7 +31,21 @@ import { PollingStore } from "./settings/pollingStore.ts";
 import { PreferencesStore } from "./settings/preferencesStore.ts";
 import { ProjectLayoutStore } from "./settings/projectLayoutStore.ts";
 
-const Hub = Layer.merge(AgentServer, DashboardServer).pipe(
+type AgentSource = typeof AgentServer | typeof DemoFleet;
+
+const Agents = Layer.unwrap(
+  Effect.gen(function* () {
+    const { demo } = yield* HubConfig;
+
+    const agents: Layer.Layer<never, Layer.Error<AgentSource>, Layer.Services<AgentSource>> = demo
+      ? DemoFleet
+      : AgentServer;
+
+    return agents;
+  }),
+);
+
+const Hub = Layer.merge(Agents, DashboardServer).pipe(
   Layer.provide(ActionDispatcher.layer),
   Layer.provide(FolderRequests.layer),
   Layer.provide(InspectionRequests.layer),

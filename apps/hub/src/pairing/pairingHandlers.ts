@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { Effect } from "effect";
+import { DateTime, Effect } from "effect";
 
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 import { MachineId } from "@fleetfrog/protocol/domain/machine";
@@ -32,6 +32,7 @@ export const PairingHandlers = PairingRpcs.toLayer(
             tokenHash,
             info,
             discoveryRoots: suggestedRoots,
+            pairedAt: yield* DateTime.now,
           });
           yield* feed.invalidate;
           yield* activity.recordEvent(
