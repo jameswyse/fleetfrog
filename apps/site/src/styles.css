@@ -419,6 +419,21 @@
     }
   }
 
+  .screenshot {
+    position: relative;
+
+    &::before {
+      content: "";
+      position: absolute;
+      inset: 8% 6% -4%;
+      background: radial-gradient(
+        closest-side,
+        color-mix(in oklab, var(--frog) 16%, transparent),
+        transparent
+      );
+    }
+  }
+
   .pond {
     mask-image: radial-gradient(ellipse 75% 70% at 50% 40%, black 35%, transparent 100%);
   }

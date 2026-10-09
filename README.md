@@ -9,6 +9,21 @@ From the dashboard you can also fetch, pull and clone repositories on any machin
 
 FleetFrog is in early beta, so expect rough edges and breaking changes between 0.x versions. Sign-in is off until you [turn it on](#sign-in), so until then run the hub only on a network you trust.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/screenshot-dark.webp">
+  <img alt="The FleetFrog dashboard. Repositories run down the side and five machines across the top, and each cell shows a checkout's branch, uncommitted changes and commits to push or pull. A side panel summarises the fleet." src="docs/images/screenshot-light.webp">
+</picture>
+
+## Try the demo
+
+To look around before you install anything, run the hub in demo mode. It shows five simulated machines and their repositories, and fetching, pulling, cloning and the other actions change the simulated repositories. The hub keeps nothing and doesn't accept agents in demo mode.
+
+```sh
+docker run --rm -p 7420:7420 -e FLEETFROG_DEMO=1 ghcr.io/jameswyse/fleetfrog-hub:latest
+```
+
+Open `http://localhost:7420`.
+
 ## Run the hub
 
 The hub serves the dashboard and runs in Docker. Its image is published for `linux/amd64` and `linux/arm64`. Download the Compose file and start it:
@@ -39,6 +54,7 @@ Open `http://<hub-address>:7420`. Agents connect on port `7421` over TLS using a
 | `FLEETFROG_HOST`             | unset         | The address both ports listen on, such as `127.0.0.1` behind a reverse proxy on the same host. Unset listens on every interface. |
 | `FLEETFROG_DATA_DIR`         | `data`        | Where the database and certificate are stored. The image uses `/data`.                                                           |
 | `FLEETFROG_AUTH_MODE`        | unset         | Set to `none` to turn sign-in off whatever the settings say, if you're locked out.                                               |
+| `FLEETFROG_DEMO`             | unset         | Set to `1` to show a simulated fleet instead of your machines. The hub keeps nothing and doesn't accept agents.                  |
 
 With Compose, `FLEETFROG_VERSION` picks the image tag, such as `0.1` to take only patch releases of 0.1. It defaults to `latest`.
 
@@ -194,7 +210,11 @@ apps/agent-rs/dist/fleetfrog run
 
 Choose project folders under the machine's settings. The `dev` instance has separate pairing, policy, and logs, so it can run alongside an installed agent. Both instances still act on the same files and share trash. For disposable repositories, use `pnpm test:e2e:serve` instead.
 
+To work on the dashboard without pairing machines, run `pnpm dev:demo` instead of `pnpm dev`. It starts the hub in demo mode, with the same simulated machines as [Try the demo](#try-the-demo). `pnpm demo` serves the built dashboard with a demo hub on its own port.
+
 Ctrl+C stops each foreground process. After changing the Rust agent, rebuild it and run it again.
+
+After changing how the Projects page looks, run `pnpm screenshots` to update the screenshots in this README and on the website. It builds the dashboard, starts a demo hub and captures the page in light and dark with Chromium, which `pnpm exec playwright install chromium` installs. The demo's machines and repositories are in [`apps/hub/src/demo/demoFleetData.ts`](apps/hub/src/demo/demoFleetData.ts).
 
 Run `pnpm verify` for formatting, lint, typecheck, builds, and unit tests. [Local end-to-end tests](docs/e2e.md) explains Chromium setup and browser tests against an isolated hub, two native agents, and temporary repositories.
 
