@@ -1,5 +1,12 @@
 # @fleetfrog/web
 
+## 0.7.0
+
+### Patch Changes
+
+- 11bf0a8: Refresh runtime dependencies, build tooling, Node.js and the Rust toolchain.
+- b7f6985: Expect T3 Code's database schema at migration 60. Machines on the same T3 Code schema now share one notice, and a schema mismatch shows as a neutral notice instead of a red warning, because FleetFrog usually still reads it correctly.
+
 ## 0.6.1
 
 ### Patch Changes

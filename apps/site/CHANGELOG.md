@@ -1,5 +1,12 @@
 # @fleetfrog/site
 
+## 0.7.0
+
+### Patch Changes
+
+- 11bf0a8: Refresh runtime dependencies, build tooling, Node.js and the Rust toolchain.
+- 629b2ad: Show the dashboard below the hero and in the social preview image.
+
 ## 0.6.1
 
 ### Patch Changes

@@ -1,5 +1,15 @@
 # @fleetfrog/hub
 
+## 0.7.0
+
+### Minor Changes
+
+- 168a425: Run the hub with `FLEETFROG_DEMO=1` to explore the dashboard with five simulated machines and their repositories. Fetching, pulling, cloning and the other actions change the simulated repositories, and the hub keeps nothing and doesn't accept agents while in demo mode.
+
+### Patch Changes
+
+- 11bf0a8: Refresh runtime dependencies, build tooling, Node.js and the Rust toolchain.
+
 ## 0.6.1
 
 ### Patch Changes
