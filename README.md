@@ -163,7 +163,7 @@ docker compose -f compose.yaml -f compose.build.yaml up -d --build
 
 ## Develop
 
-Install Git, [pnpm](https://pnpm.io/installation) 12.9.1, [rustup](https://rustup.rs/), and a C compiler and linker. Use `build-essential` on Debian or Ubuntu, or Xcode Command Line Tools on macOS. Rustup uses the toolchain pinned in `apps/agent-rs/rust-toolchain.toml`.
+Install Git, [pnpm](https://pnpm.io/installation) 12.10.1, [rustup](https://rustup.rs/), and a C compiler and linker. Use `build-essential` on Debian or Ubuntu, or Xcode Command Line Tools on macOS. Rustup uses the toolchain pinned in `apps/agent-rs/rust-toolchain.toml`.
 
 Clone the repository and start the hub, dashboard and website:
 

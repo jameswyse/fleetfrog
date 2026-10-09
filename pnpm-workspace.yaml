@@ -6,14 +6,14 @@ cargo:
   enabled: true
 
 catalog:
-  "@effect/platform-node": 4.0.1
-  "@effect/sql-sqlite-node": 4.0.1
-  "@effect/tsgo": 0.49.0
-  "@effect/vitest": 4.0.1
+  "@effect/platform-node": 4.0.2
+  "@effect/sql-sqlite-node": 4.0.2
+  "@effect/tsgo": 0.51.1
+  "@effect/vitest": 4.0.2
   "@types/node": 26.6.4
   "@types/react": 19.3.0
   "@types/react-dom": 19.3.0
-  effect: 4.0.1
+  effect: 4.0.2
   openid-client: 6.8.8
   oxfmt: 0.72.0
   # The root prepare script runs `effect-tsgo patch --oxlint`, which fails on oxlint versions newer
@@ -30,37 +30,8 @@ minimumReleaseAge: 1440
 # Exact versions approved before they were a day old. pnpm prunes each entry once the lockfile
 # stops resolving that version.
 minimumReleaseAgeExclude:
-  - "@jameswyse/oxc-config@0.2.0"
-  - "@tanstack/react-router@1.170.41"
-  - "@tanstack/router-cli@1.167.40"
-  - "@tanstack/router-core@1.171.34"
-  - "@tanstack/router-generator@1.167.40"
-  - "@tanstack/router-plugin@1.168.42"
-  - "vitest@5.0.3"
-  - "@vitest/mocker@5.0.3"
-  - "@vitest/spy@5.0.3"
-  - "launch-editor@2.14.2"
-  - "@e2e-dev/web@0.13.0"
-  - "e2e@0.18.0"
-  - "@effect/tsgo@0.49.0"
-  - "@effect/tsgo-darwin-arm64@0.49.0"
-  - "@effect/tsgo-darwin-x64@0.49.0"
-  - "@effect/tsgo-linux-arm@0.49.0"
-  - "@effect/tsgo-linux-arm64@0.49.0"
-  - "@effect/tsgo-linux-x64@0.49.0"
-  - "@effect/tsgo-win32-arm64@0.49.0"
-  - "@effect/tsgo-win32-x64@0.49.0"
-  - "vite@8.3.3"
-  - "tinybench@6.2.1"
-  - "wrangler@4.148.0"
-  - "workerd@1.20261006.1"
-  - "@cloudflare/workerd-darwin-64@1.20261006.1"
-  - "@cloudflare/workerd-darwin-arm64@1.20261006.1"
-  - "@cloudflare/workerd-linux-64@1.20261006.1"
-  - "@cloudflare/workerd-linux-arm64@1.20261006.1"
-  - "@cloudflare/workerd-windows-64@1.20261006.1"
-  - "miniflare@5.20261006.0-alpha"
-  - "electron-to-chromium@1.5.446"
+  - "wrangler@4.149.0"
+  - "miniflare@5.20261006.1-alpha"
 minimumReleaseAgeExcludePrune: true
 strictDepBuilds: true
 # Wrangler, for the website, runs without these packages' install scripts: pnpm installs their
@@ -71,9 +42,6 @@ allowBuilds:
 blockExoticSubdeps: true
 savePrefix: ""
 cleanupUnusedCatalogs: true
-
-overrides:
-  "miniflare@5.20261006.0-alpha>sharp": 0.35.5
 
 update:
   ignoreDeps:
