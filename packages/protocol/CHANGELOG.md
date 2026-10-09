@@ -1,5 +1,11 @@
 # @fleetfrog/protocol
 
+## 0.7.0
+
+### Patch Changes
+
+- 11bf0a8: Refresh runtime dependencies, build tooling, Node.js and the Rust toolchain.
+
 ## 0.6.1
 
 ### Patch Changes
