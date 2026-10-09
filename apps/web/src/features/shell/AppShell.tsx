@@ -7,7 +7,7 @@ import { isSignedOut, useRole, useSession } from "@/rpc/session.ts";
 import { Logo } from "@/ui/Logo.tsx";
 import { Spinner } from "@/ui/Spinner.tsx";
 
-import { t3CodeIssues } from "../settings/integrations/t3CodeHealth.ts";
+import { t3CodeNeedsAttention } from "../settings/integrations/t3CodeHealth.ts";
 import { HubStatus } from "./HubStatus.tsx";
 import { OutdatedNotice } from "./OutdatedNotice.tsx";
 import { UserMenu } from "./UserMenu.tsx";
@@ -47,7 +47,7 @@ export function AppShell() {
   const signedOut = isSignedOut(session);
   const hub = useHub();
   const fleet = knownFleet(hub);
-  const settingsAttention = fleet !== null && t3CodeIssues(fleet).length > 0;
+  const settingsAttention = fleet !== null && t3CodeNeedsAttention(fleet);
 
   useEffect(() => {
     if (signedOut) {

@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { Schema } from "effect";
-import { TriangleAlertIcon } from "lucide-react";
+import { InfoIcon, TriangleAlertIcon } from "lucide-react";
 
 import { knownFleet, requestHub, useHub } from "@/rpc/hubConnection.ts";
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
@@ -18,7 +18,7 @@ import {
 import { SettingsRow, SettingsSection, SideDetail, SidePanel } from "../SettingsSection.tsx";
 import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
 import { ReadingSummary, SchemaText, unmatchedProjects } from "./T3CodeFacts.tsx";
-import { describeIssue, t3CodeIssues } from "./t3CodeHealth.ts";
+import { describeIssue, isProblem, issueKey, t3CodeIssues } from "./t3CodeHealth.ts";
 
 import type { Fleet } from "@fleetfrog/protocol/domain/fleet";
 import type { T3CodeSettings as Settings } from "@fleetfrog/protocol/domain/t3Code";
@@ -241,15 +241,20 @@ export function T3CodeSettings() {
     <SidebarPage title="T3 Code" parents={parents} aside={<AboutPanel fleet={fleet} />}>
       {issues.length > 0 && (
         <div className="space-y-2">
-          {issues.map((issue) => (
-            <p
-              key={`${issue.machine.id}:${issue._tag}`}
-              className="flex items-start gap-2 rounded-xl border border-danger/30 bg-danger-soft px-3 py-2.5 text-sm text-danger"
-            >
-              <TriangleAlertIcon className="mt-0.5" />
-              <span className="min-w-0 break-words">{describeIssue(issue)}</span>
-            </p>
-          ))}
+          {issues.map((issue) => {
+            const problem = isProblem(issue);
+            const Icon = problem ? TriangleAlertIcon : InfoIcon;
+
+            return (
+              <p
+                key={issueKey(issue)}
+                className={`flex items-start gap-2.5 rounded-xl border px-3 py-2.5 text-sm ${problem ? "border-danger/30 bg-danger-soft text-danger" : "border-line"}`}
+              >
+                <Icon className={problem ? "mt-0.5" : "mt-0.5 text-ink-muted"} />
+                <span className="min-w-0 break-words">{describeIssue(issue)}</span>
+              </p>
+            );
+          })}
         </div>
       )}
       <SettingsSwitches saved={settings} />

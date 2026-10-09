@@ -21,7 +21,7 @@ import {
 import { T3CodeLogo } from "@/ui/T3CodeLogo.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
-import { t3CodeIssues } from "./integrations/t3CodeHealth.ts";
+import { t3CodeNeedsAttention } from "./integrations/t3CodeHealth.ts";
 
 function MachineLinks() {
   const hub = useHub();
@@ -63,7 +63,7 @@ function MachineLinks() {
 function IntegrationLinks() {
   const hub = useHub();
   const fleet = knownFleet(hub);
-  const attention = fleet !== null && t3CodeIssues(fleet).length > 0;
+  const attention = fleet !== null && t3CodeNeedsAttention(fleet);
 
   return (
     <ul className={sidebarSubmenuClass}>

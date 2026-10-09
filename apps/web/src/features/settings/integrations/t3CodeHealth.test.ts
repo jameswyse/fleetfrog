@@ -8,7 +8,7 @@ import {
   supportedT3CodeSchema,
 } from "@fleetfrog/protocol/domain/t3Code";
 
-import { t3CodeIssues } from "./t3CodeHealth.ts";
+import { describeIssue, t3CodeIssues, t3CodeNeedsAttention } from "./t3CodeHealth.ts";
 
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 import type { T3CodeReading } from "@fleetfrog/protocol/domain/t3Code";
@@ -61,39 +61,76 @@ const read = (migration: number, unreadRecords = 0): T3CodeReading => ({
   unreadRecords,
 });
 
+function fleetOf(machines: ReadonlyArray<Machine>): Fleet {
+  return {
+    hubVersion: "0.0.0",
+    machines,
+    repositories: [],
+    archive: [],
+    polling: defaultPollingSettings,
+    integrations: defaultIntegrationSettings,
+  };
+}
+
 describe("t3CodeIssues", () => {
   it("flags unreadable databases and schemas either side of the supported one", () => {
-    const fleet: Fleet = {
-      hubVersion: "0.0.0",
-      machines: [
-        machine("aaaaaaaa-0000-4000-8000-000000000000", read(supportedT3CodeSchema.migration)),
-        machine("bbbbbbbb-0000-4000-8000-000000000000", read(supportedT3CodeSchema.migration + 1)),
-        machine("cccccccc-0000-4000-8000-000000000000", read(supportedT3CodeSchema.migration - 1)),
-        machine("dddddddd-0000-4000-8000-000000000000", {
-          _tag: "Unreadable",
-          message: "T3 Code's database has no projection_threads.worktree_path.",
-          schema: null,
-        }),
-        machine("eeeeeeee-0000-4000-8000-000000000000", { _tag: "NotFound" }),
-        machine("ffffffff-0000-4000-8000-000000000000", null),
-        machine("99999999-0000-4000-8000-000000000000", read(supportedT3CodeSchema.migration, 2)),
-      ],
-      repositories: [],
-      archive: [],
-      polling: defaultPollingSettings,
-      integrations: defaultIntegrationSettings,
-    };
+    const fleet = fleetOf([
+      machine("aaaaaaaa-0000-4000-8000-000000000000", read(supportedT3CodeSchema.migration)),
+      machine("bbbbbbbb-0000-4000-8000-000000000000", read(supportedT3CodeSchema.migration + 1)),
+      machine("cccccccc-0000-4000-8000-000000000000", read(supportedT3CodeSchema.migration - 1)),
+      machine("dddddddd-0000-4000-8000-000000000000", {
+        _tag: "Unreadable",
+        message: "T3 Code's database has no projection_threads.worktree_path.",
+        schema: null,
+      }),
+      machine("eeeeeeee-0000-4000-8000-000000000000", { _tag: "NotFound" }),
+      machine("ffffffff-0000-4000-8000-000000000000", null),
+      machine("99999999-0000-4000-8000-000000000000", read(supportedT3CodeSchema.migration, 2)),
+    ]);
 
     expect(
       t3CodeIssues(fleet).map((issue) => [
-        issue.machine.info.hostname,
+        issue.machines.map((each) => each.info.hostname),
         issue._tag === "Drift" ? issue.direction : issue._tag,
       ]),
     ).toEqual([
-      ["bbbb", "Newer"],
-      ["cccc", "Older"],
-      ["dddd", "Unreadable"],
-      ["9999", "UnreadRecords"],
+      [["bbbb"], "Newer"],
+      [["cccc"], "Older"],
+      [["dddd"], "Unreadable"],
+      [["9999"], "UnreadRecords"],
     ]);
+  });
+
+  it("reports machines on the same schema once", () => {
+    const fleet = fleetOf([
+      machine("aaaaaaaa-0000-4000-8000-000000000000", read(supportedT3CodeSchema.migration + 1)),
+      machine("bbbbbbbb-0000-4000-8000-000000000000", read(supportedT3CodeSchema.migration + 1)),
+      machine("cccccccc-0000-4000-8000-000000000000", read(supportedT3CodeSchema.migration + 2)),
+    ]);
+
+    const issues = t3CodeIssues(fleet);
+
+    expect(issues.map((issue) => issue.machines.map((each) => each.info.hostname))).toEqual([
+      ["aaaa", "bbbb"],
+      ["cccc"],
+    ]);
+    expect(issues.map(describeIssue)[0]).toContain("T3 Code on aaaa and bbbb ");
+  });
+});
+
+describe("t3CodeNeedsAttention", () => {
+  it("ignores schema drift but not records it couldn't read", () => {
+    const drifted = machine(
+      "aaaaaaaa-0000-4000-8000-000000000000",
+      read(supportedT3CodeSchema.migration + 1),
+    );
+
+    const unread = machine(
+      "bbbbbbbb-0000-4000-8000-000000000000",
+      read(supportedT3CodeSchema.migration, 1),
+    );
+
+    expect(t3CodeNeedsAttention(fleetOf([drifted]))).toBe(false);
+    expect(t3CodeNeedsAttention(fleetOf([drifted, unread]))).toBe(true);
   });
 });

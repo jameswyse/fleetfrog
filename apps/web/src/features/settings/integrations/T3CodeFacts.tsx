@@ -86,10 +86,13 @@ export function SchemaText({ machine }: { readonly machine: Machine }) {
   const drift = schemaDrift(schema);
 
   return (
-    <span className={drift === "Current" ? "" : "text-danger"} title={schema.name}>
+    <span title={schema.name}>
       Migration {schema.migration}
-      {drift !== "Current" &&
-        (drift === "Newer" ? ", newer than supported" : ", older than supported")}
+      {drift !== "Current" && (
+        <span className="text-ink-muted">
+          {drift === "Newer" ? ", newer than supported" : ", older than supported"}
+        </span>
+      )}
     </span>
   );
 }

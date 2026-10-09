@@ -5,7 +5,7 @@ import { SidebarPage } from "@/ui/SidebarLayout.tsx";
 import { T3CodeLogo } from "@/ui/T3CodeLogo.tsx";
 
 import { SettingsRow, SettingsSection } from "../SettingsSection.tsx";
-import { t3CodeIssues } from "./t3CodeHealth.ts";
+import { t3CodeNeedsAttention } from "./t3CodeHealth.ts";
 
 import type { Fleet } from "@fleetfrog/protocol/domain/fleet";
 
@@ -14,12 +14,10 @@ function T3CodeState({ fleet }: { readonly fleet: Fleet }) {
     return <span className="text-ink-muted">Off</span>;
   }
 
-  const issues = t3CodeIssues(fleet).length;
-
-  return issues === 0 ? (
-    <span className="text-clean">On</span>
-  ) : (
+  return t3CodeNeedsAttention(fleet) ? (
     <span className="text-danger">On, needs attention</span>
+  ) : (
+    <span className="text-clean">On</span>
   );
 }
 

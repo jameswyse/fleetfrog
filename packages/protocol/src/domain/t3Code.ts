@@ -7,8 +7,8 @@ export const T3CodeSchema = Schema.Struct({ migration: Schema.Int, name: Reporte
 export type T3CodeSchema = typeof T3CodeSchema.Type;
 
 export const supportedT3CodeSchema: T3CodeSchema = {
-  migration: 58,
-  name: "WebhookRelayDeliveries",
+  migration: 60,
+  name: "ThreadSnapshotWindowIndexes",
 };
 
 export function schemaDrift(schema: T3CodeSchema): "Current" | "Newer" | "Older" {
