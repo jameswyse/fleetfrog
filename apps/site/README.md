@@ -11,7 +11,7 @@ pnpm --filter @fleetfrog/site preview
 
 The download links point at the latest GitHub release, so they never need updating.
 
-The screenshot below the hero is `src/images/screenshot.webp`, with `screenshot@2x.webp` for high-density screens. `pnpm screenshots` at the repository root captures both from a demo hub, along with the README's screenshots.
+The screenshot below the hero is `src/images/screenshot.webp`, with `screenshot@2x.webp` for high-density screens. The social preview image, `public/og.png`, shows the hero's headline above the same screenshot. `pnpm screenshots` at the repository root captures all three from a demo hub, along with the README's screenshots.
 
 ## Deploying
 

@@ -8,6 +8,7 @@ import { demoMachines } from "../../apps/hub/src/demo/demoFleetData.ts";
 import { runCommand } from "../e2e/environment.ts";
 import { browserFrame, frameMargin } from "./browserFrame.ts";
 import { repository, startDemoHub } from "./demoHub.ts";
+import { paintPond, socialPreview, socialPreviewSize } from "./socialPreview.ts";
 
 import type { Browser, Page } from "playwright";
 
@@ -28,17 +29,38 @@ const outputs: ReadonlyArray<{
   { scheme: "dark", file: "apps/site/src/images/screenshot@2x.webp", scale: 1 },
 ];
 
-function fontFace(family: string, file: string): string {
-  const data = readFileSync(path.join(repository, "node_modules", file)).toString("base64");
+const socialPreviewFile = "apps/site/public/og.png";
 
-  return `@font-face { font-family: "${family}"; font-weight: 100 900; font-display: block; src: url(data:font/woff2;base64,${data}) format("woff2"); }`;
+function fontFace(family: string, file: string, style: "normal" | "italic" = "normal"): string {
+  const data = readFileSync(path.join(repository, file)).toString("base64");
+
+  return `@font-face { font-family: "${family}"; font-style: ${style}; font-weight: 100 900; font-display: block; src: url(data:font/woff2;base64,${data}) format("woff2"); }`;
+}
+
+function dataUrl(mediaType: string, file: string): string {
+  return `data:${mediaType};base64,${readFileSync(path.join(repository, file)).toString("base64")}`;
 }
 
 const fonts = [
-  fontFace("Inter Variable", "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2"),
+  fontFace(
+    "Inter Variable",
+    "node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2",
+  ),
   fontFace(
     "JetBrains Mono Variable",
-    "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2",
+    "node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2",
+  ),
+].join("\n");
+
+const siteFonts = [
+  fontFace(
+    "Fraunces Variable",
+    "apps/site/node_modules/@fontsource-variable/fraunces/files/fraunces-latin-soft-normal.woff2",
+  ),
+  fontFace(
+    "Fraunces Variable",
+    "apps/site/node_modules/@fontsource-variable/fraunces/files/fraunces-latin-soft-italic.woff2",
+    "italic",
   ),
 ].join("\n");
 
@@ -46,9 +68,7 @@ const pinnedFonts = `${fonts}
 html { font-family: "Inter Variable", sans-serif !important; }
 :root { --font-mono: "JetBrains Mono Variable", monospace !important; }`;
 
-const favicon = `data:image/svg+xml;base64,${readFileSync(
-  path.join(repository, "apps/web/public/favicon.svg"),
-).toString("base64")}`;
+const favicon = dataUrl("image/svg+xml", "apps/web/public/favicon.svg");
 
 const decodeBase64 = Schema.decodeUnknownSync(Schema.String);
 
@@ -143,6 +163,27 @@ async function frame(browser: Browser, screenshot: Buffer, scheme: ColorScheme):
   }
 }
 
+async function socialCard(browser: Browser, framed: Buffer): Promise<Buffer> {
+  const page = await browser.newPage({ viewport: socialPreviewSize, deviceScaleFactor: 1 });
+
+  try {
+    await page.setContent(
+      socialPreview({
+        screenshot: `data:image/png;base64,${framed.toString("base64")}`,
+        screenshotWidth: viewport.width + frameMargin * 2,
+        frog: dataUrl("image/svg+xml", "apps/site/public/favicon.svg"),
+        fonts: siteFonts,
+      }),
+    );
+    await page.evaluate(settled);
+    await page.evaluate(paintPond);
+
+    return await page.screenshot();
+  } finally {
+    await page.close();
+  }
+}
+
 async function encodeWebp(encoderPage: Page, png: Buffer, scale: number): Promise<Buffer> {
   const source = JSON.stringify(`data:image/png;base64,${png.toString("base64")}`);
   const encoded = decodeBase64(await encoderPage.evaluate(`encodeWebp(${source}, ${scale})`));
@@ -173,17 +214,24 @@ try {
 
     await encoderPage.setContent(encoder);
 
-    for (const scheme of ["light", "dark"] as const) {
-      const framed = await frame(browser, await capture(browser, hub.url, scheme), scheme);
+    const framed = {
+      light: await frame(browser, await capture(browser, hub.url, "light"), "light"),
+      dark: await frame(browser, await capture(browser, hub.url, "dark"), "dark"),
+    };
 
-      for (const output of outputs.filter((candidate) => candidate.scheme === scheme)) {
-        const destination = path.join(repository, output.file);
+    for (const output of outputs) {
+      const destination = path.join(repository, output.file);
 
-        mkdirSync(path.dirname(destination), { recursive: true });
-        writeFileSync(destination, await encodeWebp(encoderPage, framed, output.scale));
-        process.stdout.write(`Wrote ${output.file}\n`);
-      }
+      mkdirSync(path.dirname(destination), { recursive: true });
+      writeFileSync(
+        destination,
+        await encodeWebp(encoderPage, framed[output.scheme], output.scale),
+      );
+      process.stdout.write(`Wrote ${output.file}\n`);
     }
+
+    writeFileSync(path.join(repository, socialPreviewFile), await socialCard(browser, framed.dark));
+    process.stdout.write(`Wrote ${socialPreviewFile}\n`);
   } finally {
     await browser.close();
   }

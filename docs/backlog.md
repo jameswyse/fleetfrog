@@ -77,4 +77,3 @@ Agents have the `git` and `cleanup` tiers.
 - **A public demo.** Host a demo hub at a public address, such as `demo.fleetfrog.dev`, for people to try. Demo mode keeps settings, users and sign-in open to change, so a shared demo would need those locked and each visitor given their own simulated fleet, or a reset on a timer.
 - **Visual regression tests.** Compare `pnpm screenshots` output against committed images in CI, so an unintended change to the Projects page shows up in review. Demo mode makes the page deterministic for the first 90 seconds, until the simulated fleet starts changing.
 - **More demo pages.** Capture Activity, Cleanup and a repository's panel as well as the Projects page, for the README and the website.
-- **Social preview from the demo.** Generate the website's `og.png` from a demo screenshot.
