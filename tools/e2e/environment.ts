@@ -19,7 +19,7 @@ import type { ChildProcess } from "node:child_process";
 const repository = fileURLToPath(new URL("../../", import.meta.url));
 const agentBinary = path.join(repository, "apps/agent-rs/dist/fleetfrog");
 
-async function freePort(): Promise<number> {
+export async function freePort(): Promise<number> {
   const server = createServer();
 
   server.listen(0, "127.0.0.1");
@@ -37,7 +37,7 @@ async function freePort(): Promise<number> {
   return address.port;
 }
 
-async function stop(child: ChildProcess): Promise<void> {
+export async function stop(child: ChildProcess): Promise<void> {
   if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null) {
     return;
   }

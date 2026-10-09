@@ -10,7 +10,7 @@ const base = createLintConfig({
   vitest: true,
   tests: ["**/*.e2e.ts"],
   effect: true,
-  env: ["apps/agent-ts/src/config/environment.ts", "tools/e2e/**"],
+  env: ["apps/agent-ts/src/config/environment.ts", "tools/e2e/**", "tools/demo/**"],
   boundaries: [
     {
       files: ["packages/protocol/src/**"],

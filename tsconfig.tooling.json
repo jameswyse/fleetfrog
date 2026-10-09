@@ -9,6 +9,7 @@
     "packages/*/vitest.config.ts",
     "tools/vitest/**/*.ts",
     "tools/e2e/**/*.ts",
+    "tools/demo/**/*.ts",
     "tests/e2e/**/*.ts",
     "e2e.config.ts",
     "oxfmt.config.ts",
