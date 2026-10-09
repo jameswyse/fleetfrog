@@ -207,7 +207,7 @@ await runCommand(pnpmPath, ["build", "--filter=@fleetfrog/web"], process.env, co
 const hub = await startDemoHub({ signal: controller.signal });
 
 try {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ args: ["--font-render-hinting=none"] });
 
   try {
     const encoderPage = await browser.newPage();
