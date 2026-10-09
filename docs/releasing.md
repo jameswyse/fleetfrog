@@ -18,7 +18,7 @@ Choose `minor` for a change that breaks something, such as a protocol change tha
 
 ## Releasing a version
 
-The [release workflow](../.github/workflows/release.yml) runs on every push to `main`. While changesets are pending, it keeps a pull request named "chore(release): version packages" up to date. That pull request runs `pnpm changeset version`, which bumps every package and writes the changes into each package's `CHANGELOG.md`.
+The [release workflow](../.github/workflows/release.yml) runs on every push to `main`. While changesets are pending, it keeps a pull request named "chore(release): version packages" up to date. That pull request runs [`scripts/release/version.sh`](../scripts/release/version.sh). The script runs `pnpm changeset version`, which bumps every package and writes the changes into each package's `CHANGELOG.md`. It then runs `pnpm screenshots`, so the screenshots in the README and on the website, and the website's social preview image, show the interface being released.
 
 Merging it releases the version. The workflow then:
 
@@ -26,10 +26,11 @@ Merging it releases the version. The workflow then:
 2. Builds the hub image for `linux/amd64` and `linux/arm64`.
 3. Once every build passes, tags the image `ghcr.io/jameswyse/fleetfrog-hub` with the version, such as `0.1.3`, its minor version, such as `0.1`, and `latest`.
 4. Signs `SHA256SUMS` with the release signing key, then creates the GitHub release and its `v0.1.3` tag, with the three agent binaries, `install.sh`, `SHA256SUMS` and its signature, `SHA256SUMS.sig`. Its notes merge the version's sections from every changelog.
+5. Points the `website` branch at the release's commit. Workers Builds deploys [fleetfrog.dev](https://fleetfrog.dev) from that branch, so the website changes only when a version is released.
 
 Releases are never marked as pre-releases, because `releases/latest` skips them and the install script downloads from there.
 
-The website's download links point at `releases/latest`, so [fleetfrog.dev](https://fleetfrog.dev) offers the new binaries as soon as the workflow creates the release. [`apps/site`](../apps/site/README.md) explains how it's deployed.
+The website's download links point at `releases/latest`, so the website offers the new binaries as soon as the workflow creates the release. [`apps/site`](../apps/site/README.md) explains how it's deployed.
 
 If a build fails, push a fix to `main` without a changeset. That push releases the same version, since it has no GitHub release yet. Rerunning the failed jobs also works when the failure was temporary.
 

@@ -214,7 +214,7 @@ To work on the dashboard without pairing machines, run `pnpm dev:demo` instead o
 
 Ctrl+C stops each foreground process. After changing the Rust agent, rebuild it and run it again.
 
-After changing how the Projects page looks, run `pnpm screenshots` to update the screenshots in this README and on the website, and the website's social preview image. It builds the dashboard, starts a demo hub and captures the page in light and dark with Chromium, which `pnpm exec playwright install chromium` installs. The demo's machines and repositories are in [`apps/hub/src/demo/demoFleetData.ts`](apps/hub/src/demo/demoFleetData.ts).
+`pnpm screenshots` updates the screenshots in this README and on the website, and the website's social preview image. The Version packages pull request runs it, so the images show the interface being released. To preview them after changing how the Projects page looks, run it yourself. It builds the dashboard, starts a demo hub and captures the page in light and dark with Chromium, which `pnpm exec playwright install chromium` installs. The demo's machines and repositories are in [`apps/hub/src/demo/demoFleetData.ts`](apps/hub/src/demo/demoFleetData.ts).
 
 Run `pnpm verify` for formatting, lint, typecheck, builds, and unit tests. [Local end-to-end tests](docs/e2e.md) explains Chromium setup and browser tests against an isolated hub, two native agents, and temporary repositories.
 

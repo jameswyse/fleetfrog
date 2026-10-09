@@ -43,7 +43,7 @@ jobs:
         id: changesets
         with:
           github-token: ${{ steps.app-token.outputs.token }}
-          version-script: pnpm changeset version
+          version-script: sh scripts/release/version.sh
           commit-message: "chore(release): version packages"
           pr-title: "chore(release): version packages"
       # With no changesets pending, the version in the manifests is released unless it already is.
@@ -261,3 +261,9 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "FleetFrog $VERSION" \
             --notes-file "$RUNNER_TEMP/notes.md"
+      - name: Point the website branch at the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/heads/website" \
+            -f sha="$GITHUB_SHA" -F force=true
