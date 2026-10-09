@@ -261,9 +261,15 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "FleetFrog $VERSION" \
             --notes-file "$RUNNER_TEMP/notes.md"
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: app-token
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
       - name: Point the website branch at the release
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/heads/website" \
             -f sha="$GITHUB_SHA" -F force=true

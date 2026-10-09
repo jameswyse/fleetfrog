@@ -26,7 +26,7 @@ Merging it releases the version. The workflow then:
 2. Builds the hub image for `linux/amd64` and `linux/arm64`.
 3. Once every build passes, tags the image `ghcr.io/jameswyse/fleetfrog-hub` with the version, such as `0.1.3`, its minor version, such as `0.1`, and `latest`.
 4. Signs `SHA256SUMS` with the release signing key, then creates the GitHub release and its `v0.1.3` tag, with the three agent binaries, `install.sh`, `SHA256SUMS` and its signature, `SHA256SUMS.sig`. Its notes merge the version's sections from every changelog.
-5. Points the `website` branch at the release's commit. Workers Builds deploys [fleetfrog.dev](https://fleetfrog.dev) from that branch, so the website changes only when a version is released.
+5. Points the `website` branch at the release's commit, using the [release app](#setting-up-the-release-app). Workers Builds deploys [fleetfrog.dev](https://fleetfrog.dev) from that branch, so the website changes only when a version is released.
 
 Releases are never marked as pre-releases, because `releases/latest` skips them and the install script downloads from there.
 
@@ -67,11 +67,12 @@ sha256sum --check --ignore-missing SHA256SUMS
 
 ## Setting up the release app
 
-A pull request opened with the workflow's own token doesn't start other workflows, so the Version packages pull request would get no CI. The workflow opens it as a GitHub App instead. To set one up:
+A pull request opened with the workflow's own token doesn't start other workflows, so the Version packages pull request would get no CI. The workflow opens it as a GitHub App instead. The app also moves the `website` branch, which the repository's `website` ruleset lets only the app and repository admins update. To set one up:
 
 1. [Create a GitHub App](https://github.com/settings/apps/new) owned by your account. Give it any name and homepage URL, clear **Webhook › Active**, and grant these repository permissions: **Contents** read and write, **Pull requests** read and write. Allow it to be installed only on this account.
 2. On the app's page, note its **Client ID** and generate a private key.
 3. Install the app on the `fleetfrog` repository only.
 4. In the repository's **Settings › Secrets and variables › Actions**, add the variable `RELEASE_APP_CLIENT_ID` with the client ID, and the secret `RELEASE_APP_PRIVATE_KEY` with the contents of the private key file.
+5. In the repository's **Settings › Rules › Rulesets**, add the app as a bypass actor on the `website` ruleset. Without it, releases still publish but fail to update the website.
 
 The first push of an image creates the `fleetfrog-hub` package as private. Make it public once, under the package's **Package settings**.
