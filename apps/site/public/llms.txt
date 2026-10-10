@@ -1,0 +1,40 @@
+# FleetFrog
+
+> FleetFrog is a free, open-source (MIT), self-hosted dashboard for the computers you develop on. An agent on each machine finds its Git repositories and reports their state to a hub, and the dashboard shows every repository against every machine: branch, uncommitted and untracked changes, stashes, commits to push or pull, and open pull requests.
+
+FleetFrog answers questions such as "what have I left uncommitted or unpushed on my other machines?" and "which machines are behind on this repository?" without checking each machine by hand. From the dashboard you can also fetch, pull, clone, switch branches and stash on any machine. It is in early beta, so expect breaking changes between 0.x versions.
+
+How it fits together:
+
+- The hub serves the dashboard on port 7420 and runs in Docker. Its image, `ghcr.io/jameswyse/fleetfrog-hub`, is published for `linux/amd64` and `linux/arm64`.
+- The agent is a single Rust binary for Linux on x86-64 or ARM64 and macOS on Apple silicon. It needs Git, reads pull requests through the GitHub CLI when `gh` is signed in, and connects to the hub on port 7421 over TLS after pairing.
+- The hub never sends commands. It asks for a named action on a checkout the agent reported, and the agent decides whether to run it. Each machine's owner can deny Git actions, cleanup or updates, and the agent keeps a local audit log the hub can't change.
+- Sign-in is off on a new hub. It supports email and password, OpenID Connect providers such as Authentik, and Tailscale. The hub can run on a tailnet with Tailscale Serve.
+
+Try it without installing anything:
+
+```sh
+docker run --rm -p 7420:7420 -e FLEETFROG_DEMO=1 ghcr.io/jameswyse/fleetfrog-hub:latest
+```
+
+Run the hub, then install the agent on each machine and pair it from Settings › Fleet:
+
+```sh
+curl -fsSLO https://raw.githubusercontent.com/jameswyse/fleetfrog/main/compose.yaml
+docker compose up -d
+curl -fsSL https://github.com/jameswyse/fleetfrog/releases/latest/download/install.sh | sh
+fleetfrog pair ffp1_…
+fleetfrog service install
+```
+
+## Docs
+
+- [README](https://raw.githubusercontent.com/jameswyse/fleetfrog/main/README.md): setup, configuration, Tailscale, sign-in, adding machines, updating, actions and building from source
+- [Compose file](https://raw.githubusercontent.com/jameswyse/fleetfrog/main/compose.yaml): runs the hub with Docker Compose
+- [Tailscale Compose file](https://raw.githubusercontent.com/jameswyse/fleetfrog/main/compose.tailscale.yaml): runs the hub on a tailnet with a Tailscale sidecar
+
+## Project
+
+- [GitHub repository](https://github.com/jameswyse/fleetfrog): source code, issues and discussions
+- [Releases](https://github.com/jameswyse/fleetfrog/releases): agent binaries and what changed in each version
+- [Website](https://fleetfrog.dev/)

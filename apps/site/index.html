@@ -5,16 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="dark" />
     <meta name="theme-color" content="#05170f" />
-    <title>FleetFrog: every repository on every machine</title>
+    <title>FleetFrog: self-hosted Git dashboard for every machine</title>
     <meta
       name="description"
       content="FleetFrog is a self-hosted dashboard for the computers you develop on. See every Git repository on every machine, with its branch, changes and commits to push or pull."
     />
+    <meta name="author" content="James Wyse" />
     <link rel="canonical" href="https://fleetfrog.dev/" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="FleetFrog" />
+    <meta property="og:locale" content="en_AU" />
     <meta property="og:url" content="https://fleetfrog.dev/" />
     <meta property="og:title" content="FleetFrog: every repository on every machine" />
     <meta
@@ -29,6 +31,36 @@
       content="The FleetFrog logo, a green frog, above the words: See every repository on every machine. Below them, the FleetFrog dashboard shows repositories down the side and machines across the top."
     />
     <meta name="twitter:card" content="summary_large_image" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://fleetfrog.dev/#website",
+            "url": "https://fleetfrog.dev/",
+            "name": "FleetFrog",
+            "inLanguage": "en-AU"
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://fleetfrog.dev/#software",
+            "name": "FleetFrog",
+            "url": "https://fleetfrog.dev/",
+            "description": "A self-hosted dashboard for the computers you develop on. An agent on each machine reports its Git repositories to a hub, and the dashboard shows every repository against every machine: branch, uncommitted changes, stashes, commits to push or pull, and open pull requests.",
+            "applicationCategory": "DeveloperApplication",
+            "operatingSystem": "Linux, macOS",
+            "image": "https://fleetfrog.dev/og.png",
+            "downloadUrl": "https://github.com/jameswyse/fleetfrog/releases/latest",
+            "license": "https://opensource.org/license/mit",
+            "isAccessibleForFree": true,
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+            "author": { "@type": "Person", "name": "James Wyse", "url": "https://wyse.dev" },
+            "sameAs": ["https://github.com/jameswyse/fleetfrog"]
+          }
+        ]
+      }
+    </script>
     <link rel="stylesheet" href="/src/styles.css" />
     <script type="module" src="/src/main.ts"></script>
   </head>

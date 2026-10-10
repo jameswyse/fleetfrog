@@ -11,6 +11,8 @@ pnpm --filter @fleetfrog/site preview
 
 The download links point at the latest GitHub release, so they never need updating.
 
+For search engines and AI assistants, `public/` holds `robots.txt`, `sitemap.xml` and `llms.txt`, and `index.html` describes FleetFrog in JSON-LD structured data. Update `llms.txt` and the JSON-LD when the README changes what FleetFrog does or how to install it, and add each new page to `sitemap.xml`.
+
 The screenshot below the hero is `src/images/screenshot.webp`, with `screenshot@2x.webp` for high-density screens. The social preview image, `public/og.png`, shows the hero's headline above the same screenshot. `pnpm screenshots` at the repository root captures all three from a demo hub, along with the README's screenshots. The Version packages pull request runs it, so each release updates them.
 
 ## Deploying
