@@ -7,16 +7,33 @@ import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { AgentUpdateChip, UpdateAllAgents } from "./AgentUpdate.tsx";
 import { ConnectionText, describeHardware, repositoryCount } from "./MachineStatus.tsx";
-import { formatDiskSize, formatMemory, formatMemoryInUse } from "./systemFormat.ts";
+import { describeDisk, formatMemory, formatMemoryInUse } from "./systemFormat.ts";
 import { LoadPills, UsageMeter } from "./SystemMeters.tsx";
 
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
+import type { SystemUsage } from "@fleetfrog/protocol/domain/machine";
 
 const pairLinkClass =
   "inline-flex min-h-9 items-center rounded-md bg-accent px-3 text-sm font-medium text-accent-ink hover:bg-accent-hover";
 
 const cellClass = "px-4 py-3 align-middle";
 const headerClass = "px-4 py-2.5 text-start font-medium";
+
+function DiskMeter({ disk }: { readonly disk: NonNullable<SystemUsage["disk"]> }) {
+  const { used, total, usedShare, purgeable } = describeDisk(disk);
+
+  return (
+    <UsageMeter
+      usedShare={usedShare}
+      purgeableShare={purgeable?.share ?? 0}
+      description={
+        purgeable === null
+          ? `${used} of ${total}`
+          : `${used} of ${total}, plus ${purgeable.amount} purgeable`
+      }
+    />
+  );
+}
 
 function MachineRow({ fleet, machine }: { readonly fleet: Fleet; readonly machine: Machine }) {
   const navigate = useNavigate();
@@ -78,10 +95,7 @@ function MachineRow({ fleet, machine }: { readonly fleet: Fleet; readonly machin
       </td>
       <td className={readingClass}>
         {usage !== null && usage.disk !== null && usage.disk.totalBytes > 0 && (
-          <UsageMeter
-            usedShare={1 - usage.disk.freeBytes / usage.disk.totalBytes}
-            description={`${formatDiskSize(usage.disk.totalBytes - usage.disk.freeBytes)} of ${formatDiskSize(usage.disk.totalBytes)}`}
-          />
+          <DiskMeter disk={usage.disk} />
         )}
       </td>
     </tr>

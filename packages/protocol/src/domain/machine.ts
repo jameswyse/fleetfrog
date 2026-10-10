@@ -56,7 +56,13 @@ export const SystemInfo = Schema.Struct({
 export type SystemInfo = typeof SystemInfo.Type;
 
 export const SystemUsage = Schema.Struct({
-  disk: Schema.NullOr(Schema.Struct({ totalBytes: Bytes, freeBytes: Bytes })),
+  disk: Schema.NullOr(
+    Schema.Struct({
+      totalBytes: Bytes,
+      freeBytes: Bytes,
+      purgeableBytes: Bytes.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(0))),
+    }),
+  ),
   memoryUsedBytes: Schema.NullOr(Bytes).pipe(
     Schema.withDecodingDefaultTypeKey(Effect.succeed(null)),
   ),

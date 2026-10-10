@@ -8,6 +8,7 @@ import {
   parseOsRelease,
   parseProductName,
   parseVmStat,
+  parseImportantCapacity,
 } from "./systemInfo.ts";
 
 describe("system info parsing", () => {
@@ -99,5 +100,11 @@ describe("system info parsing", () => {
 
     expect(parseVmStat(output)).toBe(631_388 * 16_384);
     expect(parseVmStat("Pages free: 12.")).toBeNull();
+  });
+
+  it("reads the capacity macOS frees for important use", () => {
+    expect(parseImportantCapacity("48079333913\n")).toBe(48_079_333_913);
+    expect(parseImportantCapacity("\n")).toBeNull();
+    expect(parseImportantCapacity("undefined\n")).toBeNull();
   });
 });

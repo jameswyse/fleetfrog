@@ -3,31 +3,72 @@ import { formatLoad, percent } from "./systemFormat.ts";
 import type { SystemUsage } from "@fleetfrog/protocol/domain/machine";
 
 const usageFills = [
-  { from: 0.9, fill: "bg-danger" },
-  { from: 0.8, fill: "bg-changes" },
-  { from: 0, fill: "bg-clean" },
+  { from: 0.9, fill: "bg-danger", soft: "bg-danger/40" },
+  { from: 0.8, fill: "bg-changes", soft: "bg-changes/40" },
+  { from: 0, fill: "bg-clean", soft: "bg-clean/40" },
 ] as const;
 
-function Bar({ share, className }: { readonly share: number; readonly className: string }) {
-  const { fill } = usageFills.find(({ from }) => share >= from) ?? usageFills[2];
+interface Purgeable {
+  readonly amount: string;
+  readonly share: number;
+}
+
+const clamp = (share: number) => Math.min(1, Math.max(0, share));
+
+const usageFill = (share: number) => usageFills.find(({ from }) => share >= from) ?? usageFills[2];
+
+function Bar({
+  share,
+  purgeableShare,
+  className,
+}: {
+  readonly share: number;
+  readonly purgeableShare: number;
+  readonly className: string;
+}) {
+  const { fill, soft } = usageFill(share);
 
   return (
     <div aria-hidden="true" className={`h-1.5 overflow-hidden rounded-full bg-line ${className}`}>
-      <div className={`h-full rounded-full ${fill}`} style={{ width: `${share * 100}%` }} />
+      <div
+        className="flex h-full overflow-hidden rounded-full"
+        style={{ width: `${clamp(share + purgeableShare) * 100}%` }}
+      >
+        <div className={`h-full ${fill}`} style={{ flexGrow: share }} />
+        <div className={`h-full ${soft}`} style={{ flexGrow: purgeableShare }} />
+      </div>
     </div>
   );
 }
 
-const clamp = (share: number) => Math.min(1, Math.max(0, share));
+function PurgeableKey({
+  purgeable,
+  share,
+}: {
+  readonly purgeable: Purgeable;
+  readonly share: number;
+}) {
+  return (
+    <p className="mt-1.5 flex items-center gap-1.5 text-xs text-ink-muted">
+      <span
+        aria-hidden="true"
+        className={`size-2 shrink-0 rounded-full ${usageFill(share).soft}`}
+      />
+      {purgeable.amount} purgeable, which macOS frees when needed
+    </p>
+  );
+}
 
 export function UsageBar({
   used,
   total,
   usedShare,
+  purgeable = null,
 }: {
   readonly used: string;
   readonly total: string;
   readonly usedShare: number;
+  readonly purgeable?: Purgeable | null;
 }) {
   const share = clamp(usedShare);
 
@@ -39,7 +80,8 @@ export function UsageBar({
         </span>
         <span className="text-ink-muted tabular-nums">{percent.format(share)} used</span>
       </div>
-      <Bar share={share} className="mt-1.5" />
+      <Bar share={share} purgeableShare={purgeable?.share ?? 0} className="mt-1.5" />
+      {purgeable !== null && <PurgeableKey purgeable={purgeable} share={share} />}
     </>
   );
 }
@@ -47,15 +89,17 @@ export function UsageBar({
 export function UsageMeter({
   usedShare,
   description,
+  purgeableShare = 0,
 }: {
   readonly usedShare: number;
   readonly description: string;
+  readonly purgeableShare?: number;
 }) {
   const share = clamp(usedShare);
 
   return (
     <div title={description} className="flex items-center gap-2">
-      <Bar share={share} className="w-16 shrink-0" />
+      <Bar share={share} purgeableShare={purgeableShare} className="w-16 shrink-0" />
       <span className="tabular-nums">{percent.format(share)}</span>
       <span className="sr-only">, {description}</span>
     </div>

@@ -809,7 +809,11 @@ export function sampleUsage(spec: DemoMachine, now: DateTime.Utc): SystemUsage {
   const load = (base: number) => Math.max(0.05, Math.round(base * 100) / 100);
 
   return {
-    disk: { totalBytes: spec.disk.totalGiB * gibibyte, freeBytes: spec.disk.freeGiB * gibibyte },
+    disk: {
+      totalBytes: spec.disk.totalGiB * gibibyte,
+      freeBytes: spec.disk.freeGiB * gibibyte,
+      purgeableBytes: spec.disk.purgeableGiB * gibibyte,
+    },
     memoryUsedBytes: Math.round((spec.memoryUsedGiB + wobble(7) * 1.5) * gibibyte),
     loadAverage: [
       load(spec.load * (1 + 0.35 * wobble(3))),

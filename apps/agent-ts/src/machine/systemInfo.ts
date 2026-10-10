@@ -20,6 +20,16 @@ const nameAndDetail = /^(?<name>.+?) \((?<detail>.+)\)$/;
 const whitespace = /\s+/g;
 const vmStatPageSize = /page size of (?<bytes>\d+) bytes/;
 const vmStatCount = /^"?(?<name>[^":\n]+)"?:\s+(?<count>\d+)\.$/gm;
+const wholeBytes = /^\d+$/;
+
+const importantCapacityScript = [
+  'ObjC.import("Foundation");',
+  "function run(argv) {",
+  "  const value = Ref();",
+  "  $.NSURL.fileURLWithPath(argv[0]).getResourceValueForKeyError(value, $.NSURLVolumeAvailableCapacityForImportantUsageKey, null);",
+  "  return ObjC.unwrap(value[0]);",
+  "}",
+].join("\n");
 
 export function parseOsRelease(text: string): string | null {
   const value = osReleaseName.exec(text)?.groups?.value?.trim() ?? "";
@@ -59,6 +69,12 @@ export function parseVmStat(output: string): number | null {
   }
 
   return (Math.max(0, anonymous - purgeable) + wired + compressed) * pageBytes;
+}
+
+export function parseImportantCapacity(output: string): number | null {
+  const value = output.trim();
+
+  return wholeBytes.test(value) ? Number(value) : null;
 }
 
 export function parseProductName(output: string): MachineModel | null {
@@ -285,16 +301,43 @@ const readMemoryUsed = Effect.fn("readMemoryUsed")(function* (platform: Platform
   return os.totalmem() - os.freemem();
 });
 
-export const readSystemUsage = Effect.fn("readSystemUsage")(function* (platform: Platform) {
-  const disk = yield* Effect.promise(() =>
-    statfs(os.homedir()).then(
-      (stats) => ({
-        totalBytes: stats.blocks * stats.bsize,
-        freeBytes: stats.bavail * stats.bsize,
-      }),
-      () => null,
-    ),
+const readPurgeable = Effect.fn("readPurgeable")(function* (platform: Platform, freeBytes: number) {
+  if (platform !== "darwin") {
+    return 0;
+  }
+
+  const available = yield* runTool("osascript", os.homedir(), [
+    "-l",
+    "JavaScript",
+    "-e",
+    importantCapacityScript,
+    os.homedir(),
+  ]).pipe(
+    Effect.map(parseImportantCapacity),
+    Effect.orElseSucceed(() => null),
   );
+
+  return available === null ? 0 : Math.max(0, available - freeBytes);
+});
+
+const readDisk = Effect.fn("readDisk")(function* (platform: Platform) {
+  const stats = yield* Effect.promise(() => statfs(os.homedir()).catch(() => null));
+
+  if (stats === null) {
+    return null;
+  }
+
+  const freeBytes = stats.bavail * stats.bsize;
+
+  return {
+    totalBytes: stats.blocks * stats.bsize,
+    freeBytes,
+    purgeableBytes: yield* readPurgeable(platform, freeBytes),
+  };
+});
+
+export const readSystemUsage = Effect.fn("readSystemUsage")(function* (platform: Platform) {
+  const disk = yield* readDisk(platform);
 
   const [one = 0, five = 0, fifteen = 0] = os.loadavg();
 

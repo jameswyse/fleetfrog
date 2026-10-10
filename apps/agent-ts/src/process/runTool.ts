@@ -37,6 +37,7 @@ export function runTool(
     | "gh"
     | "ioreg"
     | "launchctl"
+    | "osascript"
     | "ps"
     | "scutil"
     | "sw_vers"

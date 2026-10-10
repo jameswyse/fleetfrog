@@ -149,6 +149,17 @@ pub fn parse_git_version(output: &str) -> Option<String> {
     Some(version).filter(|version| !version.is_empty())
 }
 
+const IMPORTANT_CAPACITY_SCRIPT: &str = "ObjC.import(\"Foundation\");
+function run(argv) {
+  const value = Ref();
+  $.NSURL.fileURLWithPath(argv[0]).getResourceValueForKeyError(value, $.NSURLVolumeAvailableCapacityForImportantUsageKey, null);
+  return ObjC.unwrap(value[0]);
+}";
+
+pub fn parse_important_capacity(output: &str) -> Option<u64> {
+    output.trim().parse().ok()
+}
+
 /// Memory in use from `vm_stat`, counted as Activity Monitor does: app memory (anonymous pages
 /// that can't be purged), wired memory and the compressor's pages. File caches don't count.
 pub fn parse_vm_stat(output: &str) -> Option<u64> {
@@ -559,7 +570,23 @@ async fn read_memory_used() -> Option<u64> {
     Some(meminfo("MemTotal")?.saturating_sub(meminfo("MemAvailable")?))
 }
 
-fn read_disk(folder: &str) -> Option<Disk> {
+async fn read_purgeable(folder: &str, free_bytes: u64) -> u64 {
+    if !is_mac() {
+        return 0;
+    }
+
+    run_tool(
+        "osascript",
+        folder,
+        &["-l", "JavaScript", "-e", IMPORTANT_CAPACITY_SCRIPT, folder],
+    )
+    .await
+    .ok()
+    .and_then(|output| parse_important_capacity(&output))
+    .map_or(0, |available| available.saturating_sub(free_bytes))
+}
+
+async fn read_disk(folder: &str) -> Option<Disk> {
     let path = std::ffi::CString::new(folder).ok()?;
 
     // SAFETY: `statvfs` fills the zeroed struct for the NUL-terminated path.
@@ -573,11 +600,13 @@ fn read_disk(folder: &str) -> Option<Disk> {
         stats
     };
     let block = stats.f_frsize as u64;
+    // Space an unprivileged user can use, which is what a clone or install can fill.
+    let free_bytes = stats.f_bavail as u64 * block;
 
     Some(Disk {
         total_bytes: stats.f_blocks as u64 * block,
-        // Space an unprivileged user can use, which is what a clone or install can fill.
-        free_bytes: stats.f_bavail as u64 * block,
+        free_bytes,
+        purgeable_bytes: read_purgeable(folder, free_bytes).await,
     })
 }
 
@@ -591,7 +620,7 @@ pub async fn read_system_usage() -> SystemUsage {
     }
 
     SystemUsage {
-        disk: read_disk(&paths::home()),
+        disk: read_disk(&paths::home()).await,
         memory_used_bytes: read_memory_used().await,
         load_average: load,
         sampled_at: Utc::now(),
@@ -641,5 +670,15 @@ mod tests {
         let vm_stat = "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free: 10.\nAnonymous pages: 100.\nPages purgeable: 10.\nPages wired down: 5.\n\"Pages occupied by compressor\": 3.\n";
 
         assert_eq!(parse_vm_stat(vm_stat), Some((90 + 5 + 3) * 16384));
+    }
+
+    #[test]
+    fn reads_the_capacity_macos_frees_for_important_use() {
+        assert_eq!(
+            parse_important_capacity("48079333913\n"),
+            Some(48_079_333_913)
+        );
+        assert_eq!(parse_important_capacity("\n"), None);
+        assert_eq!(parse_important_capacity("undefined\n"), None);
     }
 }

@@ -20,7 +20,11 @@ export interface DemoMachine {
   readonly architecture: string;
   readonly cpu: { readonly model: string; readonly cores: number };
   readonly memoryGiB: number;
-  readonly disk: { readonly totalGiB: number; readonly freeGiB: number };
+  readonly disk: {
+    readonly totalGiB: number;
+    readonly freeGiB: number;
+    readonly purgeableGiB: number;
+  };
   readonly memoryUsedGiB: number;
   readonly load: number;
   readonly bootedDaysAgo: number;
@@ -148,7 +152,7 @@ export const demoMachines: ReadonlyArray<DemoMachine> = [
     cpu: { model: "Apple M4 Max", cores: 16 },
     memoryGiB: 64,
     memoryUsedGiB: 41,
-    disk: { totalGiB: 1858, freeGiB: 612 },
+    disk: { totalGiB: 1858, freeGiB: 612, purgeableGiB: 96 },
     load: 3.2,
     bootedDaysAgo: 6,
     pairedDaysAgo: 142,
@@ -183,7 +187,7 @@ export const demoMachines: ReadonlyArray<DemoMachine> = [
     cpu: { model: "Apple M3 Ultra", cores: 28 },
     memoryGiB: 96,
     memoryUsedGiB: 58,
-    disk: { totalGiB: 3720, freeGiB: 2210 },
+    disk: { totalGiB: 3720, freeGiB: 2210, purgeableGiB: 184 },
     load: 5.8,
     bootedDaysAgo: 23,
     pairedDaysAgo: 131,
@@ -208,7 +212,7 @@ export const demoMachines: ReadonlyArray<DemoMachine> = [
     cpu: { model: "AMD Ryzen 9 9950X", cores: 32 },
     memoryGiB: 128,
     memoryUsedGiB: 37,
-    disk: { totalGiB: 3726, freeGiB: 1890 },
+    disk: { totalGiB: 3726, freeGiB: 1890, purgeableGiB: 0 },
     load: 2.4,
     bootedDaysAgo: 11,
     pairedDaysAgo: 128,
@@ -233,7 +237,7 @@ export const demoMachines: ReadonlyArray<DemoMachine> = [
     cpu: { model: "Intel(R) N305", cores: 8 },
     memoryGiB: 32,
     memoryUsedGiB: 19,
-    disk: { totalGiB: 1862, freeGiB: 744 },
+    disk: { totalGiB: 1862, freeGiB: 744, purgeableGiB: 0 },
     load: 0.9,
     bootedDaysAgo: 64,
     pairedDaysAgo: 97,
@@ -258,7 +262,7 @@ export const demoMachines: ReadonlyArray<DemoMachine> = [
     cpu: { model: "Neoverse-N1", cores: 16 },
     memoryGiB: 32,
     memoryUsedGiB: 12,
-    disk: { totalGiB: 320, freeGiB: 141 },
+    disk: { totalGiB: 320, freeGiB: 141, purgeableGiB: 0 },
     load: 1.3,
     bootedDaysAgo: 18,
     pairedDaysAgo: 54,

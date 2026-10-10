@@ -1,6 +1,6 @@
 import { plural } from "@/ui/plural.ts";
 
-import type { SystemInfo } from "@fleetfrog/protocol/domain/machine";
+import type { SystemInfo, SystemUsage } from "@fleetfrog/protocol/domain/machine";
 
 const wholeNumber = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
 const oneDecimal = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
@@ -29,6 +29,23 @@ export function formatDiskSize(bytes: number): string {
   return terabytes >= 1
     ? `${oneDecimal.format(terabytes)} TB`
     : `${wholeNumber.format(bytes / 1000 ** 3)} GB`;
+}
+
+export function describeDisk(disk: NonNullable<SystemUsage["disk"]>) {
+  const usedBytes = Math.max(0, disk.totalBytes - disk.freeBytes - disk.purgeableBytes);
+
+  return {
+    used: formatDiskSize(usedBytes),
+    total: formatDiskSize(disk.totalBytes),
+    usedShare: usedBytes / disk.totalBytes,
+    purgeable:
+      disk.purgeableBytes === 0
+        ? null
+        : {
+            amount: formatDiskSize(disk.purgeableBytes),
+            share: disk.purgeableBytes / disk.totalBytes,
+          },
+  };
 }
 
 const trademarks = /\((?:R|TM)\)/gi;

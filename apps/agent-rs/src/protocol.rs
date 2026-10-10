@@ -766,6 +766,7 @@ pub struct SystemInfo {
 pub struct Disk {
     pub total_bytes: u64,
     pub free_bytes: u64,
+    pub purgeable_bytes: u64,
 }
 
 #[derive(Serialize, Clone, Debug)]

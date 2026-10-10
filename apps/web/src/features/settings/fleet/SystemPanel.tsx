@@ -6,7 +6,7 @@ import { RelativeTime, useNow } from "@/ui/RelativeTime.tsx";
 import { SideDetail, SidePanel } from "../SettingsSection.tsx";
 import {
   describeProcessorCount,
-  formatDiskSize,
+  describeDisk,
   formatMemory,
   formatMemoryInUse,
   shortProcessorName,
@@ -90,11 +90,7 @@ export function SystemPanel({ machine }: { readonly machine: Machine }) {
         {usage === null || usage.disk === null || usage.disk.totalBytes === 0 ? (
           "Not reported yet"
         ) : (
-          <UsageBar
-            used={formatDiskSize(usage.disk.totalBytes - usage.disk.freeBytes)}
-            total={formatDiskSize(usage.disk.totalBytes)}
-            usedShare={1 - usage.disk.freeBytes / usage.disk.totalBytes}
-          />
+          <UsageBar {...describeDisk(usage.disk)} />
         )}
       </SideDetail>
       <SideDetail term="Load average">
