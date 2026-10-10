@@ -3,13 +3,23 @@
   // Workers Builds needs the Worker it deploys to have this name.
   "name": "fleetfrog-website",
   "compatibility_date": "2026-09-25",
+  "main": "worker.ts",
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+      "persist": true,
+    },
+  },
   "assets": {
     "directory": "./dist",
     "not_found_handling": "404-page",
+    "binding": "ASSETS",
+    "run_worker_first": true,
   },
-  // Production is served at fleetfrog.dev and www.fleetfrog.dev. Each branch's preview is served
-  // at a subdomain of fleetfrog.dev, such as my-branch.fleetfrog.dev, which Cloudflare's GitHub app
-  // comments on the pull request.
+  // Production is served at fleetfrog.dev, and worker.ts redirects www.fleetfrog.dev there. Each
+  // branch's preview is served at a subdomain of fleetfrog.dev, such as my-branch.fleetfrog.dev,
+  // which Cloudflare's GitHub app comments on the pull request.
   "workers_dev": false,
   "preview_urls": true,
   // `wrangler preview`, which Workers Builds runs for each branch, needs this block even when empty.
