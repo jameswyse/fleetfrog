@@ -1,5 +1,12 @@
 # @fleetfrog/site
 
+## 0.8.1
+
+### Patch Changes
+
+- da00931: Redirect www.fleetfrog.dev to fleetfrog.dev.
+- 3b9c0f2: Help search engines and AI assistants find and describe the site, with a sitemap, robots.txt, llms.txt and structured data.
+
 ## 0.8.0
 
 No changes in this release.
