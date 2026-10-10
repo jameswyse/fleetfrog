@@ -1,5 +1,11 @@
 # @fleetfrog/agent-rs
 
+## 0.8.0
+
+### Minor Changes
+
+- 2ddf973: Show the disk space macOS can purge as a lighter part of each disk bar, and count it as free, as Finder does.
+
 ## 0.7.0
 
 ### Patch Changes
