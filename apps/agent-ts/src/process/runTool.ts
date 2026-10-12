@@ -1,7 +1,7 @@
 import { execFile, spawn } from "node:child_process";
 import { homedir } from "node:os";
 
-import { Deferred, Duration, Effect, Fiber, Option, Schema } from "effect";
+import { Deferred, Duration, Effect, Fiber, Option, Predicate, Schema } from "effect";
 
 import { inheritedEnvironment } from "../config/environment.ts";
 import { redactCredentials } from "./redactCredentials.ts";
@@ -182,7 +182,7 @@ export type ProgramResult =
 
 const capturedOutputCharacters = 16 * 1024;
 const outputGrace = Duration.seconds(1);
-const stopGrace = Duration.seconds(5);
+const defaultStopGrace = Duration.seconds(5);
 const killGrace = Duration.seconds(1);
 const groupPollInterval = Duration.millis(100);
 
@@ -195,8 +195,10 @@ export function runProgram(options: {
   readonly executable: string;
   readonly args: ReadonlyArray<string>;
   readonly timeout: Duration.Duration;
+  readonly stopGrace?: Duration.Duration;
 }) {
   const cwd = homedir();
+  const stopGrace = options.stopGrace ?? defaultStopGrace;
 
   return Effect.gen(function* () {
     const exited = Deferred.makeUnsafe<ProgramExit, CommandFailed>();
@@ -237,8 +239,12 @@ export function runProgram(options: {
         process.kill(-child.pid, signal);
 
         return true;
-      } catch {
-        return false;
+      } catch (error) {
+        if (Predicate.hasProperty(error, "code") && error.code === "ESRCH") {
+          return false;
+        }
+
+        throw error;
       }
     };
 
