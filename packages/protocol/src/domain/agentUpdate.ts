@@ -36,6 +36,13 @@ export function agentBehindHub(
   return compareVersions(machine.info.agentVersion, hubVersion) < 0;
 }
 
+export function agentsBehindHub(fleet: {
+  readonly machines: ReadonlyArray<Pick<UpdatableMachine, "info">>;
+  readonly hubVersion: string;
+}): number {
+  return fleet.machines.filter((machine) => agentBehindHub(machine, fleet.hubVersion)).length;
+}
+
 export function canUpdateAgent(machine: UpdatableMachine, hubVersion: string): boolean {
   return (
     agentBehindHub(machine, hubVersion) &&

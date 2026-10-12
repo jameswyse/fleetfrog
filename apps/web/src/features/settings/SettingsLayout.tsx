@@ -1,6 +1,7 @@
 import { Link, Outlet } from "@tanstack/react-router";
 import {
   BlocksIcon,
+  CircleFadingArrowUpIcon,
   KeyRoundIcon,
   LayersIcon,
   PlusIcon,
@@ -12,6 +13,7 @@ import {
 
 import { knownFleet, useHub } from "@/rpc/hubConnection.ts";
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
+import { plural } from "@/ui/plural.ts";
 import {
   SidebarLayout,
   sidebarLinkClass,
@@ -19,13 +21,38 @@ import {
   sidebarSubmenuItemClass,
 } from "@/ui/SidebarLayout.tsx";
 import { T3CodeLogo } from "@/ui/T3CodeLogo.tsx";
+import { agentBehindHub, agentsBehindHub } from "@fleetfrog/protocol/domain/agentUpdate";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { t3CodeNeedsAttention } from "./integrations/t3CodeHealth.ts";
 
+function UpdateAvailableIcon({ label }: { readonly label: string }) {
+  return (
+    <>
+      <CircleFadingArrowUpIcon aria-hidden="true" className="text-changes" />
+      <span className="sr-only">, {label}</span>
+    </>
+  );
+}
+
+function FleetLink() {
+  const hub = useHub();
+  const fleet = knownFleet(hub);
+  const behind = fleet === null ? 0 : agentsBehindHub(fleet);
+
+  return (
+    <Link to="/settings/fleet" activeOptions={{ exact: true }} className={sidebarLinkClass}>
+      <LayersIcon />
+      <span className="min-w-0 flex-1 truncate">Fleet</span>
+      {behind > 0 && <UpdateAvailableIcon label={`${plural(behind, "agent update")} available`} />}
+    </Link>
+  );
+}
+
 function MachineLinks() {
   const hub = useHub();
-  const machines = knownFleet(hub)?.machines ?? [];
+  const fleet = knownFleet(hub);
+  const machines = fleet?.machines ?? [];
 
   return (
     <ul className={sidebarSubmenuClass}>
@@ -41,6 +68,9 @@ function MachineLinks() {
             >
               <MachineKindIcon kind={machineKind(machine)} />
               <span className="min-w-0 flex-1 truncate">{machineLabel(machine)}</span>
+              {fleet !== null && agentBehindHub(machine, fleet.hubVersion) && (
+                <UpdateAvailableIcon label="agent update available" />
+              )}
               <span
                 aria-hidden="true"
                 className={`size-2 shrink-0 rounded-full ${online ? "bg-clean" : "bg-ink-muted/60"}`}
@@ -131,14 +161,7 @@ export function SettingsLayout() {
               <IntegrationLinks />
             </li>
             <li>
-              <Link
-                to="/settings/fleet"
-                activeOptions={{ exact: true }}
-                className={sidebarLinkClass}
-              >
-                <LayersIcon />
-                Fleet
-              </Link>
+              <FleetLink />
               <MachineLinks />
             </li>
           </ul>

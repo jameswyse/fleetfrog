@@ -6,11 +6,14 @@ import { knownFleet, useHub, useRuns } from "@/rpc/hubConnection.ts";
 import { isSignedOut, useRole, useSession } from "@/rpc/session.ts";
 import { Logo } from "@/ui/Logo.tsx";
 import { Spinner } from "@/ui/Spinner.tsx";
+import { agentsBehindHub } from "@fleetfrog/protocol/domain/agentUpdate";
 
 import { t3CodeNeedsAttention } from "../settings/integrations/t3CodeHealth.ts";
 import { HubStatus } from "./HubStatus.tsx";
 import { OutdatedNotice } from "./OutdatedNotice.tsx";
 import { UserMenu } from "./UserMenu.tsx";
+
+import type { Fleet } from "@fleetfrog/protocol/domain/fleet";
 
 const navigation = [
   { to: "/", label: "Projects", adminOnly: false },
@@ -40,6 +43,19 @@ function RunningIndicator() {
   );
 }
 
+const settingsNotices = {
+  Problem: { dot: "bg-danger", label: "needs attention" },
+  Update: { dot: "bg-changes", label: "agent updates available" },
+} as const;
+
+function settingsNoticeOf(fleet: Fleet) {
+  if (t3CodeNeedsAttention(fleet)) {
+    return settingsNotices.Problem;
+  }
+
+  return agentsBehindHub(fleet) > 0 ? settingsNotices.Update : null;
+}
+
 export function AppShell() {
   const session = useSession();
   const role = useRole();
@@ -47,7 +63,7 @@ export function AppShell() {
   const signedOut = isSignedOut(session);
   const hub = useHub();
   const fleet = knownFleet(hub);
-  const settingsAttention = fleet !== null && t3CodeNeedsAttention(fleet);
+  const settingsNotice = fleet === null ? null : settingsNoticeOf(fleet);
 
   useEffect(() => {
     if (signedOut) {
@@ -85,13 +101,13 @@ export function AppShell() {
                           className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-ink-muted hover:bg-surface-raised hover:text-ink aria-[current=page]:bg-surface-raised aria-[current=page]:text-ink"
                         >
                           {label}
-                          {to === "/settings" && settingsAttention && (
+                          {to === "/settings" && settingsNotice !== null && (
                             <>
                               <span
                                 aria-hidden="true"
-                                className="size-1.5 rounded-full bg-danger"
+                                className={`size-1.5 rounded-full ${settingsNotice.dot}`}
                               />
-                              <span className="sr-only">, needs attention</span>
+                              <span className="sr-only">, {settingsNotice.label}</span>
                             </>
                           )}
                         </Link>
