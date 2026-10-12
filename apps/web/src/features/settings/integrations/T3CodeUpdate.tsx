@@ -5,6 +5,7 @@ import { ArrowUpRightIcon } from "lucide-react";
 import { requestHub } from "@/rpc/hubConnection.ts";
 import { Button } from "@/ui/Button.tsx";
 import { plural } from "@/ui/plural.ts";
+import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 import {
   availableT3CodeVersion,
   canUpdateT3Code,
@@ -71,6 +72,20 @@ function updateLabel({
   return failure === null ? `Update to ${version}` : "Try again";
 }
 
+function useStartT3CodeUpdate(machine: Machine) {
+  const [requesting, startRequest] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const start = () =>
+    startRequest(async () => {
+      const result = await requestHub((client) => client.UpdateT3Code({ machineId: machine.id }));
+
+      setError(result._tag === "Failure" ? `Couldn't start the update. ${result.message}` : null);
+    });
+
+  return { requesting, error, start };
+}
+
 export function T3CodeUpdateRow({
   fleet,
   machine,
@@ -78,8 +93,7 @@ export function T3CodeUpdateRow({
   readonly fleet: Fleet;
   readonly machine: Machine;
 }) {
-  const [requesting, startRequest] = useTransition();
-  const [error, setError] = useState<string | null>(null);
+  const { requesting, error, start } = useStartT3CodeUpdate(machine);
   const running = machine.t3Code?.server?.version ?? null;
   const available = availableT3CodeVersion(machine.t3Code, fleet.t3CodeReleases);
   const update = machine.t3CodeUpdate;
@@ -88,13 +102,6 @@ export function T3CodeUpdateRow({
   const message =
     error ??
     (failure === null ? null : `Couldn't update to ${failure.version}. ${failure.message}`);
-
-  const start = () =>
-    startRequest(async () => {
-      const result = await requestHub((client) => client.UpdateT3Code({ machineId: machine.id }));
-
-      setError(result._tag === "Failure" ? `Couldn't start the update. ${result.message}` : null);
-    });
 
   if (running === null || available === null || !fleet.integrations.t3Code.enabled) {
     return null;
@@ -171,6 +178,42 @@ export function T3CodeUpdateDetail({
     <>
       <dt className="sr-only">Update</dt>
       <dd>{updateState(machine, available)}</dd>
+    </>
+  );
+}
+
+export function T3CodeUpdateButton({
+  fleet,
+  machine,
+}: {
+  readonly fleet: Fleet;
+  readonly machine: Machine;
+}) {
+  const { requesting, error, start } = useStartT3CodeUpdate(machine);
+  const available = availableT3CodeVersion(machine.t3Code, fleet.t3CodeReleases);
+  const update = machine.t3CodeUpdate;
+  const updatable = canUpdateT3Code(machine, fleet.t3CodeReleases);
+
+  if (available === null || (!updatable && update === null && error === null)) {
+    return null;
+  }
+
+  const updating = requesting || update?._tag === "Updating";
+
+  return (
+    <>
+      <dt className="sr-only">Update T3 Code</dt>
+      <dd className="pt-1.5">
+        <Button disabled={requesting || !updatable} onClick={start}>
+          {updating ? "Updating…" : update?._tag === "Failed" ? "Try again" : "Update"}
+          <span className="sr-only"> T3 Code on {machineLabel(machine)}</span>
+        </Button>
+        {error !== null && (
+          <p role="status" className="mt-1 max-w-64 text-sm text-danger">
+            {error}
+          </p>
+        )}
+      </dd>
     </>
   );
 }

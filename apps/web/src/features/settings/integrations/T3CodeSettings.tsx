@@ -19,7 +19,7 @@ import { SettingsRow, SettingsSection, SideDetail, SidePanel } from "../Settings
 import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
 import { ReadingSummary, SchemaText, unmatchedProjects } from "./T3CodeFacts.tsx";
 import { describeIssue, isProblem, issueKey, t3CodeIssues } from "./t3CodeHealth.ts";
-import { T3CodeUpdateDetail, UpdateAllT3Code } from "./T3CodeUpdate.tsx";
+import { T3CodeUpdateButton, T3CodeUpdateDetail, UpdateAllT3Code } from "./T3CodeUpdate.tsx";
 
 import type { Fleet } from "@fleetfrog/protocol/domain/fleet";
 import type { T3CodeSettings as Settings } from "@fleetfrog/protocol/domain/t3Code";
@@ -126,6 +126,7 @@ function MachinesSection({ fleet }: { readonly fleet: Fleet }) {
                     )}
                   </dd>
                   <T3CodeUpdateDetail fleet={fleet} machine={machine} />
+                  <T3CodeUpdateButton fleet={fleet} machine={machine} />
                   <dt className="sr-only">Schema</dt>
                   <dd>
                     <SchemaText machine={machine} />
