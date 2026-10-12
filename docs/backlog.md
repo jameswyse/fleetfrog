@@ -44,6 +44,10 @@ Ideas for after phase 2. They're captured, not planned: an entry doesn't mean it
 - **Trash on another disk.** The trash lives in the home directory, so moving a checkout on another disk to the trash fails. A trash folder on each disk would need its own records.
 - **Restoring a branch's upstream.** A branch restored from the trash comes back without its upstream, because deleting it also removes its settings.
 
+## T3 Code
+
+- **Connection expiry warnings.** A session T3 Code issues from a pairing link lasts 30 days and doesn't renew while in use, so a device's connection to a T3 Code server stops working without warning. The agent already reads T3 Code's database, whose `auth_sessions` table records each session's client label, expiry and revocation. The T3 Code integration page could warn before a connection expires, such as "MacBook Pro's connection to Mini expires in 5 days". Reports would carry labels and dates only, never credentials.
+
 ## Agent capabilities
 
 Agents have the `git` and `cleanup` tiers.
