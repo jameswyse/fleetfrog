@@ -298,6 +298,9 @@ export function makeScanner<ReportError>(options: {
         }),
       ),
 
+    rescanT3Code: (settings: T3CodeAgentSettings | null) =>
+      readIntegration(settings).pipe(Effect.flatMap(reportIntegration), lock.withPermits(1)),
+
     discovered: Deferred.await(firstWalk),
 
     locate: (path: string): CheckoutLocation | undefined =>

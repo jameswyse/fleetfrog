@@ -23,6 +23,7 @@ import {
 import { T3CodeLogo } from "@/ui/T3CodeLogo.tsx";
 import { agentBehindHub, agentsBehindHub } from "@fleetfrog/protocol/domain/agentUpdate";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
+import { outdatedT3Code } from "@fleetfrog/protocol/domain/t3CodeUpdate";
 
 import { t3CodeNeedsAttention } from "./integrations/t3CodeHealth.ts";
 
@@ -94,6 +95,7 @@ function IntegrationLinks() {
   const hub = useHub();
   const fleet = knownFleet(hub);
   const attention = fleet !== null && t3CodeNeedsAttention(fleet);
+  const outdated = fleet === null ? 0 : outdatedT3Code(fleet);
 
   return (
     <ul className={sidebarSubmenuClass}>
@@ -106,6 +108,9 @@ function IntegrationLinks() {
               <TriangleAlertIcon aria-hidden="true" className="text-danger" />
               <span className="sr-only">, needs attention</span>
             </>
+          )}
+          {!attention && outdated > 0 && (
+            <UpdateAvailableIcon label={`${plural(outdated, "T3 Code update")} available`} />
           )}
         </Link>
       </li>

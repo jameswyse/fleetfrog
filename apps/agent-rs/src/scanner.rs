@@ -412,6 +412,13 @@ impl Scanner {
         self.report_integration(integration).await
     }
 
+    pub async fn rescan_t3code(&self, settings: Option<T3CodeAgentSettings>) -> Result<(), String> {
+        let mut favicons = self.pass.lock().await;
+        let integration = self.read_integration(settings, &mut favicons).await;
+
+        self.report_integration(integration).await
+    }
+
     /// Waits until the first discovery walk has found the checkouts.
     pub async fn discovered(&self) {
         let mut receiver = self.first_walk.subscribe();

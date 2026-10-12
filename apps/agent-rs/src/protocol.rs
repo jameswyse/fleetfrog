@@ -13,16 +13,18 @@ pub enum Tier {
     Git,
     Cleanup,
     Update,
+    T3Code,
 }
 
 impl Tier {
-    pub const ALL: [Tier; 3] = [Tier::Git, Tier::Cleanup, Tier::Update];
+    pub const ALL: [Tier; 4] = [Tier::Git, Tier::Cleanup, Tier::Update, Tier::T3Code];
 
     pub fn as_str(self) -> &'static str {
         match self {
             Tier::Git => "git",
             Tier::Cleanup => "cleanup",
             Tier::Update => "update",
+            Tier::T3Code => "t3code",
         }
     }
 
@@ -32,6 +34,7 @@ impl Tier {
             Tier::Git => "Git actions",
             Tier::Cleanup => "Cleanup actions",
             Tier::Update => "Agent updates",
+            Tier::T3Code => "T3 Code updates",
         }
     }
 
@@ -40,7 +43,7 @@ impl Tier {
     /// machines as they were.
     pub fn allowed_by_default(self) -> bool {
         match self {
-            Tier::Git | Tier::Cleanup | Tier::Update => true,
+            Tier::Git | Tier::Cleanup | Tier::Update | Tier::T3Code => true,
         }
     }
 
@@ -346,6 +349,7 @@ pub struct AgentCapabilities {
     pub creates_folders: bool,
     /// Whether the hub may send `Update`. Only release builds can replace themselves.
     pub updates_itself: bool,
+    pub updates_t3_code: bool,
 }
 
 // Checkouts.
@@ -862,6 +866,7 @@ pub struct T3CodeServer {
     pub version: Option<String>,
     pub started_at: Utc,
     pub port: i64,
+    pub service_managed: bool,
 }
 
 #[derive(Serialize, Clone, Debug, PartialEq, Eq)]
@@ -944,6 +949,16 @@ pub enum HubCommand {
     Update {
         version: String,
     },
+    UpdateT3Code {
+        version: String,
+    },
+}
+
+#[derive(Serialize, Clone, Debug, PartialEq, Eq)]
+#[serde(tag = "_tag")]
+pub enum T3CodeUpdateOutcome {
+    Updated,
+    Failed { message: String },
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -974,6 +989,47 @@ pub enum ScanReport {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn names_the_t3_code_tier() {
+        assert_eq!(Tier::parse("t3code"), Some(Tier::T3Code));
+        assert_eq!(serde_json::to_value(Tier::T3Code).unwrap(), json!("t3code"));
+        assert_eq!(Tier::T3Code.plural_name(), "T3 Code updates");
+        assert!(Tier::T3Code.allowed_by_default());
+    }
+
+    #[test]
+    fn reads_and_reports_t3_code_updates() {
+        assert!(matches!(
+            serde_json::from_value::<HubCommand>(
+                json!({"_tag": "UpdateT3Code", "version": "0.0.46-nightly.20261012.3021"})
+            ),
+            Ok(HubCommand::UpdateT3Code { version }) if version == "0.0.46-nightly.20261012.3021"
+        ));
+        assert_eq!(
+            serde_json::to_value(T3CodeUpdateOutcome::Updated).unwrap(),
+            json!({"_tag": "Updated"})
+        );
+        assert_eq!(
+            serde_json::to_value(T3CodeUpdateOutcome::Failed {
+                message: "T3 Code is already updating.".into()
+            })
+            .unwrap(),
+            json!({"_tag": "Failed", "message": "T3 Code is already updating."})
+        );
+        assert_eq!(
+            serde_json::to_value(AgentCapabilities {
+                actions: Vec::new(),
+                allowed_tiers: vec![Tier::T3Code],
+                policy_readable: true,
+                creates_folders: true,
+                updates_itself: false,
+                updates_t3_code: true,
+            })
+            .unwrap(),
+            json!({"actions": [], "allowedTiers": ["t3code"], "policyReadable": true, "createsFolders": true, "updatesItself": false, "updatesT3Code": true})
+        );
+    }
 
     #[test]
     fn encodes_tagged_unions_as_effect_does() {

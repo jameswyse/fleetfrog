@@ -21,8 +21,11 @@ import { Database } from "../persistence/database.ts";
 import { IntegrationsStore } from "../settings/integrationsStore.ts";
 import { PollingStore } from "../settings/pollingStore.ts";
 import { ProjectLayoutStore } from "../settings/projectLayoutStore.ts";
+import { T3CodeReleaseFeed } from "../t3Code/t3CodeReleaseFeed.ts";
+import { T3CodeUpdates } from "../t3Code/t3CodeUpdates.ts";
 import { DemoFleet } from "./demoFleet.ts";
 import { demoMachines } from "./demoFleetData.ts";
+import { demoT3CodeReleases } from "./demoWorld.ts";
 
 import type { Fleet, MachineCheckout } from "@fleetfrog/protocol/domain/fleet";
 
@@ -47,7 +50,9 @@ const DemoHub = DemoFleet.pipe(
   Layer.provideMerge(FleetFeed.layer),
   Layer.provideMerge(ActivityFeed.layer),
   Layer.provideMerge(AgentUpdates.layer),
+  Layer.provideMerge(T3CodeUpdates.layer),
   Layer.provideMerge(AgentSessions.layer),
+  Layer.provideMerge(T3CodeReleaseFeed.fixed(demoT3CodeReleases)),
   Layer.provideMerge(
     Layer.mergeAll(
       MachineStore.layer,

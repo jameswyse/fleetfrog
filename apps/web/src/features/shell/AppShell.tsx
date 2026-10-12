@@ -7,6 +7,7 @@ import { isSignedOut, useRole, useSession } from "@/rpc/session.ts";
 import { Logo } from "@/ui/Logo.tsx";
 import { Spinner } from "@/ui/Spinner.tsx";
 import { agentsBehindHub } from "@fleetfrog/protocol/domain/agentUpdate";
+import { outdatedT3Code } from "@fleetfrog/protocol/domain/t3CodeUpdate";
 
 import { t3CodeNeedsAttention } from "../settings/integrations/t3CodeHealth.ts";
 import { HubStatus } from "./HubStatus.tsx";
@@ -45,7 +46,7 @@ function RunningIndicator() {
 
 const settingsNotices = {
   Problem: { dot: "bg-danger", label: "needs attention" },
-  Update: { dot: "bg-changes", label: "agent updates available" },
+  Update: { dot: "bg-changes", label: "updates available" },
 } as const;
 
 function settingsNoticeOf(fleet: Fleet) {
@@ -53,7 +54,7 @@ function settingsNoticeOf(fleet: Fleet) {
     return settingsNotices.Problem;
   }
 
-  return agentsBehindHub(fleet) > 0 ? settingsNotices.Update : null;
+  return agentsBehindHub(fleet) > 0 || outdatedT3Code(fleet) > 0 ? settingsNotices.Update : null;
 }
 
 export function AppShell() {

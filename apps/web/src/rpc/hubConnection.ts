@@ -28,6 +28,7 @@ import type {
   InvalidArchiveFolder,
   InvalidAvatar,
   InvalidIcon,
+  T3CodeNotUpdatable,
   LastAdmin,
   MachineNotFound,
   ManagedByProvider,
@@ -57,6 +58,7 @@ export type DashboardError =
   | BatchNotFound
   | InvalidArchiveFolder
   | AgentNotUpdatable
+  | T3CodeNotUpdatable
   | NotSignedIn
   | Forbidden
   | UserNotFound
@@ -244,6 +246,8 @@ const failureMessages = {
     "That folder can't be this machine's Archive folder. It may hold one of its project folders.",
   AgentNotUpdatable:
     "The agent can't update now. It may be offline, not allowed to update, already updating or already on the hub's version.",
+  T3CodeNotUpdatable:
+    "T3 Code can't update now. The machine may be offline, running a thread, not allowed to update it, already updating or already on the newest version.",
   NotSignedIn: "You've been signed out. Sign in again to continue.",
   Forbidden: "Only admins can do that.",
   UserNotFound: "That user no longer exists.",

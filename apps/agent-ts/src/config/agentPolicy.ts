@@ -17,7 +17,12 @@ const PolicyFile = Schema.Struct({
 });
 type PolicyFile = typeof PolicyFile.Type;
 
-const allowedByDefault = { git: true, cleanup: true, update: true } satisfies Record<Tier, boolean>;
+const allowedByDefault = {
+  git: true,
+  cleanup: true,
+  update: true,
+  t3code: true,
+} satisfies Record<Tier, boolean>;
 
 const tiersBeforeDeniedList: ReadonlyArray<Tier> = ["git", "cleanup"];
 

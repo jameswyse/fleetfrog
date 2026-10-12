@@ -19,6 +19,7 @@ import { SettingsRow, SettingsSection, SideDetail, SidePanel } from "../Settings
 import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
 import { ReadingSummary, SchemaText, unmatchedProjects } from "./T3CodeFacts.tsx";
 import { describeIssue, isProblem, issueKey, t3CodeIssues } from "./t3CodeHealth.ts";
+import { T3CodeUpdateDetail, UpdateAllT3Code } from "./T3CodeUpdate.tsx";
 
 import type { Fleet } from "@fleetfrog/protocol/domain/fleet";
 import type { T3CodeSettings as Settings } from "@fleetfrog/protocol/domain/t3Code";
@@ -53,7 +54,7 @@ function SettingsSwitches({ saved }: { readonly saved: Settings }) {
     <SettingsSection title="Settings" status={<SaveStatus state={state} />}>
       <SettingsRow
         title="Read T3 Code"
-        description="Agents read T3 Code's projects and threads on each machine after every scan. They never change anything in T3 Code."
+        description="Agents read T3 Code's projects and threads on each machine after every scan. Reading never changes anything in T3 Code."
         htmlFor="t3code-enabled"
         control={
           <Switch
@@ -124,6 +125,7 @@ function MachinesSection({ fleet }: { readonly fleet: Fleet }) {
                       (machine.t3Code.server.version ?? "Version unknown")
                     )}
                   </dd>
+                  <T3CodeUpdateDetail fleet={fleet} machine={machine} />
                   <dt className="sr-only">Schema</dt>
                   <dd>
                     <SchemaText machine={machine} />
@@ -216,7 +218,9 @@ function AboutPanel({ fleet }: { readonly fleet: Fleet }) {
           </ul>
         </SideDetail>
       )}
-      <SideDetail term="Access">Read-only</SideDetail>
+      <SideDetail term="Access">
+        Read-only, except that agents can update T3 Code where it runs as a service
+      </SideDetail>
     </SidePanel>
   );
 }
@@ -238,7 +242,12 @@ export function T3CodeSettings() {
   const issues = t3CodeIssues(fleet);
 
   return (
-    <SidebarPage title="T3 Code" parents={parents} aside={<AboutPanel fleet={fleet} />}>
+    <SidebarPage
+      title="T3 Code"
+      parents={parents}
+      action={<UpdateAllT3Code fleet={fleet} />}
+      aside={<AboutPanel fleet={fleet} />}
+    >
       {issues.length > 0 && (
         <div className="space-y-2">
           {issues.map((issue) => {

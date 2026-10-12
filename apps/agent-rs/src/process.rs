@@ -414,6 +414,82 @@ pub async fn run_git_action(action: GitAction<'_>, cancel: &Cancel) -> Result<()
     }))
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum ProgramFailed {
+    CouldNotRun(String),
+    Exited(String),
+    TimedOut,
+}
+
+const OUTPUT_GRACE: Duration = Duration::from_secs(2);
+const PROGRAM_STOP: Duration = Duration::from_secs(5);
+
+pub async fn run_program(
+    program: &str,
+    args: &[&str],
+    output: &ActionOutput,
+    timeout: Duration,
+) -> Result<(), ProgramFailed> {
+    use std::os::unix::process::ExitStatusExt;
+
+    let could_not_run = |error: std::io::Error| ProgramFailed::CouldNotRun(error.to_string());
+    let (reader, writer) = std::io::pipe().map_err(could_not_run)?;
+    let mut child = Command::new(program)
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(writer.try_clone().map_err(could_not_run)?)
+        .stderr(writer)
+        .process_group(0)
+        .spawn()
+        .map_err(|error| ProgramFailed::CouldNotRun(spawn_error(program, &error)))?;
+    let group = child.id().and_then(|pid| libc::pid_t::try_from(pid).ok());
+    let signal_group = |signal: libc::c_int| {
+        if let Some(group) = group {
+            unsafe {
+                libc::kill(-group, signal);
+            }
+        }
+    };
+    let pipe =
+        tokio::net::unix::pipe::Receiver::from_owned_fd(reader.into()).map_err(could_not_run)?;
+    let exited = tokio::sync::Notify::new();
+    let waiting = async {
+        let ended = tokio::time::timeout(timeout, child.wait()).await;
+
+        if ended.is_err() {
+            signal_group(libc::SIGTERM);
+            let _ = tokio::time::timeout(PROGRAM_STOP, child.wait()).await;
+            signal_group(libc::SIGKILL);
+            let _ = child.wait().await;
+        }
+
+        exited.notify_one();
+        ended
+    };
+    let reading = async {
+        let grace = async {
+            exited.notified().await;
+            tokio::time::sleep(OUTPUT_GRACE).await;
+        };
+
+        tokio::select! {
+            _ = pump(pipe, Some(output), false) => {}
+            () = grace => {}
+        }
+    };
+    let (ended, ()) = tokio::join!(waiting, reading);
+
+    match ended {
+        Err(_) => Err(ProgramFailed::TimedOut),
+        Ok(Err(error)) => Err(could_not_run(error)),
+        Ok(Ok(status)) if status.success() => Ok(()),
+        Ok(Ok(status)) => Err(ProgramFailed::Exited(match status.code() {
+            Some(code) => format!("code {code}"),
+            None => signal_name(status.signal().unwrap_or(0)),
+        })),
+    }
+}
+
 /// Paths per `du` call, well inside every platform's argument limit.
 const DU_BATCH: usize = 200;
 
@@ -446,4 +522,121 @@ pub async fn disk_usage(cwd: &str, paths: &[String]) -> Vec<u64> {
         .iter()
         .map(|path| sizes.get(path).copied().unwrap_or(0))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn collects_a_programs_output_and_how_it_exited() {
+        let output = ActionOutput::new();
+        let ended = run_program(
+            "sh",
+            &["-c", "echo working; echo broken >&2; echo ending; exit 3"],
+            &output,
+            Duration::from_secs(10),
+        )
+        .await;
+
+        assert_eq!(ended, Err(ProgramFailed::Exited("code 3".into())));
+        assert_eq!(output.tail(), vec!["working", "broken", "ending"]);
+    }
+
+    #[tokio::test]
+    async fn stops_a_program_that_runs_too_long() {
+        let output = ActionOutput::new();
+        let ended = run_program("sleep", &["10"], &output, Duration::from_millis(100)).await;
+
+        assert_eq!(ended, Err(ProgramFailed::TimedOut));
+    }
+
+    #[tokio::test]
+    async fn finishes_when_a_program_leaves_a_process_holding_its_output() {
+        let output = ActionOutput::new();
+        let started = std::time::Instant::now();
+        let ended = run_program(
+            "sh",
+            &["-c", "sleep 30 & echo done"],
+            &output,
+            Duration::from_secs(10),
+        )
+        .await;
+
+        assert_eq!(ended, Ok(()));
+        assert!(started.elapsed() < Duration::from_secs(10));
+        assert_eq!(output.tail(), vec!["done"]);
+    }
+
+    fn is_running(pid: libc::pid_t) -> bool {
+        unsafe { libc::kill(pid, 0) == 0 }
+    }
+
+    #[tokio::test]
+    async fn stops_the_processes_a_program_started_when_it_runs_too_long() {
+        let output = ActionOutput::new();
+        let ended = run_program(
+            "sh",
+            &["-c", "sleep 30 & echo $!; wait"],
+            &output,
+            Duration::from_millis(300),
+        )
+        .await;
+
+        assert_eq!(ended, Err(ProgramFailed::TimedOut));
+
+        let started: libc::pid_t = output.tail()[0].parse().unwrap();
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+
+        while is_running(started) && std::time::Instant::now() < deadline {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+
+        assert!(!is_running(started));
+    }
+
+    #[tokio::test]
+    async fn leaves_a_program_running_when_nobody_waits_for_it() {
+        let marker = std::env::temp_dir().join(format!(
+            "fleetfrog-run-program-{}-{}",
+            std::process::id(),
+            crate::time::Utc::now().millis()
+        ));
+        let script = format!("sleep 0.5; touch '{}'", marker.display());
+        let output = ActionOutput::new();
+        let abandoned = tokio::time::timeout(
+            Duration::from_millis(100),
+            run_program("sh", &["-c", &script], &output, Duration::from_secs(10)),
+        )
+        .await;
+
+        assert!(abandoned.is_err());
+
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+
+        while !marker.exists() && std::time::Instant::now() < deadline {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+
+        assert!(marker.exists());
+        let _ = std::fs::remove_file(&marker);
+    }
+
+    #[tokio::test]
+    async fn names_a_program_that_is_missing() {
+        let ended = run_program(
+            "/nonexistent/t3",
+            &[],
+            &ActionOutput::new(),
+            Duration::from_secs(1),
+        )
+        .await;
+
+        assert_eq!(
+            ended,
+            Err(ProgramFailed::CouldNotRun(
+                "spawn /nonexistent/t3 ENOENT".into()
+            ))
+        );
+    }
 }

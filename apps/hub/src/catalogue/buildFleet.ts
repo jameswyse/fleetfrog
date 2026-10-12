@@ -9,6 +9,7 @@ import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 import type { PollingSettings } from "@fleetfrog/protocol/domain/polling";
 import type { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 import type { IntegrationSettings, T3CodeProject } from "@fleetfrog/protocol/domain/t3Code";
+import type { T3CodeReleases, T3CodeUpdate } from "@fleetfrog/protocol/domain/t3CodeUpdate";
 
 import type { OnlineAgent } from "../agents/agentSessions.ts";
 import type { MachineRecord } from "../machines/machineStore.ts";
@@ -178,6 +179,8 @@ export function buildFleet(sources: {
   readonly online: ReadonlyMap<MachineId, OnlineAgent>;
   readonly hubVersion: string;
   readonly updates: ReadonlyMap<MachineId, AgentUpdate>;
+  readonly t3CodeUpdates: ReadonlyMap<MachineId, T3CodeUpdate>;
+  readonly t3CodeReleases: T3CodeReleases;
   readonly polling: PollingSettings;
   readonly integrations: IntegrationSettings;
 }): Fleet {
@@ -210,6 +213,7 @@ export function buildFleet(sources: {
       trash: record.trash,
       t3Code: t3Code.enabled ? record.t3Code : null,
       update: sources.updates.get(record.id) ?? null,
+      t3CodeUpdate: t3Code.enabled ? (sources.t3CodeUpdates.get(record.id) ?? null) : null,
     };
   });
 
@@ -237,6 +241,7 @@ export function buildFleet(sources: {
 
   return {
     hubVersion: sources.hubVersion,
+    t3CodeReleases: sources.t3CodeReleases,
     machines,
     repositories,
     archive,

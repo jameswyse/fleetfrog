@@ -46,6 +46,7 @@ const tierPhrases = {
   git: "Git actions",
   cleanup: "cleanup actions",
   update: "agent updates",
+  t3code: "T3 Code updates",
 } satisfies Record<Tier, string>;
 
 const tierList = new Intl.ListFormat("en-AU", { type: "conjunction" });
@@ -72,8 +73,12 @@ export function ActionsText({ machine }: { readonly machine: Machine }) {
     );
   }
 
-  const { allowedTiers, updatesItself } = machine.connection.capabilities;
-  const tiers = Tier.literals.filter((tier) => tier !== "update" || updatesItself);
+  const { allowedTiers, updatesItself, updatesT3Code } = machine.connection.capabilities;
+
+  const tiers = Tier.literals.filter(
+    (tier) => (tier !== "update" || updatesItself) && (tier !== "t3code" || updatesT3Code),
+  );
+
   const allowed = tiers.filter((tier) => allowedTiers.includes(tier));
   const denied = tiers.filter((tier) => !allowedTiers.includes(tier));
   const allowedList = tierList.format(allowed.map((tier) => tierPhrases[tier]));

@@ -1,6 +1,7 @@
 import { execFile, spawn } from "node:child_process";
+import { homedir } from "node:os";
 
-import { Duration, Effect, Schema } from "effect";
+import { Deferred, Duration, Effect, Fiber, Option, Schema } from "effect";
 
 import { inheritedEnvironment } from "../config/environment.ts";
 import { redactCredentials } from "./redactCredentials.ts";
@@ -84,6 +85,15 @@ export function runGit(cwd: string, args: ReadonlyArray<string>) {
 const actionTimeout = Duration.minutes(30);
 const errorLines = 5;
 
+export function lastLines(text: string): string {
+  return text
+    .split(/[\r\n]+/)
+    .map((line) => line.trim())
+    .filter((line) => line !== "")
+    .slice(-errorLines)
+    .join("\n");
+}
+
 export function runGitAction(options: {
   readonly cwd: string;
   readonly args: ReadonlyArray<string>;
@@ -130,15 +140,8 @@ export function runGitAction(options: {
         return;
       }
 
-      const lastLines = errorOutput
-        .split(/[\r\n]+/)
-        .map((line) => line.trim())
-        .filter((line) => line !== "")
-        .slice(-errorLines)
-        .join("\n");
-
       fail(
-        redactCredentials(lastLines) ||
+        redactCredentials(lastLines(errorOutput)) ||
           `git exited with ${code === null ? `signal ${exitSignal}` : `code ${code}`}`,
       );
     });
@@ -166,4 +169,112 @@ export function runGitAction(options: {
         ),
     }),
   );
+}
+
+export type ProgramResult =
+  | {
+      readonly _tag: "Exited";
+      readonly code: number | null;
+      readonly signal: NodeJS.Signals | null;
+      readonly output: string;
+    }
+  | { readonly _tag: "TimedOut"; readonly output: string };
+
+const capturedOutputCharacters = 16 * 1024;
+const outputGrace = Duration.seconds(1);
+const stopGrace = Duration.seconds(5);
+const killGrace = Duration.seconds(1);
+const groupPollInterval = Duration.millis(100);
+
+interface ProgramExit {
+  readonly code: number | null;
+  readonly signal: NodeJS.Signals | null;
+}
+
+export function runProgram(options: {
+  readonly executable: string;
+  readonly args: ReadonlyArray<string>;
+  readonly timeout: Duration.Duration;
+}) {
+  const cwd = homedir();
+
+  return Effect.gen(function* () {
+    const exited = Deferred.makeUnsafe<ProgramExit, CommandFailed>();
+    const closed = Deferred.makeUnsafe<void>();
+    let output = "";
+    const deadline = { passed: false };
+
+    const child = spawn(options.executable, options.args, {
+      cwd,
+      env: inheritedEnvironment(),
+      detached: true,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    const capture = (text: string) => {
+      output = `${output}${text}`.slice(-capturedOutputCharacters);
+    };
+
+    child.stdout.setEncoding("utf8").on("data", capture);
+    child.stderr.setEncoding("utf8").on("data", capture);
+    child.on("error", (error) =>
+      Deferred.doneUnsafe(
+        exited,
+        Effect.fail(new CommandFailed({ args: options.args, cwd, message: error.message })),
+      ),
+    );
+    child.on("exit", (code, signal) =>
+      Deferred.doneUnsafe(exited, Effect.succeed({ code, signal })),
+    );
+    child.on("close", () => Deferred.doneUnsafe(closed, Effect.void));
+
+    const signalGroup = (signal: NodeJS.Signals | 0) => {
+      if (child.pid === undefined) {
+        return false;
+      }
+
+      try {
+        process.kill(-child.pid, signal);
+
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    const groupGone = (limit: Duration.Duration) =>
+      Effect.sleep(groupPollInterval).pipe(
+        Effect.andThen(Effect.sync(() => !signalGroup(0))),
+        Effect.repeat({ until: (gone) => gone }),
+        Effect.timeoutOption(limit),
+      );
+
+    const stopping = yield* Effect.gen(function* () {
+      yield* Effect.sleep(options.timeout);
+
+      const terminated = yield* Effect.sync(() => {
+        deadline.passed =
+          child.exitCode === null && child.signalCode === null && signalGroup("SIGTERM");
+
+        return deadline.passed;
+      });
+
+      if (terminated && Option.isNone(yield* groupGone(stopGrace))) {
+        signalGroup("SIGKILL");
+        yield* groupGone(killGrace);
+      }
+    }).pipe(Effect.forkDetach);
+
+    const exit = yield* Deferred.await(exited);
+
+    yield* deadline.passed ? Fiber.join(stopping) : Fiber.interrupt(stopping);
+
+    yield* Deferred.await(closed).pipe(Effect.timeoutOption(outputGrace));
+
+    const captured = redactCredentials(output);
+
+    return deadline.passed
+      ? ({ _tag: "TimedOut", output: captured } satisfies ProgramResult)
+      : ({ _tag: "Exited", ...exit, output: captured } satisfies ProgramResult);
+  });
 }

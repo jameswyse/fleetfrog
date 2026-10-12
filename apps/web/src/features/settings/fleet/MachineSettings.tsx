@@ -11,6 +11,7 @@ import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { SidebarPage } from "@/ui/SidebarLayout.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
+import { T3CodeUpdateRow } from "../integrations/T3CodeUpdate.tsx";
 import { SettingsRow, SettingsSection, SideDetail, SidePanel } from "../SettingsSection.tsx";
 import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
 import { AgentUpdateRow } from "./AgentUpdate.tsx";
@@ -272,6 +273,7 @@ function ActionsSection({ fleet, machine }: { readonly fleet: Fleet; readonly ma
   return (
     <SettingsSection title="Actions">
       <AgentUpdateRow fleet={fleet} machine={machine} />
+      <T3CodeUpdateRow fleet={fleet} machine={machine} />
       <SettingsRow
         title="Rescan"
         description="Search the project folders and read every checkout again now."

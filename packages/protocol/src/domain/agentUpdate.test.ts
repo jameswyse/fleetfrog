@@ -26,6 +26,7 @@ describe("canUpdateAgent", () => {
         policyReadable: true,
         createsFolders: true,
         updatesItself: true,
+        updatesT3Code: false,
         ...capabilities,
       },
     }),

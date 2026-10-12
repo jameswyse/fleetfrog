@@ -21,6 +21,7 @@ import { ProjectIconStore } from "./catalogue/projectIconStore.ts";
 import { DashboardPresence } from "./dashboard/dashboardPresence.ts";
 import { DashboardServer } from "./dashboard/dashboardServer.ts";
 import { DemoFleet } from "./demo/demoFleet.ts";
+import { demoT3CodeReleases } from "./demo/demoWorld.ts";
 import { HubConfig } from "./hubConfig.ts";
 import { MachineStore } from "./machines/machineStore.ts";
 import { AgentCertificate } from "./pairing/agentCertificate.ts";
@@ -30,6 +31,8 @@ import { IntegrationsStore } from "./settings/integrationsStore.ts";
 import { PollingStore } from "./settings/pollingStore.ts";
 import { PreferencesStore } from "./settings/preferencesStore.ts";
 import { ProjectLayoutStore } from "./settings/projectLayoutStore.ts";
+import { T3CodeReleaseFeed } from "./t3Code/t3CodeReleaseFeed.ts";
+import { T3CodeUpdates } from "./t3Code/t3CodeUpdates.ts";
 
 type AgentSource = typeof AgentServer | typeof DemoFleet;
 
@@ -45,6 +48,14 @@ const Agents = Layer.unwrap(
   }),
 );
 
+const T3CodeReleases = Layer.unwrap(
+  Effect.gen(function* () {
+    const { demo } = yield* HubConfig;
+
+    return demo ? T3CodeReleaseFeed.fixed(demoT3CodeReleases) : T3CodeReleaseFeed.layer;
+  }),
+);
+
 const Hub = Layer.merge(Agents, DashboardServer).pipe(
   Layer.provide(ActionDispatcher.layer),
   Layer.provide(FolderRequests.layer),
@@ -52,7 +63,9 @@ const Hub = Layer.merge(Agents, DashboardServer).pipe(
   Layer.provideMerge(FleetFeed.layer),
   Layer.provideMerge(ActivityFeed.layer),
   Layer.provideMerge(AgentUpdates.layer),
+  Layer.provideMerge(T3CodeUpdates.layer),
   Layer.provideMerge(AgentSessions.layer),
+  Layer.provideMerge(T3CodeReleases),
   Layer.provideMerge(
     Layer.mergeAll(
       MachineStore.layer,

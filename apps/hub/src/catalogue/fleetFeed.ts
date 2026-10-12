@@ -5,6 +5,8 @@ import { AgentUpdates } from "../agents/agentUpdates.ts";
 import { MachineStore } from "../machines/machineStore.ts";
 import { IntegrationsStore } from "../settings/integrationsStore.ts";
 import { PollingStore } from "../settings/pollingStore.ts";
+import { T3CodeReleaseFeed } from "../t3Code/t3CodeReleaseFeed.ts";
+import { T3CodeUpdates } from "../t3Code/t3CodeUpdates.ts";
 import { buildFleet } from "./buildFleet.ts";
 import { CheckoutStore } from "./checkoutStore.ts";
 
@@ -26,6 +28,8 @@ export class FleetFeed extends Context.Service<
       const checkouts = yield* CheckoutStore;
       const sessions = yield* AgentSessions;
       const agentUpdates = yield* AgentUpdates;
+      const t3CodeUpdates = yield* T3CodeUpdates;
+      const t3CodeReleaseFeed = yield* T3CodeReleaseFeed;
       const polling = yield* PollingStore;
       const integrations = yield* IntegrationsStore;
       const invalidations = yield* PubSub.sliding<void>(1);
@@ -36,6 +40,8 @@ export class FleetFeed extends Context.Service<
         online: SubscriptionRef.get(sessions.online),
         hubVersion: Effect.succeed(agentUpdates.targetVersion),
         updates: SubscriptionRef.get(agentUpdates.updates),
+        t3CodeUpdates: SubscriptionRef.get(t3CodeUpdates.updates),
+        t3CodeReleases: SubscriptionRef.get(t3CodeReleaseFeed.releases),
         polling: SubscriptionRef.get(polling.settings),
         integrations: SubscriptionRef.get(integrations.settings),
       }).pipe(Effect.map(buildFleet));
@@ -48,6 +54,8 @@ export class FleetFeed extends Context.Service<
             Stream.fromPubSub(invalidations),
             SubscriptionRef.changes(sessions.online).pipe(Stream.as(undefined)),
             SubscriptionRef.changes(agentUpdates.updates).pipe(Stream.as(undefined)),
+            SubscriptionRef.changes(t3CodeUpdates.updates).pipe(Stream.as(undefined)),
+            SubscriptionRef.changes(t3CodeReleaseFeed.releases).pipe(Stream.as(undefined)),
             SubscriptionRef.changes(polling.settings).pipe(Stream.as(undefined)),
             SubscriptionRef.changes(integrations.settings).pipe(Stream.as(undefined)),
           ],

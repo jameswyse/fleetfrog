@@ -7,6 +7,7 @@ import {
   defaultIntegrationSettings,
   supportedT3CodeSchema,
 } from "@fleetfrog/protocol/domain/t3Code";
+import { unknownT3CodeReleases } from "@fleetfrog/protocol/domain/t3CodeUpdate";
 
 import { describeIssue, t3CodeIssues, t3CodeNeedsAttention } from "./t3CodeHealth.ts";
 
@@ -39,6 +40,7 @@ function machine(id: string, reading: T3CodeReading | null): Machine {
     pairedAt: at,
     usage: null,
     update: null,
+    t3CodeUpdate: null,
     trash: [],
     t3Code:
       reading === null
@@ -64,6 +66,7 @@ const read = (migration: number, unreadRecords = 0): T3CodeReading => ({
 function fleetOf(machines: ReadonlyArray<Machine>): Fleet {
   return {
     hubVersion: "0.0.0",
+    t3CodeReleases: unknownT3CodeReleases,
     machines,
     repositories: [],
     archive: [],

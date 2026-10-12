@@ -4,6 +4,7 @@ import { DateTime } from "effect";
 import { MachineId } from "@fleetfrog/protocol/domain/machine";
 import { defaultPollingSettings } from "@fleetfrog/protocol/domain/polling";
 import { defaultIntegrationSettings } from "@fleetfrog/protocol/domain/t3Code";
+import { unknownT3CodeReleases } from "@fleetfrog/protocol/domain/t3CodeUpdate";
 
 import { buildFleet } from "./buildFleet.ts";
 
@@ -71,6 +72,8 @@ describe("buildFleet", () => {
       ],
       hubVersion: "0.1.0",
       updates: new Map(),
+      t3CodeUpdates: new Map(),
+      t3CodeReleases: unknownT3CodeReleases,
       online: new Map([
         [
           laptop,
@@ -83,6 +86,7 @@ describe("buildFleet", () => {
               policyReadable: true,
               createsFolders: true,
               updatesItself: false,
+              updatesT3Code: false,
             },
           },
         ],
@@ -106,6 +110,8 @@ describe("buildFleet", () => {
       checkouts: [],
       hubVersion: "0.1.0",
       updates: new Map(),
+      t3CodeUpdates: new Map(),
+      t3CodeReleases: unknownT3CodeReleases,
       online: new Map(),
       polling: defaultPollingSettings,
       integrations: defaultIntegrationSettings,
@@ -131,6 +137,8 @@ describe("buildFleet", () => {
       ],
       hubVersion: "0.1.0",
       updates: new Map(),
+      t3CodeUpdates: new Map(),
+      t3CodeReleases: unknownT3CodeReleases,
       online: new Map(),
       polling: defaultPollingSettings,
       integrations: defaultIntegrationSettings,
@@ -172,6 +180,8 @@ describe("buildFleet", () => {
       ],
       hubVersion: "0.1.0",
       updates: new Map(),
+      t3CodeUpdates: new Map(),
+      t3CodeReleases: unknownT3CodeReleases,
       online: new Map(),
       polling: defaultPollingSettings,
       integrations: defaultIntegrationSettings,
@@ -254,6 +264,8 @@ describe("buildFleet", () => {
         ],
         hubVersion: "0.1.0",
         updates: new Map(),
+        t3CodeUpdates: new Map(),
+        t3CodeReleases: unknownT3CodeReleases,
         online: new Map(),
         polling: defaultPollingSettings,
         integrations,

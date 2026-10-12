@@ -91,6 +91,7 @@ export const T3CodeServer = Schema.Struct({
   version: Schema.NullOr(ReportedText),
   startedAt: Schema.DateTimeUtc,
   port: Schema.Int,
+  serviceManaged: Schema.Boolean.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(false))),
 });
 export type T3CodeServer = typeof T3CodeServer.Type;
 

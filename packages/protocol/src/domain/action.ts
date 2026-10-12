@@ -5,7 +5,7 @@ import { Count } from "./count.ts";
 import { ReportedList, ReportedText } from "./reported.ts";
 import { TrashId } from "./trash.ts";
 
-export const Tier = Schema.Literals(["git", "cleanup", "update"]);
+export const Tier = Schema.Literals(["git", "cleanup", "update", "t3code"]);
 export type Tier = typeof Tier.Type;
 
 export const RefName = Schema.String.check(
@@ -146,6 +146,7 @@ export const AgentCapabilities = Schema.Struct({
   policyReadable: Schema.Boolean,
   createsFolders: Schema.Boolean.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(false))),
   updatesItself: Schema.Boolean.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(false))),
+  updatesT3Code: Schema.Boolean.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(false))),
 });
 export type AgentCapabilities = typeof AgentCapabilities.Type;
 
@@ -157,6 +158,7 @@ export const AdvertisedCapabilities = AgentCapabilities.pipe(
       policyReadable: true,
       createsFolders: false,
       updatesItself: false,
+      updatesT3Code: false,
     }),
   ),
 );

@@ -5,6 +5,7 @@ import { MachineId } from "@fleetfrog/protocol/domain/machine";
 import { defaultPollingSettings } from "@fleetfrog/protocol/domain/polling";
 import { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 import { defaultIntegrationSettings } from "@fleetfrog/protocol/domain/t3Code";
+import { unknownT3CodeReleases } from "@fleetfrog/protocol/domain/t3CodeUpdate";
 import { TrashId } from "@fleetfrog/protocol/domain/trash";
 
 import { planBatch } from "./planBatch.ts";
@@ -22,6 +23,7 @@ const everything: AgentCapabilities = {
   policyReadable: true,
   createsFolders: true,
   updatesItself: false,
+  updatesT3Code: false,
 };
 
 function machine(
@@ -56,6 +58,7 @@ function machine(
     trash: [],
     t3Code: null,
     update: null,
+    t3CodeUpdate: null,
   };
 }
 
@@ -69,6 +72,7 @@ const outdated = machine("cccccccc-0000-4000-8000-000000000000", {
     policyReadable: true,
     createsFolders: true,
     updatesItself: false,
+    updatesT3Code: false,
   },
 });
 
@@ -79,6 +83,7 @@ const locked = machine("dddddddd-0000-4000-8000-000000000000", {
     policyReadable: true,
     createsFolders: true,
     updatesItself: false,
+    updatesT3Code: false,
   },
 });
 
@@ -107,6 +112,7 @@ const shopKey = RepositoryKey.make("remote:github.com/acme/shop");
 function fleetWith(checkouts: Repository["checkouts"]): Fleet {
   return {
     hubVersion: "0.0.0",
+    t3CodeReleases: unknownT3CodeReleases,
     machines: [online, offline, outdated, locked],
     repositories: [
       {

@@ -13,6 +13,9 @@ import { makeHubClient } from "../connection/hubClient.ts";
 import { createProjectFolder } from "../folders/createProjectFolder.ts";
 import { readMachineInfo, runsFromSource } from "../machine/machineInfo.ts";
 import { readSystemUsage } from "../machine/systemInfo.ts";
+import { t3CodeDatabasePath } from "../t3Code/readT3Code.ts";
+// oxlint-disable-next-line wyse/no-service-constructor-imports -- runAgent is the agent's composition root.
+import { makeT3CodeUpdater } from "../t3Code/updateT3Code.ts";
 import { defaultTrashDirectory } from "../trash/trashFolder.ts";
 // oxlint-disable-next-line wyse/no-service-constructor-imports -- runAgent is the agent's composition root.
 import { makeScanner } from "./scanner.ts";
@@ -20,6 +23,7 @@ import { makeScanner } from "./scanner.ts";
 import type { AgentCapabilities } from "@fleetfrog/protocol/domain/action";
 
 import type { AgentConfig } from "../config/agentConfig.ts";
+import type { T3CodeUpdateSession } from "../t3Code/updateT3Code.ts";
 
 export class NotPaired extends Schema.TaggedError<NotPaired>()("NotPaired", {}) {}
 
@@ -47,6 +51,7 @@ const readCapabilities = loadPolicy.pipe(
     policyReadable: true,
     createsFolders: true,
     updatesItself: false,
+    updatesT3Code: true,
   })),
   Effect.orElseSucceed((): AgentCapabilities => ({
     actions: ActionKind.literals,
@@ -54,6 +59,7 @@ const readCapabilities = loadPolicy.pipe(
     policyReadable: false,
     createsFolders: true,
     updatesItself: false,
+    updatesT3Code: true,
   })),
 );
 
@@ -62,7 +68,10 @@ const warnIfUnreadable = (capabilities: AgentCapabilities) =>
     ? Effect.void
     : Effect.logWarning(`The policy at ${policyPath()} can't be read, so no actions are allowed`);
 
-const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
+const runSession = Effect.fn("runSession")(function* (
+  config: AgentConfig,
+  updateT3Code: (version: string, session: T3CodeUpdateSession) => Effect.Effect<void>,
+) {
   const { client, disconnected } = yield* makeHubClient(config);
   const info = yield* readMachineInfo;
   const trashDirectory = defaultTrashDirectory();
@@ -94,6 +103,20 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
     report: (runId, update) => client.ReportAction({ runId, update }),
     audit: writeAuditEntry,
   });
+
+  let open = true;
+
+  yield* Effect.addFinalizer(() =>
+    Effect.sync(() => {
+      open = false;
+    }),
+  );
+
+  const t3CodeSession: T3CodeUpdateSession = {
+    open: () => open,
+    report: (version, outcome) => client.ReportT3CodeUpdate({ version, outcome }),
+    rescan: Effect.suspend(() => scanner.rescanT3Code(configuration?.t3Code ?? null)),
+  };
 
   const readvertise = readCapabilities.pipe(
     Effect.flatMap((current) => {
@@ -290,6 +313,7 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
                 Effect.logWarning("Could not answer an update request", cause),
               ),
             ),
+        UpdateT3Code: ({ version }) => updateT3Code(version, t3CodeSession),
       });
     }),
     Effect.catchTag("Unauthorised", () => Effect.fail(new MachineRemoved())),
@@ -299,6 +323,16 @@ const runSession = Effect.fn("runSession")(function* (config: AgentConfig) {
 
 export const runAgent = Effect.gen(function* () {
   const config = yield* loadAgentConfig;
+  const agentScope = yield* Effect.scope;
+
+  const t3Code = makeT3CodeUpdater({
+    database: t3CodeDatabasePath,
+    loadPolicy,
+    audit: writeAuditEntry,
+  });
+
+  const updateT3Code = (version: string, session: T3CodeUpdateSession) =>
+    t3Code.update(version, session).pipe(Effect.forkIn(agentScope), Effect.asVoid);
 
   if (Option.isNone(config)) {
     return yield* new NotPaired();
@@ -320,7 +354,7 @@ export const runAgent = Effect.gen(function* () {
   const connectOnce = Effect.gen(function* () {
     const startedAt = yield* Clock.currentTimeMillis;
 
-    yield* Effect.scoped(runSession(config.value)).pipe(
+    yield* Effect.scoped(runSession(config.value, updateT3Code)).pipe(
       Effect.andThen(Effect.logInfo("The hub closed the connection")),
       Effect.catchTag("MachineRemoved", Effect.fail, (error) =>
         Effect.logWarning("Disconnected from hub", error),
@@ -339,4 +373,4 @@ export const runAgent = Effect.gen(function* () {
   });
 
   return yield* Effect.forever(connectOnce);
-});
+}).pipe(Effect.scoped);

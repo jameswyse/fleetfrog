@@ -3,6 +3,7 @@ import { RpcClient } from "effect/rpc";
 
 import { HubCommand, heartbeatSeconds, ScanReport } from "@fleetfrog/protocol/agent/rpcs";
 import { ActionOutcome, ActionUpdate } from "@fleetfrog/protocol/domain/action";
+import { T3CodeUpdateOutcome } from "@fleetfrog/protocol/domain/t3CodeUpdate";
 
 import { createFolder, inspect, planAction } from "./demoActions.ts";
 import {
@@ -44,14 +45,16 @@ const capabilities: AgentCapabilities = {
     "Restore",
     "Purge",
   ],
-  allowedTiers: ["git", "cleanup"],
+  allowedTiers: ["git", "cleanup", "t3code"],
   policyReadable: true,
   createsFolders: true,
   updatesItself: false,
+  updatesT3Code: true,
 };
 
 const usageInterval = Duration.minutes(1);
 const inspectionTime = Duration.millis(700);
+const t3CodeUpdateTime = Duration.seconds(4);
 const concurrentActions = 3;
 
 export const runSimulatedAgent = Effect.fn("runSimulatedAgent")(function* (options: {
@@ -170,6 +173,18 @@ export const runSimulatedAgent = Effect.fn("runSimulatedAgent")(function* (optio
             message: "Demo machines can't update their agent.",
           }),
         ),
+      UpdateT3Code: ({ version }) =>
+        Effect.gen(function* () {
+          machine.t3CodeVersion = version;
+
+          yield* send(
+            client.ReportT3CodeUpdate({
+              version,
+              outcome: T3CodeUpdateOutcome.cases.Updated.make({}),
+            }),
+          );
+          yield* publish;
+        }).pipe(Effect.delay(t3CodeUpdateTime), Effect.forkScoped, Effect.asVoid),
     });
 
   yield* send(client.Heartbeat()).pipe(

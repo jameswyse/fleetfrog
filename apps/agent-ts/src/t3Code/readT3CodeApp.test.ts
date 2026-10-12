@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 
+import { runningT3CodeServer } from "../testing/t3CodeServer.ts";
 import { temporaryDirectory } from "../testing/temporaryDirectory.ts";
 import { readT3CodeProviders, readT3CodeServer, versionOf } from "./readT3CodeApp.ts";
 
@@ -52,6 +53,24 @@ describe("readT3CodeServer", () => {
 
       runtime(2 ** 22 + 1);
       expect(yield* readT3CodeServer(userdata)).toBeNull();
+    }),
+  );
+
+  it.effect("reads whether T3 Code's background service runs the server", () =>
+    Effect.gen(function* () {
+      const userdata = yield* temporaryDirectory("fleetfrog-t3app-");
+
+      const serviceManaged = (written?: boolean | string) =>
+        runningT3CodeServer(userdata, written).pipe(
+          Effect.andThen(readT3CodeServer(userdata)),
+          Effect.map((server) => server?.serviceManaged),
+          Effect.scoped,
+        );
+
+      expect(yield* serviceManaged(true)).toBe(true);
+      expect(yield* serviceManaged(false)).toBe(false);
+      expect(yield* serviceManaged()).toBe(false);
+      expect(yield* serviceManaged("true")).toBe(false);
     }),
   );
 });

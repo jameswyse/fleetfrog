@@ -31,6 +31,7 @@ describe("agent capabilities", () => {
       policyReadable: true,
       createsFolders: true,
       updatesItself: false,
+      updatesT3Code: false,
     });
   });
 });

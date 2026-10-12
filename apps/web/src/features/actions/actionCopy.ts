@@ -61,6 +61,7 @@ export const tierNames = {
   git: "Git",
   cleanup: "cleanup",
   update: "update",
+  t3code: "T3 Code update",
 } satisfies Record<Tier, string>;
 
 function capitalised(text: string): string {

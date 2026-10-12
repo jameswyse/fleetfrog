@@ -5,6 +5,7 @@ import { MachineId } from "@fleetfrog/protocol/domain/machine";
 import { defaultPollingSettings } from "@fleetfrog/protocol/domain/polling";
 import { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 import { defaultIntegrationSettings } from "@fleetfrog/protocol/domain/t3Code";
+import { unknownT3CodeReleases } from "@fleetfrog/protocol/domain/t3CodeUpdate";
 
 import { trashEntries } from "./trashEntries.ts";
 
@@ -37,6 +38,7 @@ const machine: Machine = {
   pairedAt: at("2026-09-01T00:00:00Z"),
   usage: null,
   update: null,
+  t3CodeUpdate: null,
   trash: [],
   t3Code: null,
 };
@@ -79,6 +81,7 @@ const git: GitStatus = {
 
 const fleet: Fleet = {
   hubVersion: "0.0.0",
+  t3CodeReleases: unknownT3CodeReleases,
   machines: [machine],
   repositories: [
     {

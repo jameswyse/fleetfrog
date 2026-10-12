@@ -120,6 +120,11 @@ export class AgentNotUpdatable extends Schema.TaggedError<AgentNotUpdatable>()(
   { machineId: MachineId },
 ) {}
 
+export class T3CodeNotUpdatable extends Schema.TaggedError<T3CodeNotUpdatable>()(
+  "T3CodeNotUpdatable",
+  { machineId: MachineId },
+) {}
+
 export class BatchNotFound extends Schema.TaggedError<BatchNotFound>()("BatchNotFound", {
   batchId: BatchId,
 }) {}
@@ -181,6 +186,10 @@ export class DashboardRpcs extends RpcGroup.make(
   Rpc.make("UpdateAgent", {
     payload: { machineId: MachineId },
     error: Schema.Union([MachineNotFound, AgentNotUpdatable]),
+  }),
+  Rpc.make("UpdateT3Code", {
+    payload: { machineId: MachineId },
+    error: Schema.Union([MachineNotFound, T3CodeNotUpdatable]),
   }),
   Rpc.make("InspectCheckout", {
     payload: { machineId: MachineId, path: Schema.String, worktree: Schema.NullOr(Schema.String) },

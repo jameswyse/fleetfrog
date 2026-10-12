@@ -28,7 +28,12 @@ export type AuditEntry =
       readonly allowedTiers: ReadonlyArray<Tier>;
       readonly deniedTiers: ReadonlyArray<Tier>;
     }
-  | { readonly event: "Paired"; readonly agentUrl: string; readonly machineId: MachineId };
+  | { readonly event: "Paired"; readonly agentUrl: string; readonly machineId: MachineId }
+  | {
+      readonly event: "T3CodeUpdated";
+      readonly previousVersion: string | null;
+      readonly version: string;
+    };
 
 const rotateAtBytes = 1024 * 1024;
 

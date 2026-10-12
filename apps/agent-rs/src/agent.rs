@@ -20,11 +20,12 @@ use crate::hub::rpc::{HubClient, RpcError, StreamItem};
 use crate::log;
 use crate::machine::{read_machine_info, read_system_usage};
 use crate::protocol::{
-    ACTION_KINDS, ActionUpdate, AgentCapabilities, Configuration, GithubCli, HubCommand, Tier,
-    failed,
+    ACTION_KINDS, ActionUpdate, AgentCapabilities, Configuration, GithubCli, HubCommand,
+    T3CodeUpdateOutcome, Tier, failed,
 };
 use crate::scanner::Scanner;
 use crate::store::default_trash_directory;
+use crate::t3code::update as t3code_update;
 use crate::update;
 
 /// Sent every `heartbeatSeconds`. The hub ends a connection that goes quiet.
@@ -53,21 +54,17 @@ pub enum AgentStopped {
 
 /// Every action this agent knows, with the tiers its policy allows. A damaged policy allows none.
 fn read_capabilities() -> AgentCapabilities {
-    match load_policy() {
-        Ok(policy) => AgentCapabilities {
-            actions: ACTION_KINDS.to_vec(),
-            allowed_tiers: policy.allowed_tiers,
-            policy_readable: true,
-            creates_folders: true,
-            updates_itself: update::UPDATES_ITSELF,
-        },
-        Err(_) => AgentCapabilities {
-            actions: ACTION_KINDS.to_vec(),
-            allowed_tiers: Vec::new(),
-            policy_readable: false,
-            creates_folders: true,
-            updates_itself: update::UPDATES_ITSELF,
-        },
+    let policy = load_policy();
+
+    AgentCapabilities {
+        actions: ACTION_KINDS.to_vec(),
+        policy_readable: policy.is_ok(),
+        allowed_tiers: policy
+            .map(|policy| policy.allowed_tiers)
+            .unwrap_or_default(),
+        creates_folders: true,
+        updates_itself: update::UPDATES_ITSELF,
+        updates_t3_code: true,
     }
 }
 
@@ -373,6 +370,72 @@ impl Session {
                 }));
             }
             HubCommand::Update { version } => self.update(version),
+            HubCommand::UpdateT3Code { version } => self.update_t3code(version),
+        }
+    }
+
+    fn update_t3code(self: &Arc<Self>, version: String) {
+        let session = self.clone();
+
+        log::info(&format!("Updating T3 Code to {version}"));
+        tokio::spawn(async move {
+            let Ok(_updating) = t3code_update::UPDATING.try_lock() else {
+                let message = t3code_update::ALREADY_UPDATING.to_string();
+
+                return session.report_t3code_update(&version, Err(message)).await;
+            };
+            let replaced = match t3code_update::update(&version).await {
+                Err(message) => return session.report_t3code_update(&version, Err(message)).await,
+                Ok(replaced) => replaced,
+            };
+
+            session.report_t3code_update(&version, Ok(())).await;
+
+            if session.client.dropped.is_cancelled() {
+                return;
+            }
+
+            t3code_update::restarted(&replaced).await;
+
+            let settings = session
+                .schedule
+                .lock()
+                .unwrap()
+                .configuration
+                .as_ref()
+                .and_then(|configuration| configuration.t3_code);
+
+            if let Err(error) = session.scanner.rescan_t3code(settings).await {
+                log::warning("Could not report T3 Code after updating it", error);
+            }
+        });
+    }
+
+    async fn report_t3code_update(&self, version: &str, updated: Result<(), String>) {
+        let outcome = match updated {
+            Ok(()) => {
+                log::info(&format!("Updated T3 Code to {version}"));
+                T3CodeUpdateOutcome::Updated
+            }
+            Err(message) => {
+                log::warning(&format!("Could not update T3 Code to {version}"), &message);
+                T3CodeUpdateOutcome::Failed { message }
+            }
+        };
+
+        if self.client.dropped.is_cancelled() {
+            return;
+        }
+
+        if let Err(error) = self
+            .client
+            .call(
+                "ReportT3CodeUpdate",
+                Some(json!({ "version": version, "outcome": outcome })),
+            )
+            .await
+        {
+            log::warning("Could not report the T3 Code update", error);
         }
     }
 

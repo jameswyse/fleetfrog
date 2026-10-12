@@ -42,6 +42,7 @@ import { IntegrationsStore } from "../settings/integrationsStore.ts";
 import { PollingStore } from "../settings/pollingStore.ts";
 import { PreferencesStore } from "../settings/preferencesStore.ts";
 import { ProjectLayoutStore } from "../settings/projectLayoutStore.ts";
+import { T3CodeUpdates } from "../t3Code/t3CodeUpdates.ts";
 import { DashboardPresence } from "./dashboardPresence.ts";
 
 import type { Actor, HubEvent } from "@fleetfrog/protocol/domain/activity";
@@ -61,6 +62,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
     const folders = yield* FolderRequests;
     const inspections = yield* InspectionRequests;
     const updates = yield* AgentUpdates;
+    const t3CodeUpdates = yield* T3CodeUpdates;
     const users = yield* UserStore;
     const preferences = yield* PreferencesStore;
     const projectLayouts = yield* ProjectLayoutStore;
@@ -192,6 +194,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
           });
         }),
       UpdateAgent: ({ machineId }) => updates.start(machineId),
+      UpdateT3Code: ({ machineId }) => t3CodeUpdates.start(machineId),
       UpdatePolling: ({ polling: settings }) =>
         polling
           .update(settings)

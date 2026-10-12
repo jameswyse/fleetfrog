@@ -142,12 +142,13 @@ The hub never sends commands. It asks for a named action on a checkout the agent
 - Clone accepts only HTTPS and SSH URLs without credentials, into a new folder inside one of the machine's discovery folders and outside hidden folders.
 - Git runs without a terminal, so it fails rather than prompting, and with hooks disabled, so a pull or clone never runs scripts from the repository.
 
-Each machine's owner decides what the hub may ask for, in three tiers: `git` for fetching, pulling, cloning, switching branches and stashing, `cleanup` for archiving, the trash and deleting, and `update` for updating the agent to the hub's version. Every tier is allowed by default:
+Each machine's owner decides what the hub may ask for, in four tiers: `git` for fetching, pulling, cloning, switching branches and stashing, `cleanup` for archiving, the trash and deleting, `update` for updating the agent to the hub's version, and `t3code` for updating T3 Code where its background service runs it. Every tier is allowed by default:
 
 ```sh
 fleetfrog deny git       # refuse Git actions on this machine
 fleetfrog allow git      # allow them again
 fleetfrog deny update    # update this agent only with fleetfrog update
+fleetfrog deny t3code    # update T3 Code only on the machine itself
 fleetfrog status         # show the policy and where the audit log is
 ```
 

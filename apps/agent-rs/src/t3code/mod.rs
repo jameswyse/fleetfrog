@@ -1,6 +1,8 @@
 //! What T3 Code has on this machine: its projects and their threads from its database, the images
 //! its projects show as icons, its running server and the coding agents it has checked.
 
+pub mod update;
+
 use std::collections::HashMap;
 
 use base64::Engine;
@@ -17,12 +19,16 @@ use crate::time::Utc;
 
 const V2_DATABASE: &str = "statev2.sqlite";
 
-/// Where T3 Code keeps its database, following its `T3CODE_HOME` setting.
-pub fn database_path() -> String {
-    let userdata = paths::join(
+fn userdata_path() -> String {
+    paths::join(
         &paths::env("T3CODE_HOME").unwrap_or_else(|| paths::join(&paths::home(), ".t3")),
         "userdata",
-    );
+    )
+}
+
+/// Where T3 Code keeps its database, following its `T3CODE_HOME` setting.
+pub fn database_path() -> String {
+    let userdata = userdata_path();
     let v2 = paths::join(&userdata, V2_DATABASE);
 
     if std::fs::metadata(&v2).is_ok() {
@@ -560,6 +566,22 @@ struct RuntimeFile {
     pid: i64,
     port: i64,
     started_at: Utc,
+    #[serde(default, deserialize_with = "only_true")]
+    service_managed: bool,
+}
+
+fn only_true<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<bool, D::Error> {
+    Ok(serde_json::Value::deserialize(deserializer)? == serde_json::Value::Bool(true))
+}
+
+fn read_runtime(userdata: &str) -> Option<RuntimeFile> {
+    let text = std::fs::read_to_string(paths::join(userdata, "server-runtime.json")).ok()?;
+
+    serde_json::from_str(&text).ok()
+}
+
+pub fn server_pid() -> Option<i64> {
+    read_runtime(&userdata_path()).map(|runtime| runtime.pid)
 }
 
 /// Whether a process is running, including one this user may not signal.
@@ -609,11 +631,16 @@ pub fn version_of(executable: &str) -> Option<String> {
     Some(version.to_string()).filter(|version| !version.is_empty())
 }
 
+pub struct RunningServer {
+    pub pid: i64,
+    pub executable: Option<String>,
+    pub server: T3CodeServer,
+}
+
 /// T3 Code's server, if it's running. A runtime file left behind by a server that stopped, whose
 /// process number now belongs to another program, counts as not running.
-async fn read_server(userdata: &str) -> Option<T3CodeServer> {
-    let text = std::fs::read_to_string(paths::join(userdata, "server-runtime.json")).ok()?;
-    let runtime: RuntimeFile = serde_json::from_str(&text).ok()?;
+async fn read_server(userdata: &str) -> Option<RunningServer> {
+    let runtime = read_runtime(userdata)?;
 
     if !is_running(runtime.pid) {
         return None;
@@ -628,11 +655,20 @@ async fn read_server(userdata: &str) -> Option<T3CodeServer> {
         return None;
     }
 
-    Some(T3CodeServer {
-        version: executable.as_deref().and_then(version_of),
-        started_at: runtime.started_at,
-        port: runtime.port,
+    Some(RunningServer {
+        pid: runtime.pid,
+        server: T3CodeServer {
+            version: executable.as_deref().and_then(version_of),
+            started_at: runtime.started_at,
+            port: runtime.port,
+            service_managed: runtime.service_managed,
+        },
+        executable,
     })
+}
+
+pub async fn running_server() -> Option<RunningServer> {
+    read_server(&userdata_path()).await
 }
 
 #[derive(Deserialize)]
@@ -720,7 +756,7 @@ pub async fn read_t3code(
 ) -> T3CodeRead {
     // The database sits in T3 Code's `userdata` folder, beside its runtime file and below its home.
     let userdata = paths::dirname(database);
-    let server = read_server(&userdata).await;
+    let server = read_server(&userdata).await.map(|running| running.server);
     let providers = read_providers(&paths::join(&paths::dirname(&userdata), "caches"));
     let status = |reading: T3CodeReading| T3CodeStatus {
         database: database.to_string(),
@@ -892,6 +928,23 @@ mod tests {
             Picked::Unreadable
         ));
         assert!(matches!(picked_icon(None), Picked::None));
+    }
+
+    #[test]
+    fn reads_whether_a_service_runs_the_server() {
+        let service_managed = |extra: &str| {
+            serde_json::from_str::<RuntimeFile>(&format!(
+                r#"{{"version":1,"pid":64571,"port":3773,"origin":"http://127.0.0.1:3773","startedAt":"2026-10-11T20:10:57.775Z"{extra}}}"#
+            ))
+            .unwrap()
+            .service_managed
+        };
+
+        assert!(service_managed(r#","serviceManaged":true"#));
+        assert!(!service_managed(r#","serviceManaged":false"#));
+        assert!(!service_managed(""));
+        assert!(!service_managed(r#","serviceManaged":"true""#));
+        assert!(!service_managed(r#","serviceManaged":null"#));
     }
 
     #[test]

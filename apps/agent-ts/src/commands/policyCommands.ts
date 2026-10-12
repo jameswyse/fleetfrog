@@ -11,12 +11,14 @@ export const tierDescriptions = {
   cleanup:
     "Cleanup actions: delete branches, archive checkouts, move them to the trash or delete them, and restore or empty the trash",
   update: "Agent updates: let the hub update this agent to the hub's version",
+  t3code: "T3 Code updates: let the hub update T3 Code when its background service runs the server",
 } satisfies Record<Tier, string>;
 
 const tierPluralNames = {
   git: "Git actions",
   cleanup: "Cleanup actions",
   update: "Agent updates",
+  t3code: "T3 Code updates",
 } satisfies Record<Tier, string>;
 
 const tierArgument = Argument.Literals("tier", Tier.literals).pipe(

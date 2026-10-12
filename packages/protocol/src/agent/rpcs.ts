@@ -13,6 +13,7 @@ import { FolderOutcome, FolderStatus } from "../domain/fleet.ts";
 import { MachineInfo, SystemUsage } from "../domain/machine.ts";
 import { ReportedList, ReportedText } from "../domain/reported.ts";
 import { T3CodeStatus } from "../domain/t3Code.ts";
+import { T3CodeUpdateOutcome } from "../domain/t3CodeUpdate.ts";
 import { InspectionResult, TrashedCheckout } from "../domain/trash.ts";
 
 import type { MachineId } from "../domain/machine.ts";
@@ -71,6 +72,7 @@ export const HubCommand = Schema.TaggedUnion({
     ),
   },
   Update: { version: Schema.String },
+  UpdateT3Code: { version: Schema.String },
 });
 export type HubCommand = typeof HubCommand.Type;
 
@@ -125,6 +127,9 @@ export class AgentRpcs extends RpcGroup.make(
   Rpc.make("TargetVersion", { success: Schema.Struct({ version: Schema.String }) }),
   Rpc.make("ReportUpdateFailure", {
     payload: { version: ReportedText, message: ReportedText },
+  }),
+  Rpc.make("ReportT3CodeUpdate", {
+    payload: { version: ReportedText, outcome: T3CodeUpdateOutcome },
   }),
 ).middleware(AgentAuthentication) {}
 

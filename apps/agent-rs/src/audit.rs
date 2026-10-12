@@ -55,6 +55,10 @@ pub enum AuditEntry {
         previous_version: String,
         version: String,
     },
+    T3CodeUpdated {
+        previous_version: Option<String>,
+        version: String,
+    },
 }
 
 /// At this size the log moves to `actions.log.1`, replacing the previous one.

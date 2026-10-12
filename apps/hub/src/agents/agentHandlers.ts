@@ -8,6 +8,7 @@ import { CheckoutStore } from "../catalogue/checkoutStore.ts";
 import { FleetFeed } from "../catalogue/fleetFeed.ts";
 import { ProjectIconStore } from "../catalogue/projectIconStore.ts";
 import { MachineStore } from "../machines/machineStore.ts";
+import { T3CodeUpdates } from "../t3Code/t3CodeUpdates.ts";
 import { AgentSessions } from "./agentSessions.ts";
 import { AgentUpdates } from "./agentUpdates.ts";
 import { FolderRequests } from "./folderRequests.ts";
@@ -27,6 +28,7 @@ export const AgentHandlers = AgentRpcs.toLayer(
     const folders = yield* FolderRequests;
     const inspections = yield* InspectionRequests;
     const updates = yield* AgentUpdates;
+    const t3CodeUpdates = yield* T3CodeUpdates;
 
     return {
       Connect: ({ info, capabilities }) =>
@@ -36,6 +38,7 @@ export const AgentHandlers = AgentRpcs.toLayer(
 
             yield* machines.recordConnection({ machineId: id, info });
             yield* updates.connected({ machineId: id, agentVersion: info.agentVersion });
+            yield* t3CodeUpdates.connected(id);
             yield* feed.invalidate;
 
             return yield* sessions.connect({ machineId: id, capabilities });
@@ -60,7 +63,10 @@ export const AgentHandlers = AgentRpcs.toLayer(
                   ),
                 ),
             Trash: ({ items }) => machines.recordTrash({ machineId: id, items }),
-            T3Code: ({ status }) => machines.recordT3Code({ machineId: id, status }),
+            T3Code: ({ status }) =>
+              machines
+                .recordT3Code({ machineId: id, status })
+                .pipe(Effect.andThen(t3CodeUpdates.reported({ machineId: id, status }))),
             ProjectIcons: ({ icons: files }) => icons.replace({ machineId: id, icons: files }),
             Status: ({ changed, removedPaths, completedAt }) =>
               checkouts
@@ -107,6 +113,8 @@ export const AgentHandlers = AgentRpcs.toLayer(
       TargetVersion: () => Effect.succeed({ version: updates.targetVersion }),
       ReportUpdateFailure: ({ version, message }) =>
         CurrentMachine.use(({ id }) => updates.fail({ machineId: id, version, message })),
+      ReportT3CodeUpdate: ({ version, outcome }) =>
+        CurrentMachine.use(({ id }) => t3CodeUpdates.finish({ machineId: id, version, outcome })),
     };
   }),
 );

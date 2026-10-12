@@ -50,11 +50,11 @@ Ideas for after phase 2. They're captured, not planned: an entry doesn't mean it
 
 ## Agent capabilities
 
-Agents have the `git` and `cleanup` tiers.
+Agents have the `git`, `cleanup`, `update` and `t3code` tiers.
 
 - **`scripts` tier.** Install dependencies and run repository scripts, tests and dev servers. Commands come from the repository, such as `package.json` scripts, never from the hub.
 - **`files` tier.** Detect missing environment files and required keys, allowing deliberate differences between machines. Later, transfer selected environment and config files on request. Routine reports carry key names only, never values.
-- **`machine` tier.** Install and update tooling such as T3 Code, Cursor, Codex, Claude, Node.js, pnpm and Rust, through agent recipes with pinned sources and verified checksums. The hub states the outcome it wants. Eventually, provision a new machine from scratch.
+- **`machine` tier.** Install and update tooling such as Cursor, Codex, Claude, Node.js, pnpm and Rust, and install T3 Code, through agent recipes with pinned sources and verified checksums. The `t3code` tier already updates T3 Code. The hub states the outcome it wants. Eventually, provision a new machine from scratch.
 - **Signed high-risk actions.** Machine-tier actions are signed with a passkey on the user's device and checked against a key pinned at pairing, so a compromised hub can't run them.
 - **End-to-end encrypted file sync.** Agents encrypt synced secrets for each other, so the hub relays values it can't read.
 

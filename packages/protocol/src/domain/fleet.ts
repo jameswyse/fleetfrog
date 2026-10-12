@@ -8,6 +8,7 @@ import { PollingSettings } from "./polling.ts";
 import { ReportedText } from "./reported.ts";
 import { RepositoryIdentity, RepositoryKey } from "./repositoryIdentity.ts";
 import { IntegrationSettings, ProjectIcon, T3CodeStatus } from "./t3Code.ts";
+import { T3CodeReleases, T3CodeUpdate } from "./t3CodeUpdate.ts";
 import { TrashedCheckout } from "./trash.ts";
 
 export const Connection = Schema.TaggedUnion({
@@ -48,6 +49,7 @@ export const Machine = Schema.Struct({
   trash: Schema.Array(TrashedCheckout),
   t3Code: Schema.NullOr(T3CodeStatus),
   update: Schema.NullOr(AgentUpdate),
+  t3CodeUpdate: Schema.NullOr(T3CodeUpdate),
 });
 export type Machine = typeof Machine.Type;
 
@@ -69,6 +71,7 @@ export type Repository = typeof Repository.Type;
 
 export const Fleet = Schema.Struct({
   hubVersion: Schema.String,
+  t3CodeReleases: T3CodeReleases,
   machines: Schema.Array(Machine),
   repositories: Schema.Array(Repository),
   archive: Schema.Array(Repository),

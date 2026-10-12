@@ -39,6 +39,7 @@ const capabilities = (updatesItself: boolean): AgentCapabilities => ({
   policyReadable: true,
   createsFolders: true,
   updatesItself,
+  updatesT3Code: false,
 });
 
 const connectStudio = Effect.fnUntraced(function* (options: {

@@ -383,15 +383,18 @@ mod tests {
     fn keeps_denials_from_files_written_before_the_denied_list() {
         let read = read(r#"{"allowedTiers":["git"]}"#);
 
-        assert_eq!(read.policy.allowed_tiers, vec![Tier::Git, Tier::Update]);
-        assert_eq!(read.defaulted, vec![Tier::Update]);
+        assert_eq!(
+            read.policy.allowed_tiers,
+            vec![Tier::Git, Tier::Update, Tier::T3Code]
+        );
+        assert_eq!(read.defaulted, vec![Tier::Update, Tier::T3Code]);
         assert!(read.incomplete);
     }
 
     #[test]
     fn follows_a_complete_file_and_skips_tiers_it_does_not_know() {
         let read = read(
-            r#"{"allowedTiers":["git","teleport"],"deniedTiers":["cleanup","update","teleport"]}"#,
+            r#"{"allowedTiers":["git","teleport"],"deniedTiers":["cleanup","update","t3code","teleport"]}"#,
         );
 
         assert_eq!(read.policy.allowed_tiers, vec![Tier::Git]);
@@ -403,14 +406,29 @@ mod tests {
     fn gives_undecided_tiers_their_defaults() {
         let read = read(r#"{"allowedTiers":[],"deniedTiers":["git"]}"#);
 
-        assert_eq!(read.policy.allowed_tiers, vec![Tier::Cleanup, Tier::Update]);
-        assert_eq!(read.defaulted, vec![Tier::Cleanup, Tier::Update]);
+        assert_eq!(
+            read.policy.allowed_tiers,
+            vec![Tier::Cleanup, Tier::Update, Tier::T3Code]
+        );
+        assert_eq!(
+            read.defaulted,
+            vec![Tier::Cleanup, Tier::Update, Tier::T3Code]
+        );
         assert!(read.incomplete);
 
         let missing = decide(None);
 
         assert_eq!(missing.policy.allowed_tiers, Tier::ALL.to_vec());
         assert!(missing.incomplete);
+    }
+
+    #[test]
+    fn allows_t3_code_updates_on_machines_that_decided_every_earlier_tier() {
+        let read = read(r#"{"allowedTiers":["git"],"deniedTiers":["cleanup","update"]}"#);
+
+        assert_eq!(read.policy.allowed_tiers, vec![Tier::Git, Tier::T3Code]);
+        assert_eq!(read.defaulted, vec![Tier::T3Code]);
+        assert!(read.incomplete);
     }
 
     #[test]

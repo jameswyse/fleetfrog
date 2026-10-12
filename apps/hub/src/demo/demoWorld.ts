@@ -117,11 +117,14 @@ export interface SimTrashEntry {
   readonly repository: SimRepository;
 }
 
+export const demoT3CodeReleases = { stable: "0.9.4", nightly: null, preview: null } as const;
+
 export interface SimMachine {
   readonly spec: DemoMachine;
   readonly repositories: Array<SimRepository>;
   readonly trash: Array<SimTrashEntry>;
   archiveFolder: string | null;
+  t3CodeVersion: string;
 }
 
 export interface DemoWorld {
@@ -493,6 +496,9 @@ export function buildWorld(options: {
     }),
     trash: machine.trash.map((item) => trashedRepository(machine, item, now)),
     archiveFolder: machine.archive,
+    t3CodeVersion: ["devbox", "macbook"].includes(machine.key)
+      ? "0.9.3"
+      : demoT3CodeReleases.stable,
   }));
 
   return { remotes, machines };
@@ -749,9 +755,10 @@ export function renderT3Code(machine: SimMachine, now: DateTime.Utc): T3CodeStat
       unreadRecords: 0,
     }),
     server: {
-      version: "0.9.4",
+      version: machine.t3CodeVersion,
       startedAt: DateTime.subtract(now, { hours: 9 }),
       port: 3773,
+      serviceManaged: spec.platform === "linux",
     },
     providers: [
       {

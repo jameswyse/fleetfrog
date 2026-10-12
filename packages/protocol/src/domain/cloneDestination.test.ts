@@ -43,6 +43,7 @@ function machine(options: {
     archiveFolder: null,
     archiveFolderStatus: null,
     update: null,
+    t3CodeUpdate: null,
     trash: [],
     t3Code: null,
   };
