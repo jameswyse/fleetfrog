@@ -1,5 +1,11 @@
 # @fleetfrog/hub
 
+## 0.9.0
+
+### Minor Changes
+
+- 91e0ee6: Check GitHub hourly for T3 Code releases and ask agents to update T3 Code.
+
 ## 0.8.1
 
 No changes in this release.
