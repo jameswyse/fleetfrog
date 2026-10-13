@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer, Option, Schedule, Stream } from "effect";
+import { TestClock } from "effect/testing";
 
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 import { repositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
@@ -74,6 +75,9 @@ const fleetWhere = (ready: (fleet: Fleet) => boolean) =>
     watch.pipe(Stream.filter(ready), Stream.runHead, Effect.map(Option.getOrThrow)),
   ).pipe(Effect.timeout("10 seconds"));
 
+const passingTime = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+  Effect.raceFirst(effect, TestClock.adjust("50 millis").pipe(Effect.forever));
+
 const fullyReported = (fleet: Fleet) =>
   fleet.machines.length === demoMachines.length &&
   fleet.machines.every(
@@ -136,7 +140,7 @@ const pull = Effect.fn("pull")(function* (target: MachineCheckout) {
 });
 
 describe("DemoFleet", () => {
-  it.live("reports every demo machine and its projects through the agent protocol", () =>
+  it.effect("reports every demo machine and its projects through the agent protocol", () =>
     Effect.gen(function* () {
       const fleet = yield* fleetWhere(fullyReported);
 
@@ -161,10 +165,10 @@ describe("DemoFleet", () => {
       );
 
       expect(stored).toHaveLength(images.length);
-    }).pipe(Effect.provide(DemoHub)),
+    }).pipe(passingTime, Effect.provide(DemoHub)),
   );
 
-  it.live("fast-forwards a checkout that is behind and refuses one with changes", () =>
+  it.effect("fast-forwards a checkout that is behind and refuses one with changes", () =>
     Effect.gen(function* () {
       const fleet = yield* fleetWhere(fullyReported);
 
@@ -205,6 +209,6 @@ describe("DemoFleet", () => {
           reason: { _tag: "UncommittedChanges", files: upstreamOf(changed)?.changed },
         },
       });
-    }).pipe(Effect.provide(DemoHub)),
+    }).pipe(passingTime, Effect.provide(DemoHub)),
   );
 });
