@@ -1,5 +1,11 @@
 # @fleetfrog/agent-ts
 
+## 0.9.0
+
+### Minor Changes
+
+- 91e0ee6: Update T3 Code when the hub asks, through a new t3code tier that's allowed by default. Service installs update with `t3 update`, and desktop apps through the app's own updater. The agent refuses while T3 Code is running a thread.
+
 ## 0.8.1
 
 No changes in this release.

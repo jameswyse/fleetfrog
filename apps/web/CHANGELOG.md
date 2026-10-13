@@ -1,5 +1,16 @@
 # @fleetfrog/web
 
+## 0.9.0
+
+### Minor Changes
+
+- 91e0ee6: Show when a newer T3 Code release is available on each machine, and update T3 Code from the dashboard, including its desktop app.
+
+### Patch Changes
+
+- 2242b40: Expect T3 Code's database schema at migration 61.
+- bdb3d04: Show when agents have an update available: an amber dot on the Settings tab, and an icon next to Fleet and each outdated machine in the Settings sidebar.
+
 ## 0.8.1
 
 No changes in this release.
