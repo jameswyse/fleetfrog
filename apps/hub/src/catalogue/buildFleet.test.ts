@@ -87,6 +87,7 @@ describe("buildFleet", () => {
               createsFolders: true,
               updatesItself: false,
               updatesT3Code: false,
+              updatesT3CodeApp: false,
             },
           },
         ],

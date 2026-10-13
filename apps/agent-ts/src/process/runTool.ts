@@ -32,27 +32,16 @@ const actionEnvironment = {
   GCM_INTERACTIVE: "never",
 };
 
-export function runTool(
-  tool:
-    | "git"
-    | "gh"
-    | "ioreg"
-    | "launchctl"
-    | "osascript"
-    | "ps"
-    | "scutil"
-    | "sw_vers"
-    | "sysctl"
-    | "systemctl"
-    | "systemd-detect-virt"
-    | "vm_stat",
+function execute(
+  file: string,
   cwd: string,
   args: ReadonlyArray<string>,
+  passed: ReadonlyArray<string>,
 ) {
   return Effect.callback<string, CommandFailed>((resume, signal) => {
     execFile(
-      tool,
-      tool === "git" ? [...gitConfigArgs, ...args] : args,
+      file,
+      passed,
       {
         cwd,
         env: toolEnvironment,
@@ -76,6 +65,30 @@ export function runTool(
       },
     );
   });
+}
+
+export function runTool(
+  tool:
+    | "git"
+    | "gh"
+    | "ioreg"
+    | "launchctl"
+    | "osascript"
+    | "ps"
+    | "scutil"
+    | "sw_vers"
+    | "sysctl"
+    | "systemctl"
+    | "systemd-detect-virt"
+    | "vm_stat",
+  cwd: string,
+  args: ReadonlyArray<string>,
+) {
+  return execute(tool, cwd, args, tool === "git" ? [...gitConfigArgs, ...args] : args);
+}
+
+export function runExecutable(executable: string, args: ReadonlyArray<string>) {
+  return execute(executable, homedir(), args, args);
 }
 
 export function runGit(cwd: string, args: ReadonlyArray<string>) {

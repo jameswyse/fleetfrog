@@ -24,6 +24,7 @@ const everything: AgentCapabilities = {
   createsFolders: true,
   updatesItself: false,
   updatesT3Code: false,
+  updatesT3CodeApp: false,
 };
 
 function machine(
@@ -73,6 +74,7 @@ const outdated = machine("cccccccc-0000-4000-8000-000000000000", {
     createsFolders: true,
     updatesItself: false,
     updatesT3Code: false,
+    updatesT3CodeApp: false,
   },
 });
 
@@ -84,6 +86,7 @@ const locked = machine("dddddddd-0000-4000-8000-000000000000", {
     createsFolders: true,
     updatesItself: false,
     updatesT3Code: false,
+    updatesT3CodeApp: false,
   },
 });
 

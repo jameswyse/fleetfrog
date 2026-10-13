@@ -73,6 +73,7 @@ function machine(
         createsFolders: true,
         updatesItself: true,
         updatesT3Code: true,
+        updatesT3CodeApp: true,
         ...options.capabilities,
       },
     }),
@@ -141,14 +142,22 @@ describe("availableT3CodeVersion", () => {
 describe("canUpdateT3Code", () => {
   const outdated = { version: "0.0.46-nightly.20261007.2787" };
 
-  it("needs an outdated service-run T3 Code on an online agent that allows it", () => {
+  it("needs an outdated T3 Code on an online agent that can update it and allows it", () => {
     expect(canUpdateT3Code(machine(status(outdated)), releases)).toBe(true);
     expect(
       canUpdateT3Code(machine(status({ version: "0.0.46-nightly.20261012.3021" })), releases),
     ).toBe(false);
     expect(canUpdateT3Code(machine(status({ ...outdated, serviceManaged: false })), releases)).toBe(
-      false,
+      true,
     );
+    expect(
+      canUpdateT3Code(
+        machine(status({ ...outdated, serviceManaged: false }), {
+          capabilities: { updatesT3CodeApp: false },
+        }),
+        releases,
+      ),
+    ).toBe(false);
     expect(
       canUpdateT3Code(
         machine(status(outdated), { capabilities: { allowedTiers: ["git"] } }),

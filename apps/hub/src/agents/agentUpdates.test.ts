@@ -40,6 +40,7 @@ const capabilities = (updatesItself: boolean): AgentCapabilities => ({
   createsFolders: true,
   updatesItself,
   updatesT3Code: false,
+  updatesT3CodeApp: false,
 });
 
 const connectStudio = Effect.fnUntraced(function* (options: {

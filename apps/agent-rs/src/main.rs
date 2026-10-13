@@ -59,7 +59,7 @@ Tiers:
   git      Git actions: fetch, pull (fast-forward only), clone into a project folder, switch branches and stash changes
   cleanup  Cleanup actions: delete branches, archive checkouts, move them to the trash or delete them, and restore or empty the trash
   update   Agent updates: let the hub update this agent to the hub's version
-  t3code   T3 Code updates: let the hub run T3 Code's own updater when its server runs as a service
+  t3code   T3 Code updates: let the hub update T3 Code through its own updater, when no thread is running
 
 Every tier is allowed until you deny it. A tier added in an update starts at its default, which the
 agent records in its policy the first time it runs.

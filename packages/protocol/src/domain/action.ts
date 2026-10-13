@@ -147,6 +147,7 @@ export const AgentCapabilities = Schema.Struct({
   createsFolders: Schema.Boolean.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(false))),
   updatesItself: Schema.Boolean.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(false))),
   updatesT3Code: Schema.Boolean.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(false))),
+  updatesT3CodeApp: Schema.Boolean.pipe(Schema.withDecodingDefaultTypeKey(Effect.succeed(false))),
 });
 export type AgentCapabilities = typeof AgentCapabilities.Type;
 
@@ -159,6 +160,7 @@ export const AdvertisedCapabilities = AgentCapabilities.pipe(
       createsFolders: false,
       updatesItself: false,
       updatesT3Code: false,
+      updatesT3CodeApp: false,
     }),
   ),
 );

@@ -7,6 +7,7 @@ import { Button } from "@/ui/Button.tsx";
 import { plural } from "@/ui/plural.ts";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 import {
+  agentUpdatesT3Code,
   availableT3CodeVersion,
   canUpdateT3Code,
   workingT3CodeThreads,
@@ -24,24 +25,25 @@ function releaseUrl(version: string): string {
 function describeVersion(machine: Machine, running: string, available: string): string {
   const runs = `Runs ${running}. ${available} is available.`;
   const working = workingT3CodeThreads(machine.t3Code);
+  const server = machine.t3Code?.server ?? null;
+  const app = server?.serviceManaged !== true;
+  const product = app ? "T3 Code's desktop app" : "T3 Code";
 
   if (machine.t3CodeUpdate?._tag === "Updating") {
-    return `Installing ${machine.t3CodeUpdate.version}. T3 Code will restart when the update finishes.`;
+    return app
+      ? `Installing ${machine.t3CodeUpdate.version}. The T3 Code app on this machine will quit and relaunch when the update is ready.`
+      : `Installing ${machine.t3CodeUpdate.version}. T3 Code will restart when the update finishes.`;
   }
 
   if (machine.connection._tag === "Offline") {
     return `${runs} It can update once the machine is online.`;
   }
 
-  if (!machine.connection.capabilities.updatesT3Code) {
-    return `${runs} This machine's agent is too old to update T3 Code. Update the agent first.`;
+  if (!agentUpdatesT3Code(machine.connection.capabilities, server)) {
+    return `${runs} This machine's agent is too old to update ${product}. Update the agent first.`;
   }
 
-  if (machine.t3Code?.server?.serviceManaged !== true) {
-    return `${runs} T3 Code runs in its desktop app here, which updates itself.`;
-  }
-
-  if (machine.t3Code.reading._tag !== "Read" || machine.t3Code.reading.unreadRecords > 0) {
+  if (machine.t3Code?.reading._tag !== "Read" || machine.t3Code.reading.unreadRecords > 0) {
     return `${runs} FleetFrog can't read all of T3 Code's database here, so it can't tell whether a thread is running. Update T3 Code on the machine itself.`;
   }
 
@@ -53,7 +55,9 @@ function describeVersion(machine: Machine, running: string, available: string): 
     return `${runs} T3 Code is running ${plural(working, "thread")}, so it can update once ${working === 1 ? "it finishes" : "they finish"}.`;
   }
 
-  return `${runs} Updating restarts T3 Code.`;
+  return app
+    ? `${runs} Updating quits and relaunches the T3 Code app on this machine, closing its windows.`
+    : `${runs} Updating restarts T3 Code.`;
 }
 
 function updateLabel({

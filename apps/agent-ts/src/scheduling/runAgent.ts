@@ -52,6 +52,7 @@ const readCapabilities = loadPolicy.pipe(
     createsFolders: true,
     updatesItself: false,
     updatesT3Code: true,
+    updatesT3CodeApp: true,
   })),
   Effect.orElseSucceed((): AgentCapabilities => ({
     actions: ActionKind.literals,
@@ -60,6 +61,7 @@ const readCapabilities = loadPolicy.pipe(
     createsFolders: true,
     updatesItself: false,
     updatesT3Code: true,
+    updatesT3CodeApp: true,
   })),
 );
 

@@ -20,7 +20,7 @@ import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 import type { T3CodeStatus } from "@fleetfrog/protocol/domain/t3Code";
 import type { T3CodeUpdateOutcome } from "@fleetfrog/protocol/domain/t3CodeUpdate";
 
-export const t3CodeUpdateLimit = Duration.minutes(15);
+export const t3CodeUpdateLimit = Duration.minutes(35);
 
 export class T3CodeUpdates extends Context.Service<
   T3CodeUpdates,
@@ -86,7 +86,7 @@ export class T3CodeUpdates extends Context.Service<
               machineId,
               T3CodeUpdate.cases.Failed.make({
                 version: update.version,
-                message: "T3 Code didn't report the new version within 15 minutes.",
+                message: "T3 Code didn't report the new version within 35 minutes.",
               }),
             );
           }
@@ -157,9 +157,42 @@ export class T3CodeUpdates extends Context.Service<
         }),
         finish: ({ machineId, version, outcome }) =>
           outcome._tag === "Updated"
-            ? Effect.logInfo(`The agent ran T3 Code's updater towards ${version}`).pipe(
-                Effect.annotateLogs({ machineId }),
-              )
+            ? Effect.gen(function* () {
+                yield* Effect.logInfo(`The agent installed T3 Code ${version}`).pipe(
+                  Effect.annotateLogs({ machineId }),
+                );
+
+                const now = yield* DateTime.now;
+
+                const running = yield* machines.find(machineId).pipe(
+                  Effect.map((record) => record.t3Code?.server?.version ?? null),
+                  Effect.orElseSucceed(() => null),
+                );
+
+                yield* SubscriptionRef.update(updates, (current) => {
+                  const update = current.get(machineId);
+
+                  if (update === undefined) {
+                    return current;
+                  }
+
+                  const next = new Map(current);
+
+                  if (running !== null && !isNewerT3Code(version, running)) {
+                    next.delete(machineId);
+                  } else {
+                    next.set(
+                      machineId,
+                      T3CodeUpdate.cases.Updating.make({
+                        version,
+                        since: update._tag === "Updating" ? update.since : now,
+                      }),
+                    );
+                  }
+
+                  return next;
+                });
+              })
             : Effect.logWarning(`T3 Code couldn't update to ${version}: ${outcome.message}`).pipe(
                 Effect.annotateLogs({ machineId }),
                 Effect.andThen(

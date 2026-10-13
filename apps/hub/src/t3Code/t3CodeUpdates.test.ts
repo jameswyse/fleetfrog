@@ -61,7 +61,10 @@ function t3Code(server: {
 
 const earlier = DateTime.now.pipe(Effect.map(DateTime.subtract({ hours: 1 })));
 
-const connectMini = Effect.fnUntraced(function* (serviceManaged: boolean) {
+const connectMini = Effect.fnUntraced(function* (
+  serviceManaged: boolean,
+  updatesT3CodeApp: boolean,
+) {
   const sql = yield* SqlClient.SqlClient;
   const machines = yield* MachineStore;
   const sessions = yield* AgentSessions;
@@ -100,6 +103,7 @@ const connectMini = Effect.fnUntraced(function* (serviceManaged: boolean) {
       createsFolders: true,
       updatesItself: true,
       updatesT3Code: true,
+      updatesT3CodeApp,
     },
   });
 });
@@ -108,7 +112,7 @@ describe("T3CodeUpdates", () => {
   it.effect("sends the newest release once and waits for a scan that shows it running", () =>
     Effect.gen(function* () {
       const updates = yield* T3CodeUpdates;
-      const commands = yield* connectMini(true);
+      const commands = yield* connectMini(true, true);
 
       yield* updates.start(mini);
 
@@ -132,11 +136,66 @@ describe("T3CodeUpdates", () => {
     }).pipe(Effect.scoped, Effect.provide(TestUpdates)),
   );
 
+  it.effect(
+    "follows the version a desktop app reports installing instead of the one asked for",
+    () =>
+      Effect.gen(function* () {
+        const updates = yield* T3CodeUpdates;
+        const offered = "0.0.46-nightly.20261011.2980";
+
+        yield* connectMini(false, true).pipe(Effect.asVoid);
+        yield* updates.start(mini);
+        yield* updates.finish({ machineId: mini, version: offered, outcome: { _tag: "Updated" } });
+
+        expect((yield* SubscriptionRef.get(updates.updates)).get(mini)).toMatchObject({
+          _tag: "Updating",
+          version: offered,
+        });
+
+        yield* updates.reported({
+          machineId: mini,
+          status: t3Code({
+            version: offered,
+            serviceManaged: false,
+            startedAt: DateTime.add(yield* DateTime.now, { seconds: 1 }),
+          }),
+        });
+
+        expect((yield* SubscriptionRef.get(updates.updates)).has(mini)).toBe(false);
+      }).pipe(Effect.scoped, Effect.provide(TestUpdates)),
+  );
+
+  it.effect("clears an update whose relaunch was scanned before the agent reported it", () =>
+    Effect.gen(function* () {
+      const updates = yield* T3CodeUpdates;
+      const machines = yield* MachineStore;
+      const offered = "0.0.46-nightly.20261011.2980";
+
+      yield* connectMini(false, true).pipe(Effect.asVoid);
+      yield* updates.start(mini);
+
+      const relaunched = t3Code({
+        version: offered,
+        serviceManaged: false,
+        startedAt: DateTime.add(yield* DateTime.now, { seconds: 1 }),
+      });
+
+      yield* machines.recordT3Code({ machineId: mini, status: relaunched });
+      yield* updates.reported({ machineId: mini, status: relaunched });
+
+      expect((yield* SubscriptionRef.get(updates.updates)).get(mini)?._tag).toBe("Failed");
+
+      yield* updates.finish({ machineId: mini, version: offered, outcome: { _tag: "Updated" } });
+
+      expect((yield* SubscriptionRef.get(updates.updates)).has(mini)).toBe(false);
+    }).pipe(Effect.scoped, Effect.provide(TestUpdates)),
+  );
+
   it.effect("fails an update when T3 Code restarts on an older version", () =>
     Effect.gen(function* () {
       const updates = yield* T3CodeUpdates;
 
-      yield* connectMini(true).pipe(Effect.asVoid);
+      yield* connectMini(true, true).pipe(Effect.asVoid);
       yield* updates.start(mini);
       yield* updates.reported({
         machineId: mini,
@@ -162,13 +221,13 @@ describe("T3CodeUpdates", () => {
     }).pipe(Effect.scoped, Effect.provide(TestUpdates)),
   );
 
-  it.effect("fails an update that T3 Code never confirms within 15 minutes", () =>
+  it.effect("fails an update that T3 Code never confirms within 35 minutes", () =>
     Effect.gen(function* () {
       const updates = yield* T3CodeUpdates;
 
-      yield* connectMini(true).pipe(Effect.asVoid);
+      yield* connectMini(true, true).pipe(Effect.asVoid);
       yield* updates.start(mini);
-      yield* TestClock.adjust("14 minutes");
+      yield* TestClock.adjust("34 minutes");
 
       expect((yield* SubscriptionRef.get(updates.updates)).get(mini)?._tag).toBe("Updating");
 
@@ -177,16 +236,16 @@ describe("T3CodeUpdates", () => {
       expect((yield* SubscriptionRef.get(updates.updates)).get(mini)).toEqual({
         _tag: "Failed",
         version: latest,
-        message: "T3 Code didn't report the new version within 15 minutes.",
+        message: "T3 Code didn't report the new version within 35 minutes.",
       });
     }).pipe(Effect.scoped, Effect.provide(TestUpdates)),
   );
 
-  it.effect("refuses T3 Code run by its desktop app", () =>
+  it.effect("refuses a desktop app when the agent can't update one", () =>
     Effect.gen(function* () {
       const updates = yield* T3CodeUpdates;
 
-      yield* connectMini(false).pipe(Effect.asVoid);
+      yield* connectMini(false, false).pipe(Effect.asVoid);
 
       const refused = yield* Effect.flip(updates.start(mini));
 

@@ -219,9 +219,7 @@ function AboutPanel({ fleet }: { readonly fleet: Fleet }) {
           </ul>
         </SideDetail>
       )}
-      <SideDetail term="Access">
-        Read-only, except that agents can update T3 Code where it runs as a service
-      </SideDetail>
+      <SideDetail term="Access">Read-only, except that agents can update T3 Code</SideDetail>
     </SidePanel>
   );
 }

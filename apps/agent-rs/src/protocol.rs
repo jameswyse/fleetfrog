@@ -350,6 +350,7 @@ pub struct AgentCapabilities {
     /// Whether the hub may send `Update`. Only release builds can replace themselves.
     pub updates_itself: bool,
     pub updates_t3_code: bool,
+    pub updates_t3_code_app: bool,
 }
 
 // Checkouts.
@@ -1025,9 +1026,10 @@ mod tests {
                 creates_folders: true,
                 updates_itself: false,
                 updates_t3_code: true,
+                updates_t3_code_app: true,
             })
             .unwrap(),
-            json!({"actions": [], "allowedTiers": ["t3code"], "policyReadable": true, "createsFolders": true, "updatesItself": false, "updatesT3Code": true})
+            json!({"actions": [], "allowedTiers": ["t3code"], "policyReadable": true, "createsFolders": true, "updatesItself": false, "updatesT3Code": true, "updatesT3CodeApp": true})
         );
     }
 

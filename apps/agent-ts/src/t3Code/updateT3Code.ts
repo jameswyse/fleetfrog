@@ -7,6 +7,7 @@ import { T3CodeUpdateOutcome, workingT3CodeThreads } from "@fleetfrog/protocol/d
 import { lastLines, runProgram } from "../process/runTool.ts";
 import { readT3Code } from "./readT3Code.ts";
 import { readT3CodeRuntime } from "./readT3CodeApp.ts";
+import { updateT3CodeApp } from "./updateT3CodeApp.ts";
 
 import type { AuditEntry } from "../audit/auditLog.ts";
 import type { ConfigUnavailable } from "../config/agentConfig.ts";
@@ -14,7 +15,8 @@ import type { AgentPolicy } from "../config/agentPolicy.ts";
 import type { ProgramResult } from "../process/runTool.ts";
 
 const updateTimeout = Duration.minutes(10);
-const restartTimeout = Duration.seconds(30);
+const serviceRestartTimeout = Duration.seconds(30);
+const appRestartTimeout = Duration.minutes(2);
 const restartPollInterval = Duration.seconds(1);
 const maximumOutputCharacters = 1000;
 
@@ -28,7 +30,7 @@ function threadsRunning(count: number): string {
 
 function failureReason(result: ProgramResult): string {
   if (result._tag === "TimedOut") {
-    return `T3 Code's updater took longer than ${Duration.format(updateTimeout)} and was stopped.`;
+    return "T3 Code's updater took longer than 10 minutes and was stopped.";
   }
 
   return result.code === null
@@ -57,7 +59,19 @@ export function makeT3CodeUpdater(options: {
 
   const refuse = (message: string) => Effect.fail(new Refused({ message }));
 
-  const runUpdater = Effect.fnUntraced(function* () {
+  const runServiceUpdater = (executable: string) =>
+    runProgram({ executable, args: ["update", "--yes"], timeout: updateTimeout }).pipe(
+      Effect.catchTag("CommandFailed", ({ message }) =>
+        refuse(`Couldn't run T3 Code's updater: ${message}`),
+      ),
+      Effect.flatMap((result) =>
+        result._tag === "TimedOut" || result.code !== 0
+          ? refuse(withOutput(failureReason(result), result.output))
+          : Effect.void,
+      ),
+    );
+
+  const runUpdater = Effect.fnUntraced(function* (version: string) {
     const allowed = yield* options.loadPolicy.pipe(
       Effect.map(({ allowedTiers }) => allowedTiers.includes("t3code")),
       Effect.catch((error) =>
@@ -79,48 +93,48 @@ export function makeT3CodeUpdater(options: {
       return yield* refuse("T3 Code's server isn't running.");
     }
 
-    if (!runtime.server.serviceManaged) {
-      return yield* refuse(
-        "T3 Code runs in its desktop app on this machine, which updates itself.",
-      );
-    }
+    const { executable, server } = runtime;
 
-    if (runtime.executable === null) {
+    if (server.serviceManaged && executable === null) {
       return yield* refuse("Couldn't find T3 Code's executable.");
     }
 
-    const { status } = yield* readT3Code({ database, projectIcons: false, favicons: new Map() });
+    const checkThreads = readT3Code({ database, projectIcons: false, favicons: new Map() }).pipe(
+      Effect.flatMap(({ status }) => {
+        if (status.reading._tag !== "Read" || status.reading.unreadRecords > 0) {
+          return refuse(
+            "FleetFrog can't read all of T3 Code's database here, so it can't tell whether a thread is running. Update T3 Code on the machine itself.",
+          );
+        }
 
-    if (status.reading._tag !== "Read" || status.reading.unreadRecords > 0) {
-      return yield* refuse(
-        "FleetFrog can't read all of T3 Code's database here, so it can't tell whether a thread is running. Update T3 Code on the machine itself.",
-      );
-    }
+        const working = workingT3CodeThreads(status);
 
-    const working = workingT3CodeThreads(status);
-
-    if (working > 0) {
-      return yield* refuse(threadsRunning(working));
-    }
-
-    const result = yield* runProgram({
-      executable: runtime.executable,
-      args: ["update", "--yes"],
-      timeout: updateTimeout,
-    }).pipe(
-      Effect.catchTag("CommandFailed", ({ message }) =>
-        refuse(`Couldn't run T3 Code's updater: ${message}`),
-      ),
+        return working > 0 ? refuse(threadsRunning(working)) : Effect.void;
+      }),
     );
 
-    if (result._tag === "TimedOut" || result.code !== 0) {
-      return yield* refuse(withOutput(failureReason(result), result.output));
-    }
+    yield* checkThreads;
 
-    return { userdata, pid: runtime.pid, previousVersion: runtime.server.version };
+    const installed =
+      server.serviceManaged && executable !== null
+        ? yield* runServiceUpdater(executable).pipe(Effect.as(version))
+        : yield* updateT3CodeApp({
+            home: path.dirname(userdata),
+            port: server.port,
+            version,
+            recheck: checkThreads,
+          }).pipe(Effect.catchTag("T3CodeAppUpdateFailed", ({ message }) => refuse(message)));
+
+    return {
+      userdata,
+      pid: runtime.pid,
+      previousVersion: server.version,
+      installed,
+      restartTimeout: server.serviceManaged ? serviceRestartTimeout : appRestartTimeout,
+    };
   });
 
-  const waitForRestart = (userdata: string, pid: number) =>
+  const waitForRestart = (userdata: string, pid: number, restartTimeout: Duration.Duration) =>
     Effect.sleep(restartPollInterval).pipe(
       Effect.andThen(readT3CodeRuntime(userdata)),
       Effect.repeat({ until: (runtime) => runtime !== null && runtime.pid !== pid }),
@@ -153,7 +167,7 @@ export function makeT3CodeUpdater(options: {
   });
 
   const updateOnce = Effect.fnUntraced(function* (session: T3CodeUpdateSession, version: string) {
-    const attempt = yield* runUpdater().pipe(Effect.result);
+    const attempt = yield* runUpdater(version).pipe(Effect.result);
 
     if (attempt._tag === "Failure") {
       yield* fail(session, version, attempt.failure.message);
@@ -161,18 +175,18 @@ export function makeT3CodeUpdater(options: {
       return;
     }
 
-    const { userdata, pid, previousVersion } = attempt.success;
+    const { userdata, pid, previousVersion, installed, restartTimeout } = attempt.success;
 
-    yield* Effect.logInfo(`Updated T3 Code to ${version}`);
-    yield* options.audit({ event: "T3CodeUpdated", previousVersion, version });
+    yield* Effect.logInfo(`Updated T3 Code to ${installed}`);
+    yield* options.audit({ event: "T3CodeUpdated", previousVersion, version: installed });
 
     if (!session.open()) {
       return;
     }
 
-    yield* reportOutcome(session, version, T3CodeUpdateOutcome.cases.Updated.make({}));
+    yield* reportOutcome(session, installed, T3CodeUpdateOutcome.cases.Updated.make({}));
 
-    if (Option.isNone(yield* waitForRestart(userdata, pid))) {
+    if (Option.isNone(yield* waitForRestart(userdata, pid, restartTimeout))) {
       yield* Effect.logWarning(
         `T3 Code's server hadn't restarted ${Duration.format(restartTimeout)} after its update`,
       );

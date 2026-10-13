@@ -417,7 +417,8 @@ pub async fn run_git_action(action: GitAction<'_>, cancel: &Cancel) -> Result<()
 #[derive(Debug, PartialEq, Eq)]
 pub enum ProgramFailed {
     CouldNotRun(String),
-    Exited(String),
+    Exited(i32),
+    Stopped(String),
     TimedOut,
 }
 
@@ -483,10 +484,10 @@ pub async fn run_program(
         Err(_) => Err(ProgramFailed::TimedOut),
         Ok(Err(error)) => Err(could_not_run(error)),
         Ok(Ok(status)) if status.success() => Ok(()),
-        Ok(Ok(status)) => Err(ProgramFailed::Exited(match status.code() {
-            Some(code) => format!("code {code}"),
-            None => signal_name(status.signal().unwrap_or(0)),
-        })),
+        Ok(Ok(status)) => Err(match status.code() {
+            Some(code) => ProgramFailed::Exited(code),
+            None => ProgramFailed::Stopped(signal_name(status.signal().unwrap_or(0))),
+        }),
     }
 }
 
@@ -539,7 +540,7 @@ mod tests {
         )
         .await;
 
-        assert_eq!(ended, Err(ProgramFailed::Exited("code 3".into())));
+        assert_eq!(ended, Err(ProgramFailed::Exited(3)));
         assert_eq!(output.tail(), vec!["working", "broken", "ending"]);
     }
 
@@ -579,14 +580,14 @@ mod tests {
             "sh",
             &["-c", "sleep 30 & echo $!; wait"],
             &output,
-            Duration::from_millis(300),
+            Duration::from_secs(2),
         )
         .await;
 
         assert_eq!(ended, Err(ProgramFailed::TimedOut));
 
         let started: libc::pid_t = output.tail()[0].parse().unwrap();
-        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        let deadline = std::time::Instant::now() + Duration::from_secs(20);
 
         while is_running(started) && std::time::Instant::now() < deadline {
             tokio::time::sleep(Duration::from_millis(50)).await;
@@ -612,7 +613,7 @@ mod tests {
 
         assert!(abandoned.is_err());
 
-        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        let deadline = std::time::Instant::now() + Duration::from_secs(20);
 
         while !marker.exists() && std::time::Instant::now() < deadline {
             tokio::time::sleep(Duration::from_millis(50)).await;

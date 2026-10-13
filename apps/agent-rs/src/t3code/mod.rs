@@ -1,6 +1,7 @@
 //! What T3 Code has on this machine: its projects and their threads from its database, the images
 //! its projects show as icons, its running server and the coding agents it has checked.
 
+pub mod app_update;
 pub mod update;
 
 use std::collections::HashMap;
@@ -19,11 +20,12 @@ use crate::time::Utc;
 
 const V2_DATABASE: &str = "statev2.sqlite";
 
+pub fn home_path() -> String {
+    paths::env("T3CODE_HOME").unwrap_or_else(|| paths::join(&paths::home(), ".t3"))
+}
+
 fn userdata_path() -> String {
-    paths::join(
-        &paths::env("T3CODE_HOME").unwrap_or_else(|| paths::join(&paths::home(), ".t3")),
-        "userdata",
-    )
+    paths::join(&home_path(), "userdata")
 }
 
 /// Where T3 Code keeps its database, following its `T3CODE_HOME` setting.

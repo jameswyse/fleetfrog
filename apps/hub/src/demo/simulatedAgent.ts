@@ -50,6 +50,7 @@ const capabilities: AgentCapabilities = {
   createsFolders: true,
   updatesItself: false,
   updatesT3Code: true,
+  updatesT3CodeApp: true,
 };
 
 const usageInterval = Duration.minutes(1);

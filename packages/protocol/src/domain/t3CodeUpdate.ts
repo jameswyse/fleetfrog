@@ -2,8 +2,9 @@ import { Schema } from "effect";
 
 import { ReportedText } from "./reported.ts";
 
+import type { AgentCapabilities } from "./action.ts";
 import type { Connection } from "./fleet.ts";
-import type { T3CodeStatus } from "./t3Code.ts";
+import type { T3CodeServer, T3CodeStatus } from "./t3Code.ts";
 
 interface UpdatableT3Code {
   readonly connection: Connection;
@@ -136,14 +137,26 @@ export function workingT3CodeThreads(t3Code: T3CodeStatus | null): number {
     : 0;
 }
 
+export function agentUpdatesT3Code(
+  capabilities: AgentCapabilities,
+  server: T3CodeServer | null,
+): boolean {
+  if (server === null) {
+    return false;
+  }
+
+  return server.serviceManaged ? capabilities.updatesT3Code : capabilities.updatesT3CodeApp;
+}
+
 export function canUpdateT3Code(machine: UpdatableT3Code, releases: T3CodeReleases): boolean {
+  const server = machine.t3Code?.server ?? null;
+
   return (
     availableT3CodeVersion(machine.t3Code, releases) !== null &&
-    machine.t3Code?.server?.serviceManaged === true &&
-    machine.t3Code.reading._tag === "Read" &&
+    machine.t3Code?.reading._tag === "Read" &&
     machine.t3Code.reading.unreadRecords === 0 &&
     machine.connection._tag === "Online" &&
-    machine.connection.capabilities.updatesT3Code &&
+    agentUpdatesT3Code(machine.connection.capabilities, server) &&
     machine.connection.capabilities.allowedTiers.includes("t3code") &&
     machine.t3CodeUpdate?._tag !== "Updating" &&
     workingT3CodeThreads(machine.t3Code) === 0

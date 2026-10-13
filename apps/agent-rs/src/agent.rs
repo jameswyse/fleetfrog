@@ -65,6 +65,7 @@ fn read_capabilities() -> AgentCapabilities {
         creates_folders: true,
         updates_itself: update::UPDATES_ITSELF,
         updates_t3_code: true,
+        updates_t3_code_app: true,
     }
 }
 
@@ -384,18 +385,18 @@ impl Session {
 
                 return session.report_t3code_update(&version, Err(message)).await;
             };
-            let replaced = match t3code_update::update(&version).await {
+            let updated = match t3code_update::update(&version).await {
                 Err(message) => return session.report_t3code_update(&version, Err(message)).await,
-                Ok(replaced) => replaced,
+                Ok(updated) => updated,
             };
 
-            session.report_t3code_update(&version, Ok(())).await;
+            session.report_t3code_update(&updated.version, Ok(())).await;
 
             if session.client.dropped.is_cancelled() {
                 return;
             }
 
-            t3code_update::restarted(&replaced).await;
+            t3code_update::restarted(&updated).await;
 
             let settings = session
                 .schedule

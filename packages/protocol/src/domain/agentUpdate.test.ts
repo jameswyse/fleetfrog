@@ -27,6 +27,7 @@ describe("canUpdateAgent", () => {
         createsFolders: true,
         updatesItself: true,
         updatesT3Code: false,
+        updatesT3CodeApp: false,
         ...capabilities,
       },
     }),
