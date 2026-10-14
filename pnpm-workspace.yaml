@@ -27,12 +27,9 @@ catalog:
   vitest: 5.0.3
 
 minimumReleaseAge: 1440
-# Exact versions approved before they were a day old. pnpm prunes each entry once the lockfile
-# stops resolving that version.
-minimumReleaseAgeExclude:
-  - "wrangler@4.149.0"
-  - "miniflare@5.20261006.1-alpha"
 minimumReleaseAgeExcludePrune: true
+trustPolicy: no-downgrade
+trustPolicyIgnoreAfter: 43200
 strictDepBuilds: true
 # Wrangler, for the website, runs without these packages' install scripts: pnpm installs their
 # binaries as platform packages.
@@ -41,9 +38,10 @@ allowBuilds:
   workerd: false
 blockExoticSubdeps: true
 savePrefix: ""
-cleanupUnusedCatalogs: true
+catalogPrune: true
 
 update:
+  githubActions: true
   ignoreDeps:
     # Node types follow the pinned Node major rather than DefinitelyTyped's latest major.
     - "@types/node"
