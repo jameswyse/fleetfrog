@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { Link } from "@tanstack/react-router";
+
 import { Button } from "@/ui/Button.tsx";
 import { Dialog } from "@/ui/Dialog.tsx";
 import { plural } from "@/ui/plural.ts";
@@ -13,6 +15,8 @@ import type { Checkout, GitStatus } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
 import type { KeptBranch, TidyCandidate } from "./branchTidying.ts";
+
+const branchNames = new Intl.ListFormat("en-AU", { type: "conjunction" });
 
 interface Group {
   readonly title: string;
@@ -44,6 +48,7 @@ export function TidyBranchesDialog({
   git,
   candidates,
   kept,
+  ignored,
   onClose,
 }: {
   readonly repository: Repository;
@@ -52,6 +57,7 @@ export function TidyBranchesDialog({
   readonly git: GitStatus;
   readonly candidates: ReadonlyArray<TidyCandidate>;
   readonly kept: ReadonlyArray<KeptBranch>;
+  readonly ignored: ReadonlyArray<string>;
   readonly onClose: () => void;
 }) {
   const { start, pending, failure } = useStartBatch();
@@ -231,6 +237,18 @@ export function TidyBranchesDialog({
           <p className="text-ink-muted">
             {plural(git.branches.total - git.branches.items.length, "branch", "branches")} weren't
             listed by the agent. Tidy these, and the rest appear once they're gone.
+          </p>
+        )}
+        {ignored.length > 0 && (
+          <p className="text-ink-muted">
+            Leaving out {branchNames.format(ignored)}, which your{" "}
+            <Link
+              to="/settings/cleanup"
+              className="text-accent-text underline-offset-2 hover:underline"
+            >
+              Cleanup settings
+            </Link>{" "}
+            ignore.
           </p>
         )}
         <p role="status" className="text-danger">

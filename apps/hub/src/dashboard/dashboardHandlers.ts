@@ -38,6 +38,7 @@ import { FleetFeed } from "../catalogue/fleetFeed.ts";
 import { ProjectIconStore } from "../catalogue/projectIconStore.ts";
 import { MachineStore } from "../machines/machineStore.ts";
 import { PairingOffers } from "../pairing/pairingOffers.ts";
+import { CleanupStore } from "../settings/cleanupStore.ts";
 import { IntegrationsStore } from "../settings/integrationsStore.ts";
 import { PollingStore } from "../settings/pollingStore.ts";
 import { PreferencesStore } from "../settings/preferencesStore.ts";
@@ -55,6 +56,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
     const machines = yield* MachineStore;
     const polling = yield* PollingStore;
     const integrations = yield* IntegrationsStore;
+    const cleanup = yield* CleanupStore;
     const icons = yield* ProjectIconStore;
     const offers = yield* PairingOffers;
     const dispatcher = yield* ActionDispatcher;
@@ -205,6 +207,10 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
           .pipe(
             Effect.andThen(recordChange({ _tag: "IntegrationsChanged", integrations: settings })),
           ),
+      UpdateCleanup: ({ cleanup: settings }) =>
+        cleanup
+          .update(settings)
+          .pipe(Effect.andThen(recordChange({ _tag: "CleanupChanged", cleanup: settings }))),
       SetArchiveFolder: ({ machineId, folder }) =>
         Effect.gen(function* () {
           const machine = yield* machines.find(machineId);

@@ -3,6 +3,7 @@ import { Schema } from "effect";
 import { AgentCapabilities } from "./action.ts";
 import { AgentUpdate } from "./agentUpdate.ts";
 import { Checkout } from "./checkout.ts";
+import { CleanupSettings } from "./cleanup.ts";
 import { MachineId, MachineInfo, MachineKind, SystemUsage } from "./machine.ts";
 import { PollingSettings } from "./polling.ts";
 import { ReportedText } from "./reported.ts";
@@ -77,6 +78,7 @@ export const Fleet = Schema.Struct({
   archive: Schema.Array(Repository),
   polling: PollingSettings,
   integrations: IntegrationSettings,
+  cleanup: CleanupSettings,
 });
 export type Fleet = typeof Fleet.Type;
 

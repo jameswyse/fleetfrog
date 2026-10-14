@@ -10,6 +10,7 @@ import {
   RunId,
   RunsSnapshot,
 } from "../domain/activity.ts";
+import { CleanupSettings } from "../domain/cleanup.ts";
 import { Count } from "../domain/count.ts";
 import { Fleet, FolderOutcome } from "../domain/fleet.ts";
 import { MachineId, MachineKind } from "../domain/machine.ts";
@@ -198,6 +199,7 @@ export class DashboardRpcs extends RpcGroup.make(
   }),
   Rpc.make("UpdatePolling", { payload: { polling: PollingSettings } }),
   Rpc.make("UpdateIntegrations", { payload: { integrations: IntegrationSettings } }),
+  Rpc.make("UpdateCleanup", { payload: { cleanup: CleanupSettings } }),
   Rpc.make("SetArchiveFolder", {
     payload: { machineId: MachineId, folder: Schema.NullOr(Schema.NonEmptyString) },
     error: Schema.Union([MachineNotFound, InvalidArchiveFolder]),

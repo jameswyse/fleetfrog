@@ -92,6 +92,7 @@ describe("tidyCandidates", () => {
     checkout,
     git,
     inOtherWorktrees: new Map([["elsewhere", "/home/dev/Projects/shop-elsewhere"]]),
+    ignoredBranches: [],
   });
 
   const standings = new Map(candidates.map(({ name, standing }) => [name, standing._tag]));
@@ -117,6 +118,19 @@ describe("tidyCandidates", () => {
     expect(standings.get("squashed")).toBe("MergedPullRequest");
     expect(standings.get("squashed-then-changed")).toBe("Pushed");
     expect(standings.get("local")).toBe("LocalOnly");
+  });
+
+  it("leaves out ignored branches, even ones it would otherwise keep", () => {
+    const tidying = tidyCandidates({
+      checkout,
+      git,
+      inOtherWorktrees: new Map([["elsewhere", "/home/dev/Projects/shop-elsewhere"]]),
+      ignoredBranches: ["main", "current", "release"],
+    });
+
+    expect(tidying.candidates.map(({ name }) => name)).not.toContain("main");
+    expect(tidying.kept.map(({ name }) => name)).toEqual(["elsewhere"]);
+    expect(tidying.ignored).toEqual(["main", "current"]);
   });
 });
 

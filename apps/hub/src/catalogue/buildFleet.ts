@@ -4,6 +4,7 @@ import { Connection } from "@fleetfrog/protocol/domain/fleet";
 import { repositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
 import type { AgentUpdate } from "@fleetfrog/protocol/domain/agentUpdate";
+import type { CleanupSettings } from "@fleetfrog/protocol/domain/cleanup";
 import type { Fleet, Machine, MachineCheckout, Repository } from "@fleetfrog/protocol/domain/fleet";
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 import type { PollingSettings } from "@fleetfrog/protocol/domain/polling";
@@ -183,6 +184,7 @@ export function buildFleet(sources: {
   readonly t3CodeReleases: T3CodeReleases;
   readonly polling: PollingSettings;
   readonly integrations: IntegrationSettings;
+  readonly cleanup: CleanupSettings;
 }): Fleet {
   const { t3Code } = sources.integrations;
 
@@ -247,5 +249,6 @@ export function buildFleet(sources: {
     archive,
     polling: sources.polling,
     integrations: sources.integrations,
+    cleanup: sources.cleanup,
   };
 }

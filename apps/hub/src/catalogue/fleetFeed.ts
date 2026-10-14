@@ -3,6 +3,7 @@ import { Context, Duration, Effect, Layer, PubSub, Stream, SubscriptionRef } fro
 import { AgentSessions } from "../agents/agentSessions.ts";
 import { AgentUpdates } from "../agents/agentUpdates.ts";
 import { MachineStore } from "../machines/machineStore.ts";
+import { CleanupStore } from "../settings/cleanupStore.ts";
 import { IntegrationsStore } from "../settings/integrationsStore.ts";
 import { PollingStore } from "../settings/pollingStore.ts";
 import { T3CodeReleaseFeed } from "../t3Code/t3CodeReleaseFeed.ts";
@@ -32,6 +33,7 @@ export class FleetFeed extends Context.Service<
       const t3CodeReleaseFeed = yield* T3CodeReleaseFeed;
       const polling = yield* PollingStore;
       const integrations = yield* IntegrationsStore;
+      const cleanup = yield* CleanupStore;
       const invalidations = yield* PubSub.sliding<void>(1);
 
       const current = Effect.all({
@@ -44,6 +46,7 @@ export class FleetFeed extends Context.Service<
         t3CodeReleases: SubscriptionRef.get(t3CodeReleaseFeed.releases),
         polling: SubscriptionRef.get(polling.settings),
         integrations: SubscriptionRef.get(integrations.settings),
+        cleanup: SubscriptionRef.get(cleanup.settings),
       }).pipe(Effect.map(buildFleet));
 
       return {
@@ -58,6 +61,7 @@ export class FleetFeed extends Context.Service<
             SubscriptionRef.changes(t3CodeReleaseFeed.releases).pipe(Stream.as(undefined)),
             SubscriptionRef.changes(polling.settings).pipe(Stream.as(undefined)),
             SubscriptionRef.changes(integrations.settings).pipe(Stream.as(undefined)),
+            SubscriptionRef.changes(cleanup.settings).pipe(Stream.as(undefined)),
           ],
           { concurrency: "unbounded" },
         ).pipe(

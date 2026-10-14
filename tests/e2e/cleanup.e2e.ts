@@ -98,7 +98,7 @@ test("[deterministic] discard changes moves them to the trash and restores them 
   expect(git(fixtures.discard, "show", "stash@{0}^3:notes.txt")).toBe("Untracked notes to discard");
 });
 
-test("[deterministic] tidy branches protects the current branch and restores local-only commits", async ({
+test("[deterministic] tidy branches leaves out ignored branches and restores local-only commits", async ({
   app,
   screen,
 }) => {
@@ -107,8 +107,8 @@ test("[deterministic] tidy branches protects the current branch and restores loc
   await openCheckout(app, screen, "branches-project");
   await screen.getByRole("button", { name: "Tidy branches…", exact: true }).click();
   const dialog = screen.getByRole("dialog", { name: "Tidy branches in branches-project" });
-  await expect(dialog).toContainText("Can't delete yet");
-  await expect(dialog).toContainText("main");
+  await expect(dialog).toContainText("Leaving out main, which your Cleanup settings ignore.");
+  await expect(dialog).not.toContainText("Can't delete yet");
   const merged = dialog.getByRole("checkbox", { name: /feature\/e2e/ });
   await expect(merged).toBeChecked();
   await dialog.getByRole("button", { name: "Select none in Merged", exact: true }).click();
