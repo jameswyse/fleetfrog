@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { XIcon } from "lucide-react";
 
@@ -8,6 +8,8 @@ import { SidebarPage } from "@/ui/SidebarLayout.tsx";
 
 import { SettingsRow, SettingsSection } from "../SettingsSection.tsx";
 import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
+
+import type { HubResult } from "@/rpc/hubConnection.ts";
 
 const whitespace = /\s/;
 
@@ -28,27 +30,42 @@ function IgnoredBranches({
   onChange,
 }: {
   readonly saved: ReadonlyArray<string>;
-  readonly onChange: (branches: ReadonlyArray<string>) => void;
+  readonly onChange: (branches: ReadonlyArray<string>) => Promise<HubResult<unknown>>;
 }) {
   const savedKey = saved.join("\n");
-  const [branches, setBranches] = useState(saved);
+  const [unsaved, setUnsaved] = useState<ReadonlyArray<string> | null>(null);
+  const [saving, setSaving] = useState(0);
   const [adoptedKey, setAdoptedKey] = useState(savedKey);
   const [draft, setDraft] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
-  const [sentKeys, setSentKeys] = useState<ReadonlySet<string>>(() => new Set());
+  const latest = useRef(0);
+  const branches = unsaved ?? saved;
 
   if (adoptedKey !== savedKey) {
     setAdoptedKey(savedKey);
 
-    if (!sentKeys.has(savedKey)) {
-      setBranches(saved);
+    if (saving === 0) {
+      setUnsaved(null);
     }
   }
 
-  const update = (next: ReadonlyArray<string>) => {
-    setBranches(next);
-    setSentKeys((sent) => new Set(sent).add(next.join("\n")));
-    onChange(next);
+  if (saving === 0 && unsaved !== null && unsaved.join("\n") === savedKey) {
+    setUnsaved(null);
+  }
+
+  const update = async (next: ReadonlyArray<string>) => {
+    const sequence = ++latest.current;
+
+    setUnsaved(next);
+    setSaving((count) => count + 1);
+
+    const result = await onChange(next);
+
+    setSaving((count) => count - 1);
+
+    if (result._tag === "Failure" && sequence === latest.current) {
+      setUnsaved(null);
+    }
   };
 
   return (
@@ -68,7 +85,7 @@ function IgnoredBranches({
               <button
                 type="button"
                 onClick={() => {
-                  update(branches.filter((other) => other !== branch));
+                  void update(branches.filter((other) => other !== branch));
                   document.getElementById("new-ignored-branch")?.focus();
                 }}
                 aria-label={`Stop ignoring ${branch}`}
@@ -93,7 +110,7 @@ function IgnoredBranches({
 
           if (found === null) {
             setDraft("");
-            update([...branches, name]);
+            void update([...branches, name]);
           } else {
             document.getElementById("new-ignored-branch")?.focus();
           }
@@ -154,7 +171,7 @@ export function CleanupSettings() {
           <IgnoredBranches
             saved={fleet.cleanup.ignoredBranches}
             onChange={(ignoredBranches) =>
-              void save(() =>
+              save(() =>
                 requestHub((client) =>
                   client.UpdateCleanup({ cleanup: { ignoredBranches: [...ignoredBranches] } }),
                 ),
