@@ -1,6 +1,7 @@
 import { DateTime } from "effect";
 import { describe, expect, it } from "vitest";
 
+import { defaultCleanupSettings } from "@fleetfrog/protocol/domain/cleanup";
 import { MachineId } from "@fleetfrog/protocol/domain/machine";
 import { defaultPollingSettings } from "@fleetfrog/protocol/domain/polling";
 import {
@@ -71,6 +72,7 @@ function fleetOf(machines: ReadonlyArray<Machine>): Fleet {
     repositories: [],
     archive: [],
     polling: defaultPollingSettings,
+    cleanup: defaultCleanupSettings,
     integrations: defaultIntegrationSettings,
   };
 }

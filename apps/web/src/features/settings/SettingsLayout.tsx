@@ -1,6 +1,7 @@
 import { Link, Outlet } from "@tanstack/react-router";
 import {
   BlocksIcon,
+  BrushCleaningIcon,
   CircleFadingArrowUpIcon,
   KeyRoundIcon,
   LayersIcon,
@@ -128,6 +129,12 @@ export function SettingsLayout() {
               <Link to="/settings/scanning" className={sidebarLinkClass}>
                 <RefreshCwIcon />
                 Scanning
+              </Link>
+            </li>
+            <li>
+              <Link to="/settings/cleanup" className={sidebarLinkClass}>
+                <BrushCleaningIcon />
+                Cleanup
               </Link>
             </li>
             <li>

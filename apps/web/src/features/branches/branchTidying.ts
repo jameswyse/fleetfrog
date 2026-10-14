@@ -30,6 +30,7 @@ export interface KeptBranch {
 export interface BranchTidying {
   readonly candidates: ReadonlyArray<TidyCandidate>;
   readonly kept: ReadonlyArray<KeptBranch>;
+  readonly ignored: ReadonlyArray<string>;
 }
 
 export function branchesInOtherWorktrees({
@@ -89,6 +90,7 @@ export function tidyCandidates(options: {
   readonly checkout: Checkout;
   readonly git: GitStatus;
   readonly inOtherWorktrees: ReadonlyMap<string, string>;
+  readonly ignoredBranches: ReadonlyArray<string>;
 }): BranchTidying {
   const { git } = options;
   const current = git.head._tag === "Detached" ? null : git.head.name;
@@ -96,12 +98,15 @@ export function tidyCandidates(options: {
   const merged = options.checkout.github?.mergedPullRequests ?? [];
   const candidates: Array<TidyCandidate> = [];
   const kept: Array<KeptBranch> = [];
+  const ignored: Array<string> = [];
 
   for (const branch of git.branches.items) {
     const { name, tip } = branch;
     const worktree = options.inOtherWorktrees.get(name);
 
-    if (name === current) {
+    if (options.ignoredBranches.includes(name)) {
+      ignored.push(name);
+    } else if (name === current) {
       kept.push({ name, reason: "Checked out here. Switch to another branch first." });
     } else if (worktree !== undefined) {
       kept.push({
@@ -123,7 +128,7 @@ export function tidyCandidates(options: {
     }
   }
 
-  return { candidates, kept };
+  return { candidates, kept, ignored };
 }
 
 export function isMerged(candidate: TidyCandidate): boolean {

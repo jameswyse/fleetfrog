@@ -9,6 +9,7 @@ import {
   requestTier,
   TargetedRequest,
 } from "./action.ts";
+import { CleanupSettings } from "./cleanup.ts";
 import { Count } from "./count.ts";
 import { MachineId } from "./machine.ts";
 import { PollingSettings } from "./polling.ts";
@@ -185,6 +186,7 @@ export const HubEvent = Schema.TaggedUnion({
   },
   PollingChanged: { polling: PollingSettings },
   IntegrationsChanged: { integrations: IntegrationSettings },
+  CleanupChanged: { cleanup: CleanupSettings },
   ArchiveFolderChanged: {
     machineId: MachineId,
     machineName: Schema.String,

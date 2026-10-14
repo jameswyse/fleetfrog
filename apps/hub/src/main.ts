@@ -27,6 +27,7 @@ import { MachineStore } from "./machines/machineStore.ts";
 import { AgentCertificate } from "./pairing/agentCertificate.ts";
 import { PairingOffers } from "./pairing/pairingOffers.ts";
 import { Database } from "./persistence/database.ts";
+import { CleanupStore } from "./settings/cleanupStore.ts";
 import { IntegrationsStore } from "./settings/integrationsStore.ts";
 import { PollingStore } from "./settings/pollingStore.ts";
 import { PreferencesStore } from "./settings/preferencesStore.ts";
@@ -72,6 +73,7 @@ const Hub = Layer.merge(Agents, DashboardServer).pipe(
       CheckoutStore.layer,
       ActivityStore.layer,
       PollingStore.layer,
+      CleanupStore.layer,
       IntegrationsStore.layer,
       PreferencesStore.layer,
       ProjectLayoutStore.layer,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@effect/vitest";
 import { DateTime, Effect } from "effect";
 
+import { defaultCleanupSettings } from "@fleetfrog/protocol/domain/cleanup";
 import { MachineId } from "@fleetfrog/protocol/domain/machine";
 import { defaultPollingSettings } from "@fleetfrog/protocol/domain/polling";
 import { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
@@ -129,6 +130,7 @@ function fleetWith(checkouts: Repository["checkouts"]): Fleet {
     ],
     archive: [],
     polling: defaultPollingSettings,
+    cleanup: defaultCleanupSettings,
     integrations: defaultIntegrationSettings,
   };
 }

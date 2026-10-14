@@ -306,6 +306,7 @@ export function describeEvent(event: HubEvent): string {
     PollingChanged: () => "Changed the polling intervals",
     IntegrationsChanged: ({ integrations }) =>
       integrations.t3Code.enabled ? "Changed the T3 Code settings" : "Turned off T3 Code",
+    CleanupChanged: () => "Changed the branches to ignore when tidying",
     ArchiveFolderChanged: ({ machineName, folder }) =>
       folder === null
         ? `Turned off archiving on ${machineName}`

@@ -30,6 +30,7 @@ function eventMachine(event: HubEvent): string {
     ProjectFolderCreated: ({ machineName }) => machineName,
     PollingChanged: () => "",
     IntegrationsChanged: () => "",
+    CleanupChanged: () => "",
     ArchiveFolderChanged: ({ machineName }) => machineName,
   });
 }

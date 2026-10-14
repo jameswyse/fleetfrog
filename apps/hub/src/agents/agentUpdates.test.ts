@@ -9,6 +9,7 @@ import { MachineId } from "@fleetfrog/protocol/domain/machine";
 import { DashboardPresence } from "../dashboard/dashboardPresence.ts";
 import { MachineStore } from "../machines/machineStore.ts";
 import { Migrations } from "../persistence/database.ts";
+import { CleanupStore } from "../settings/cleanupStore.ts";
 import { IntegrationsStore } from "../settings/integrationsStore.ts";
 import { PollingStore } from "../settings/pollingStore.ts";
 import { AgentSessions } from "./agentSessions.ts";
@@ -24,6 +25,7 @@ const TestUpdates = AgentUpdates.layer.pipe(
     Layer.mergeAll(
       MachineStore.layer,
       PollingStore.layer,
+      CleanupStore.layer,
       IntegrationsStore.layer,
       DashboardPresence.layer,
     ),

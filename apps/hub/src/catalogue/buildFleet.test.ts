@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@effect/vitest";
 import { DateTime } from "effect";
 
+import { defaultCleanupSettings } from "@fleetfrog/protocol/domain/cleanup";
 import { MachineId } from "@fleetfrog/protocol/domain/machine";
 import { defaultPollingSettings } from "@fleetfrog/protocol/domain/polling";
 import { defaultIntegrationSettings } from "@fleetfrog/protocol/domain/t3Code";
@@ -93,6 +94,7 @@ describe("buildFleet", () => {
         ],
       ]),
       polling: defaultPollingSettings,
+      cleanup: defaultCleanupSettings,
       integrations: defaultIntegrationSettings,
     });
 
@@ -115,6 +117,7 @@ describe("buildFleet", () => {
       t3CodeReleases: unknownT3CodeReleases,
       online: new Map(),
       polling: defaultPollingSettings,
+      cleanup: defaultCleanupSettings,
       integrations: defaultIntegrationSettings,
     });
 
@@ -142,6 +145,7 @@ describe("buildFleet", () => {
       t3CodeReleases: unknownT3CodeReleases,
       online: new Map(),
       polling: defaultPollingSettings,
+      cleanup: defaultCleanupSettings,
       integrations: defaultIntegrationSettings,
     });
 
@@ -185,6 +189,7 @@ describe("buildFleet", () => {
       t3CodeReleases: unknownT3CodeReleases,
       online: new Map(),
       polling: defaultPollingSettings,
+      cleanup: defaultCleanupSettings,
       integrations: defaultIntegrationSettings,
     });
 
@@ -269,6 +274,7 @@ describe("buildFleet", () => {
         t3CodeReleases: unknownT3CodeReleases,
         online: new Map(),
         polling: defaultPollingSettings,
+        cleanup: defaultCleanupSettings,
         integrations,
       });
 

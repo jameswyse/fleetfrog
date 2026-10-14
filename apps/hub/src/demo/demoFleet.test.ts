@@ -19,6 +19,7 @@ import { DashboardPresence } from "../dashboard/dashboardPresence.ts";
 import { HubConfig } from "../hubConfig.ts";
 import { MachineStore } from "../machines/machineStore.ts";
 import { Database } from "../persistence/database.ts";
+import { CleanupStore } from "../settings/cleanupStore.ts";
 import { IntegrationsStore } from "../settings/integrationsStore.ts";
 import { PollingStore } from "../settings/pollingStore.ts";
 import { ProjectLayoutStore } from "../settings/projectLayoutStore.ts";
@@ -60,6 +61,7 @@ const DemoHub = DemoFleet.pipe(
       CheckoutStore.layer,
       ActivityStore.layer,
       PollingStore.layer,
+      CleanupStore.layer,
       IntegrationsStore.layer,
       ProjectLayoutStore.layer,
       ProjectIconStore.layer,

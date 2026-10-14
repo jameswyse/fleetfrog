@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { GitBranchIcon } from "lucide-react";
 
-import { useRuns } from "@/rpc/hubConnection.ts";
+import { knownFleet, useHub, useRuns } from "@/rpc/hubConnection.ts";
 import { useMayRun } from "@/rpc/session.ts";
 import { Button } from "@/ui/Button.tsx";
 
@@ -75,6 +75,7 @@ export function BranchesSection({
   readonly git: GitStatus;
 }) {
   const runs = useRuns();
+  const ignoredBranches = knownFleet(useHub())?.cleanup.ignoredBranches ?? [];
   const [tidying, setTidying] = useState(false);
   const [switching, setSwitching] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
@@ -94,7 +95,13 @@ export function BranchesSection({
     ? (reasons.get(others[0]?.name ?? "") ?? null)
     : null;
 
-  const { candidates, kept } = tidyCandidates({ checkout, git, inOtherWorktrees: elsewhere });
+  const { candidates, kept, ignored } = tidyCandidates({
+    checkout,
+    git,
+    inOtherWorktrees: elsewhere,
+    ignoredBranches,
+  });
+
   const mayTidy = useMayRun("DeleteBranches");
   const tidyBlocked = machineBlocker(machine, "DeleteBranches");
 
@@ -204,6 +211,7 @@ export function BranchesSection({
           git={git}
           candidates={candidates}
           kept={kept}
+          ignored={ignored}
           onClose={() => setTidying(false)}
         />
       )}
