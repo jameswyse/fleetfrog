@@ -1,5 +1,11 @@
 # @fleetfrog/agent-rs
 
+## 0.10.0
+
+### Patch Changes
+
+- b73536a: Stop showing a T3 Code subagent as waiting for you once its run has finished.
+
 ## 0.9.0
 
 ### Minor Changes
