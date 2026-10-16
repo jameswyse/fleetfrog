@@ -241,7 +241,7 @@ export function createRepositories(directory: string): void {
         "e2e-thread",
         "e2e-project",
         "E2E coding thread",
-        JSON.stringify({ worktreePath: null }),
+        JSON.stringify({ worktreePath: null, lineage: { relationshipToParent: null } }),
         now,
       );
     database
