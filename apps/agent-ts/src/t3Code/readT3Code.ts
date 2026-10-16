@@ -80,7 +80,10 @@ type ThreadRow = typeof ThreadRow.Type;
 const V2ThreadRow = Schema.Struct({
   ...threadColumns,
   payload_json: Schema.fromJsonString(
-    Schema.Struct({ worktreePath: Schema.NullOr(Schema.String) }),
+    Schema.Struct({
+      worktreePath: Schema.NullOr(Schema.String),
+      lineage: Schema.Struct({ relationshipToParent: Schema.NullOr(Schema.String) }),
+    }),
   ),
 });
 
@@ -92,6 +95,10 @@ const decodeV2Thread = (row: unknown) =>
     Schema.decodeUnknownOption(V2ThreadRow)(row),
     ({ payload_json, ...thread }): ThreadRow => ({
       ...thread,
+      waiting:
+        payload_json.lineage.relationshipToParent === "subagent" && thread.working === 0
+          ? 0
+          : thread.waiting,
       worktree_path: payload_json.worktreePath,
     }),
   );
