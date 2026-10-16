@@ -1,5 +1,12 @@
 # @fleetfrog/web
 
+## 0.10.1
+
+### Patch Changes
+
+- 25ee5df: Refresh runtime dependencies, build tooling and the Rust toolchain.
+- 25ee5df: Submit the sign-in and password change forms by POST, so a password can't end up in the address bar if the page hasn't finished loading.
+
 ## 0.10.0
 
 ### Minor Changes

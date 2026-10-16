@@ -1,5 +1,11 @@
 # @fleetfrog/protocol
 
+## 0.10.1
+
+### Patch Changes
+
+- 25ee5df: Refresh runtime dependencies, build tooling and the Rust toolchain.
+
 ## 0.10.0
 
 No changes in this release.
