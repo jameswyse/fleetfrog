@@ -1,5 +1,15 @@
 # @fleetfrog/web
 
+## 0.10.0
+
+### Minor Changes
+
+- ce758cf: Add a Cleanup settings page listing branches that Tidy branches never offers to delete. It starts with master, main, develop, dev, staging, uat, pre-prod and prod.
+
+### Patch Changes
+
+- b73536a: Expect T3 Code's database schema at migration 62.
+
 ## 0.9.0
 
 ### Minor Changes

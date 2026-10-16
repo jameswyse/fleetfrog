@@ -1,5 +1,15 @@
 # @fleetfrog/hub
 
+## 0.10.0
+
+### Minor Changes
+
+- ce758cf: Store the branches to ignore when tidying for the whole fleet.
+
+### Patch Changes
+
+- 15fa54a: Run on Node.js 26.12.0 and build with pnpm 12.13.0.
+
 ## 0.9.0
 
 ### Minor Changes

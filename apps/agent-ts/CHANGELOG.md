@@ -1,5 +1,12 @@
 # @fleetfrog/agent-ts
 
+## 0.10.0
+
+### Patch Changes
+
+- b73536a: Stop showing a T3 Code subagent as waiting for you once its run has finished.
+- 15fa54a: Run on Node.js 26.12.0 and build with pnpm 12.13.0.
+
 ## 0.9.0
 
 ### Minor Changes
