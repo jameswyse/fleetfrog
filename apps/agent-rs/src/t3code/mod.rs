@@ -63,7 +63,7 @@ const REQUIRED_COLUMNS: Columns = &[
 struct Layout {
     columns: Columns,
     threads: &'static str,
-    worktree_in_payload: bool,
+    thread_payload: bool,
 }
 
 const V1_LAYOUT: Layout = Layout {
@@ -95,7 +95,7 @@ const V1_LAYOUT: Layout = Layout {
         from projection_threads as thread
         left join projection_thread_sessions as session on session.thread_id = thread.thread_id
         where thread.deleted_at is null",
-    worktree_in_payload: false,
+    thread_payload: false,
 };
 
 const V2_LAYOUT: Layout = Layout {
@@ -132,7 +132,7 @@ const V2_LAYOUT: Layout = Layout {
           ) as working
         from orchestration_v2_projection_threads as thread
         where thread.deleted_at is null",
-    worktree_in_payload: true,
+    thread_payload: true,
 };
 
 /// The colours T3 Code offers for project icons.
@@ -211,31 +211,50 @@ fn decode_project(row: &Row) -> Option<ProjectRow> {
     })
 }
 
-fn worktree_from_payload(json: &str) -> Option<Option<String>> {
-    match serde_json::from_str::<serde_json::Value>(json)
-        .ok()?
-        .get("worktreePath")?
-    {
+struct ThreadPayload {
+    worktree_path: Option<String>,
+    subagent: bool,
+}
+
+fn read_thread_payload(json: &str) -> Option<ThreadPayload> {
+    let payload = serde_json::from_str::<serde_json::Value>(json).ok()?;
+    let nullable_text = |value: &serde_json::Value| match value {
         serde_json::Value::Null => Some(None),
-        serde_json::Value::String(path) => Some(Some(path.clone())),
+        serde_json::Value::String(text) => Some(Some(text.clone())),
         _ => None,
-    }
+    };
+    let relationship = nullable_text(payload.get("lineage")?.get("relationshipToParent")?)?;
+
+    Some(ThreadPayload {
+        worktree_path: nullable_text(payload.get("worktreePath")?)?,
+        subagent: relationship.as_deref() == Some("subagent"),
+    })
 }
 
 fn decode_thread(row: &Row, layout: &Layout) -> Option<ThreadRow> {
+    let payload = if layout.thread_payload {
+        read_thread_payload(&row.text(3)?)?
+    } else {
+        ThreadPayload {
+            worktree_path: row.nullable_text(3)?,
+            subagent: false,
+        }
+    };
+    let (waiting, working) = (row.integer(6)?, row.integer(7)?);
+
     Some(ThreadRow {
         thread_id: row.text(0)?,
         project_id: row.text(1)?,
         title: row.text(2)?,
-        worktree_path: if layout.worktree_in_payload {
-            worktree_from_payload(&row.text(3)?)?
-        } else {
-            row.nullable_text(3)?
-        },
+        worktree_path: payload.worktree_path,
         archived: row.integer(4)?,
         updated_at: row.time(5)?,
-        waiting: row.integer(6)?,
-        working: row.integer(7)?,
+        waiting: if payload.subagent && working == 0 {
+            0
+        } else {
+            waiting
+        },
+        working,
     })
 }
 

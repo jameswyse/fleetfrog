@@ -188,7 +188,9 @@ describe("readT3Code", () => {
       const shop = path.join(home, "shop");
       const worktree = path.join(home, "worktrees", "shop-fix");
       const database = createV2Database(path.join(home, "statev2.sqlite"));
-      const payload = (worktreePath: string | null) => JSON.stringify({ worktreePath });
+
+      const payload = (worktreePath: string | null, relationshipToParent: string | null = null) =>
+        JSON.stringify({ worktreePath, lineage: { relationshipToParent } });
 
       yield* TestClock.setTime(now);
       mkdirSync(worktree, { recursive: true });
@@ -203,16 +205,22 @@ describe("readT3Code", () => {
           ('t4', 'p1', 'Wrapping up', '${payload(null)}', null, null, '2026-09-26T03:00:00.000Z'),
           ('t5', 'p1', 'Archived', '${payload(null)}', '2026-09-26T07:00:00.000Z', null, '2026-09-26T07:00:00.000Z'),
           ('t6', 'p1', 'Deleted', '${payload(null)}', null, '2026-09-26T08:00:00.000Z', '2026-09-26T08:00:00.000Z'),
-          ('t7', 'p1', 'Changed shape', '{}', null, null, '2026-09-26T09:00:00.000Z');
+          ('t7', 'p1', 'Changed shape', '{}', null, null, '2026-09-26T09:00:00.000Z'),
+          ('t8', 'p1', 'Finished subagent', '${payload(null, "subagent")}', null, null, '2026-09-26T02:00:00.000Z'),
+          ('t9', 'p1', 'Asking subagent', '${payload(null, "subagent")}', null, null, '2026-09-26T01:30:00.000Z');
         insert into orchestration_v2_projection_runs values
           ('r1', 't1', 'running'),
           ('r2', 't2', 'completed'),
           ('r3', 't3', 'completed'),
-          ('r4', 't4', 'waiting');
+          ('r4', 't4', 'waiting'),
+          ('r8', 't8', 'completed'),
+          ('r9', 't9', 'running');
         insert into orchestration_v2_projection_runtime_requests values
           ('q1', 't2', 'user_input', 'pending'),
           ('q2', 't3', 'auth_refresh', 'pending'),
-          ('q3', 't1', 'permission', 'resolved');
+          ('q3', 't1', 'permission', 'resolved'),
+          ('q8', 't8', 'user_input', 'pending'),
+          ('q9', 't9', 'user_input', 'pending');
       `);
       database.close();
 
@@ -240,8 +248,10 @@ describe("readT3Code", () => {
         { title: "Fix checkout", folder: worktree, own: true, state: "Working" },
         { title: "Signed out", folder: shop, own: false, state: "Idle" },
         { title: "Wrapping up", folder: shop, own: false, state: "Working" },
+        { title: "Finished subagent", folder: shop, own: false, state: "Idle" },
+        { title: "Asking subagent", folder: shop, own: false, state: "Waiting" },
       ]);
-      expect(status.reading.threadCount).toBe(4);
+      expect(status.reading.threadCount).toBe(6);
       expect(status.reading.unreadRecords).toBe(1);
     }),
   );
