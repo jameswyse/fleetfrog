@@ -4,7 +4,7 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [tailwindcss()],
   build: {
-    rollupOptions: {
+    rolldownOptions: {
       input: ["index.html", "404.html"],
     },
   },

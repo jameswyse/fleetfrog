@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import { Duration, Effect, Fiber } from "effect";
+import { Duration, Effect, Fiber, Predicate } from "effect";
 
 import { fakeT3CodeApp, installFakeT3CodeCli } from "../testing/fakeT3CodeApp.ts";
 import { temporaryDirectory } from "../testing/temporaryDirectory.ts";
@@ -53,9 +53,7 @@ const setUp = (options: {
   });
 
 const tags = (received: ReadonlyArray<unknown>) =>
-  received.flatMap((message) =>
-    typeof message === "object" && message !== null && "tag" in message ? [message.tag] : [],
-  );
+  received.flatMap((message) => (Predicate.hasProperty(message, "tag") ? [message.tag] : []));
 
 describe("updateT3CodeApp", () => {
   it.live("fails when T3 Code's server closes the connection before the commit is sent", () =>
@@ -75,7 +73,7 @@ describe("updateT3CodeApp", () => {
       expect(error.message).toBe(
         "T3 Code's server closed the connection before the update was ready.",
       );
-      expect(tags(test.received)).toEqual(["server.updateServerWithProgress"]);
+      expect(tags(test.received)).toStrictEqual(["server.updateServerWithProgress"]);
       expect(test.revocations()).toHaveLength(1);
     }),
   );

@@ -22,10 +22,10 @@ import {
 } from "../config/environment.ts";
 import { runTool } from "../process/runTool.ts";
 
-export class ServiceFileFailed extends Schema.TaggedError<ServiceFileFailed>()(
-  "ServiceFileFailed",
-  { path: Schema.String, message: Schema.String },
-) {}
+export class ServiceFileFailed extends Schema.TaggedError<
+  ServiceFileFailed,
+  { readonly brand: unique symbol }
+>()("ServiceFileFailed", { path: Schema.String, message: Schema.String }) {}
 
 function serviceFile(file: string, write: () => Promise<void>) {
   return Effect.tryPromise({

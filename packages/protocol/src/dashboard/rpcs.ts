@@ -52,81 +52,123 @@ export class CurrentViewer extends Context.Service<CurrentViewer, Viewer>()(
   "fleetfrog/CurrentViewer",
 ) {}
 
-export class NotSignedIn extends Schema.TaggedError<NotSignedIn>()("NotSignedIn", {}) {}
+export class NotSignedIn extends Schema.TaggedError<
+  NotSignedIn,
+  { readonly brand: unique symbol }
+>()("NotSignedIn", {}) {}
 
-export class ProjectLayoutChanged extends Schema.TaggedError<ProjectLayoutChanged>()(
-  "ProjectLayoutChanged",
-  { current: SavedProjectLayout },
+export class ProjectLayoutChanged extends Schema.TaggedError<
+  ProjectLayoutChanged,
+  { readonly brand: unique symbol }
+>()("ProjectLayoutChanged", { current: SavedProjectLayout }) {}
+
+export class Forbidden extends Schema.TaggedError<Forbidden, { readonly brand: unique symbol }>()(
+  "Forbidden",
+  {},
 ) {}
-
-export class Forbidden extends Schema.TaggedError<Forbidden>()("Forbidden", {}) {}
 
 export class DashboardAuthentication extends RpcMiddleware.Service<
   DashboardAuthentication,
   { provides: CurrentViewer }
 >()("fleetfrog/DashboardAuthentication", { error: Schema.Union([NotSignedIn, Forbidden]) }) {}
 
-export class UserNotFound extends Schema.TaggedError<UserNotFound>()("UserNotFound", {
+export class UserNotFound extends Schema.TaggedError<
+  UserNotFound,
+  { readonly brand: unique symbol }
+>()("UserNotFound", {
   userId: UserId,
 }) {}
 
-export class EmailTaken extends Schema.TaggedError<EmailTaken>()("EmailTaken", {}) {}
+export class EmailTaken extends Schema.TaggedError<EmailTaken, { readonly brand: unique symbol }>()(
+  "EmailTaken",
+  {},
+) {}
 
-export class LastAdmin extends Schema.TaggedError<LastAdmin>()("LastAdmin", {}) {}
+export class LastAdmin extends Schema.TaggedError<LastAdmin, { readonly brand: unique symbol }>()(
+  "LastAdmin",
+  {},
+) {}
 
-export class WrongPassword extends Schema.TaggedError<WrongPassword>()("WrongPassword", {}) {}
+export class WrongPassword extends Schema.TaggedError<
+  WrongPassword,
+  { readonly brand: unique symbol }
+>()("WrongPassword", {}) {}
 
-export class TooManyAttempts extends Schema.TaggedError<TooManyAttempts>()("TooManyAttempts", {
+export class TooManyAttempts extends Schema.TaggedError<
+  TooManyAttempts,
+  { readonly brand: unique symbol }
+>()("TooManyAttempts", {
   retryAfterSeconds: Schema.Int,
 }) {}
 
-export class ManagedByProvider extends Schema.TaggedError<ManagedByProvider>()(
-  "ManagedByProvider",
-  {},
-) {}
+export class ManagedByProvider extends Schema.TaggedError<
+  ManagedByProvider,
+  { readonly brand: unique symbol }
+>()("ManagedByProvider", {}) {}
 
-export class ProviderRejected extends Schema.TaggedError<ProviderRejected>()("ProviderRejected", {
+export class ProviderRejected extends Schema.TaggedError<
+  ProviderRejected,
+  { readonly brand: unique symbol }
+>()("ProviderRejected", {
   message: Schema.String,
 }) {}
 
-export class InvalidIcon extends Schema.TaggedError<InvalidIcon>()("InvalidIcon", {}) {}
+export class InvalidIcon extends Schema.TaggedError<
+  InvalidIcon,
+  { readonly brand: unique symbol }
+>()("InvalidIcon", {}) {}
 
-export class InvalidAvatar extends Schema.TaggedError<InvalidAvatar>()("InvalidAvatar", {}) {}
+export class InvalidAvatar extends Schema.TaggedError<
+  InvalidAvatar,
+  { readonly brand: unique symbol }
+>()("InvalidAvatar", {}) {}
 
-export class TailscaleServeUnavailable extends Schema.TaggedError<TailscaleServeUnavailable>()(
-  "TailscaleServeUnavailable",
-  { message: Schema.String },
-) {}
+export class TailscaleServeUnavailable extends Schema.TaggedError<
+  TailscaleServeUnavailable,
+  { readonly brand: unique symbol }
+>()("TailscaleServeUnavailable", { message: Schema.String }) {}
 
-export class MachineNotFound extends Schema.TaggedError<MachineNotFound>()("MachineNotFound", {
+export class MachineNotFound extends Schema.TaggedError<
+  MachineNotFound,
+  { readonly brand: unique symbol }
+>()("MachineNotFound", {
   machineId: MachineId,
 }) {}
 
-export class RepositoryNotFound extends Schema.TaggedError<RepositoryNotFound>()(
-  "RepositoryNotFound",
-  { repositoryKey: RepositoryKey },
-) {}
+export class RepositoryNotFound extends Schema.TaggedError<
+  RepositoryNotFound,
+  { readonly brand: unique symbol }
+>()("RepositoryNotFound", { repositoryKey: RepositoryKey }) {}
 
-export class NothingToRun extends Schema.TaggedError<NothingToRun>()("NothingToRun", {}) {}
+export class NothingToRun extends Schema.TaggedError<
+  NothingToRun,
+  { readonly brand: unique symbol }
+>()("NothingToRun", {}) {}
 
-export class NoCloneSource extends Schema.TaggedError<NoCloneSource>()("NoCloneSource", {}) {}
+export class NoCloneSource extends Schema.TaggedError<
+  NoCloneSource,
+  { readonly brand: unique symbol }
+>()("NoCloneSource", {}) {}
 
-export class InvalidArchiveFolder extends Schema.TaggedError<InvalidArchiveFolder>()(
-  "InvalidArchiveFolder",
-  {},
-) {}
+export class InvalidArchiveFolder extends Schema.TaggedError<
+  InvalidArchiveFolder,
+  { readonly brand: unique symbol }
+>()("InvalidArchiveFolder", {}) {}
 
-export class AgentNotUpdatable extends Schema.TaggedError<AgentNotUpdatable>()(
-  "AgentNotUpdatable",
-  { machineId: MachineId },
-) {}
+export class AgentNotUpdatable extends Schema.TaggedError<
+  AgentNotUpdatable,
+  { readonly brand: unique symbol }
+>()("AgentNotUpdatable", { machineId: MachineId }) {}
 
-export class T3CodeNotUpdatable extends Schema.TaggedError<T3CodeNotUpdatable>()(
-  "T3CodeNotUpdatable",
-  { machineId: MachineId },
-) {}
+export class T3CodeNotUpdatable extends Schema.TaggedError<
+  T3CodeNotUpdatable,
+  { readonly brand: unique symbol }
+>()("T3CodeNotUpdatable", { machineId: MachineId }) {}
 
-export class BatchNotFound extends Schema.TaggedError<BatchNotFound>()("BatchNotFound", {
+export class BatchNotFound extends Schema.TaggedError<
+  BatchNotFound,
+  { readonly brand: unique symbol }
+>()("BatchNotFound", {
   batchId: BatchId,
 }) {}
 

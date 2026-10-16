@@ -29,12 +29,12 @@ describe("system info parsing", () => {
   it("splits the Mac's model name from its detail, as About This Mac shows them", () => {
     expect(
       parseProductName('  | |   "product-name" = <"MacBook Pro (13-inch, M1, 2020)">\n'),
-    ).toEqual({ name: "MacBook Pro", detail: "13-inch, M1, 2020" });
-    expect(parseProductName('"product-name" = <"Mac mini (2024)">')).toEqual({
+    ).toStrictEqual({ name: "MacBook Pro", detail: "13-inch, M1, 2020" });
+    expect(parseProductName('"product-name" = <"Mac mini (2024)">')).toStrictEqual({
       name: "Mac mini",
       detail: "2024",
     });
-    expect(parseProductName('"product-name" = <"Virtual Mac">')).toEqual({
+    expect(parseProductName('"product-name" = <"Virtual Mac">')).toStrictEqual({
       name: "Virtual Mac",
       detail: null,
     });

@@ -123,7 +123,7 @@ describe("arrangeProjects", () => {
     const arrangement = arrange({});
 
     expect(arrangement.headed).toBe(false);
-    expect(titles(arrangement)).toEqual([
+    expect(titles(arrangement)).toStrictEqual([
       ["Other repositories", ["api", "blog", "scratch", "shop"]],
     ]);
   });
@@ -138,7 +138,7 @@ describe("arrangeProjects", () => {
     });
 
     expect(arrangement.headed).toBe(true);
-    expect(titles(arrangement)).toEqual([
+    expect(titles(arrangement)).toStrictEqual([
       ["Pinned", ["shop"]],
       ["Work", ["api"]],
       ["Tools", ["blog"]],
@@ -147,7 +147,7 @@ describe("arrangeProjects", () => {
   });
 
   it("groups the rest by owner, with repositories that have no remote last", () => {
-    expect(titles(arrange({ groupByOwner: true }))).toEqual([
+    expect(titles(arrange({ groupByOwner: true }))).toStrictEqual([
       ["acme", ["api", "shop"]],
       ["me", ["blog"]],
       ["No remote", ["scratch"]],
@@ -157,8 +157,8 @@ describe("arrangeProjects", () => {
   it("keeps an empty group visible until a search or filter hides it", () => {
     const empty = { groups: [{ id: work, name: "Work", repositories: [] }] };
 
-    expect(titles(arrange(empty))[0]).toEqual(["Work", []]);
-    expect(titles(arrange(empty, { filtering: true }))).toEqual([
+    expect(titles(arrange(empty))[0]).toStrictEqual(["Work", []]);
+    expect(titles(arrange(empty, { filtering: true }))).toStrictEqual([
       ["Ungrouped", ["api", "blog", "scratch", "shop"]],
     ]);
   });
@@ -176,12 +176,12 @@ describe("arrangeProjects", () => {
       collapsed: [`group:${work}`],
     };
 
-    expect(visibleRows(arrange(layout)).map(({ label }) => label)).toEqual([
+    expect(visibleRows(arrange(layout)).map(({ label }) => label)).toStrictEqual([
       "api",
       "blog",
       "scratch",
     ]);
-    expect(visibleRows(arrange(layout, { query: "sh" })).map(({ label }) => label)).toEqual([
+    expect(visibleRows(arrange(layout, { query: "sh" })).map(({ label }) => label)).toStrictEqual([
       "shop",
     ]);
   });
@@ -218,7 +218,7 @@ describe("sortRepositories", () => {
 
     expect(
       sortRepositories([old, recent, branchMoved], "updated").map(({ label }) => label),
-    ).toEqual(["branch-moved", "recent", "old"]);
+    ).toStrictEqual(["branch-moved", "recent", "old"]);
   });
 
   it("puts problems, then changes, then out-of-sync repositories before clean ones", () => {
@@ -247,7 +247,7 @@ describe("sortRepositories", () => {
 
     expect(
       sortRepositories([clean, behind, changed, gone], "attention").map(({ label }) => label),
-    ).toEqual(["gone", "changed", "behind", "clean"]);
+    ).toStrictEqual(["gone", "changed", "behind", "clean"]);
   });
 });
 
@@ -279,19 +279,19 @@ describe("dropRepository", () => {
   };
 
   it("pins, moves into a group, or returns a repository to its own section", () => {
-    expect(dropRepository(layout, api, target(layout, "pinned"))?.pinned).toEqual([
+    expect(dropRepository(layout, api, target(layout, "pinned"))?.pinned).toStrictEqual([
       shop.key,
       api.key,
     ]);
 
     const moved = dropRepository(layout, api, target(layout, `group:${work}`));
 
-    expect(moved?.groups[0]?.repositories).toEqual([shop.key, api.key]);
+    expect(moved?.groups[0]?.repositories).toStrictEqual([shop.key, api.key]);
 
     const returned = dropRepository(layout, shop, target(layout, "rest"));
 
-    expect(returned?.pinned).toEqual([]);
-    expect(returned?.groups[0]?.repositories).toEqual([]);
+    expect(returned?.pinned).toStrictEqual([]);
+    expect(returned?.groups[0]?.repositories).toStrictEqual([]);
   });
 
   it("ignores a drop on the section the repository is already in", () => {
@@ -303,9 +303,9 @@ describe("dropRepository", () => {
     const byOwner = { ...defaultProjectLayout, groupByOwner: true, pinned: [api.key] };
 
     expect(dropRepository(byOwner, api, target(byOwner, "owner:github.com/me"))).toBeNull();
-    expect(dropRepository(byOwner, api, target(byOwner, "owner:github.com/acme"))?.pinned).toEqual(
-      [],
-    );
+    expect(
+      dropRepository(byOwner, api, target(byOwner, "owner:github.com/acme"))?.pinned,
+    ).toStrictEqual([]);
   });
 
   it("leaves the repository where it was if the group was deleted before the drop saved", () => {
@@ -320,8 +320,8 @@ describe("dropRepository", () => {
       groups: [{ id: work, name: "Work", repositories: everything.map(({ key }) => key) }],
     };
 
-    expect(sectionsOf(grouped).map(({ id }) => id)).toEqual([`group:${work}`]);
-    expect(sectionsOf(grouped, api).map(({ id }) => id)).toEqual([
+    expect(sectionsOf(grouped).map(({ id }) => id)).toStrictEqual([`group:${work}`]);
+    expect(sectionsOf(grouped, api).map(({ id }) => id)).toStrictEqual([
       "pinned",
       `group:${work}`,
       "rest",
@@ -329,7 +329,7 @@ describe("dropRepository", () => {
 
     const byOwner = { ...grouped, groupByOwner: true };
 
-    expect(sectionsOf(byOwner, blog).map(({ id }) => id)).toEqual([
+    expect(sectionsOf(byOwner, blog).map(({ id }) => id)).toStrictEqual([
       "pinned",
       `group:${work}`,
       "owner:github.com/me",
@@ -347,8 +347,8 @@ describe("layout changes", () => {
     const layout = { ...defaultProjectLayout, groups };
     const once = placeGroup(layout, work, { side: "After", targetId: tools });
 
-    expect(once.groups.map(({ name }) => name)).toEqual(["Tools", "Work"]);
-    expect(placeGroup(once, work, { side: "After", targetId: tools })).toEqual(once);
+    expect(once.groups.map(({ name }) => name)).toStrictEqual(["Tools", "Work"]);
+    expect(placeGroup(once, work, { side: "After", targetId: tools })).toStrictEqual(once);
   });
 
   it("applies a group edit as additions and removals over changes made elsewhere", () => {
@@ -365,7 +365,7 @@ describe("layout changes", () => {
       removed: [],
     });
 
-    expect(edited.groups).toEqual([
+    expect(edited.groups).toStrictEqual([
       { id: work, name: "Day job", repositories: [shop.key, api.key, blog.key] },
     ]);
   });
@@ -379,6 +379,6 @@ describe("layout changes", () => {
         shop.key,
         ProjectGroupId.make("9c8f6a52-7f9e-4c55-9a8e-2f4a1c9d3e10"),
       ),
-    ).toEqual(moveToGroup(layout, shop.key, work));
+    ).toStrictEqual(moveToGroup(layout, shop.key, work));
   });
 });

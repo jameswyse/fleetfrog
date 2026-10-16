@@ -32,6 +32,6 @@ describe("reported text and lists", () => {
       completedAt: "2026-10-03T00:00:00.000Z",
     };
 
-    expect(Schema.encodeSync(ReportJson)(decodeReport(report))).toEqual(report);
+    expect(Schema.encodeSync(ReportJson)(decodeReport(report))).toStrictEqual(report);
   });
 });

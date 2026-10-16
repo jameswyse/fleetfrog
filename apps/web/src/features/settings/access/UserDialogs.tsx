@@ -12,7 +12,7 @@ import { minimumPasswordLength, Role } from "@fleetfrog/protocol/domain/user";
 
 import { checkFields, decodeEmail, messageFor } from "./userForm.ts";
 
-import type { FormEvent } from "react";
+import type { SubmitEvent } from "react";
 
 import type { User } from "@fleetfrog/protocol/domain/user";
 
@@ -93,7 +93,7 @@ export function AddUserDialog({
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
+  const submit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const form = event.currentTarget;
@@ -207,7 +207,7 @@ export function EditUserDialog({
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
+  const submit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const form = event.currentTarget;
@@ -298,7 +298,7 @@ export function SetPasswordDialog({
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
+  const submit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const form = event.currentTarget;

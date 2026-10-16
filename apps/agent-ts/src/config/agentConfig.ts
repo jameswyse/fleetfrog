@@ -29,10 +29,10 @@ export function configPath(): string {
   return path.join(configDirectory(), "agent.json");
 }
 
-export class ConfigUnavailable extends Schema.TaggedError<ConfigUnavailable>()(
-  "ConfigUnavailable",
-  { path: Schema.String, message: Schema.String },
-) {}
+export class ConfigUnavailable extends Schema.TaggedError<
+  ConfigUnavailable,
+  { readonly brand: unique symbol }
+>()("ConfigUnavailable", { path: Schema.String, message: Schema.String }) {}
 
 export function isMissingFile(error: unknown): boolean {
   return error instanceof Error && "code" in error && error.code === "ENOENT";

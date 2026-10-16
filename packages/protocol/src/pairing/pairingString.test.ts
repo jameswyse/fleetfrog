@@ -16,13 +16,13 @@ describe("pairing strings", () => {
     const encoded = encodePairingString(invite);
 
     expect(encoded).toMatch(/^ffp1_[\w-]+$/);
-    expect(decodePairingString(`  ${encoded}\n`)).toEqual(Option.some(invite));
+    expect(decodePairingString(`  ${encoded}\n`)).toStrictEqual(Option.some(invite));
   });
 
   it("rejects strings without the version prefix or with a damaged payload", () => {
     const encoded = encodePairingString(invite);
 
-    expect(decodePairingString(encoded.slice("ffp1_".length))).toEqual(Option.none());
-    expect(decodePairingString(encoded.slice(0, -4))).toEqual(Option.none());
+    expect(decodePairingString(encoded.slice("ffp1_".length))).toStrictEqual(Option.none());
+    expect(decodePairingString(encoded.slice(0, -4))).toStrictEqual(Option.none());
   });
 });

@@ -47,7 +47,7 @@ it.effect("takes the icon a provider's page links to, preferring the home-screen
       "/favicon.ico": { type: "image/x-icon", body: ico },
     });
 
-    expect(yield* fetchProviderIcon(`${url}/application/o/fleetfrog/`)).toEqual(
+    expect(yield* fetchProviderIcon(`${url}/application/o/fleetfrog/`)).toStrictEqual(
       Option.some({ data: png, mediaType: "image/png" }),
     );
   }).pipe(Effect.scoped),
@@ -58,10 +58,10 @@ it.effect("falls back to /favicon.ico, and finds nothing on a site without icons
     const withFavicon = yield* site({ "/favicon.ico": { type: "image/x-icon", body: ico } });
     const bare = yield* site({ "/": { type: "text/html", body: "<html></html>" } });
 
-    expect(yield* fetchProviderIcon(withFavicon.url)).toEqual(
+    expect(yield* fetchProviderIcon(withFavicon.url)).toStrictEqual(
       Option.some({ data: ico, mediaType: "image/x-icon" }),
     );
-    expect(yield* fetchProviderIcon(bare.url)).toEqual(Option.none());
+    expect(yield* fetchProviderIcon(bare.url)).toStrictEqual(Option.none());
   }).pipe(Effect.scoped),
 );
 

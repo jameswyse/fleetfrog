@@ -14,7 +14,10 @@ import type { TailscaleIdentity } from "@fleetfrog/protocol/dashboard/auth";
 
 const serveConnections = new WeakSet<Socket>();
 
-export class ServeSocketError extends Schema.TaggedError<ServeSocketError>()("ServeSocketError", {
+export class ServeSocketError extends Schema.TaggedError<
+  ServeSocketError,
+  { readonly brand: unique symbol }
+>()("ServeSocketError", {
   path: Schema.String,
   cause: Schema.Defect(),
 }) {}

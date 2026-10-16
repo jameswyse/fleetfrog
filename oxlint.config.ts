@@ -71,6 +71,6 @@ export default {
     },
   ],
   settings: {
-    react: { version: "19.3.0" },
+    react: { version: "19.3.1" },
   },
 };

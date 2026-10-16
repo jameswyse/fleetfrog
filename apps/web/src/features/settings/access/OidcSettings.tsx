@@ -16,7 +16,7 @@ import { ProviderButtonContent, providerButtonClass } from "../../account/Provid
 import { SettingsSection } from "../SettingsSection.tsx";
 import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
 
-import type { FormEvent } from "react";
+import type { SubmitEvent } from "react";
 
 import type { AuthSettingsView } from "@fleetfrog/protocol/domain/user";
 
@@ -149,7 +149,7 @@ function ProviderForm({
     }
   };
 
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
+  const submit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const form = event.currentTarget;

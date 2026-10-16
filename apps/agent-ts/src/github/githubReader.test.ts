@@ -11,7 +11,7 @@ describe("retryDelay", () => {
       Duration.toSeconds(retryDelay(failures, interval)),
     );
 
-    expect(delays).toEqual([60, 120, 240, 480, 900, 900]);
+    expect(delays).toStrictEqual([60, 120, 240, 480, 900, 900]);
     expect(Duration.toSeconds(retryDelay(40, interval))).toBe(900);
     expect(Duration.toSeconds(retryDelay(1, Duration.zero))).toBe(0);
   });

@@ -69,7 +69,7 @@ describe("0013_tailscale_sign_in", () => {
       const auth = yield* AuthSettingsStore;
       const users = yield* UserStore;
 
-      expect(yield* SubscriptionRef.get(auth.settings)).toEqual({
+      expect(yield* SubscriptionRef.get(auth.settings)).toStrictEqual({
         passwords: true,
         provider: false,
         tailscale: false,

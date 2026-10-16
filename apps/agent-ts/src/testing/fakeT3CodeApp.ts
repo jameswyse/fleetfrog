@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 import path from "node:path";
 
 import { NodeSocket } from "@effect/platform-node";
-import { Effect } from "effect";
+import { Effect, Predicate } from "effect";
 
 import type { Duplex } from "node:stream";
 
@@ -94,7 +94,7 @@ export function fakeT3CodeApp(options: {
 
             received.push(message);
 
-            if (typeof message !== "object" || message === null || !("tag" in message)) {
+            if (!Predicate.hasProperty(message, "tag")) {
               return;
             }
 
@@ -112,7 +112,7 @@ export function fakeT3CodeApp(options: {
           resume(
             Effect.succeed({
               server,
-              port: typeof address === "object" && address !== null ? address.port : 0,
+              port: address instanceof Object ? address.port : 0,
             }),
           );
         });

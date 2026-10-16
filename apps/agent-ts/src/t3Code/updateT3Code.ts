@@ -20,7 +20,9 @@ const appRestartTimeout = Duration.minutes(2);
 const restartPollInterval = Duration.seconds(1);
 const maximumOutputCharacters = 1000;
 
-class Refused extends Schema.TaggedError<Refused>()("Refused", { message: Schema.String }) {}
+class Refused extends Schema.TaggedError<Refused, { readonly brand: unique symbol }>()("Refused", {
+  message: Schema.String,
+}) {}
 
 function threadsRunning(count: number): string {
   return count === 1

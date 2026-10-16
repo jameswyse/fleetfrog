@@ -53,14 +53,20 @@ describe("0014_preferences", () => {
       const preferences = yield* PreferencesStore;
       const defaults = { colorScheme: "system", blurPersonal: false };
 
-      expect(yield* preferences.get(ada)).toEqual(defaults);
-      expect(yield* preferences.get(null)).toEqual(defaults);
+      expect(yield* preferences.get(ada)).toStrictEqual(defaults);
+      expect(yield* preferences.get(null)).toStrictEqual(defaults);
 
       yield* preferences.set(ada, { colorScheme: "dark", blurPersonal: true });
       yield* preferences.set(null, { colorScheme: "light", blurPersonal: false });
 
-      expect(yield* preferences.get(ada)).toEqual({ colorScheme: "dark", blurPersonal: true });
-      expect(yield* preferences.get(null)).toEqual({ colorScheme: "light", blurPersonal: false });
+      expect(yield* preferences.get(ada)).toStrictEqual({
+        colorScheme: "dark",
+        blurPersonal: true,
+      });
+      expect(yield* preferences.get(null)).toStrictEqual({
+        colorScheme: "light",
+        blurPersonal: false,
+      });
     }).pipe(Effect.provide(Migrated)),
   );
 
@@ -70,7 +76,10 @@ describe("0014_preferences", () => {
 
       yield* preferences.set(null, { colorScheme: "dark", blurPersonal: true });
 
-      expect(yield* preferences.get(null)).toEqual({ colorScheme: "dark", blurPersonal: true });
+      expect(yield* preferences.get(null)).toStrictEqual({
+        colorScheme: "dark",
+        blurPersonal: true,
+      });
     }).pipe(Effect.provide(Fresh)),
   );
 });

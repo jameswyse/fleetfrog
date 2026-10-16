@@ -48,7 +48,9 @@ it.effect("gives each machine paired at the time its own hub-wide Archive folder
       limit: 10,
     });
 
-    expect(page.entries.map((entry) => (entry._tag === "Event" ? entry.event : entry))).toEqual([
+    expect(
+      page.entries.map((entry) => (entry._tag === "Event" ? entry.event : entry)),
+    ).toStrictEqual([
       {
         _tag: "ArchiveFolderChanged",
         machineId: "aaaaaaaa-0000-4000-8000-000000000000",

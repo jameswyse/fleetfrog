@@ -115,7 +115,7 @@ export const fingerprintCheckout = Effect.fn("fingerprintCheckout")(function* (
   );
 
   const commit = yield* runGit(location.path, ["rev-parse", "--verify", "--quiet", "HEAD"]).pipe(
-    Effect.orElseSucceed(() => ""),
+    Effect.catchTag("CommandFailed", () => Effect.succeed("")),
   );
 
   return createHash("sha256")
@@ -237,7 +237,9 @@ export const inspectCheckout = Effect.fn("inspectCheckout")(function* (
 
   const unpushedTags =
     remote._tag === "Fetched"
-      ? yield* countUnpushedTags(location).pipe(Effect.orElseSucceed(() => 0))
+      ? yield* countUnpushedTags(location).pipe(
+          Effect.catchTag("CommandFailed", () => Effect.succeed(0)),
+        )
       : 0;
 
   const ignored = yield* readIgnored(location);

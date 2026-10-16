@@ -38,8 +38,8 @@ describe("0016_cleanup_settings", () => {
       const cleanup = yield* CleanupStore;
       const stored = yield* PollingStore;
 
-      expect(yield* SubscriptionRef.get(cleanup.settings)).toEqual(defaultCleanupSettings);
-      expect(yield* SubscriptionRef.get(stored.settings)).toEqual(polling);
+      expect(yield* SubscriptionRef.get(cleanup.settings)).toStrictEqual(defaultCleanupSettings);
+      expect(yield* SubscriptionRef.get(stored.settings)).toStrictEqual(polling);
     }).pipe(Effect.provide(Stores.pipe(Layer.provideMerge(migratedDatabase)))),
   );
 
@@ -63,7 +63,7 @@ describe("0016_cleanup_settings", () => {
         };
       }).pipe(Effect.provide(Stores, { local: true }));
 
-      expect(reloaded).toEqual({ cleanup: edited, polling });
+      expect(reloaded).toStrictEqual({ cleanup: edited, polling });
     }).pipe(Effect.provide(migratedDatabase)),
   );
 });

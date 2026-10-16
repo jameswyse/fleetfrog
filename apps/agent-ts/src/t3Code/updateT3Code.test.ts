@@ -3,7 +3,7 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 import { describe, expect, it } from "@effect/vitest";
-import { Deferred, Effect, Fiber } from "effect";
+import { Deferred, Effect, Fiber, Predicate } from "effect";
 
 import {
   fakeT3CodeApp,
@@ -120,12 +120,12 @@ describe("makeT3CodeUpdater", () => {
       yield* runningT3CodeServer(userdata, true);
       yield* update("0.0.47");
 
-      expect(reports).toEqual(
+      expect(reports).toStrictEqual(
         failedWith(
           "This machine's owner hasn't allowed T3 Code updates from the hub. Run fleetfrog allow t3code on it.",
         ),
       );
-      expect(audit).toEqual([]);
+      expect(audit).toStrictEqual([]);
       expect(rescans()).toBe(0);
     }),
   );
@@ -136,7 +136,7 @@ describe("makeT3CodeUpdater", () => {
 
       yield* update("0.0.47");
 
-      expect(reports).toEqual(failedWith("T3 Code's server isn't running."));
+      expect(reports).toStrictEqual(failedWith("T3 Code's server isn't running."));
     }),
   );
 
@@ -172,7 +172,7 @@ describe("makeT3CodeUpdater", () => {
         "FleetFrog can't read all of T3 Code's database here, so it can't tell whether a thread is running. Update T3 Code on the machine itself.",
       );
 
-      expect([...missing.reports, ...unreadable.reports, ...partial.reports]).toEqual([
+      expect([...missing.reports, ...unreadable.reports, ...partial.reports]).toStrictEqual([
         ...refusal,
         ...refusal,
         ...refusal,
@@ -194,7 +194,7 @@ describe("makeT3CodeUpdater", () => {
       createDatabase(two.database, 2);
       yield* two.update("0.0.47");
 
-      expect([...one.reports, ...two.reports]).toEqual([
+      expect([...one.reports, ...two.reports]).toStrictEqual([
         ...failedWith("T3 Code is running 1 thread. Try again when it finishes."),
         ...failedWith("T3 Code is running 2 threads. Try again when they finish."),
       ]);
@@ -214,7 +214,7 @@ describe("makeT3CodeUpdater", () => {
       expect(report?.outcome._tag === "Failed" ? report.outcome.message : null).toMatch(
         /^T3 Code's updater exited with code 1\.\n\S/,
       );
-      expect(audit).toEqual([]);
+      expect(audit).toStrictEqual([]);
       expect(rescans()).toBe(0);
     }),
   );
@@ -240,8 +240,8 @@ describe("makeT3CodeUpdater", () => {
       yield* Deferred.succeed(policy, { allowedTiers: [] });
       yield* Fiber.join(first);
 
-      expect(next.reports).toEqual(failedWith("T3 Code is already updating."));
-      expect(ended.reports).toEqual([]);
+      expect(next.reports).toStrictEqual(failedWith("T3 Code is already updating."));
+      expect(ended.reports).toStrictEqual([]);
     }),
   );
 });
@@ -288,9 +288,7 @@ const setUpApp = (options: {
   });
 
 const requests = (received: ReadonlyArray<unknown>) =>
-  received.flatMap((message) =>
-    typeof message === "object" && message !== null && "tag" in message ? [message.tag] : [],
-  );
+  received.flatMap((message) => (Predicate.hasProperty(message, "tag") ? [message.tag] : []));
 
 const revocations = (calls: () => ReadonlyArray<string>, home: string) =>
   calls()
@@ -318,12 +316,12 @@ describe("makeT3CodeUpdater for T3 Code's desktop app", () => {
 
       yield* test.update("0.0.50");
 
-      expect(test.reports).toEqual([{ version: "0.0.47", outcome: { _tag: "Updated" } }]);
+      expect(test.reports).toStrictEqual([{ version: "0.0.47", outcome: { _tag: "Updated" } }]);
       expect(test.rescans()).toBe(1);
-      expect(test.audit).toEqual([
+      expect(test.audit).toStrictEqual([
         { event: "T3CodeUpdated", previousVersion: "0.0.46", version: "0.0.47" },
       ]);
-      expect(test.received).toEqual([
+      expect(test.received).toStrictEqual([
         {
           _tag: "Request",
           id: "1",
@@ -346,7 +344,7 @@ describe("makeT3CodeUpdater for T3 Code's desktop app", () => {
       expect(test.calls()[0]).toBe(
         `auth session issue --base-dir ${test.home} --scope environment:maintain --scope orchestration:read --ttl 30m --label FleetFrog --json`,
       );
-      expect(revocations(test.calls, test.home)).toEqual([
+      expect(revocations(test.calls, test.home)).toStrictEqual([
         "auth session revoke session-1 --base-dir <home>",
       ]);
     }),
@@ -376,8 +374,8 @@ describe("makeT3CodeUpdater for T3 Code's desktop app", () => {
 
       yield* test.update("0.0.47");
 
-      expect(test.reports).toEqual(failedWith("T3 Code is already up to date."));
-      expect(requests(test.received)).toEqual(["server.updateServerWithProgress"]);
+      expect(test.reports).toStrictEqual(failedWith("T3 Code is already up to date."));
+      expect(requests(test.received)).toStrictEqual(["server.updateServerWithProgress"]);
       expect(revocations(test.calls, test.home)).toHaveLength(1);
     }),
   );
@@ -391,10 +389,10 @@ describe("makeT3CodeUpdater for T3 Code's desktop app", () => {
 
       yield* test.update("0.0.47");
 
-      expect(test.reports).toEqual(
+      expect(test.reports).toStrictEqual(
         failedWith("T3 Code's app offered 0.0.47, which isn't newer than 0.0.47."),
       );
-      expect(requests(test.received)).toEqual(["server.updateServerWithProgress"]);
+      expect(requests(test.received)).toStrictEqual(["server.updateServerWithProgress"]);
       expect(revocations(test.calls, test.home)).toHaveLength(1);
     }),
   );
@@ -410,10 +408,10 @@ describe("makeT3CodeUpdater for T3 Code's desktop app", () => {
 
       yield* test.update("0.0.47");
 
-      expect(test.reports).toEqual(
+      expect(test.reports).toStrictEqual(
         failedWith("T3 Code is running 1 thread. Try again when it finishes."),
       );
-      expect(requests(test.received)).toEqual(["server.updateServerWithProgress"]);
+      expect(requests(test.received)).toStrictEqual(["server.updateServerWithProgress"]);
       expect(revocations(test.calls, test.home)).toHaveLength(1);
     }),
   );
@@ -430,10 +428,10 @@ describe("makeT3CodeUpdater for T3 Code's desktop app", () => {
 
       yield* test.update("0.0.47");
 
-      expect(test.reports).toEqual(
+      expect(test.reports).toStrictEqual(
         failedWith("FleetFrog doesn't support updating this version of T3 Code's desktop app."),
       );
-      expect(test.received).toEqual([]);
+      expect(test.received).toStrictEqual([]);
       expect(revocations(test.calls, test.home)).toHaveLength(1);
     }),
   );
@@ -446,7 +444,7 @@ describe("makeT3CodeUpdater for T3 Code's desktop app", () => {
       yield* runningT3CodeServer(test.userdata, false, { port: 1 });
       yield* test.update("0.0.47");
 
-      expect(test.reports).toEqual(
+      expect(test.reports).toStrictEqual(
         failedWith(
           `Couldn't find T3 Code's command-line tool at ${path.join(test.home, "bin", "t3")}.`,
         ),

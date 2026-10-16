@@ -121,9 +121,9 @@ describe("T3CodeUpdates", () => {
       const second = yield* Effect.flip(updates.start(mini));
       const sent = yield* commands.pipe(Stream.take(2), Stream.runCollect);
 
-      expect(sent.map((command) => command._tag)).toEqual(["Configure", "UpdateT3Code"]);
+      expect(sent.map((command) => command._tag)).toStrictEqual(["Configure", "UpdateT3Code"]);
       expect(sent[1]).toMatchObject({ version: latest });
-      expect(second).toEqual(new T3CodeNotUpdatable({ machineId: mini }));
+      expect(second).toStrictEqual(new T3CodeNotUpdatable({ machineId: mini }));
 
       yield* updates.finish({ machineId: mini, version: latest, outcome: { _tag: "Updated" } });
 
@@ -215,7 +215,7 @@ describe("T3CodeUpdates", () => {
         }),
       });
 
-      expect((yield* SubscriptionRef.get(updates.updates)).get(mini)).toEqual({
+      expect((yield* SubscriptionRef.get(updates.updates)).get(mini)).toStrictEqual({
         _tag: "Failed",
         version: latest,
         message: `T3 Code restarted on ${outdated} instead.`,
@@ -235,7 +235,7 @@ describe("T3CodeUpdates", () => {
 
       yield* TestClock.adjust("2 minutes");
 
-      expect((yield* SubscriptionRef.get(updates.updates)).get(mini)).toEqual({
+      expect((yield* SubscriptionRef.get(updates.updates)).get(mini)).toStrictEqual({
         _tag: "Failed",
         version: latest,
         message: "T3 Code didn't report the new version within 35 minutes.",
@@ -251,7 +251,7 @@ describe("T3CodeUpdates", () => {
 
       const refused = yield* Effect.flip(updates.start(mini));
 
-      expect(refused).toEqual(new T3CodeNotUpdatable({ machineId: mini }));
+      expect(refused).toStrictEqual(new T3CodeNotUpdatable({ machineId: mini }));
       expect((yield* SubscriptionRef.get(updates.updates)).size).toBe(0);
     }).pipe(Effect.scoped, Effect.provide(TestUpdates)),
   );

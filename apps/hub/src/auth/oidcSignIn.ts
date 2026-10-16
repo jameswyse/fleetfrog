@@ -14,7 +14,10 @@ import type { UserRecord } from "./userStore.ts";
 export const OidcIntent = Schema.Literals(["SignIn", "Activate"]);
 export type OidcIntent = typeof OidcIntent.Type;
 
-export class OidcFailure extends Schema.TaggedError<OidcFailure>()("OidcFailure", {
+export class OidcFailure extends Schema.TaggedError<
+  OidcFailure,
+  { readonly brand: unique symbol }
+>()("OidcFailure", {
   kind: SignInFailure,
   detail: Schema.String,
   intent: OidcIntent,
@@ -116,7 +119,8 @@ export class OidcSignIn extends Context.Service<
                 settings.clientSecret,
                 undefined,
                 settings.issuerUrl.startsWith("http:")
-                  ? { execute: [oidc.allowInsecureRequests] }
+                  ? // oxlint-disable-next-line typescript/no-deprecated -- an administrator can configure an http: issuer, which needs insecure requests
+                    { execute: [oidc.allowInsecureRequests] }
                   : undefined,
               ),
             catch: (cause) =>
@@ -224,16 +228,15 @@ export class OidcSignIn extends Context.Service<
 
               const fromToken = tokens.claims();
 
+              if (fromToken === undefined) {
+                return yield* failure("Incomplete", "The provider didn't send an ID token.");
+              }
+
               const fromUserInfo =
                 config.serverMetadata().userinfo_endpoint === undefined
                   ? {}
                   : yield* Effect.tryPromise({
-                      try: () =>
-                        oidc.fetchUserInfo(
-                          config,
-                          tokens.access_token,
-                          fromToken?.sub ?? oidc.skipSubjectCheck,
-                        ),
+                      try: () => oidc.fetchUserInfo(config, tokens.access_token, fromToken.sub),
                       catch: (cause) =>
                         failure(
                           "Incomplete",

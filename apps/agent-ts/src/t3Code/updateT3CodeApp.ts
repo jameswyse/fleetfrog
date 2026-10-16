@@ -1,16 +1,16 @@
 import { access, constants } from "node:fs/promises";
 import path from "node:path";
 
-import { Duration, Effect, Option, Queue, Schema } from "effect";
+import { Duration, Effect, Option, Predicate, Queue, Schema } from "effect";
 
 import { isNewerT3Code } from "@fleetfrog/protocol/domain/t3CodeUpdate";
 
 import { runExecutable } from "../process/runTool.ts";
 
-export class T3CodeAppUpdateFailed extends Schema.TaggedError<T3CodeAppUpdateFailed>()(
-  "T3CodeAppUpdateFailed",
-  { message: Schema.String },
-) {}
+export class T3CodeAppUpdateFailed extends Schema.TaggedError<
+  T3CodeAppUpdateFailed,
+  { readonly brand: unique symbol }
+>()("T3CodeAppUpdateFailed", { message: Schema.String }) {}
 
 const preparationTimeout = Duration.minutes(25);
 const commitTimeout = Duration.minutes(2);
@@ -96,7 +96,7 @@ type CallEnd =
   | { readonly _tag: "NotSent" };
 
 function envelopesIn(data: unknown): ReadonlyArray<Envelope> {
-  const parsed = typeof data === "string" ? Option.getOrNull(decodeMessage(data)) : null;
+  const parsed = Predicate.isString(data) ? Option.getOrNull(decodeMessage(data)) : null;
 
   return (Array.isArray(parsed) ? parsed : [parsed]).flatMap((item) =>
     Option.toArray(decodeEnvelope(item)),

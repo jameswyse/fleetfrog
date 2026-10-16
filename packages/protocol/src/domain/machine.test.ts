@@ -12,6 +12,6 @@ describe("SystemUsage", () => {
       sampledAt: "2026-10-10T00:00:00.000Z",
     });
 
-    expect(usage.disk).toEqual({ totalBytes: 1000, freeBytes: 400, purgeableBytes: 0 });
+    expect(usage.disk).toStrictEqual({ totalBytes: 1000, freeBytes: 400, purgeableBytes: 0 });
   });
 });

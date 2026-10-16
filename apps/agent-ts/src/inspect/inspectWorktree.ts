@@ -73,12 +73,14 @@ export const inspectWorktree = Effect.fn("inspectWorktree")(function* (
     });
   }
 
+  const readCommit = runGit(worktree, ["rev-parse", "--verify", "--quiet", "HEAD"]).pipe(
+    Effect.catchTag("CommandFailed", () => Effect.succeed("")),
+  );
+
   const [head, commit, status] = yield* Effect.all(
     [
       runGit(worktree, ["rev-parse", "--symbolic-full-name", "HEAD"]),
-      runGit(worktree, ["rev-parse", "--verify", "--quiet", "HEAD"]).pipe(
-        Effect.orElseSucceed(() => ""),
-      ),
+      readCommit,
       runGit(worktree, ["status", "--porcelain", "--untracked-files=all", "-z"]),
     ],
     { concurrency: "unbounded" },
@@ -93,6 +95,13 @@ export const inspectWorktree = Effect.fn("inspectWorktree")(function* (
 
   const other = sized(ignored.other, otherSizes);
 
+  const unreachableCommits =
+    found.branch === null
+      ? yield* countDetachedCommits(worktree).pipe(
+          Effect.catchTag("CommandFailed", () => Effect.succeed(0)),
+        )
+      : 0;
+
   return {
     ...base,
     fingerprint: createHash("sha256")
@@ -102,10 +111,7 @@ export const inspectWorktree = Effect.fn("inspectWorktree")(function* (
       .digest("hex"),
     missing: null,
     ...countStatus(status),
-    unreachableCommits:
-      found.branch === null
-        ? yield* countDetachedCommits(worktree).pipe(Effect.orElseSucceed(() => 0))
-        : 0,
+    unreachableCommits,
     ignored: { items: other.slice(0, ignoredListLimit), total: other.length },
     caches: sized(ignored.caches, cacheSizes),
   } satisfies WorktreeInspection;

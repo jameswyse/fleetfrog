@@ -49,11 +49,11 @@ describe("pullBlocker", () => {
     expect(reason(status({ head: tracking(0, 1), operation: "rebase" }))).toBe(
       "OperationInProgress",
     );
-    expect(pullBlocker(status({ head: tracking(0, 1), changed: 2 }))).toEqual({
+    expect(pullBlocker(status({ head: tracking(0, 1), changed: 2 }))).toStrictEqual({
       _tag: "UncommittedChanges",
       files: 2,
     });
-    expect(pullBlocker(status({ head: tracking(1, 1) }))).toEqual({
+    expect(pullBlocker(status({ head: tracking(1, 1) }))).toStrictEqual({
       _tag: "UnpushedCommits",
       commits: 1,
     });

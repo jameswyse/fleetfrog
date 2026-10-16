@@ -209,7 +209,7 @@ export function makeGithubReader(reader: { readonly login: string }) {
       `refs/remotes/origin/${remote.defaultBranch}`,
     ]).pipe(
       Effect.map((sha) => sha.trim()),
-      Effect.orElseSucceed(() => null),
+      Effect.catchTag("CommandFailed", () => Effect.succeed(null)),
     );
 
     const branches = new Set(options.localBranches);

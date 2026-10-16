@@ -37,9 +37,9 @@ describe("createProjectFolder", () => {
     Effect.gen(function* () {
       const { home, audit, create } = yield* setUp({ roots: ["~/Other Projects/client"] });
 
-      expect(yield* create("~/Other Projects/client")).toEqual({ _tag: "Created" });
+      expect(yield* create("~/Other Projects/client")).toStrictEqual({ _tag: "Created" });
       expect(statSync(path.join(home, "Other Projects", "client")).isDirectory()).toBe(true);
-      expect(audit).toEqual([
+      expect(audit).toStrictEqual([
         { event: "FolderCreated", path: path.join(home, "Other Projects", "client") },
       ]);
     }),
@@ -51,8 +51,8 @@ describe("createProjectFolder", () => {
 
       mkdirSync(path.join(home, "Code"));
 
-      expect(yield* create("~/Code")).toEqual({ _tag: "AlreadyThere" });
-      expect(audit).toEqual([]);
+      expect(yield* create("~/Code")).toStrictEqual({ _tag: "AlreadyThere" });
+      expect(audit).toStrictEqual([]);
     }),
   );
 

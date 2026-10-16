@@ -78,6 +78,14 @@ interface Located {
   readonly tree: SimTree;
 }
 
+function removeItem<T>(list: Array<T>, item: T): void {
+  const index = list.indexOf(item);
+
+  if (index !== -1) {
+    list.splice(index, 1);
+  }
+}
+
 function locate(machine: SimMachine, path: string): Located | null {
   for (const repository of machine.repositories) {
     const tree = treesOf(repository).find((candidate) => candidate.path === path);
@@ -270,7 +278,7 @@ function planTrashTarget(
     }
 
     const remove = () => {
-      machine.trash.splice(machine.trash.indexOf(entry), 1);
+      removeItem(machine.trash, entry);
     };
 
     if (mode === "Purge") {
@@ -310,7 +318,7 @@ function planTrashTarget(
     }
 
     const remove = () => {
-      repository.deletedBranches.splice(repository.deletedBranches.indexOf(deleted), 1);
+      removeItem(repository.deletedBranches, deleted);
     };
 
     if (mode === "Purge") {
@@ -337,7 +345,7 @@ function planTrashTarget(
   }
 
   const remove = () => {
-    repository.droppedStashes.splice(repository.droppedStashes.indexOf(dropped), 1);
+    removeItem(repository.droppedStashes, dropped);
   };
 
   if (mode === "Purge") {
@@ -645,7 +653,7 @@ export function planAction(options: {
           for (const branch of repository.branches.filter(({ name }) => doomed.has(name))) {
             const tip = branch.commits[0];
 
-            repository.branches.splice(repository.branches.indexOf(branch), 1);
+            removeItem(repository.branches, branch);
             repository.deletedBranches.unshift({
               record: {
                 name: branch.name,
@@ -694,7 +702,7 @@ export function planAction(options: {
         {
           millis: 900,
           apply: () => {
-            repository.linked.splice(repository.linked.indexOf(tree), 1);
+            removeItem(repository.linked, tree);
           },
         },
       );
@@ -719,7 +727,7 @@ export function planAction(options: {
           millis: 400,
           apply: () => {
             for (const stash of dropping) {
-              repository.stashes.splice(repository.stashes.indexOf(stash), 1);
+              removeItem(repository.stashes, stash);
               repository.droppedStashes.unshift({
                 record: {
                   ref: `refs/fleetfrog/stashes/${DateTime.toEpochMillis(now)}/${repository.droppedStashes.length}`,
@@ -835,7 +843,7 @@ export function planAction(options: {
       return succeed(ActionResult.cases.Trashed.make({ freedBytes: repository.sizeBytes }), {
         millis: 1200,
         apply: () => {
-          machine.repositories.splice(machine.repositories.indexOf(repository), 1);
+          removeItem(machine.repositories, repository);
           machine.trash.unshift({
             item: {
               id: TrashId.make(
@@ -879,7 +887,7 @@ export function planAction(options: {
       return succeed(ActionResult.cases.Deleted.make({}), {
         millis: 1000,
         apply: () => {
-          machine.repositories.splice(machine.repositories.indexOf(repository), 1);
+          removeItem(machine.repositories, repository);
         },
       });
     },

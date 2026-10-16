@@ -1,5 +1,5 @@
 interface Env {
-  ASSETS: { fetch(request: Request): Promise<Response> };
+  ASSETS: { fetch: (request: Request) => Promise<Response> };
 }
 
 // oxlint-disable-next-line import/no-default-export -- Workers loads the default export as the Worker's handlers.

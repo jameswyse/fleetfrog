@@ -237,7 +237,7 @@ describe("action runner", () => {
 
       yield* runner.run(runIds.first, { _tag: "Fetch", path: clone });
       yield* Effect.yieldNow;
-      expect(updates(runIds.first)).toEqual([]);
+      expect(updates(runIds.first)).toStrictEqual([]);
       yield* discover;
       yield* Deferred.succeed(walk, undefined);
       expect(yield* outcome(runIds.first)).toMatchObject({
@@ -271,8 +271,8 @@ describe("action runner", () => {
       });
       expect(git(clone, "rev-parse", "HEAD")).toBe(git(upstream, "rev-parse", "HEAD"));
       expect(updates(runIds.first).at(0)).toBe("Started");
-      expect(audit.map(({ event }) => event)).toEqual(["ActionStarted", "ActionFinished"]);
-      expect(rescannedBeforeFinishing).toEqual([true]);
+      expect(audit.map(({ event }) => event)).toStrictEqual(["ActionStarted", "ActionFinished"]);
+      expect(rescannedBeforeFinishing).toStrictEqual([true]);
     }),
   );
 
@@ -297,8 +297,8 @@ describe("action runner", () => {
       expect(yield* run({ _tag: "Fetch", path: clone })).toMatchObject({
         outcome: { _tag: "Skipped", reason: { _tag: "NotAllowed", tier: "git" } },
       });
-      expect(updates(runIds.first)).toEqual(["Finished"]);
-      expect(audit.map(({ event }) => event)).toEqual(["ActionRefused"]);
+      expect(updates(runIds.first)).toStrictEqual(["Finished"]);
+      expect(audit.map(({ event }) => event)).toStrictEqual(["ActionRefused"]);
       expect(existsSync(path.join(clone, ".git", "FETCH_HEAD"))).toBe(false);
     }),
   );
@@ -313,7 +313,7 @@ describe("action runner", () => {
       yield* runner.cancel(runIds.second);
 
       expect(yield* outcome(runIds.second)).toMatchObject({ outcome: { _tag: "Cancelled" } });
-      expect(updates(runIds.second)).toEqual(["Finished"]);
+      expect(updates(runIds.second)).toStrictEqual(["Finished"]);
       expect(yield* Fiber.await(first)).toMatchObject({
         _tag: "Success",
         value: { outcome: { _tag: "Succeeded" } },
@@ -355,7 +355,7 @@ describe("action runner", () => {
       expect(
         yield* run({ _tag: "Clone", url: "https://github.com/acme/shop.git", destination: hidden }),
       ).toMatchObject({ outcome: { _tag: "Failed" } });
-      expect(reportedPaths()).toEqual([clone]);
+      expect(reportedPaths()).toStrictEqual([clone]);
     }),
   );
 
@@ -733,9 +733,9 @@ describe("action runner", () => {
         path.join(root, "Archive", "clone-feature"),
       ].toSorted();
 
-      expect(reportedPaths()).toEqual(everyArchived);
+      expect(reportedPaths()).toStrictEqual(everyArchived);
       yield* discover;
-      expect(reportedPaths()).toEqual(everyArchived);
+      expect(reportedPaths()).toStrictEqual(everyArchived);
       expect(yield* run({ _tag: "Unarchive", path: archived }, runIds.second)).toMatchObject({
         outcome: {
           _tag: "Succeeded",
@@ -745,7 +745,7 @@ describe("action runner", () => {
       expect(git(outside, "branch", "--show-current")).toBe("feature");
       expect(git(nested, "branch", "--show-current")).toBe("fix");
       expect(git(clone, "worktree", "list", "--porcelain")).not.toContain("prunable");
-      expect(reportedPaths()).toEqual([clone, outside, nested].toSorted());
+      expect(reportedPaths()).toStrictEqual([clone, outside, nested].toSorted());
     }),
   );
 
@@ -904,7 +904,7 @@ describe("action runner", () => {
           worktree,
           state,
         ]),
-      ).toEqual([
+      ).toStrictEqual([
         [broken, "Broken"],
         [dirty, "Broken"],
       ]);
@@ -981,9 +981,9 @@ describe("action runner", () => {
 
       expect(inspection.remote._tag).toBe("Fetched");
       expect(inspection.unpushedCommits).toBe(1);
-      expect(inspection.unpushedBranches).toEqual([{ name: "main", commits: 1 }]);
-      expect(inspection.ignored.items.map(({ path: entry }) => entry)).toEqual([".env"]);
-      expect(inspection.caches.map(({ path: entry }) => entry).toSorted()).toEqual([
+      expect(inspection.unpushedBranches).toStrictEqual([{ name: "main", commits: 1 }]);
+      expect(inspection.ignored.items.map(({ path: entry }) => entry)).toStrictEqual([".env"]);
+      expect(inspection.caches.map(({ path: entry }) => entry).toSorted()).toStrictEqual([
         ".next-e2e/",
         "node_modules/",
       ]);
@@ -1025,12 +1025,12 @@ describe("action runner", () => {
         yield* run({ _tag: "Trash", path: clone, fingerprint, removeCaches: true }),
       ).toMatchObject({ outcome: { _tag: "Succeeded", result: { _tag: "Trashed" } } });
       expect(existsSync(clone)).toBe(false);
-      expect(reportedPaths()).toEqual([]);
+      expect(reportedPaths()).toStrictEqual([]);
 
       const [item] = yield* listTrash(path.join(root, "trash"));
 
       expect(item?.originalPath).toBe(clone);
-      expect(item?.worktrees.map(({ originalPath }) => originalPath)).toEqual([worktree]);
+      expect(item?.worktrees.map(({ originalPath }) => originalPath)).toStrictEqual([worktree]);
       expect(
         yield* run(
           {
@@ -1044,8 +1044,8 @@ describe("action runner", () => {
       });
       expect(git(clone, "status", "--porcelain")).toBe("");
       expect(git(worktree, "branch", "--show-current")).toBe("feature");
-      expect(yield* listTrash(path.join(root, "trash"))).toEqual([]);
-      expect(reportedPaths()).toEqual([clone, worktree]);
+      expect(yield* listTrash(path.join(root, "trash"))).toStrictEqual([]);
+      expect(reportedPaths()).toStrictEqual([clone, worktree]);
     }),
   );
 
@@ -1067,7 +1067,7 @@ describe("action runner", () => {
           runIds.second,
         ),
       ).toMatchObject({ outcome: { _tag: "Succeeded", result: { _tag: "Purged" } } });
-      expect(yield* listTrash(path.join(root, "trash"))).toEqual([]);
+      expect(yield* listTrash(path.join(root, "trash"))).toStrictEqual([]);
       expect(existsSync(clone)).toBe(false);
     }),
   );

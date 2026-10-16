@@ -68,7 +68,7 @@ describe("0012_sign_in_methods", () => {
     Effect.gen(function* () {
       const auth = yield* AuthSettingsStore;
 
-      expect(yield* SubscriptionRef.get(auth.settings)).toEqual({
+      expect(yield* SubscriptionRef.get(auth.settings)).toStrictEqual({
         ...methods,
         tailscale: false,
         gravatar: false,

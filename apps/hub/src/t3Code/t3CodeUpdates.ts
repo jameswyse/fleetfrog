@@ -166,7 +166,7 @@ export class T3CodeUpdates extends Context.Service<
 
                 const running = yield* machines.find(machineId).pipe(
                   Effect.map((record) => record.t3Code?.server?.version ?? null),
-                  Effect.orElseSucceed(() => null),
+                  Effect.catchTag("MachineNotFound", () => Effect.succeed(null)),
                 );
 
                 yield* SubscriptionRef.update(updates, (current) => {

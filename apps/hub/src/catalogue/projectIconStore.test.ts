@@ -52,7 +52,7 @@ it.effect("serves only icons whose bytes match their hash and whose type is an i
 
     expect(
       Option.map(found, ({ mediaType, data }) => [mediaType, Buffer.from(data).toString()]),
-    ).toEqual(Option.some(["image/svg+xml", "<svg/>"]));
+    ).toStrictEqual(Option.some(["image/svg+xml", "<svg/>"]));
     expect(Option.isNone(yield* store.find(other))).toBe(true);
     expect(Option.isNone(yield* store.find(pageId))).toBe(true);
   }).pipe(Effect.provide(TestStore)),

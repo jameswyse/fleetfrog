@@ -80,9 +80,15 @@ describe("0015_project_layouts", () => {
       const preferences = yield* PreferencesStore;
       const sql = yield* SqlClient.SqlClient;
 
-      expect(yield* layouts.get(ada)).toEqual({ layout: adaLayout, revision: 0 });
-      expect(yield* layouts.get(grace)).toEqual({ layout: defaultProjectLayout, revision: 0 });
-      expect(yield* preferences.get(ada)).toEqual({ colorScheme: "dark", blurPersonal: true });
+      expect(yield* layouts.get(ada)).toStrictEqual({ layout: adaLayout, revision: 0 });
+      expect(yield* layouts.get(grace)).toStrictEqual({
+        layout: defaultProjectLayout,
+        revision: 0,
+      });
+      expect(yield* preferences.get(ada)).toStrictEqual({
+        colorScheme: "dark",
+        blurPersonal: true,
+      });
 
       const [row] = yield* sql<{
         readonly preferences: string;
@@ -101,8 +107,8 @@ describe("0015_project_layouts", () => {
 
       const conflict = yield* layouts.save(null, defaultProjectLayout, 0).pipe(Effect.flip);
 
-      expect(conflict.current).toEqual({ layout: pinned, revision: 1 });
-      expect(yield* layouts.get(null)).toEqual({ layout: pinned, revision: 1 });
+      expect(conflict.current).toStrictEqual({ layout: pinned, revision: 1 });
+      expect(yield* layouts.get(null)).toStrictEqual({ layout: pinned, revision: 1 });
     }).pipe(Effect.provide(Fresh)),
   );
 });

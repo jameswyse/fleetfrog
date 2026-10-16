@@ -54,7 +54,7 @@ const executableOf = (pid: number) =>
       linked === null
         ? runTool("ps", "/", ["-o", "comm=", "-p", String(pid)]).pipe(
             Effect.map((output) => output.trim() || null),
-            Effect.orElseSucceed(() => null),
+            Effect.catchTag("CommandFailed", () => Effect.succeed(null)),
           )
         : Effect.succeed(linked),
     ),

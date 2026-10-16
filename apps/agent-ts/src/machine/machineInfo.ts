@@ -33,7 +33,7 @@ const readPrettyName = Effect.fn("readPrettyName")(function* (platform: Platform
   if (platform === "darwin") {
     return yield* runTool("scutil", homedir(), ["--get", "ComputerName"]).pipe(
       Effect.map((name) => name.trim() || null),
-      Effect.orElseSucceed(() => null),
+      Effect.catchTag("CommandFailed", () => Effect.succeed(null)),
     );
   }
 

@@ -49,8 +49,10 @@ it.effect("keeps machines and settings readable, with nothing read from T3 Code 
     const machines = yield* (yield* MachineStore).all;
     const integrations = yield* SubscriptionRef.get((yield* IntegrationsStore).settings);
 
-    expect(machines.map(({ info, t3Code }) => [info.hostname, t3Code])).toEqual([["studio", null]]);
-    expect(integrations).toEqual(defaultIntegrationSettings);
+    expect(machines.map(({ info, t3Code }) => [info.hostname, t3Code])).toStrictEqual([
+      ["studio", null],
+    ]);
+    expect(integrations).toStrictEqual(defaultIntegrationSettings);
   }).pipe(
     Effect.provide(
       Layer.mergeAll(MachineStore.layer, IntegrationsStore.layer).pipe(

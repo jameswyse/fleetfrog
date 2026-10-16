@@ -13,6 +13,6 @@ describe("newestT3CodeReleases", () => {
         { tag_name: "v0.0.45", draft: false },
         { tag_name: "v0.0.44", draft: false },
       ]),
-    ).toEqual({ stable: "0.0.45", nightly: "0.0.46-nightly.20261012.3021", preview: null });
+    ).toStrictEqual({ stable: "0.0.45", nightly: "0.0.46-nightly.20261012.3021", preview: null });
   });
 });

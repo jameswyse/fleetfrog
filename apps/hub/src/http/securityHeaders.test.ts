@@ -101,7 +101,7 @@ describe("inlineScriptHashes", () => {
   x()
 </script>`;
 
-    expect(inlineScriptHashes(html)).toEqual([
+    expect(inlineScriptHashes(html)).toStrictEqual([
       scriptHash,
       "'sha256-U+xbgVKp3q7OBI9O/odm2n7BIVYA/A2BRaUzCPzBKmY='",
     ]);

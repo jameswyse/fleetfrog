@@ -81,7 +81,7 @@ describe("ActivityStore", () => {
       const { batchId } = yield* recordBatch(0, [offline, sent]);
       const run = { runId: sent.id, machineId: studio };
 
-      expect((yield* store.activeBatches).map(({ id: active }) => active)).toEqual([batchId]);
+      expect((yield* store.activeBatches).map(({ id: active }) => active)).toStrictEqual([batchId]);
 
       yield* store.markStarted({ ...run, at: at(1) });
       yield* store.markProgress({ ...run, line: "Receiving objects: 43%" });
@@ -93,7 +93,7 @@ describe("ActivityStore", () => {
 
       yield* store.markFinished({ ...run, outcome: fetched, output: ["done"], at: at(2) });
 
-      expect(yield* store.activeBatches).toEqual([]);
+      expect(yield* store.activeBatches).toStrictEqual([]);
       expect((yield* store.batch(batchId)).batch).toMatchObject({
         finishedAt: at(2),
         counts: { MachineOffline: 1, Succeeded: 1, Queued: 0, Running: 0 },
@@ -117,7 +117,7 @@ describe("ActivityStore", () => {
           at: at(1),
         }),
       ).toBe(false);
-      expect((yield* store.activeRuns).map(({ id: active }) => active)).toEqual([sent.id]);
+      expect((yield* store.activeRuns).map(({ id: active }) => active)).toStrictEqual([sent.id]);
     }).pipe(Effect.provide(TestStore)),
   );
 
@@ -140,7 +140,7 @@ describe("ActivityStore", () => {
         newRun({ machineId: studio, path: "/shop", outcome: { _tag: "MachineOffline" } }),
       ]);
 
-      expect((yield* store.latestRuns).map(({ id: latest }) => latest)).toEqual([newer.id]);
+      expect((yield* store.latestRuns).map(({ id: latest }) => latest)).toStrictEqual([newer.id]);
     }).pipe(Effect.provide(TestStore)),
   );
 
@@ -176,21 +176,26 @@ describe("ActivityStore", () => {
 
       const page = yield* store.activity({ filter: all, limit: 2 });
 
-      expect(batchIds(page)).toEqual([fourth.batchId, third.batchId]);
+      expect(batchIds(page)).toStrictEqual([fourth.batchId, third.batchId]);
       expect(page.hasMore).toBe(true);
-      expect(page.entries[0]?._tag === "Batch" && page.entries[0].batch.machineNames).toEqual([
-        "Laptop",
-        "Studio",
+      expect(page.entries[0]?._tag === "Batch" && page.entries[0].batch.machineNames).toStrictEqual(
+        ["Laptop", "Studio"],
+      );
+      expect(yield* matching({ outcomes: ["Failed"] })).toStrictEqual([
+        fourth.batchId,
+        second.batchId,
       ]);
-      expect(yield* matching({ outcomes: ["Failed"] })).toEqual([fourth.batchId, second.batchId]);
-      expect(yield* matching({ outcomes: ["Failed", "Succeeded"] })).toEqual([
+      expect(yield* matching({ outcomes: ["Failed", "Succeeded"] })).toStrictEqual([
         fourth.batchId,
         third.batchId,
         second.batchId,
         first.batchId,
       ]);
-      expect(yield* matching({ machineIds: [laptop] })).toEqual([fourth.batchId, third.batchId]);
-      expect(yield* matching({ machineIds: [studio], outcomes: ["Failed"] })).toEqual([
+      expect(yield* matching({ machineIds: [laptop] })).toStrictEqual([
+        fourth.batchId,
+        third.batchId,
+      ]);
+      expect(yield* matching({ machineIds: [studio], outcomes: ["Failed"] })).toStrictEqual([
         second.batchId,
       ]);
     }).pipe(Effect.provide(TestStore)),
@@ -215,7 +220,7 @@ describe("ActivityStore", () => {
 
       expect(
         page.entries.map((entry) => (entry._tag === "Batch" ? entry.batch.requestedBy : entry.by)),
-      ).toEqual([ada, null, ada]);
+      ).toStrictEqual([ada, null, ada]);
     }).pipe(Effect.provide(TestStore)),
   );
 });

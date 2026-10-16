@@ -86,10 +86,10 @@ it.effect(
         page.entries.map((entry) =>
           entry._tag === "Batch" ? ["Batch", entry.batch.requestedBy] : ["Event", entry.by],
         ),
-      ).toEqual([
+      ).toStrictEqual([
         ["Event", null],
         ["Batch", null],
       ]);
-      expect(yield* SubscriptionRef.get(auth.settings)).toEqual(defaultAuthSettings);
+      expect(yield* SubscriptionRef.get(auth.settings)).toStrictEqual(defaultAuthSettings);
     }).pipe(Effect.provide(TestStores)),
 );

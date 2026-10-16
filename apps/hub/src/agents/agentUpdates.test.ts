@@ -91,14 +91,14 @@ describe("AgentUpdates", () => {
       const second = yield* Effect.flip(updates.start(studio));
       const sent = yield* commands.pipe(Stream.take(2), Stream.runCollect);
 
-      expect(sent.map((command) => command._tag)).toEqual(["Configure", "Update"]);
+      expect(sent.map((command) => command._tag)).toStrictEqual(["Configure", "Update"]);
       expect(sent[1]).toMatchObject({ version: updates.targetVersion });
-      expect(second).toEqual(new AgentNotUpdatable({ machineId: studio }));
+      expect(second).toStrictEqual(new AgentNotUpdatable({ machineId: studio }));
       expect((yield* SubscriptionRef.get(updates.updates)).get(studio)?._tag).toBe("Updating");
 
       yield* updates.connected({ machineId: studio, agentVersion: "0.0.1" });
 
-      expect((yield* SubscriptionRef.get(updates.updates)).get(studio)).toEqual({
+      expect((yield* SubscriptionRef.get(updates.updates)).get(studio)).toStrictEqual({
         _tag: "Failed",
         version: updates.targetVersion,
         message: "The agent reconnected on 0.0.1 before the update finished.",
@@ -118,7 +118,7 @@ describe("AgentUpdates", () => {
 
       const refused = yield* Effect.flip(updates.start(studio));
 
-      expect(refused).toEqual(new AgentNotUpdatable({ machineId: studio }));
+      expect(refused).toStrictEqual(new AgentNotUpdatable({ machineId: studio }));
       expect((yield* SubscriptionRef.get(updates.updates)).size).toBe(0);
     }).pipe(Effect.scoped, Effect.provide(TestUpdates)),
   );

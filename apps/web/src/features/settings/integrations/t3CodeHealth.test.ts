@@ -98,7 +98,7 @@ describe("t3CodeIssues", () => {
         issue.machines.map((each) => each.info.hostname),
         issue._tag === "Drift" ? issue.direction : issue._tag,
       ]),
-    ).toEqual([
+    ).toStrictEqual([
       [["bbbb"], "Newer"],
       [["cccc"], "Older"],
       [["dddd"], "Unreadable"],
@@ -115,7 +115,7 @@ describe("t3CodeIssues", () => {
 
     const issues = t3CodeIssues(fleet);
 
-    expect(issues.map((issue) => issue.machines.map((each) => each.info.hostname))).toEqual([
+    expect(issues.map((issue) => issue.machines.map((each) => each.info.hostname))).toStrictEqual([
       ["aaaa", "bbbb"],
       ["cccc"],
     ]);

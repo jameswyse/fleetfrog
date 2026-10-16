@@ -25,7 +25,7 @@ describe("agent capabilities", () => {
         policyReadable: true,
         createsFolders: true,
       }),
-    ).toEqual({
+    ).toStrictEqual({
       actions: ["Fetch"],
       allowedTiers: ["git"],
       policyReadable: true,

@@ -15,21 +15,23 @@ describe("draftFromSuggestion", () => {
         suggestion: { destination: "/home/me/Projects/legacy/app", root: { path: "~/Projects/" } },
         repositoryName: "app",
       }),
-    ).toEqual({ root: "~/Projects/", name: "legacy/app" });
+    ).toStrictEqual({ root: "~/Projects/", name: "legacy/app" });
     expect(
       draftFromSuggestion({
         machine,
         suggestion: { destination: "~/code/app", root: { path: "/home/me/code" } },
         repositoryName: "app",
       }),
-    ).toEqual({ root: "/home/me/code", name: "app" });
+    ).toStrictEqual({ root: "/home/me/code", name: "app" });
   });
 
   it("starts in the first project folder, named after the repository, without a suggestion", () => {
-    expect(draftFromSuggestion({ machine, suggestion: null, repositoryName: "app" })).toEqual({
-      root: "~/Projects/",
-      name: "app",
-    });
+    expect(draftFromSuggestion({ machine, suggestion: null, repositoryName: "app" })).toStrictEqual(
+      {
+        root: "~/Projects/",
+        name: "app",
+      },
+    );
   });
 });
 

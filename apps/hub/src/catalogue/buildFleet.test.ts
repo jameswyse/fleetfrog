@@ -100,11 +100,14 @@ describe("buildFleet", () => {
 
     expect(fleet.repositories).toHaveLength(1);
     expect(fleet.repositories[0]?.name).toBe("shop");
-    expect(fleet.repositories[0]?.checkouts.map(({ machineId }) => machineId)).toEqual([
+    expect(fleet.repositories[0]?.checkouts.map(({ machineId }) => machineId)).toStrictEqual([
       laptop,
       desktop,
     ]);
-    expect(fleet.machines.map(({ connection }) => connection._tag)).toEqual(["Online", "Offline"]);
+    expect(fleet.machines.map(({ connection }) => connection._tag)).toStrictEqual([
+      "Online",
+      "Offline",
+    ]);
   });
 
   it("pairs each configured discovery folder with what the agent last found there", () => {
@@ -121,7 +124,7 @@ describe("buildFleet", () => {
       integrations: defaultIntegrationSettings,
     });
 
-    expect(fleet.machines[0]?.discoveryRoots).toEqual([
+    expect(fleet.machines[0]?.discoveryRoots).toStrictEqual([
       { path: "~/Projects", status: "Folder" },
       { path: "~/Code", status: null },
     ]);
@@ -149,7 +152,7 @@ describe("buildFleet", () => {
       integrations: defaultIntegrationSettings,
     });
 
-    expect(fleet.repositories.map(({ name }) => name)).toEqual(["API", "notes"]);
+    expect(fleet.repositories.map(({ name }) => name)).toStrictEqual(["API", "notes"]);
   });
 
   it("labels a repository with its owner only when another shares its name", () => {
@@ -193,7 +196,7 @@ describe("buildFleet", () => {
       integrations: defaultIntegrationSettings,
     });
 
-    expect(fleet.repositories.map(({ name, label }) => [name, label])).toEqual([
+    expect(fleet.repositories.map(({ name, label }) => [name, label])).toStrictEqual([
       ["dhf", "acme/web/dhf"],
       ["DHF", "airteamaus/DHF"],
       ["dhf", "dhf (abc1234)"],
@@ -281,7 +284,7 @@ describe("buildFleet", () => {
     it("names each repository after its most recently changed project, keeping names apart", () => {
       const fleet = build(defaultIntegrationSettings);
 
-      expect(fleet.repositories.map(({ label, icon }) => [label, icon])).toEqual([
+      expect(fleet.repositories.map(({ label, icon }) => [label, icon])).toStrictEqual([
         ["blog", null],
         ["Blog (site)", null],
         ["Storefront", { _tag: "Lucide", name: "store", color: "amber" }],
@@ -293,8 +296,8 @@ describe("buildFleet", () => {
         t3Code: { enabled: false, projectAppearance: true, discoverProjects: true },
       });
 
-      expect(fleet.repositories.map(({ label }) => label)).toEqual(["blog", "shop", "site"]);
-      expect(fleet.machines.map(({ t3Code }) => t3Code)).toEqual([null, null]);
+      expect(fleet.repositories.map(({ label }) => label)).toStrictEqual(["blog", "shop", "site"]);
+      expect(fleet.machines.map(({ t3Code }) => t3Code)).toStrictEqual([null, null]);
     });
 
     it("keeps repository names while project names and icons are turned off", () => {
@@ -302,7 +305,7 @@ describe("buildFleet", () => {
         t3Code: { enabled: true, projectAppearance: false, discoverProjects: true },
       });
 
-      expect(fleet.repositories.map(({ label }) => label)).toEqual(["blog", "shop", "site"]);
+      expect(fleet.repositories.map(({ label }) => label)).toStrictEqual(["blog", "shop", "site"]);
       expect(fleet.machines.every(({ t3Code }) => t3Code !== null)).toBe(true);
     });
   });

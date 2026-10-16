@@ -9,13 +9,14 @@ import { makeHubClient } from "./hubClient.ts";
 
 import type { Server, Socket } from "node:net";
 
-const silentServer = (accepted: Deferred.Deferred<void>) =>
+const silentServer = (accepted: Deferred.Deferred<void>, closed: Deferred.Deferred<void>) =>
   Effect.acquireRelease(
     Effect.callback<{ readonly server: Server; readonly sockets: Set<Socket> }>((resume) => {
       const sockets = new Set<Socket>();
 
       const server = createServer((socket) => {
         sockets.add(socket);
+        socket.once("close", () => Deferred.doneUnsafe(closed, Effect.void));
         Deferred.doneUnsafe(accepted, Effect.void);
       });
 
@@ -43,7 +44,8 @@ describe("hub client", () => {
   it.live("closes a connection that is still opening without an unhandled error", () =>
     Effect.gen(function* () {
       const accepted = yield* Deferred.make<void>();
-      const port = yield* silentServer(accepted);
+      const closed = yield* Deferred.make<void>();
+      const port = yield* silentServer(accepted, closed);
 
       yield* Effect.scoped(
         makeHubClient({
@@ -53,7 +55,7 @@ describe("hub client", () => {
           certificatePem: null,
         }).pipe(Effect.andThen(Deferred.await(accepted))),
       );
-      yield* Effect.sleep("50 millis");
+      yield* Deferred.await(closed);
     }),
   );
 });

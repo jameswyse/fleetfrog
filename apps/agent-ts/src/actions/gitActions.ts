@@ -75,7 +75,7 @@ export const pullCheckout = Effect.fn("pullCheckout")(
 export const refCommit = (location: CheckoutLocation, ref: string) =>
   runGit(location.path, ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]).pipe(
     Effect.map((output): string | null => output.trim()),
-    Effect.orElseSucceed(() => null),
+    Effect.catchTag("CommandFailed", () => Effect.succeed(null)),
   );
 
 const operationBranchFiles = [
@@ -118,7 +118,7 @@ const branchesInUse = (location: CheckoutLocation) =>
 const isBranchName = (location: CheckoutLocation, name: string) =>
   runGit(location.path, ["check-ref-format", `refs/heads/${name}`]).pipe(
     Effect.as(!name.startsWith("-")),
-    Effect.orElseSucceed(() => false),
+    Effect.catchTag("CommandFailed", () => Effect.succeed(false)),
   );
 
 export function stashDate(now: DateTime.Utc): string {

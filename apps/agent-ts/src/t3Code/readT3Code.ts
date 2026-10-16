@@ -322,10 +322,13 @@ function threadState(row: ThreadRow): T3CodeThreadState {
 
 const recentThreadMillis = 14 * 24 * 60 * 60 * 1000;
 
-class Unreadable extends Schema.TaggedError<Unreadable>()("Unreadable", {
-  message: Schema.String,
-  schema: Schema.NullOr(T3CodeSchema),
-}) {}
+class Unreadable extends Schema.TaggedError<Unreadable, { readonly brand: unique symbol }>()(
+  "Unreadable",
+  {
+    message: Schema.String,
+    schema: Schema.NullOr(T3CodeSchema),
+  },
+) {}
 
 function decodeRows<A>(rows: ReadonlyArray<unknown>, decode: (row: unknown) => Option.Option<A>) {
   const decoded = rows.flatMap((row) => Option.toArray(decode(row)));

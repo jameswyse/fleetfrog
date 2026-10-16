@@ -13,7 +13,7 @@ import { localPath } from "@fleetfrog/protocol/dashboard/auth";
 import { ProviderButtonContent, providerButtonClass } from "./ProviderButton.tsx";
 import { signInFailureMessage } from "./signInFailures.ts";
 
-import type { FormEvent } from "react";
+import type { SubmitEvent } from "react";
 
 import type { SignInMethods, TailscaleIdentity } from "@fleetfrog/protocol/dashboard/auth";
 
@@ -28,7 +28,7 @@ function PasswordForm({ redirect }: { readonly redirect: string }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const submitPassword = async (event: FormEvent<HTMLFormElement>) => {
+  const submitPassword = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const form = new FormData(event.currentTarget);
@@ -52,7 +52,12 @@ function PasswordForm({ redirect }: { readonly redirect: string }) {
   };
 
   return (
-    <form noValidate className="space-y-4" onSubmit={(event) => void submitPassword(event)}>
+    <form
+      noValidate
+      method="post"
+      className="space-y-4"
+      onSubmit={(event) => void submitPassword(event)}
+    >
       <div className="space-y-1.5">
         <label htmlFor={emailId} className="block text-sm font-medium">
           Email

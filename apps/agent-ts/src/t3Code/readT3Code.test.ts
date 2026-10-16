@@ -82,7 +82,7 @@ const svgHash = "d4dc56669143034f31aa309635d4113d9ad76a02b1739da22c965ed2049be9e
 
 describe("defaultMonogram", () => {
   it("matches the monograms T3 Code draws for projects without icons", () => {
-    expect(["Agent Skills", "jameswyse", "web3 app", "!!!"].map(defaultMonogram)).toEqual([
+    expect(["Agent Skills", "jameswyse", "web3 app", "!!!"].map(defaultMonogram)).toStrictEqual([
       { _tag: "Monogram", text: "AS", color: "lime" },
       { _tag: "Monogram", text: "JE", color: "gray" },
       { _tag: "Monogram", text: "W3", color: "orange" },
@@ -132,7 +132,7 @@ describe("readT3Code", () => {
         return;
       }
 
-      expect(status.reading.schema).toEqual({
+      expect(status.reading.schema).toStrictEqual({
         migration: 54,
         name: "ProjectionThreadsAutoSettleDisabledAt",
       });
@@ -143,7 +143,7 @@ describe("readT3Code", () => {
           icon,
           autoPull,
         })),
-      ).toEqual([
+      ).toStrictEqual([
         {
           title: "Shop",
           folder: shop,
@@ -158,7 +158,7 @@ describe("readT3Code", () => {
           autoPull: false,
         },
       ]);
-      expect(icons).toEqual([
+      expect(icons).toStrictEqual([
         {
           id: svgHash,
           mediaType: "image/svg+xml",
@@ -172,7 +172,7 @@ describe("readT3Code", () => {
           own,
           state,
         })),
-      ).toEqual([
+      ).toStrictEqual([
         { title: "Ask first", folder: shop, own: false, state: "Waiting" },
         { title: "Fix checkout", folder: worktree, own: true, state: "Working" },
         { title: "Done", folder: site, own: false, state: "Idle" },
@@ -232,7 +232,7 @@ describe("readT3Code", () => {
         return;
       }
 
-      expect(status.reading.schema).toEqual({
+      expect(status.reading.schema).toStrictEqual({
         migration: 56,
         name: "RemoveRedundantProjectionIndexes",
       });
@@ -243,7 +243,7 @@ describe("readT3Code", () => {
           own,
           state,
         })),
-      ).toEqual([
+      ).toStrictEqual([
         { title: "Ask first", folder: shop, own: false, state: "Waiting" },
         { title: "Fix checkout", folder: worktree, own: true, state: "Working" },
         { title: "Signed out", folder: shop, own: false, state: "Idle" },
@@ -270,7 +270,7 @@ describe("readT3Code", () => {
 
       if (status.reading._tag === "Unreadable") {
         expect(status.reading.message).toContain("projection_threads.worktree_path");
-        expect(status.reading.schema).toEqual({
+        expect(status.reading.schema).toStrictEqual({
           migration: 54,
           name: "ProjectionThreadsAutoSettleDisabledAt",
         });
@@ -296,7 +296,7 @@ describe("readT3Code", () => {
 
       const { status, icons } = yield* readIn(home);
 
-      expect(icons).toEqual([]);
+      expect(icons).toStrictEqual([]);
       const icon = status.reading._tag === "Read" ? status.reading.projects[0]?.icon : undefined;
 
       expect(icon?._tag === "Monogram" && icon.text).toBe("SE");
@@ -319,7 +319,7 @@ describe("readT3Code", () => {
 
       expect(
         status.reading._tag === "Read" && status.reading.projects.map(({ title }) => title),
-      ).toEqual(["Shop"]);
+      ).toStrictEqual(["Shop"]);
       expect(status.reading._tag === "Read" && status.reading.unreadRecords).toBe(2);
     }),
   );
@@ -329,8 +329,8 @@ describe("readT3Code", () => {
       const home = yield* temporaryDirectory("fleetfrog-t3code-");
       const { status } = yield* readIn(home);
 
-      expect(status.reading).toEqual({ _tag: "NotFound" });
-      expect(readdirSync(home)).toEqual([]);
+      expect(status.reading).toStrictEqual({ _tag: "NotFound" });
+      expect(readdirSync(home)).toStrictEqual([]);
     }),
   );
 });

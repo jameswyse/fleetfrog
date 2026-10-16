@@ -67,12 +67,12 @@ describe("the dashboard socket", () => {
       const { address } = Context.get(context, HttpServer.HttpServer);
       const port = address._tag === "UnixPathAddress" ? 0 : address.port;
 
-      expect(yield* get({ port })).toEqual({
+      expect(yield* get({ port })).toStrictEqual({
         identity: null,
         host: `localhost:${port}`,
         address: "127.0.0.1",
       });
-      expect(yield* get({ socketPath })).toEqual({
+      expect(yield* get({ socketPath })).toStrictEqual({
         identity: { login: "ada@example.com", name: "Ada" },
         host: "fleetfrog.tail1234.ts.net",
         address: "100.64.0.7",

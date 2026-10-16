@@ -50,7 +50,7 @@ export const createProjectFolder = Effect.fn("createProjectFolder")(function* (o
 
   const allowed = yield* options.loadPolicy.pipe(
     Effect.map(({ allowedTiers }) => allowedTiers.includes(tier)),
-    Effect.orElseSucceed(() => false),
+    Effect.catchTag("ConfigUnavailable", () => Effect.succeed(false)),
   );
 
   if (!allowed) {

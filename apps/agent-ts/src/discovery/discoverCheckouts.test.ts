@@ -61,7 +61,7 @@ describe("discoverCheckouts", () => {
           projectFolders: [],
         });
 
-        expect(found.map(({ path: checkoutPath }) => checkoutPath).toSorted()).toEqual(
+        expect(found.map(({ path: checkoutPath }) => checkoutPath).toSorted()).toStrictEqual(
           [shop, outsideWorktree].toSorted(),
         );
       }),
@@ -87,7 +87,7 @@ describe("discoverCheckouts", () => {
 
         expect(
           new Map(found.map(({ path: checkoutPath, placement }) => [checkoutPath, placement._tag])),
-        ).toEqual(
+        ).toStrictEqual(
           new Map([
             [archived, "Archive"],
             [shop, "Projects"],

@@ -163,7 +163,7 @@ describe("planBatch", () => {
           request,
           outcome: outcomeName(outcome),
         })),
-      ).toEqual([
+      ).toStrictEqual([
         {
           machine: online.id,
           request: { _tag: "Fetch", path: "/home/dev/Projects/shop" },
@@ -200,12 +200,12 @@ describe("planBatch", () => {
         onEveryMachine,
       );
 
-      expect(plan.runs.map(({ path }) => path)).toEqual([
+      expect(plan.runs.map(({ path }) => path)).toStrictEqual([
         "/home/dev/Projects/shop-feature",
         "/home/dev/Projects/shop",
         "/home/dev/scratch/shop",
       ]);
-      expect(plan.scope).toEqual({ _tag: "Machine", machineName: "aaaa" });
+      expect(plan.scope).toStrictEqual({ _tag: "Machine", machineName: "aaaa" });
     }),
   );
 
@@ -233,7 +233,7 @@ describe("planBatch", () => {
         ]),
       );
 
-      expect(plan.runs.map(({ path, request }) => ({ path, request }))).toEqual([
+      expect(plan.runs.map(({ path, request }) => ({ path, request }))).toStrictEqual([
         {
           path: "/home/dev/Code/shop",
           request: {
@@ -290,8 +290,8 @@ describe("planBatch", () => {
         fleet,
       );
 
-      expect(pull.runs.map(({ path }) => path)).toEqual(["/home/dev/Projects/docs"]);
-      expect(pull.scope).toEqual({ _tag: "Group", groupName: "Work", repositories: 1 });
+      expect(pull.runs.map(({ path }) => path)).toStrictEqual(["/home/dev/Projects/docs"]);
+      expect(pull.scope).toStrictEqual({ _tag: "Group", groupName: "Work", repositories: 1 });
 
       const clone = yield* planBatch(
         {
@@ -306,8 +306,8 @@ describe("planBatch", () => {
       );
 
       expect(clone.kind).toBe("Clone");
-      expect(clone.scope).toEqual({ _tag: "Group", groupName: "Work", repositories: 2 });
-      expect(clone.runs.map(({ path, request }) => ({ path, request }))).toEqual([
+      expect(clone.scope).toStrictEqual({ _tag: "Group", groupName: "Work", repositories: 2 });
+      expect(clone.runs.map(({ path, request }) => ({ path, request }))).toStrictEqual([
         {
           path: "/home/dev/Projects/shop",
           request: {
@@ -396,8 +396,8 @@ describe("planBatch", () => {
           fleet,
         ).pipe(Effect.map(({ runs }) => runs.map(({ outcome }) => outcomeName(outcome))));
 
-      expect(yield* outcomeOf(false)).toEqual([null]);
-      expect(yield* outcomeOf(true)).toEqual(["NotAllowed"]);
+      expect(yield* outcomeOf(false)).toStrictEqual([null]);
+      expect(yield* outcomeOf(true)).toStrictEqual(["NotAllowed"]);
     }),
   );
 
@@ -428,7 +428,7 @@ describe("planBatch", () => {
           Effect.catchTag("NothingToRun", () => Effect.succeed("nothing to run")),
         );
 
-      expect(yield* plan({ _tag: "Unarchive", path: "/home/dev/Archive/shop" })).toEqual([
+      expect(yield* plan({ _tag: "Unarchive", path: "/home/dev/Archive/shop" })).toStrictEqual([
         "/home/dev/Archive/shop",
       ]);
       expect(yield* plan({ _tag: "Unarchive", path: "/home/dev/Projects/shop" })).toBe(
@@ -443,7 +443,7 @@ describe("planBatch", () => {
           fingerprint: "f",
           discardChanges: false,
         }),
-      ).toEqual(["/home/dev/Archive/shop"]);
+      ).toStrictEqual(["/home/dev/Archive/shop"]);
     }),
   );
 
@@ -478,7 +478,7 @@ describe("planBatch", () => {
 
       const plan = yield* planBatch({ _tag: "Targeted", runs: [purge(gone), purge(kept)] }, fleet);
 
-      expect(plan.runs.map(({ path, repository }) => [path, repository.label])).toEqual([
+      expect(plan.runs.map(({ path, repository }) => [path, repository.label])).toStrictEqual([
         ["/home/dev/Projects/old", "old"],
       ]);
       expect(

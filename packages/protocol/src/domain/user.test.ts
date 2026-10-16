@@ -8,7 +8,7 @@ import { mayRun } from "./user.ts";
 it("lets users run only git-tier actions, and admins run everything", () => {
   const forUsers = ActionKind.literals.filter((kind) => mayRun("user", actionTiers[kind]));
 
-  expect(forUsers).toEqual(["Fetch", "Pull", "Clone", "Switch", "Stash"]);
+  expect(forUsers).toStrictEqual(["Fetch", "Pull", "Clone", "Switch", "Stash"]);
   expect(ActionKind.literals.every((kind) => mayRun("admin", actionTiers[kind]))).toBe(true);
 });
 

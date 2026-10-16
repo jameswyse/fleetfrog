@@ -20,7 +20,7 @@ import { SettingsRow, SettingsSection } from "../SettingsSection.tsx";
 import { SaveStatus, useAutoSave } from "../useAutoSave.tsx";
 import { checkFields, messageFor } from "./userForm.ts";
 
-import type { FormEvent } from "react";
+import type { SubmitEvent } from "react";
 
 import type { AuthSettingsView } from "@fleetfrog/protocol/domain/user";
 
@@ -44,7 +44,7 @@ function TurnOnPasswordsDialog({
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
+  const submit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const form = event.currentTarget;

@@ -22,7 +22,10 @@ export class CurrentMachine extends Context.Service<CurrentMachine, { readonly i
   "fleetfrog/CurrentMachine",
 ) {}
 
-export class Unauthorised extends Schema.TaggedError<Unauthorised>()("Unauthorised", {}) {}
+export class Unauthorised extends Schema.TaggedError<
+  Unauthorised,
+  { readonly brand: unique symbol }
+>()("Unauthorised", {}) {}
 
 export class AgentAuthentication extends RpcMiddleware.Service<
   AgentAuthentication,

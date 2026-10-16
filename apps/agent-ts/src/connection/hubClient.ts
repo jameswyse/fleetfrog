@@ -37,7 +37,10 @@ function clientInCallerScope<Rpcs extends Rpc.Any>(
   );
 }
 
-export class HubDisconnected extends Schema.TaggedError<HubDisconnected>()("HubDisconnected", {}) {}
+export class HubDisconnected extends Schema.TaggedError<
+  HubDisconnected,
+  { readonly brand: unique symbol }
+>()("HubDisconnected", {}) {}
 
 export const makeHubClient = Effect.fn("makeHubClient")(function* (config: AgentConfig) {
   const tls = pinnedTlsOptions(config.certificatePem);

@@ -98,7 +98,7 @@ describe("summariseCell", () => {
       problem: null,
     });
     expect(cell?.primary.checkout.path).toBe("/p/shop");
-    expect(cell?.entries.map(({ checkout }) => checkout.path)).toEqual([
+    expect(cell?.entries.map(({ checkout }) => checkout.path)).toStrictEqual([
       "/p/shop",
       "/p/shop-icons",
     ]);

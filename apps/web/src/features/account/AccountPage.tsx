@@ -12,7 +12,7 @@ import { SettingsRow, SettingsSection } from "../settings/SettingsSection.tsx";
 import { SaveStatus, useAutoSave } from "../settings/useAutoSave.tsx";
 import { resizeAvatar } from "./resizeAvatar.ts";
 
-import type { FormEvent } from "react";
+import type { SubmitEvent } from "react";
 
 import type { User } from "@fleetfrog/protocol/domain/user";
 
@@ -159,7 +159,7 @@ function PasswordSection({ email }: { readonly email: string }) {
   const [invalid, setInvalid] = useState<"current" | "new" | "confirm" | null>(null);
   const field = (name: "current" | "new" | "confirm") => `${formId}-${name}`;
 
-  const submitPasswordChange = async (event: FormEvent<HTMLFormElement>) => {
+  const submitPasswordChange = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const form = event.currentTarget;
@@ -206,6 +206,7 @@ function PasswordSection({ email }: { readonly email: string }) {
     <SettingsSection title="Password">
       <form
         noValidate
+        method="post"
         className="space-y-4 px-5 py-4"
         onSubmit={(event) => void submitPasswordChange(event)}
       >

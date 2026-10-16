@@ -5,14 +5,17 @@ import { Effect, Schema } from "effect";
 
 import type { PeerCertificate } from "node:tls";
 
-export class HubUnreachable extends Schema.TaggedError<HubUnreachable>()("HubUnreachable", {
+export class HubUnreachable extends Schema.TaggedError<
+  HubUnreachable,
+  { readonly brand: unique symbol }
+>()("HubUnreachable", {
   message: Schema.String,
 }) {}
 
-export class CertificateMismatch extends Schema.TaggedError<CertificateMismatch>()(
-  "CertificateMismatch",
-  { expected: Schema.String, received: Schema.String },
-) {}
+export class CertificateMismatch extends Schema.TaggedError<
+  CertificateMismatch,
+  { readonly brand: unique symbol }
+>()("CertificateMismatch", { expected: Schema.String, received: Schema.String }) {}
 
 function toPem(certificate: PeerCertificate): string {
   const lines = certificate.raw.toString("base64").match(/.{1,64}/g) ?? [];
@@ -28,6 +31,7 @@ export function fetchPinnedCertificate(options: {
     const socket = connect({
       host: options.url.hostname.replace(/^\[(.*)\]$/, "$1"),
       port: Number(options.url.port || 443),
+      // oxlint-disable-next-line wyse/no-disabled-tls-verification -- the hub's certificate can be self-signed, so the fingerprint check verifies it instead
       rejectUnauthorized: false,
       timeout: 15_000,
     });

@@ -146,7 +146,7 @@ describe("DemoFleet", () => {
     Effect.gen(function* () {
       const fleet = yield* fleetWhere(fullyReported);
 
-      expect(fleet.machines.map(machineLabel)).toEqual(
+      expect(fleet.machines.map(machineLabel)).toStrictEqual(
         demoMachines.map((machine) => machine.prettyName ?? machine.hostname),
       );
       expect(fleet.repositories.some(({ icon }) => icon === null)).toBe(true);

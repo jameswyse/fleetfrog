@@ -8,7 +8,7 @@ describe("checkArchiveFolder", () => {
   it("allows a visible folder inside or outside the project folders", () => {
     expect(
       checkArchiveFolder({ folder: "~/Projects/Archive", home, roots: ["~/Projects"] }),
-    ).toEqual({ _tag: "Valid", path: "/Users/james/Projects/Archive" });
+    ).toStrictEqual({ _tag: "Valid", path: "/Users/james/Projects/Archive" });
     expect(checkArchiveFolder({ folder: "~/Archive", home, roots: ["~/Projects"] })._tag).toBe(
       "Valid",
     );
@@ -16,10 +16,12 @@ describe("checkArchiveFolder", () => {
 
   it("refuses hidden folders and folders holding a project folder", () => {
     expect(checkArchiveFolder({ folder: "~/.archive", home, roots: [] })._tag).toBe("Hidden");
-    expect(checkArchiveFolder({ folder: "~/Projects", home, roots: ["~/Projects"] })).toEqual({
-      _tag: "ContainsProjectFolder",
-      root: "~/Projects",
-    });
+    expect(checkArchiveFolder({ folder: "~/Projects", home, roots: ["~/Projects"] })).toStrictEqual(
+      {
+        _tag: "ContainsProjectFolder",
+        root: "~/Projects",
+      },
+    );
     expect(checkArchiveFolder({ folder: "~", home, roots: ["~/Projects"] })._tag).toBe(
       "ContainsProjectFolder",
     );

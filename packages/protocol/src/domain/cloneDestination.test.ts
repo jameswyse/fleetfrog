@@ -166,7 +166,7 @@ describe("checkCloneDestination", () => {
         home: "/home/james",
         roots: ["~/Code"],
       }),
-    ).toEqual({ _tag: "Valid", path: "/home/james/Code/shop", root: "~/Code" });
+    ).toStrictEqual({ _tag: "Valid", path: "/home/james/Code/shop", root: "~/Code" });
     expect(check("/srv/git/shop")).toBe("Valid");
   });
 
@@ -191,7 +191,7 @@ describe("checkCloneDestination", () => {
 
 describe("checkFolderPath", () => {
   it("expands a project folder against home, spaces and all, and refuses hidden ones", () => {
-    expect(checkFolderPath({ path: " ~/Other Projects/ ", home: "/Users/sam" })).toEqual({
+    expect(checkFolderPath({ path: " ~/Other Projects/ ", home: "/Users/sam" })).toStrictEqual({
       _tag: "Valid",
       path: "/Users/sam/Other Projects",
     });

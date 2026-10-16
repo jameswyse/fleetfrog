@@ -6,7 +6,10 @@ import { Deferred, Duration, Effect, Fiber, Option, Predicate, Schema } from "ef
 import { inheritedEnvironment } from "../config/environment.ts";
 import { redactCredentials } from "./redactCredentials.ts";
 
-export class CommandFailed extends Schema.TaggedError<CommandFailed>()("CommandFailed", {
+export class CommandFailed extends Schema.TaggedError<
+  CommandFailed,
+  { readonly brand: unique symbol }
+>()("CommandFailed", {
   args: Schema.Array(Schema.String),
   cwd: Schema.String,
   message: Schema.String,

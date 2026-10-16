@@ -213,7 +213,7 @@ const readKind = Effect.fn("readKind")(function* (
       fromModel ??
       (yield* runTool("sysctl", os.homedir(), ["-n", "hw.model"]).pipe(
         Effect.map(kindFromAppleName),
-        Effect.orElseSucceed(() => null),
+        Effect.catchTag("CommandFailed", () => Effect.succeed(null)),
       ))
     );
   }
@@ -238,7 +238,7 @@ const readModel = Effect.fn("readModel")(function* (platform: Platform) {
   return platform === "darwin"
     ? yield* runTool("ioreg", os.homedir(), ["-rc", "IOPlatformDevice", "-k", "product-name"]).pipe(
         Effect.map(parseProductName),
-        Effect.orElseSucceed(() => null),
+        Effect.catchTag("CommandFailed", () => Effect.succeed(null)),
       )
     : null;
 });
@@ -247,7 +247,7 @@ const readHypervisor = Effect.fn("readHypervisor")(function* (platform: Platform
   return platform === "linux"
     ? yield* runTool("systemd-detect-virt", os.homedir(), ["--vm"]).pipe(
         Effect.map(parseHypervisor),
-        Effect.orElseSucceed(() => null),
+        Effect.catchTag("CommandFailed", () => Effect.succeed(null)),
       )
     : null;
 });
@@ -270,7 +270,7 @@ const readOsName = Effect.fn("readOsName")(function* (platform: Platform) {
 export const readSystemInfo = Effect.fn("readSystemInfo")(function* (platform: Platform) {
   const git = yield* runTool("git", os.homedir(), ["--version"]).pipe(
     Effect.map(parseGitVersion),
-    Effect.orElseSucceed(() => null),
+    Effect.catchTag("CommandFailed", () => Effect.succeed(null)),
   );
 
   const now = yield* DateTime.now;
@@ -294,7 +294,7 @@ const readMemoryUsed = Effect.fn("readMemoryUsed")(function* (platform: Platform
   if (platform === "darwin") {
     return yield* runTool("vm_stat", os.homedir(), []).pipe(
       Effect.map(parseVmStat),
-      Effect.orElseSucceed(() => null),
+      Effect.catchTag("CommandFailed", () => Effect.succeed(null)),
     );
   }
 
@@ -314,7 +314,7 @@ const readPurgeable = Effect.fn("readPurgeable")(function* (platform: Platform, 
     os.homedir(),
   ]).pipe(
     Effect.map(parseImportantCapacity),
-    Effect.orElseSucceed(() => null),
+    Effect.catchTag("CommandFailed", () => Effect.succeed(null)),
   );
 
   return available === null ? 0 : Math.max(0, available - freeBytes);

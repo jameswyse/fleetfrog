@@ -11,7 +11,7 @@ describe("makeActionOutput", () => {
 
     const tail = output.tail();
 
-    expect(tail.length).toBe(2);
+    expect(tail).toHaveLength(2);
     expect(tail[0]?.length).toBe(64 * 1024);
     expect(tail[1]).toBe("next");
   });
@@ -22,6 +22,6 @@ describe("makeActionOutput", () => {
     output.write("Fetching https://a:b@host/one\nhttps://c:d@host/two");
 
     expect(output.progress()).toBe("https://host/two");
-    expect(output.tail()).toEqual(["Fetching https://host/one", "https://host/two"]);
+    expect(output.tail()).toStrictEqual(["Fetching https://host/one", "https://host/two"]);
   });
 });

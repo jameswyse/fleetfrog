@@ -20,10 +20,10 @@ idna_adapter = "=1.0.0"
 libc = "0.2.190"
 ring = "0.17.14"
 rusqlite = { version = "0.40.2", default-features = false, features = ["bundled"] }
-rustls = { version = "0.23.45", default-features = false, features = ["ring", "std", "tls12"] }
+rustls = { version = "0.23.46", default-features = false, features = ["ring", "std", "tls12"] }
 serde = { version = "1.0.229", features = ["derive"] }
-serde_json = "1.0.151"
-tokio = { version = "1.53.2", default-features = false, features = [
+serde_json = "1.0.154"
+tokio = { version = "1.53.3", default-features = false, features = [
   "io-util",
   "macros",
   "net",

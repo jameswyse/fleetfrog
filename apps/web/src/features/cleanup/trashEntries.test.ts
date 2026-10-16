@@ -117,7 +117,7 @@ const fleet: Fleet = {
 
 describe("trashEntries", () => {
   it("lists deleted branches and dropped stashes, most recently deleted first", () => {
-    expect(trashEntries(fleet).map(({ target }) => target)).toEqual([
+    expect(trashEntries(fleet).map(({ target }) => target)).toStrictEqual([
       { _tag: "Stash", path: "/Users/dev/Projects/shop", ref: "refs/fleetfrog/stashes/2/0" },
       { _tag: "Branch", path: "/Users/dev/Projects/shop", ref: "refs/fleetfrog/deleted/1/old" },
     ]);

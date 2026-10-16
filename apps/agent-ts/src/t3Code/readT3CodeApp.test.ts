@@ -30,7 +30,7 @@ describe("versionOf", () => {
             versionOf("/usr/local/bin/t3"),
           ]),
         ),
-      ).toEqual(["0.0.41-nightly.20260916.1795", "0.0.43-nightly.20260927.2331", null]);
+      ).toStrictEqual(["0.0.41-nightly.20260916.1795", "0.0.43-nightly.20260927.2331", null]);
     }),
   );
 });
@@ -109,7 +109,7 @@ describe("readT3CodeProviders", () => {
       });
       writeFileSync(path.join(caches, "broken.json"), "{");
 
-      expect(yield* readT3CodeProviders(caches)).toEqual([
+      expect(yield* readT3CodeProviders(caches)).toStrictEqual([
         { name: "Claude", version: "2.1.283", latestVersion: null, ready: false, signedIn: false },
         {
           name: "Codex",

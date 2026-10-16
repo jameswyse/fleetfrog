@@ -3,21 +3,17 @@ import { Clock, Duration, Effect, Fiber, FiberHandle, Option, Schema, Stream } f
 import { HubCommand, heartbeatSeconds } from "@fleetfrog/protocol/agent/rpcs";
 import { ActionKind, ActionOutcome, ActionUpdate } from "@fleetfrog/protocol/domain/action";
 
-// oxlint-disable-next-line wyse/no-service-constructor-imports -- runAgent is the agent's composition root.
 import { makeActionRunner } from "../actions/actionRunner.ts";
 import { writeAuditEntry } from "../audit/auditLog.ts";
 import { loadAgentConfig } from "../config/agentConfig.ts";
 import { loadPolicy, policyPath, recordPolicyDefaults } from "../config/agentPolicy.ts";
-// oxlint-disable-next-line wyse/no-service-constructor-imports -- runAgent is the agent's composition root.
 import { makeHubClient } from "../connection/hubClient.ts";
 import { createProjectFolder } from "../folders/createProjectFolder.ts";
 import { readMachineInfo, runsFromSource } from "../machine/machineInfo.ts";
 import { readSystemUsage } from "../machine/systemInfo.ts";
 import { t3CodeDatabasePath } from "../t3Code/readT3Code.ts";
-// oxlint-disable-next-line wyse/no-service-constructor-imports -- runAgent is the agent's composition root.
 import { makeT3CodeUpdater } from "../t3Code/updateT3Code.ts";
 import { defaultTrashDirectory } from "../trash/trashFolder.ts";
-// oxlint-disable-next-line wyse/no-service-constructor-imports -- runAgent is the agent's composition root.
 import { makeScanner } from "./scanner.ts";
 
 import type { AgentCapabilities } from "@fleetfrog/protocol/domain/action";
@@ -25,9 +21,15 @@ import type { AgentCapabilities } from "@fleetfrog/protocol/domain/action";
 import type { AgentConfig } from "../config/agentConfig.ts";
 import type { T3CodeUpdateSession } from "../t3Code/updateT3Code.ts";
 
-export class NotPaired extends Schema.TaggedError<NotPaired>()("NotPaired", {}) {}
+export class NotPaired extends Schema.TaggedError<NotPaired, { readonly brand: unique symbol }>()(
+  "NotPaired",
+  {},
+) {}
 
-export class MachineRemoved extends Schema.TaggedError<MachineRemoved>()("MachineRemoved", {}) {}
+export class MachineRemoved extends Schema.TaggedError<
+  MachineRemoved,
+  { readonly brand: unique symbol }
+>()("MachineRemoved", {}) {}
 
 type Configuration = (typeof HubCommand.cases.Configure)["Type"];
 

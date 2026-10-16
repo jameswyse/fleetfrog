@@ -8,7 +8,7 @@ it("opens only the agreed RPCs to users, leaving every other one to admins", () 
     .flatMap((rpc) => (Context.get(rpc.annotations, Access) === "user" ? [rpc._tag] : []))
     .toSorted();
 
-  expect(forUsers).toEqual([
+  expect(forUsers).toStrictEqual([
     "Cancel",
     "ChangePassword",
     "Refresh",

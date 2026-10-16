@@ -73,7 +73,7 @@ const linkedWorktreePaths = (directory: string) =>
         .filter(({ bare, prunable }) => !bare && !prunable)
         .map(({ path: worktree }) => worktree),
     ),
-    Effect.orElseSucceed((): ReadonlyArray<string> => []),
+    Effect.catchTag("CommandFailed", () => Effect.succeed<ReadonlyArray<string>>([])),
   );
 
 export function archivePath(options: {

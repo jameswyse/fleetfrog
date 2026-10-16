@@ -4,10 +4,10 @@ import { Rpc, RpcGroup } from "effect/rpc";
 import { MachineId, MachineInfo } from "../domain/machine.ts";
 import { ReportedList, ReportedText } from "../domain/reported.ts";
 
-export class InvalidPairingCode extends Schema.TaggedError<InvalidPairingCode>()(
-  "InvalidPairingCode",
-  {},
-) {}
+export class InvalidPairingCode extends Schema.TaggedError<
+  InvalidPairingCode,
+  { readonly brand: unique symbol }
+>()("InvalidPairingCode", {}) {}
 
 export class PairingRpcs extends RpcGroup.make(
   Rpc.make("Pair", {

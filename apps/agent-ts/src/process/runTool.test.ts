@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it } from "@effect/vitest";
-import { Duration, Effect, Option } from "effect";
+import { Duration, Effect, Option, Schedule } from "effect";
 
 import { temporaryDirectory } from "../testing/temporaryDirectory.ts";
 import { runProgram } from "./runTool.ts";
@@ -22,9 +22,13 @@ describe("runProgram", () => {
       yield* touchLater(marker, Duration.seconds(10)).pipe(
         Effect.timeoutOption(Duration.millis(100)),
       );
-      yield* Effect.sleep(Duration.millis(1500));
 
-      expect(existsSync(marker)).toBe(true);
+      const touched = yield* Effect.sync(() => existsSync(marker)).pipe(
+        Effect.repeat({ until: (exists) => exists, schedule: Schedule.spaced("50 millis") }),
+        Effect.timeoutOption(Duration.seconds(10)),
+      );
+
+      expect(touched).toStrictEqual(Option.some(true));
     }),
   );
 
@@ -33,6 +37,7 @@ describe("runProgram", () => {
       const marker = path.join(yield* temporaryDirectory("fleetfrog-program-"), "finished");
       const result = yield* touchLater(marker, Duration.millis(100));
 
+      // oxlint-disable-next-line wyse/no-fixed-test-delay -- proving the stopped program never touches the marker needs a wait past the moment it would have
       yield* Effect.sleep(Duration.millis(1500));
 
       expect(result._tag).toBe("TimedOut");
@@ -49,7 +54,7 @@ describe("runProgram", () => {
         stopGrace: Duration.millis(300),
       }).pipe(Effect.timeoutOption(Duration.seconds(3)));
 
-      expect(result).toEqual(Option.some({ _tag: "TimedOut", output: "" }));
+      expect(result).toStrictEqual(Option.some({ _tag: "TimedOut", output: "" }));
     }),
   );
 
@@ -79,7 +84,7 @@ describe("runProgram", () => {
           args: ["-c", "echo first >&2; sleep 0.2; echo second; exit 3"],
           timeout: Duration.seconds(10),
         }),
-      ).toEqual({ _tag: "Exited", code: 3, signal: null, output: "first\nsecond\n" });
+      ).toStrictEqual({ _tag: "Exited", code: 3, signal: null, output: "first\nsecond\n" });
     }),
   );
 
@@ -91,7 +96,7 @@ describe("runProgram", () => {
         timeout: Duration.seconds(10),
       }).pipe(Effect.timeoutOption(Duration.seconds(3)));
 
-      expect(result).toEqual(
+      expect(result).toStrictEqual(
         Option.some({ _tag: "Exited", code: 0, signal: null, output: "started\n" }),
       );
     }),

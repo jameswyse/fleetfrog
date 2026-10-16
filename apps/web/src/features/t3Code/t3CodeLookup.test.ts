@@ -84,14 +84,14 @@ describe("T3 Code lookups", () => {
   ]);
 
   it("finds threads part-way through a turn in the given folders, waiting ones first", () => {
-    expect(busyThreads(machine, [shop, fix]).map(({ title }) => title)).toEqual([
+    expect(busyThreads(machine, [shop, fix]).map(({ title }) => title)).toStrictEqual([
       "Needs approval",
       "Refactor",
     ]);
   });
 
   it("lists a folder's threads that aren't archived", () => {
-    expect(threadsAt(machine, shop).map(({ title }) => title)).toEqual([
+    expect(threadsAt(machine, shop).map(({ title }) => title)).toStrictEqual([
       "Refactor",
       "Needs approval",
       "Done",
@@ -104,6 +104,6 @@ describe("T3 Code lookups", () => {
   });
 
   it("finds nothing while the integration is off", () => {
-    expect(busyThreads({ ...machine, t3Code: null }, [shop])).toEqual([]);
+    expect(busyThreads({ ...machine, t3Code: null }, [shop])).toStrictEqual([]);
   });
 });

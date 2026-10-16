@@ -66,21 +66,21 @@ describe("reading a checkout", () => {
       const location = Option.getOrThrow(yield* locateCheckout(fixture.clone));
       const status = yield* readGitStatus(location);
 
-      expect(location.identity).toEqual({ _tag: "RootCommit", sha: fixture.rootCommit });
-      expect(location.worktree).toEqual({ _tag: "Main" });
+      expect(location.identity).toStrictEqual({ _tag: "RootCommit", sha: fixture.rootCommit });
+      expect(location.worktree).toStrictEqual({ _tag: "Main" });
       expect(location.directoryName).toBe("clone");
-      expect(status.head).toEqual({
+      expect(status.head).toStrictEqual({
         _tag: "Branch",
         name: "main",
         upstream: { name: "origin/main", ahead: 1, behind: 1, gone: false },
       });
       expect(status.lastCommit?.subject).toBe("Local work");
-      expect(status.changed.items).toEqual([
+      expect(status.changed.items).toStrictEqual([
         { path: "readme.md", originalPath: null, staged: ".", unstaged: "M" },
         { path: "renamed.md", originalPath: "local.md", staged: "R", unstaged: "." },
       ]);
-      expect(status.untracked).toEqual({ items: ["notes with spaces.txt"], total: 1 });
-      expect(status.stashes).toEqual({
+      expect(status.untracked).toStrictEqual({ items: ["notes with spaces.txt"], total: 1 });
+      expect(status.stashes).toStrictEqual({
         items: [
           {
             index: 0,
@@ -90,7 +90,7 @@ describe("reading a checkout", () => {
         ],
         total: 1,
       });
-      expect(status.branches.items.map(({ name }) => name)).toEqual(["feature", "main"]);
+      expect(status.branches.items.map(({ name }) => name)).toStrictEqual(["feature", "main"]);
       expect(status.lastFetchedAt).not.toBeNull();
     }),
   );
@@ -121,9 +121,9 @@ describe("reading a checkout", () => {
       const fixture = createFixture(yield* temporaryDirectory("fleetfrog-agent-"));
       const location = Option.getOrThrow(yield* locateCheckout(path.join(fixture.root, "feature")));
 
-      expect(location.worktree).toEqual({ _tag: "Linked", mainPath: fixture.clone });
+      expect(location.worktree).toStrictEqual({ _tag: "Linked", mainPath: fixture.clone });
       expect(location.directoryName).toBe("clone");
-      expect(location.identity).toEqual({ _tag: "RootCommit", sha: fixture.rootCommit });
+      expect(location.identity).toStrictEqual({ _tag: "RootCommit", sha: fixture.rootCommit });
     }),
   );
 
@@ -137,8 +137,8 @@ describe("reading a checkout", () => {
       const location = Option.getOrThrow(yield* locateCheckout(orphan));
       const status = yield* readGitStatus(location);
 
-      expect(location.identity).toEqual({ _tag: "RootCommit", sha: fixture.rootCommit });
-      expect(status.head).toEqual({ _tag: "Unborn", name: "scratch" });
+      expect(location.identity).toStrictEqual({ _tag: "RootCommit", sha: fixture.rootCommit });
+      expect(status.head).toStrictEqual({ _tag: "Unborn", name: "scratch" });
       expect(status.lastFetchedAt).not.toBeNull();
     }),
   );
@@ -151,7 +151,11 @@ describe("reading a checkout", () => {
 
       const location = Option.getOrThrow(yield* locateCheckout(fixture.clone));
 
-      expect(location.identity).toEqual({ _tag: "Remote", host: "github.com", path: "acme/shop" });
+      expect(location.identity).toStrictEqual({
+        _tag: "Remote",
+        host: "github.com",
+        path: "acme/shop",
+      });
     }),
   );
 });

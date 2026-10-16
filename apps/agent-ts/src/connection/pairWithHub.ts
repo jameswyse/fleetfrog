@@ -5,11 +5,13 @@ import { decodePairingString } from "@fleetfrog/protocol/pairing/pairingString";
 import { writeAuditEntry } from "../audit/auditLog.ts";
 import { ensureConfigWritable, saveAgentConfig } from "../config/agentConfig.ts";
 import { readMachineInfo, suggestDiscoveryRoots } from "../machine/machineInfo.ts";
-// oxlint-disable-next-line wyse/no-service-constructor-imports -- Pairing builds a one-off client from the certificate it is pairing.
 import { makePairingClient } from "./hubClient.ts";
 import { fetchPinnedCertificate } from "./hubTls.ts";
 
-export class PairingRefused extends Schema.TaggedError<PairingRefused>()("PairingRefused", {
+export class PairingRefused extends Schema.TaggedError<
+  PairingRefused,
+  { readonly brand: unique symbol }
+>()("PairingRefused", {
   message: Schema.String,
 }) {}
 

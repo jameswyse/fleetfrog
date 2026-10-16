@@ -98,10 +98,10 @@ describe("tidyCandidates", () => {
   const standings = new Map(candidates.map(({ name, standing }) => [name, standing._tag]));
 
   it("keeps the current and other worktrees' branches, saying what to do first", () => {
-    expect(new Set(standings.keys())).toEqual(
+    expect(new Set(standings.keys())).toStrictEqual(
       new Set(["main", "done", "squashed", "squashed-then-changed", "pushed", "local"]),
     );
-    expect(kept.map(({ name }) => name)).toEqual(["current", "elsewhere"]);
+    expect(kept.map(({ name }) => name)).toStrictEqual(["current", "elsewhere"]);
     expect(kept[1]?.reason).toContain("/home/dev/Projects/shop-elsewhere");
   });
 
@@ -110,7 +110,10 @@ describe("tidyCandidates", () => {
 
     expect(main?.isDefault).toBe(true);
     expect(main !== undefined && isPreselected(main)).toBe(false);
-    expect(candidates.filter(isPreselected).map(({ name }) => name)).toEqual(["done", "squashed"]);
+    expect(candidates.filter(isPreselected).map(({ name }) => name)).toStrictEqual([
+      "done",
+      "squashed",
+    ]);
   });
 
   it("counts a merged pull request only when it was merged at the branch's tip", () => {
@@ -129,8 +132,8 @@ describe("tidyCandidates", () => {
     });
 
     expect(tidying.candidates.map(({ name }) => name)).not.toContain("main");
-    expect(tidying.kept.map(({ name }) => name)).toEqual(["elsewhere"]);
-    expect(tidying.ignored).toEqual(["main", "current"]);
+    expect(tidying.kept.map(({ name }) => name)).toStrictEqual(["elsewhere"]);
+    expect(tidying.ignored).toStrictEqual(["main", "current"]);
   });
 });
 
@@ -176,9 +179,9 @@ describe("branchesInOtherWorktrees", () => {
 
     expect(
       new Set(branchesInOtherWorktrees({ repository, machineId, checkout: main }).keys()),
-    ).toEqual(new Set(["fix", "feature"]));
+    ).toStrictEqual(new Set(["fix", "feature"]));
     expect(
       new Set(branchesInOtherWorktrees({ repository, machineId, checkout: linked }).keys()),
-    ).toEqual(new Set(["current", "fix"]));
+    ).toStrictEqual(new Set(["current", "fix"]));
   });
 });
