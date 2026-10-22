@@ -1,5 +1,9 @@
 # @fleetfrog/web
 
+## 0.10.2
+
+No changes in this release.
+
 ## 0.10.1
 
 ### Patch Changes
