@@ -8,23 +8,23 @@ cargo:
 catalog:
   "@effect/platform-node": 4.0.5
   "@effect/sql-sqlite-node": 4.0.5
-  "@effect/tsgo": 0.53.0
+  "@effect/tsgo": 0.55.0
   "@effect/vitest": 4.0.5
   "@types/node": 26.6.5
   "@types/react": 19.3.0
   "@types/react-dom": 19.3.0
   effect: 4.0.5
   openid-client: 6.8.8
-  oxfmt: 0.73.0
+  oxfmt: 0.74.0
   # The root prepare script runs `effect-tsgo patch --oxlint`, which fails on oxlint versions newer
   # than the pinned @effect/tsgo supports. Move oxlint only as far as it allows.
-  oxlint: 1.88.0
+  oxlint: 1.89.0
   react: 19.3.1
   react-dom: 19.3.1
   tsdown: 0.23.1
   typescript: 7.0.2
   vite: 8.3.4
-  vitest: 5.0.4
+  vitest: 5.0.5
 
 minimumReleaseAge: 1440
 minimumReleaseAgeExcludePrune: true
