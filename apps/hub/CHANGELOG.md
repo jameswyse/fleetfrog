@@ -1,5 +1,11 @@
 # @fleetfrog/hub
 
+## 0.10.2
+
+### Patch Changes
+
+- ee157f1: Reject TLS certificates issued through the compromised eMudhra CAs. The hub and the TypeScript agent pin Node.js 26.12.1, and the Rust agent uses rustls-webpki 0.103.16 and webpki-roots 1.0.10.
+
 ## 0.10.1
 
 ### Patch Changes
