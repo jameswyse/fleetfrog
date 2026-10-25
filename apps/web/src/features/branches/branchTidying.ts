@@ -65,7 +65,7 @@ export function branchesInOtherWorktrees({
   return new Map([...listed, ...read]);
 }
 
-function standingOf(
+export function branchStanding(
   branch: LocalBranch & { readonly tip: BranchTip },
   merged: ReadonlyArray<MergedPullRequest>,
 ): BranchStanding {
@@ -122,7 +122,7 @@ export function tidyCandidates(options: {
       candidates.push({
         name,
         tip,
-        standing: standingOf({ ...branch, tip }, merged),
+        standing: branchStanding({ ...branch, tip }, merged),
         isDefault: name === defaultBranch,
       });
     }
@@ -131,8 +131,32 @@ export function tidyCandidates(options: {
   return { candidates, kept, ignored };
 }
 
+export function headStanding(checkout: Checkout): BranchStanding | null {
+  if (checkout.status._tag !== "Read") {
+    return null;
+  }
+
+  const { head, branches } = checkout.status.git;
+
+  if (head._tag !== "Branch") {
+    return null;
+  }
+
+  const branch = branches.items.find(({ name }) => name === head.name);
+
+  if (branch === undefined || branch.tip === null) {
+    return null;
+  }
+
+  return branchStanding({ ...branch, tip: branch.tip }, checkout.github?.mergedPullRequests ?? []);
+}
+
+export function isMergedStanding(standing: BranchStanding | null): boolean {
+  return standing?._tag === "Merged" || standing?._tag === "MergedPullRequest";
+}
+
 export function isMerged(candidate: TidyCandidate): boolean {
-  return candidate.standing._tag === "Merged" || candidate.standing._tag === "MergedPullRequest";
+  return isMergedStanding(candidate.standing);
 }
 
 export function isPreselected(candidate: TidyCandidate): boolean {
