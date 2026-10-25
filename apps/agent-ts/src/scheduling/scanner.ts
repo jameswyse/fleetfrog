@@ -14,7 +14,7 @@ import {
   rootPath,
 } from "../discovery/discoverCheckouts.ts";
 import { readGitStatus } from "../git/readCheckout.ts";
-import { makeGithubReader } from "../github/githubReader.ts";
+import { localBranchNames, makeGithubReader } from "../github/githubReader.ts";
 import { readT3Code, t3CodeDatabasePath } from "../t3Code/readT3Code.ts";
 import { listTrash } from "../trash/trashFolder.ts";
 
@@ -148,7 +148,7 @@ export function makeScanner<ReportError>(options: {
       readGithub !== null && git._tag === "Success" && location.placement._tag === "Projects"
         ? yield* readGithub({
             location,
-            localBranches: git.success.branches.items.map(({ name }) => name),
+            localBranches: localBranchNames(git.success),
             maximumAge: githubMaximumAge,
           })
         : Option.none();

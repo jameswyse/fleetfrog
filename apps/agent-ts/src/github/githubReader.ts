@@ -7,6 +7,7 @@ import { repositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 import { runGit, runTool } from "../process/runTool.ts";
 
 import type {
+  GitStatus,
   GithubState,
   MergedPullRequest,
   PullRequest,
@@ -91,6 +92,14 @@ type Reading =
       readonly failures: number;
       readonly checkedAt: DateTime.Utc;
     };
+
+export function localBranchNames(git: GitStatus): ReadonlyArray<string> {
+  const names = git.branches.items.map(({ name }) => name);
+
+  return git.head._tag === "Branch" && !names.includes(git.head.name)
+    ? [...names, git.head.name]
+    : names;
+}
 
 export function makeGithubReader(reader: { readonly login: string }) {
   const cache = new Map<RepositoryKey, Reading>();
