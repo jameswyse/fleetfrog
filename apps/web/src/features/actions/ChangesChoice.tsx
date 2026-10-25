@@ -17,7 +17,9 @@ export function DiscardWarning() {
       <span>
         Discarded changes go to Cleanup → Trash. Until the Trash is emptied, you can restore them
         from there as a stash and bring it back with{" "}
-        <code className="font-mono">git stash pop</code>. After that, they're gone for good.
+        <code className="font-mono">git stash pop --index 'stash@&#123;n&#125;'</code>, using its
+        number in <code className="font-mono">git stash list</code>. After that, they're gone for
+        good.
       </span>
     </p>
   );
