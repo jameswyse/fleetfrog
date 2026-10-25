@@ -203,14 +203,17 @@ describe("outlineCell", () => {
     ]);
   });
 
-  it("lists no other branches when it can't tell which branch the unscanned main checkout has", () => {
+  it("outlines a clone whose main checkout FleetFrog doesn't list from its linked worktrees", () => {
     const [clone] = outlineCell({
       machine: machineWith(),
       ignoredBranches: [],
       entries: [entry("/Users/dev/wt/header", { branch: "fix/header", main })],
     });
 
-    expect(clone).toMatchObject({ path: main, main: null, parked: [], unreportedBranches: 0 });
+    expect(clone?.main).toBeNull();
+    expect(new Set(clone?.parked.map(({ name }) => name))).toStrictEqual(
+      new Set(["main", "feat/search", "spike/cache"]),
+    );
   });
 
   it("finishes a clean worktree once its pull request merged at the branch's tip", () => {

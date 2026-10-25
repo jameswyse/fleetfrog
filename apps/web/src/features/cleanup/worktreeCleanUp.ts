@@ -27,11 +27,19 @@ export function cleanUpCheck(options: {
   readonly worktree: FinishedWorktree;
   readonly inspection: WorktreeInspectionState;
   readonly busy: boolean;
+  readonly finished: boolean;
 }): CleanUpCheck {
   const { worktree, inspection } = options;
 
   if (options.busy) {
     return { _tag: "Kept", reason: "T3 Code is working in it now." };
+  }
+
+  if (!options.finished) {
+    return {
+      _tag: "Kept",
+      reason: "It has changed since it finished. Check it, then remove it on its own.",
+    };
   }
 
   if (inspection._tag === "Checking") {

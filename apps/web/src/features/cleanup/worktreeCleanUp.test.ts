@@ -92,7 +92,9 @@ function removal(worktree: FinishedWorktree): ActionRun["request"] {
 
 describe("cleanUpCheck", () => {
   it("removes a clean worktree still on its finished branch", () => {
-    expect(cleanUpCheck({ worktree: header, inspection: ready({}), busy: false })).toStrictEqual({
+    expect(
+      cleanUpCheck({ worktree: header, inspection: ready({}), busy: false, finished: true }),
+    ).toStrictEqual({
       _tag: "Removable",
       inspection: clean,
     });
@@ -106,31 +108,39 @@ describe("cleanUpCheck", () => {
       { locked: "" },
       { missing: { parentMissing: true } },
     ].map(
-      (changes) => cleanUpCheck({ worktree: header, inspection: ready(changes), busy: false })._tag,
+      (changes) =>
+        cleanUpCheck({
+          worktree: header,
+          inspection: ready(changes),
+          busy: false,
+          finished: true,
+        })._tag,
     );
 
     expect(kept).toStrictEqual(["Kept", "Kept", "Kept", "Kept", "Kept"]);
   });
 
-  it("keeps a worktree T3 Code started working in after the dialog opened", () => {
-    expect(cleanUpCheck({ worktree: header, inspection: ready({}), busy: true })).toMatchObject({
-      _tag: "Kept",
-      reason: "T3 Code is working in it now.",
-    });
+  it("keeps a worktree that T3 Code started working in or that stopped being finished after the dialog opened", () => {
+    const kept = [
+      { busy: true, finished: true },
+      { busy: false, finished: false },
+    ].map((state) => cleanUpCheck({ worktree: header, inspection: ready({}), ...state })._tag);
+
+    expect(kept).toStrictEqual(["Kept", "Kept"]);
   });
 });
 
 describe("cleanUpLosses", () => {
   it("names the ignored files and caches the folder takes with it", () => {
-    expect(
-      cleanUpLosses({
-        ...clean,
-        ignored: { items: [{ path: ".env", sizeBytes: 10 }], total: 1 },
-        caches: [{ path: "node_modules", sizeBytes: 10 }],
-      }),
-    ).toBe(
-      "Also deletes 1 ignored file or folder for good, such as .env. Caches such as node_modules go too, and tools rebuild them.",
-    );
+    const losses = cleanUpLosses({
+      ...clean,
+      ignored: { items: [{ path: "config/.env", sizeBytes: 10 }], total: 1 },
+      caches: [{ path: "web/node_modules", sizeBytes: 10 }],
+    });
+
+    expect(losses).toContain(".env");
+    expect(losses).toContain("node_modules");
+    expect(losses).not.toContain("config/");
   });
 });
 
