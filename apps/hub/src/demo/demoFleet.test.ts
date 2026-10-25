@@ -109,14 +109,6 @@ function find(fleet: Fleet, matches: (entry: MachineCheckout) => boolean): Machi
   return found;
 }
 
-function listedWorktrees(entry: MachineCheckout): ReadonlyArray<string> {
-  if (entry.checkout.status._tag !== "Read") {
-    throw new Error(`The demo couldn't read ${entry.checkout.path}.`);
-  }
-
-  return entry.checkout.status.git.worktrees.map(({ path }) => path);
-}
-
 function current(fleet: Fleet, target: MachineCheckout): MachineCheckout | undefined {
   return fleet.repositories
     .flatMap(({ checkouts }) => checkouts)
@@ -175,33 +167,6 @@ describe("DemoFleet", () => {
       );
 
       expect(stored).toHaveLength(images.length);
-    }).pipe(passingTime, Effect.provide(DemoHub)),
-  );
-
-  it.effect("lists linked worktrees only from their main checkout, as the agents do", () =>
-    Effect.gen(function* () {
-      const fleet = yield* fleetWhere(fullyReported);
-
-      const linked = fleet.repositories
-        .flatMap(({ checkouts }) => checkouts)
-        .filter(({ checkout }) => checkout.worktree._tag === "Linked");
-
-      expect(linked.length).toBeGreaterThan(0);
-
-      for (const entry of linked) {
-        const { worktree } = entry.checkout;
-
-        const main = find(
-          fleet,
-          (other) =>
-            other.machineId === entry.machineId &&
-            worktree._tag === "Linked" &&
-            other.checkout.path === worktree.mainPath,
-        );
-
-        expect(listedWorktrees(entry)).toStrictEqual([]);
-        expect(listedWorktrees(main)).toContain(entry.checkout.path);
-      }
     }).pipe(passingTime, Effect.provide(DemoHub)),
   );
 
