@@ -16,7 +16,13 @@ function listedWorktrees(checkout: Checkout): ReadonlyArray<string> {
   return checkout.status.git.worktrees.map(({ path }) => path);
 }
 
-function checkoutAt(checkouts: ReadonlyArray<Checkout>, path: string): Checkout {
+function checkoutAt({
+  checkouts,
+  path,
+}: {
+  readonly checkouts: ReadonlyArray<Checkout>;
+  readonly path: string;
+}): Checkout {
   const found = checkouts.find((checkout) => checkout.path === path);
 
   if (found === undefined) {
@@ -35,7 +41,7 @@ describe("renderCheckouts", () => {
 
       return checkouts.flatMap((checkout) =>
         checkout.worktree._tag === "Linked"
-          ? [{ checkout, main: checkoutAt(checkouts, checkout.worktree.mainPath) }]
+          ? [{ checkout, main: checkoutAt({ checkouts, path: checkout.worktree.mainPath }) }]
           : [],
       );
     });
