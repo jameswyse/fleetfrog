@@ -150,6 +150,10 @@ function fingerprintOf(repository: SimRepository): string {
   );
 }
 
+function worktreeFingerprintOf(tree: SimTree): string {
+  return digest(JSON.stringify([tree.path, tree.head, changeCount(tree)]));
+}
+
 function unpushedBranches(repository: SimRepository) {
   const { defaultBranch } = repository.remote.spec;
 
@@ -195,7 +199,6 @@ export function inspect(
   }
 
   const { repository } = found;
-  const fingerprint = fingerprintOf(repository);
 
   if (request.worktree !== null) {
     const tree = repository.linked.find(({ path }) => path === request.worktree);
@@ -208,7 +211,7 @@ export function inspect(
 
     return InspectionResult.cases.WorktreeInspected.make({
       inspection: {
-        fingerprint,
+        fingerprint: worktreeFingerprintOf(tree),
         path: tree.path,
         missing: null,
         branch: tree.head,
@@ -228,7 +231,7 @@ export function inspect(
 
   return InspectionResult.cases.Inspected.make({
     inspection: {
-      fingerprint,
+      fingerprint: fingerprintOf(repository),
       sizeBytes: repository.sizeBytes,
       remote:
         repository.remote.originUrl === null
@@ -682,7 +685,7 @@ export function planAction(options: {
         return skip(SkipReason.cases.NoSuchWorktree.make({}));
       }
 
-      if (fingerprint !== fingerprintOf(repository)) {
+      if (fingerprint !== worktreeFingerprintOf(tree)) {
         return skip(SkipReason.cases.ChangedSinceInspection.make({}));
       }
 
