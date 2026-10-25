@@ -214,7 +214,9 @@ export const seedHistory = Effect.fn("seedHistory")(function* (options: {
           repository,
           request: { _tag: "Pull", path: pathOf(repository) },
           outcome: ActionOutcome.cases.Skipped.make({
-            reason: SkipReason.cases.UncommittedChanges.make({ files: 2 }),
+            reason: SkipReason.cases.UncommittedChanges.make({
+              files: repository.main.changed.length,
+            }),
           }),
           output: [],
           seconds: 0.2,
@@ -240,7 +242,9 @@ export const seedHistory = Effect.fn("seedHistory")(function* (options: {
         request: { _tag: "Pull", path: pathOf(repository) },
         outcome: onBranch
           ? ActionOutcome.cases.Skipped.make({
-              reason: SkipReason.cases.UncommittedChanges.make({ files: 3 }),
+              reason: SkipReason.cases.UncommittedChanges.make({
+                files: repository.main.changed.length,
+              }),
             })
           : ActionOutcome.cases.Succeeded.make({
               result: ActionResult.cases.FastForwarded.make({ commits: 2 }),
