@@ -10,7 +10,8 @@ import { plural } from "@/ui/plural.ts";
 import { Spinner } from "@/ui/Spinner.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
-import { ChangesChoice, StashPopInstructions } from "../actions/ChangesChoice.tsx";
+import { ChangesChoice } from "../actions/ChangesChoice.tsx";
+import { StashPopInstructions } from "../actions/StashPopInstructions.tsx";
 import { useStartBatch } from "../actions/useStartBatch.ts";
 import { busyThreads, worktreeThread } from "../t3Code/t3CodeLookup.ts";
 import { BusyThreadsNotice, WorktreeThreadNote } from "../t3Code/T3CodeNotices.tsx";
@@ -128,7 +129,8 @@ function InspectionDetails({
             onChange={onHandlingChange}
             stash={
               <>
-                They go into a stash first. <StashPopInstructions path={mainPath} />
+                They go into a stash first.{" "}
+                <StashPopInstructions path={mainPath} branch={inspection.branch} />
               </>
             }
             discard="They go to the Trash instead of the Stashes list."
