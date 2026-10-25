@@ -17,6 +17,8 @@ Ideas for after phase 2. They're captured, not planned: an entry doesn't mean it
 - **Choosing machine columns.** Hide or reorder machines on the Projects page, for fleets too wide to show every column.
 - **Status-only cells.** A denser grid whose cells show only the state symbols, without branch names, to fit many machines.
 - **Repository list view.** An alternative to the grid: one row per repository with a status dot for each machine, beside a detail pane. It was prototyped against the grid on 26/09/2026 and set aside while fleets are small.
+- **Working tree outline, next steps.** The repository panel's outline leaves these for later: selecting several working trees or branches with a sticky bar of bulk actions, keyboard shortcuts for moving through rows and acting on them, the most common actions on each row on hover, undo toasts instead of confirmations for actions the Trash can reverse, pulling every working tree of a repository on a machine (it needs a new action scope), and a full-width view for repositories with many worktrees.
+- **Removing a worktree and its branch in one action.** Clean up removes finished worktrees, then deletes their branches in a second batch the browser starts, so a reload mid-way leaves the branches behind. The agents could take a flag on RemoveWorktree that also moves the worktree's branch to the Trash.
 
 ## Git actions
 
