@@ -1,6 +1,7 @@
 import { useEffect, useEffectEvent, useState } from "react";
 
 import { Link } from "@tanstack/react-router";
+import { BotIcon } from "lucide-react";
 
 import { requestHub } from "@/rpc/hubConnection.ts";
 import { useHubStream } from "@/rpc/useHubStream.ts";
@@ -12,99 +13,62 @@ import { Spinner } from "@/ui/Spinner.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { useStartBatch } from "../actions/useStartBatch.ts";
-import { worktreeThread } from "../t3Code/t3CodeLookup.ts";
+import { busyThreads, worktreeThread } from "../t3Code/t3CodeLookup.ts";
+import {
+  branchDeletionRuns,
+  cleanUpCheck,
+  cleanUpLosses,
+  deletedBranchCount,
+  removalRuns,
+  removedWorktrees,
+} from "./worktreeCleanUp.ts";
+import { worktreeInspectionFrom } from "./worktreeInspection.ts";
 
 import type { BatchDetail, BatchId, TargetedRun } from "@fleetfrog/protocol/domain/activity";
 import type { Machine } from "@fleetfrog/protocol/domain/fleet";
-import type { WorktreeInspection } from "@fleetfrog/protocol/domain/trash";
 
-export interface FinishedWorktree {
-  readonly mainPath: string;
-  readonly path: string;
-  readonly branch: string;
-  readonly sha: string;
+import type { FinishedWorktree } from "./worktreeCleanUp.ts";
+import type { WorktreeInspectionState } from "./worktreeInspection.ts";
+
+interface Progress {
+  readonly attempted: number;
+  readonly removed: number;
+  readonly branches: number;
 }
-
-type Check =
-  | { readonly _tag: "Checking" }
-  | { readonly _tag: "Removable"; readonly inspection: WorktreeInspection }
-  | { readonly _tag: "Kept"; readonly reason: string };
 
 type Stage =
   | { readonly _tag: "Reviewing" }
   | { readonly _tag: "Removing"; readonly batchId: BatchId }
-  | { readonly _tag: "Deleting"; readonly batchId: BatchId; readonly removed: number }
+  | {
+      readonly _tag: "Removed";
+      readonly batchId: BatchId;
+      readonly progress: Progress;
+      readonly runs: readonly [TargetedRun, ...Array<TargetedRun>];
+    }
+  | { readonly _tag: "Deleting"; readonly batchId: BatchId; readonly progress: Progress }
   | {
       readonly _tag: "Done";
       readonly batchId: BatchId;
-      readonly removed: number;
+      readonly progress: Progress;
       readonly deleted: number;
-    };
-
-async function inspect(machineId: Machine["id"], worktree: FinishedWorktree): Promise<Check> {
-  const result = await requestHub((client) =>
-    client.InspectCheckout({ machineId, path: worktree.mainPath, worktree: worktree.path }),
-  );
-
-  if (result._tag === "Failure") {
-    return { _tag: "Kept", reason: `Couldn't check it: ${result.message}` };
-  }
-
-  if (result.value._tag !== "WorktreeInspected") {
-    return {
-      _tag: "Kept",
-      reason:
-        result.value._tag === "Failed"
-          ? `Couldn't check it: ${result.value.message}`
-          : "The machine inspected the wrong thing.",
-    };
-  }
-
-  const { inspection } = result.value;
-
-  if (inspection.changedFiles + inspection.untrackedFiles > 0) {
-    return {
-      _tag: "Kept",
-      reason: "It has changes now. Remove it on its own to choose what happens to them.",
-    };
-  }
-
-  return { _tag: "Removable", inspection };
-}
-
-function losses(inspection: WorktreeInspection): string {
-  const { ignored } = inspection;
-
-  if (inspection.missing !== null) {
-    return "Its folder is already gone, so this only removes Git's record of it.";
-  }
-
-  if (ignored.total === 0) {
-    return "Nothing else is deleted.";
-  }
-
-  const examples = ignored.items.slice(0, 3).map(({ path }) => folderName(path));
-
-  return `Also deletes ${plural(ignored.total, "ignored file or folder", "ignored files or folders")} for good, such as ${examples.join(", ")}.`;
-}
-
-function succeeded(detail: BatchDetail) {
-  return detail.runs.flatMap(({ run }) =>
-    run.state._tag === "Finished" && run.state.outcome._tag === "Succeeded" ? [run] : [],
-  );
-}
+    }
+  | { readonly _tag: "Lost"; readonly batchId: BatchId; readonly message: string };
 
 function BatchWatcher({
   batchId,
   onFinished,
+  onLost,
 }: {
   readonly batchId: BatchId;
   readonly onFinished: (detail: BatchDetail) => void;
+  readonly onLost: (message: string) => void;
 }) {
   const detail = useHubStream({ key: batchId, open: (client) => client.WatchBatch({ batchId }) });
 
   const finishedAt =
     detail._tag === "Ready" ? (detail.value.batch.finishedAt?.epochMilliseconds ?? null) : null;
+
+  const lost = detail._tag === "Failed" ? detail.message : null;
 
   const report = useEffectEvent(() => {
     if (detail._tag === "Ready") {
@@ -112,13 +76,21 @@ function BatchWatcher({
     }
   });
 
+  const reportLost = useEffectEvent((message: string) => onLost(message));
+
   useEffect(() => {
     if (finishedAt !== null) {
       report();
     }
   }, [finishedAt]);
 
-  return detail._tag === "Failed" ? <p className="text-danger">{detail.message}</p> : null;
+  useEffect(() => {
+    if (lost !== null) {
+      reportLost(lost);
+    }
+  }, [lost]);
+
+  return null;
 }
 
 export function CleanUpWorktreesDialog({
@@ -131,7 +103,11 @@ export function CleanUpWorktreesDialog({
   readonly onClose: () => void;
 }) {
   const { start, pending, failure } = useStartBatch();
-  const [checks, setChecks] = useState<ReadonlyMap<string, Check>>(new Map());
+
+  const [inspections, setInspections] = useState<ReadonlyMap<string, WorktreeInspectionState>>(
+    new Map(),
+  );
+
   const [stage, setStage] = useState<Stage>({ _tag: "Reviewing" });
   const machineId = machine.id;
 
@@ -140,13 +116,17 @@ export function CleanUpWorktreesDialog({
 
     const load = async () => {
       const results = await Promise.all(
-        worktrees.map(
-          async (worktree) => [worktree.path, await inspect(machineId, worktree)] as const,
-        ),
+        worktrees.map(async ({ mainPath, path }) => {
+          const result = await requestHub((client) =>
+            client.InspectCheckout({ machineId, path: mainPath, worktree: path }),
+          );
+
+          return [path, worktreeInspectionFrom(result)] as const;
+        }),
       );
 
       if (current) {
-        setChecks(new Map(results));
+        setInspections(new Map(results));
       }
     };
 
@@ -157,94 +137,81 @@ export function CleanUpWorktreesDialog({
     };
   }, [machineId, worktrees]);
 
-  const checkOf = (worktree: FinishedWorktree): Check =>
-    checks.get(worktree.path) ?? { _tag: "Checking" };
+  const checks = worktrees.map((worktree) => ({
+    worktree,
+    check: cleanUpCheck({
+      worktree,
+      inspection: inspections.get(worktree.path) ?? { _tag: "Checking" },
+      busy: busyThreads(machine, [worktree.path]).length > 0,
+    }),
+  }));
 
-  const removable = worktrees.flatMap((worktree) => {
-    const check = checkOf(worktree);
+  const removable = checks.flatMap(({ worktree, check }) =>
+    check._tag === "Removable" ? [{ worktree, inspection: check.inspection }] : [],
+  );
 
-    return check._tag === "Removable" ? [{ worktree, inspection: check.inspection }] : [];
-  });
+  const checking = checks.some(({ check }) => check._tag === "Checking");
+  const removal = removalRuns({ machineId, removable });
 
-  const checking = worktrees.some((worktree) => checkOf(worktree)._tag === "Checking");
+  const deleteBranches = (
+    runs: readonly [TargetedRun, ...Array<TargetedRun>],
+    progress: Progress,
+  ) =>
+    start({ _tag: "Targeted", runs }, (batchId) =>
+      setStage({ _tag: "Deleting", batchId, progress }),
+    );
 
-  const remove = () => {
-    const [first, ...rest] = removable.map(({ worktree, inspection }): TargetedRun => ({
-      machineId: machine.id,
-      request: {
-        _tag: "RemoveWorktree",
-        path: worktree.mainPath,
-        worktree: worktree.path,
-        fingerprint: inspection.fingerprint,
-        discardChanges: false,
-      },
-    }));
+  const onRemoved = (detail: BatchDetail) => {
+    const removed = removedWorktrees({ worktrees, runs: detail.runs.map(({ run }) => run) });
+    const runs = branchDeletionRuns({ machineId, removed });
 
-    if (first !== undefined) {
-      start({ _tag: "Targeted", runs: [first, ...rest] }, (batchId) =>
-        setStage({ _tag: "Removing", batchId }),
-      );
-    }
-  };
-
-  const deleteBranches = (removal: BatchDetail) => {
-    const removedPaths = new Set(
-      succeeded(removal).flatMap(({ request }) =>
-        request._tag === "RemoveWorktree" ? [request.worktree] : [],
+    const progress = {
+      attempted: detail.runs.length,
+      removed: removed.length,
+      branches: (runs ?? []).reduce(
+        (sum, { request }) =>
+          request._tag === "DeleteBranches" ? sum + request.branches.length : sum,
+        0,
       ),
-    );
+    };
 
-    const removed = worktrees.filter(({ path }) => removedPaths.has(path));
-
-    const [first, ...rest] = [...Map.groupBy(removed, ({ mainPath }) => mainPath)].flatMap(
-      ([mainPath, clone]): ReadonlyArray<TargetedRun> => {
-        const [branch, ...others] = clone.map(({ branch: name, sha }) => ({ name, sha }));
-
-        return branch === undefined
-          ? []
-          : [
-              {
-                machineId: machine.id,
-                request: { _tag: "DeleteBranches", path: mainPath, branches: [branch, ...others] },
-              },
-            ];
-      },
-    );
-
-    if (first === undefined) {
-      setStage({ _tag: "Done", batchId: removal.batch.id, removed: 0, deleted: 0 });
+    if (runs === null) {
+      setStage({ _tag: "Done", batchId: detail.batch.id, progress, deleted: 0 });
 
       return;
     }
 
-    start({ _tag: "Targeted", runs: [first, ...rest] }, (batchId) =>
-      setStage({ _tag: "Deleting", batchId, removed: removed.length }),
-    );
+    setStage({ _tag: "Removed", batchId: detail.batch.id, progress, runs });
+    deleteBranches(runs, progress);
   };
 
-  const finish = (deletion: BatchDetail, removed: number) => {
-    const deleted = succeeded(deletion).reduce(
-      (sum, { state }) =>
-        state._tag === "Finished" &&
-        state.outcome._tag === "Succeeded" &&
-        state.outcome.result._tag === "BranchesDeleted"
-          ? sum + state.outcome.result.branches
-          : sum,
-      0,
-    );
+  const onDeleted = (detail: BatchDetail, progress: Progress) =>
+    setStage({
+      _tag: "Done",
+      batchId: detail.batch.id,
+      progress,
+      deleted: deletedBranchCount(detail.runs.map(({ run }) => run)),
+    });
 
-    setStage({ _tag: "Done", batchId: deletion.batch.id, removed, deleted });
-  };
+  const onLost = (batchId: BatchId) => (message: string) =>
+    setStage({ _tag: "Lost", batchId, message });
+
+  const working =
+    stage._tag === "Removing" ||
+    stage._tag === "Deleting" ||
+    (stage._tag === "Removed" && (pending || failure === null));
 
   const title = {
     Reviewing: `Clean up ${plural(worktrees.length, "finished worktree")}?`,
     Removing: "Cleaning up",
+    Removed: "Cleaning up",
     Deleting: "Cleaning up",
     Done: "Cleaned up",
+    Lost: "Lost track of the clean-up",
   }[stage._tag];
 
   return (
-    <Dialog title={title} onClose={onClose}>
+    <Dialog title={title} onClose={onClose} dismissible={!working}>
       <div className="space-y-4 text-sm">
         {stage._tag === "Reviewing" && (
           <>
@@ -253,8 +220,7 @@ export function CleanUpWorktreesDialog({
               to the Trash, where you can restore it until you empty it.
             </p>
             <ul className="max-h-[50vh] space-y-3 overflow-y-auto">
-              {worktrees.map((worktree) => {
-                const check = checkOf(worktree);
+              {checks.map(({ worktree, check }) => {
                 const thread = worktreeThread(machine, worktree.path);
 
                 return (
@@ -268,7 +234,11 @@ export function CleanUpWorktreesDialog({
                       </span>
                     </p>
                     {thread !== undefined && (
-                      <p className="text-xs text-ink-muted">T3 Code thread: “{thread.title}”</p>
+                      <p className="flex items-center gap-1.5 text-xs text-ink-muted">
+                        <BotIcon aria-hidden="true" className="size-3.5 shrink-0" />
+                        <span className="sr-only">T3 Code thread: </span>
+                        <span className="min-w-0 truncate">{thread.title}</span>
+                      </p>
                     )}
                     <p className="text-xs text-ink-muted">
                       {check._tag === "Checking" && (
@@ -277,7 +247,7 @@ export function CleanUpWorktreesDialog({
                           Checking…
                         </span>
                       )}
-                      {check._tag === "Removable" && losses(check.inspection)}
+                      {check._tag === "Removable" && cleanUpLosses(check.inspection)}
                       {check._tag === "Kept" && (
                         <span className="text-changes">Kept. {check.reason}</span>
                       )}
@@ -288,58 +258,91 @@ export function CleanUpWorktreesDialog({
             </ul>
           </>
         )}
-        {(stage._tag === "Removing" || stage._tag === "Deleting") && (
-          <p className="flex items-center gap-2">
+        {working && (
+          <p role="status" className="flex items-center gap-2">
             <Spinner />
             {stage._tag === "Removing"
               ? `Removing ${plural(removable.length, "worktree")}…`
-              : `Moving ${plural(stage.removed, "branch", "branches")} to the Trash…`}
+              : "Moving their branches to the Trash…"}
           </p>
         )}
         {stage._tag === "Removing" && (
-          <BatchWatcher batchId={stage.batchId} onFinished={deleteBranches} />
+          <BatchWatcher
+            batchId={stage.batchId}
+            onFinished={onRemoved}
+            onLost={onLost(stage.batchId)}
+          />
         )}
         {stage._tag === "Deleting" && (
           <BatchWatcher
             batchId={stage.batchId}
-            onFinished={(detail) => finish(detail, stage.removed)}
+            onFinished={(detail) => onDeleted(detail, stage.progress)}
+            onLost={onLost(stage.batchId)}
           />
+        )}
+        {stage._tag === "Removed" && !working && (
+          <p>
+            Removed {plural(stage.progress.removed, "worktree")}, but their branches weren't moved
+            to the Trash. Try again, or delete them later from Other branches.
+          </p>
+        )}
+        {stage._tag === "Lost" && (
+          <p>
+            FleetFrog stopped hearing about this clean-up: {stage.message} Check Activity for what
+            happened. Any branches left behind show under Other branches.
+          </p>
         )}
         {stage._tag === "Done" && (
           <p>
-            Removed {plural(stage.removed, "worktree")} and moved{" "}
-            {plural(stage.deleted, "branch", "branches")} to the Trash.{" "}
-            {(stage.removed < removable.length || stage.deleted < stage.removed) && (
-              <span className="text-changes">Some were skipped. </span>
+            Removed {plural(stage.progress.removed, "worktree")} and moved{" "}
+            {plural(stage.deleted, "branch", "branches")} to the Trash.
+            {(stage.progress.removed < stage.progress.attempted ||
+              stage.deleted < stage.progress.branches) && (
+              <span className="text-changes"> Some were skipped.</span>
             )}
-            <Link
-              to="/activity"
-              search={{ batch: stage.batchId }}
-              className="text-accent-text underline-offset-2 hover:underline"
-            >
-              View in Activity
-            </Link>
           </p>
+        )}
+        {(stage._tag === "Done" || stage._tag === "Lost") && (
+          <Link
+            to="/activity"
+            search={{ batch: stage.batchId }}
+            className="inline-block text-accent-text underline-offset-2 hover:underline"
+          >
+            View in Activity
+          </Link>
         )}
         <p role="status" className="text-danger">
           {failure}
         </p>
         <div className="flex justify-end gap-3">
-          {stage._tag === "Reviewing" ? (
+          {stage._tag === "Reviewing" && (
             <>
               <Button onClick={onClose}>Cancel</Button>
               <Button
                 tone="danger"
-                disabled={checking || pending || removable.length === 0}
-                onClick={remove}
+                disabled={checking || pending || removal === null}
+                onClick={() => {
+                  if (removal !== null) {
+                    start({ _tag: "Targeted", runs: removal }, (batchId) =>
+                      setStage({ _tag: "Removing", batchId }),
+                    );
+                  }
+                }}
               >
                 {pending
                   ? "Starting…"
                   : `Remove ${plural(removable.length, "worktree")} and branches`}
               </Button>
             </>
-          ) : (
-            <Button onClick={onClose}>{stage._tag === "Done" ? "Done" : "Close"}</Button>
+          )}
+          {stage._tag === "Removed" && !working && (
+            <>
+              <Button onClick={onClose}>Close</Button>
+              <Button onClick={() => deleteBranches(stage.runs, stage.progress)}>Try again</Button>
+            </>
+          )}
+          {(stage._tag === "Done" || stage._tag === "Lost") && (
+            <Button onClick={onClose}>Done</Button>
           )}
         </div>
       </div>

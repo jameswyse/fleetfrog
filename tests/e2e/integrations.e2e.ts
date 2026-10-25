@@ -8,7 +8,7 @@ import { Effect } from "effect";
 
 import { withDashboard } from "../../tools/e2e/dashboard.ts";
 import { fixturePaths, git, sandboxDirectory } from "../../tools/e2e/repositories.ts";
-import { fleetSnapshot } from "./support.ts";
+import { fleetSnapshot, switchBranch } from "./support.ts";
 
 const fixtures = fixturePaths(sandboxDirectory());
 
@@ -53,7 +53,7 @@ test("[deterministic] T3 Code projects, threads and busy-action confirmation com
     await expect(row).toContainText("Working");
     await row.getByRole("button", { name: /main/ }).click();
     await expect(screen.getByRole("complementary")).toContainText("E2E coding thread");
-    await screen.getByRole("button", { name: "Switch to feature/e2e", exact: true }).click();
+    await switchBranch(screen, "feature/e2e");
 
     const dialog = screen.getByRole("dialog", {
       name: "Switch to feature/e2e while T3 Code is working?",
@@ -63,7 +63,7 @@ test("[deterministic] T3 Code projects, threads and busy-action confirmation com
     await expect(dialog).toContainText("E2E coding thread");
     await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
     expect(git(fixtures.t3, "branch", "--show-current")).toBe("main");
-    await screen.getByRole("button", { name: "Switch to feature/e2e", exact: true }).click();
+    await switchBranch(screen, "feature/e2e");
     await dialog.getByRole("button", { name: "Switch anyway", exact: true }).click();
     await expect.poll(() => git(fixtures.t3, "branch", "--show-current")).toBe("feature/e2e");
   } finally {

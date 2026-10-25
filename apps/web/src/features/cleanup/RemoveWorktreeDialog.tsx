@@ -15,34 +15,13 @@ import { StashPopInstructions } from "../actions/StashPopInstructions.tsx";
 import { useStartBatch } from "../actions/useStartBatch.ts";
 import { busyThreads, worktreeThread } from "../t3Code/t3CodeLookup.ts";
 import { BusyThreadsNotice, WorktreeThreadNote } from "../t3Code/T3CodeNotices.tsx";
+import { worktreeInspectionFrom } from "./worktreeInspection.ts";
 
-import type { HubResult } from "@/rpc/hubConnection.ts";
 import type { Machine } from "@fleetfrog/protocol/domain/fleet";
-import type { InspectionResult, WorktreeInspection } from "@fleetfrog/protocol/domain/trash";
+import type { WorktreeInspection } from "@fleetfrog/protocol/domain/trash";
 
 import type { ChangesHandling } from "../actions/ChangesChoice.tsx";
-
-type InspectionState =
-  | { readonly _tag: "Checking" }
-  | { readonly _tag: "Failed"; readonly message: string }
-  | { readonly _tag: "Ready"; readonly inspection: WorktreeInspection };
-
-function stateFrom(result: HubResult<InspectionResult>): InspectionState {
-  if (result._tag === "Failure") {
-    return { _tag: "Failed", message: result.message };
-  }
-
-  const { value } = result;
-
-  if (value._tag === "WorktreeInspected") {
-    return { _tag: "Ready", inspection: value.inspection };
-  }
-
-  return {
-    _tag: "Failed",
-    message: value._tag === "Failed" ? value.message : "The machine inspected the wrong thing.",
-  };
-}
+import type { WorktreeInspectionState } from "./worktreeInspection.ts";
 
 function keptWork(inspection: WorktreeInspection): ReadonlyArray<string> {
   const lines: Array<string> = [];
@@ -180,7 +159,7 @@ export function RemoveWorktreeDialog({
   readonly onClose: () => void;
 }) {
   const { start, pending, failure } = useStartBatch();
-  const [state, setState] = useState<InspectionState>({ _tag: "Checking" });
+  const [state, setState] = useState<WorktreeInspectionState>({ _tag: "Checking" });
   const [handling, setHandling] = useState<ChangesHandling>("Stash");
 
   useEffect(() => {
@@ -192,7 +171,7 @@ export function RemoveWorktreeDialog({
       );
 
       if (current) {
-        setState(stateFrom(result));
+        setState(worktreeInspectionFrom(result));
       }
     };
 

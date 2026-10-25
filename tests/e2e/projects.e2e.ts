@@ -5,7 +5,7 @@ import { test } from "@e2e-dev/web";
 import { expect } from "e2e";
 
 import { fixturePaths, git, sandboxDirectory } from "../../tools/e2e/repositories.ts";
-import { cleanupEntry } from "./support.ts";
+import { cleanupEntry, selectedWorkingTree, switchBranch } from "./support.ts";
 
 const fixtures = fixturePaths(sandboxDirectory());
 
@@ -35,8 +35,8 @@ test("[deterministic] switch a clean checkout through the dashboard", async ({ a
     .getByRole("row", { name: /clean-project/ })
     .getByRole("button", { name: /main/ })
     .click();
-  await screen.getByRole("button", { name: "Switch to feature/e2e", exact: true }).click();
-  await expect(screen.getByRole("button", { name: "Switch to main", exact: true })).toBeVisible();
+  await switchBranch(screen, "feature/e2e");
+  await expect(selectedWorkingTree(screen, "feature/e2e")).toBeVisible();
   await expect.poll(() => git(fixtures.clean, "branch", "--show-current")).toBe("feature/e2e");
   expect(git(fixtures.clean, "status", "--porcelain")).toBe("");
 });
@@ -50,13 +50,13 @@ test("[deterministic] switching a dirty checkout preserves the changes in a stas
     .getByRole("row", { name: /dirty-switch-project/ })
     .getByRole("button", { name: /main/ })
     .click();
-  await screen.getByRole("button", { name: "Switch to feature/e2e", exact: true }).click();
+  await switchBranch(screen, "feature/e2e");
   const dialog = screen.getByRole("dialog", { name: "Switch to feature/e2e?" });
 
   await expect(dialog.getByRole("radio", { name: /Stash them/ })).toBeChecked();
   await dialog.getByRole("button", { name: "Stash and switch" }).click();
   await expect(dialog).toBeHidden();
-  await expect(screen.getByRole("button", { name: "Switch to main", exact: true })).toBeVisible();
+  await expect(selectedWorkingTree(screen, "feature/e2e")).toBeVisible();
   await expect
     .poll(() => git(fixtures.dirtySwitch, "branch", "--show-current"))
     .toBe("feature/e2e");
@@ -75,7 +75,7 @@ test("[deterministic] switching can discard the changes into the trash instead",
     .getByRole("row", { name: /discard-switch-project/ })
     .getByRole("button", { name: /main/ })
     .click();
-  await screen.getByRole("button", { name: "Switch to feature/e2e", exact: true }).click();
+  await switchBranch(screen, "feature/e2e");
   const dialog = screen.getByRole("dialog", { name: "Switch to feature/e2e?" });
 
   await dialog.getByRole("radio", { name: /Discard them/ }).check();

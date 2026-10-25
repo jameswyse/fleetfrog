@@ -6,7 +6,8 @@ import { folderName } from "@/ui/folderName.ts";
 import { ProjectIcon } from "@/ui/ProjectIcon.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 
-import { projectsAt, threadsAt } from "../../t3Code/t3CodeLookup.ts";
+import { projectsAt, threadsByUrgency } from "../../t3Code/t3CodeLookup.ts";
+import { threadStateWords } from "../../t3Code/T3CodeNotices.tsx";
 import { workingTreesOf } from "../workingTrees.ts";
 import { ShortList } from "./PanelSection.tsx";
 
@@ -15,34 +16,17 @@ import type { T3CodeThread } from "@fleetfrog/protocol/domain/t3Code";
 
 import type { CloneOutline, WorkingTree } from "../workingTrees.ts";
 
-const stateWords = {
-  Working: "Working",
-  Waiting: "Waiting for you",
-  Idle: null,
-} satisfies Record<T3CodeThread["state"], string | null>;
-
-const urgency = { Waiting: 0, Working: 1, Idle: 2 } satisfies Record<T3CodeThread["state"], number>;
-
-export function busyThreadCount(machine: Machine, clones: ReadonlyArray<CloneOutline>): number {
-  return clones
-    .flatMap(workingTreesOf)
-    .flatMap(({ path }) => threadsAt(machine, path))
-    .filter(({ state }) => state !== "Idle").length;
-}
-
 function ThreadGroup({
   tree,
-  isMain,
   threads,
   onChoosePath,
 }: {
   readonly tree: WorkingTree;
-  readonly isMain: boolean;
   readonly threads: ReadonlyArray<T3CodeThread>;
   readonly onChoosePath: (path: string) => void;
 }) {
   const headingId = useId();
-  const Icon = isMain ? FolderGit2Icon : GitForkIcon;
+  const Icon = tree.kind === "Main" ? FolderGit2Icon : GitForkIcon;
 
   return (
     <section aria-labelledby={headingId} className="space-y-1.5">
@@ -51,16 +35,18 @@ function ThreadGroup({
           {tree.branch ?? folderName(tree.path)}
         </h3>
         <span className="flex-1" />
-        <button
-          type="button"
-          onClick={() => onChoosePath(tree.path)}
-          title={tree.path}
-          aria-label={`Show the working tree at ${tree.path}`}
-          className="flex max-w-40 shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-xs text-accent-text hover:bg-canvas"
-        >
-          <Icon aria-hidden="true" className="size-3.5 shrink-0" />
-          <span className="truncate">{folderName(tree.path)}</span>
-        </button>
+        {tree.entry !== null && (
+          <button
+            type="button"
+            onClick={() => onChoosePath(tree.path)}
+            title={tree.path}
+            aria-label={`Show the working tree at ${tree.path}`}
+            className="flex max-w-40 shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-xs text-accent-text hover:bg-canvas"
+          >
+            <Icon aria-hidden="true" className="size-3.5 shrink-0" />
+            <span className="truncate">{folderName(tree.path)}</span>
+          </button>
+        )}
       </div>
       <ShortList
         items={threads}
@@ -68,7 +54,7 @@ function ThreadGroup({
         noun="threads"
         listClassName="space-y-1 px-1.5"
         render={(thread) => {
-          const state = stateWords[thread.state];
+          const state = threadStateWords[thread.state];
 
           return (
             <li key={thread.id} className="flex items-baseline gap-2 text-sm">
@@ -97,29 +83,18 @@ export function T3CodeTab({
   readonly clones: ReadonlyArray<CloneOutline>;
   readonly onChoosePath: (path: string) => void;
 }) {
-  const trees = clones.flatMap((clone) =>
-    workingTreesOf(clone).map((tree) => ({ tree, isMain: tree === clone.main })),
-  );
-
   const projects = projectsAt(
     machine,
-    clones.flatMap(({ path }) => [path]),
+    clones.map(({ path }) => path),
   );
 
-  const groups = trees
-    .map(({ tree, isMain }) => ({
-      tree,
-      isMain,
-      threads: threadsAt(machine, tree.path).toSorted(
-        (left, right) =>
-          urgency[left.state] - urgency[right.state] ||
-          right.updatedAt.epochMilliseconds - left.updatedAt.epochMilliseconds,
-      ),
-    }))
+  const groups = clones
+    .flatMap(workingTreesOf)
+    .map((tree) => ({ tree, threads: threadsByUrgency(machine, tree.path) }))
     .filter(({ threads }) => threads.length > 0)
     .toSorted(
       (left, right) =>
-        urgency[left.threads[0]?.state ?? "Idle"] - urgency[right.threads[0]?.state ?? "Idle"] ||
+        Number(right.threads[0]?.state !== "Idle") - Number(left.threads[0]?.state !== "Idle") ||
         right.tree.lastActive - left.tree.lastActive,
     );
 
@@ -139,14 +114,8 @@ export function T3CodeTab({
           No T3 Code threads changed here in the last two weeks.
         </p>
       )}
-      {groups.map(({ tree, isMain, threads }) => (
-        <ThreadGroup
-          key={tree.path}
-          tree={tree}
-          isMain={isMain}
-          threads={threads}
-          onChoosePath={onChoosePath}
-        />
+      {groups.map(({ tree, threads }) => (
+        <ThreadGroup key={tree.path} tree={tree} threads={threads} onChoosePath={onChoosePath} />
       ))}
     </div>
   );

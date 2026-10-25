@@ -5,7 +5,13 @@ import { test } from "@e2e-dev/web";
 import { expect } from "e2e";
 
 import { fixturePaths, git, sandboxDirectory } from "../../tools/e2e/repositories.ts";
-import { cleanupEntry, fleetSnapshot, openCheckout, requireIsolatedTrash } from "./support.ts";
+import {
+  cleanupEntry,
+  fleetSnapshot,
+  openCheckout,
+  requireIsolatedTrash,
+  selectedWorkingTree,
+} from "./support.ts";
 
 import type { App, Screen } from "e2e";
 
@@ -210,11 +216,17 @@ test("[deterministic] worktree removal stashes changes and preserves its branch"
 }) => {
   requireIsolatedTrash();
   await openCheckout(app, screen, "remove-worktree-project");
-  await expect(screen.getByRole("complementary")).toContainText("in another worktree");
-  await expect(
-    screen.getByRole("button", { name: "Switch to feature/e2e", exact: true }),
-  ).toHaveCount(0);
-  await screen.getByRole("button", { name: /^removable-worktree / }).click();
+  await screen
+    .getByRole("complementary")
+    .getByRole("button", { name: "Switch branch", exact: true })
+    .click();
+  await expect(screen.getByRole("button", { name: "Switch to feature/e2e" })).toHaveCount(0);
+  await screen
+    .getByRole("button", {
+      name: /^Show the worktree at .*removable-worktree, which has feature\/e2e/,
+    })
+    .click();
+  await expect(selectedWorkingTree(screen, "feature/e2e")).toBeVisible();
   await screen.getByRole("button", { name: "More actions for this checkout" }).click();
   await screen.getByRole("button", { name: "Remove worktree…", exact: true }).click();
   const dialog = screen.getByRole("dialog", { name: "Remove this worktree?", exact: true });

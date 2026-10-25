@@ -5,7 +5,7 @@ import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 
 import type { CheckoutSummary } from "./checkoutSummary.ts";
 
-export type CellProblem = "Unreadable" | "Conflicts" | "UpstreamGone";
+export type CellProblem = "Unreadable" | "Conflicts" | "Operation" | "UpstreamGone";
 
 export interface CellSummary {
   readonly entries: ReadonlyArray<MachineCheckout>;
@@ -39,6 +39,10 @@ function problemOf(summaries: ReadonlyArray<CheckoutSummary>): CellProblem | nul
 
   if (read.some(({ conflicts }) => conflicts)) {
     return "Conflicts";
+  }
+
+  if (read.some(({ operation }) => operation !== null)) {
+    return "Operation";
   }
 
   return read.some(({ upstream, merged }) => upstream === "gone" && !merged)

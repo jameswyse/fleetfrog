@@ -10,24 +10,18 @@ import { BranchState } from "../../branches/BranchState.tsx";
 import {
   branchesInOtherWorktrees,
   isPreselected,
+  recentFirst,
   tidyCandidates,
 } from "../../branches/branchTidying.ts";
 import { TidyBranchesDialog } from "../../branches/TidyBranchesDialog.tsx";
 import { ListSection } from "./ListSection.tsx";
 import { ShortList } from "./PanelSection.tsx";
 
-import type { LocalBranch } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
 import type { CloneOutline } from "../workingTrees.ts";
 
-function recentFirst(left: LocalBranch, right: LocalBranch): number {
-  return (
-    (right.tip?.committedAt.epochMilliseconds ?? 0) - (left.tip?.committedAt.epochMilliseconds ?? 0)
-  );
-}
-
-export function useBranchTidying({
+function useBranchTidying({
   repository,
   machine,
   clone,
@@ -58,7 +52,7 @@ export function useBranchTidying({
   return {
     ...tidying,
     ...anchor,
-    merged: tidying.candidates.filter(isPreselected).map(({ name }) => name),
+    preselected: tidying.candidates.filter(isPreselected).map(({ name }) => name),
   };
 }
 
@@ -83,23 +77,23 @@ export function ParkedBranches({
   return (
     <ListSection
       title="Other branches"
-      count={clone.parked.length}
+      count={clone.parked.length + clone.unreportedBranches}
       action={
         tidying !== null &&
         tidying.candidates.length > 0 && (
           <button
             type="button"
-            onClick={() => setChosen(tidying.merged)}
+            onClick={() => setChosen(tidying.preselected)}
             className="rounded px-1.5 py-0.5 text-xs font-medium text-accent-text hover:bg-canvas"
           >
-            Tidy…
+            Tidy branches…
           </button>
         )
       }
     >
       <ShortList
         items={clone.parked.toSorted(recentFirst)}
-        total={clone.parked.length}
+        total={clone.parked.length + clone.unreportedBranches}
         noun="branches"
         listClassName="-mx-1"
         render={(branch) => (

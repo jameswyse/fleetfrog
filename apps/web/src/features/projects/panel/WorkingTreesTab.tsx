@@ -13,7 +13,7 @@ import { WorkingTreeOutline } from "./WorkingTreeOutline.tsx";
 
 import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
-import type { FinishedWorktree } from "../../cleanup/CleanUpWorktreesDialog.tsx";
+import type { FinishedWorktree } from "../../cleanup/worktreeCleanUp.ts";
 import type { CloneOutline } from "../workingTrees.ts";
 
 function finishedWorktrees(clones: ReadonlyArray<CloneOutline>): ReadonlyArray<FinishedWorktree> {
@@ -42,16 +42,18 @@ export function WorkingTreesTab({
   const [cleaning, setCleaning] = useState<ReadonlyArray<FinishedWorktree> | null>(null);
   const mayRemove = useMayRun("RemoveWorktree");
   const mayDelete = useMayRun("DeleteBranches");
-  const finished = finishedWorktrees(clones);
 
-  const onCleanUp =
-    finished.length > 0 &&
+  const mayCleanUp =
     mayRemove &&
     mayDelete &&
     machineBlocker(machine, "RemoveWorktree") === null &&
-    machineBlocker(machine, "DeleteBranches") === null
-      ? () => setCleaning(finished)
-      : null;
+    machineBlocker(machine, "DeleteBranches") === null;
+
+  const cleanUp = (scope: ReadonlyArray<CloneOutline>) => {
+    const finished = finishedWorktrees(scope);
+
+    return mayCleanUp && finished.length > 0 ? () => setCleaning(finished) : null;
+  };
 
   const treeCount = clones.flatMap(workingTreesOf).length;
 
@@ -61,7 +63,7 @@ export function WorkingTreesTab({
         machine={machine}
         clones={clones}
         onChoosePath={onChoosePath}
-        onCleanUp={onCleanUp}
+        onCleanUp={cleanUp(clones)}
       />
       {clones.map((clone) => (
         <div key={clone.path} className="space-y-5">
@@ -78,7 +80,7 @@ export function WorkingTreesTab({
             }
             selectedPath={selectedPath}
             onChoosePath={onChoosePath}
-            onCleanUp={onCleanUp}
+            onCleanUp={cleanUp([clone])}
           />
           <ParkedBranches repository={repository} machine={machine} clone={clone} />
           {clone.anchor !== null && clone.anchor.git.stashes.total > 0 && (

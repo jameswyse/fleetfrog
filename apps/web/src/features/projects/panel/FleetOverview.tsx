@@ -17,7 +17,7 @@ import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { busyThreads } from "../../t3Code/t3CodeLookup.ts";
-import { Glyph, problemWords } from "../CellContent.tsx";
+import { Glyph, problemTones, problemWords } from "../CellContent.tsx";
 import { cellFor, openPullRequests } from "../cellSummary.ts";
 import { PanelHeader } from "./PanelHeader.tsx";
 import { PanelSection, ShortList } from "./PanelSection.tsx";
@@ -258,9 +258,11 @@ export function FleetOverview({
                   item={item}
                   onSelect={onSelect}
                 >
-                  <span className="font-normal text-danger">
-                    {item.cell.problem === null ? null : problemWords[item.cell.problem]}
-                  </span>
+                  {item.cell.problem !== null && (
+                    <span className={`font-normal ${problemTones[item.cell.problem]}`}>
+                      {problemWords[item.cell.problem]}
+                    </span>
+                  )}
                 </CellRow>
               )}
             />

@@ -9,25 +9,18 @@ import { plural } from "@/ui/plural.ts";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 
 import { machineBlocker } from "../../actions/actionAvailability.ts";
+import { SyncGlyphs } from "../../branches/BranchState.tsx";
 import { RemoveWorktreeDialog } from "../../cleanup/RemoveWorktreeDialog.tsx";
-import { threadsAt } from "../../t3Code/t3CodeLookup.ts";
+import { threadsByUrgency } from "../../t3Code/t3CodeLookup.ts";
+import { threadStateWords } from "../../t3Code/T3CodeNotices.tsx";
 import { Glyph } from "../CellContent.tsx";
+import { workingTreesOf } from "../workingTrees.ts";
 import { ListSection } from "./ListSection.tsx";
 import { WorkingTreeDetail } from "./WorkingTreeDetail.tsx";
 
-import type { ReactNode } from "react";
-
 import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
-import type { T3CodeThread } from "@fleetfrog/protocol/domain/t3Code";
 
 import type { CloneOutline, WorkingTree } from "../workingTrees.ts";
-
-const urgency = { Waiting: 0, Working: 1, Idle: 2 } satisfies Record<T3CodeThread["state"], number>;
-
-const stateWords = { Waiting: "Waiting for you", Working: "Working", Idle: null } satisfies Record<
-  T3CodeThread["state"],
-  string | null
->;
 
 const presenceWords = {
   Present: null,
@@ -36,17 +29,13 @@ const presenceWords = {
 } satisfies Record<WorkingTree["presence"], string | null>;
 
 function ThreadLine({ machine, tree }: { readonly machine: Machine; readonly tree: WorkingTree }) {
-  const [latest, ...older] = threadsAt(machine, tree.path).toSorted(
-    (left, right) =>
-      urgency[left.state] - urgency[right.state] ||
-      right.updatedAt.epochMilliseconds - left.updatedAt.epochMilliseconds,
-  );
+  const [latest, ...older] = threadsByUrgency(machine, tree.path);
 
   if (latest === undefined) {
     return <span className="truncate">{folderName(tree.path)}</span>;
   }
 
-  const state = stateWords[latest.state];
+  const state = threadStateWords[latest.state];
 
   return (
     <>
@@ -71,106 +60,50 @@ function ThreadLine({ machine, tree }: { readonly machine: Machine; readonly tre
   );
 }
 
+function problemChip(problem: NonNullable<WorkingTree["problem"]>): string {
+  switch (problem._tag) {
+    case "Unreadable":
+      return "Unreadable";
+    case "Conflicts":
+      return "Conflicts";
+    case "Operation":
+      return `${problem.operation} in progress`;
+
+    default: {
+      const _exhaustive: never = problem;
+
+      return _exhaustive;
+    }
+  }
+}
+
 function StatusChips({ tree }: { readonly tree: WorkingTree }) {
   const presence = presenceWords[tree.presence];
-  const { git, lifecycle } = tree;
-  const chips: Array<ReactNode> = [];
-
-  if (presence !== null) {
-    chips.push(
-      <Chip key="presence" tone="changes">
-        {presence}
-      </Chip>,
-    );
-  }
-
-  if (tree.entry?.checkout.status._tag === "Failed") {
-    chips.push(
-      <Chip key="unreadable" tone="danger">
-        Unreadable
-      </Chip>,
-    );
-  }
-
-  if (git !== null) {
-    const changes = git.changed.total + git.untracked.total;
-    const upstream = git.head._tag === "Branch" ? git.head.upstream : null;
-
-    const conflicts = git.changed.items.some(
-      ({ staged, unstaged }) => staged === "U" || unstaged === "U",
-    );
-
-    if (conflicts) {
-      chips.push(
-        <Chip key="conflicts" tone="danger">
-          Conflicts
-        </Chip>,
-      );
-    } else if (git.operation !== null) {
-      chips.push(
-        <Chip key="operation" tone="danger">
-          {git.operation}
-        </Chip>,
-      );
-    }
-
-    if (changes > 0) {
-      chips.push(
-        <Glyph
-          key="changes"
-          className="text-changes"
-          symbol={`●${changes}`}
-          meaning={plural(changes, "changed file")}
-        />,
-      );
-    }
-
-    if (upstream !== null && upstream.ahead > 0) {
-      chips.push(
-        <Glyph
-          key="ahead"
-          className="text-sync"
-          symbol={`↑${upstream.ahead}`}
-          meaning={`${plural(upstream.ahead, "commit")} to push`}
-        />,
-      );
-    }
-
-    if (upstream !== null && upstream.behind > 0) {
-      chips.push(
-        <Glyph
-          key="behind"
-          className="text-sync"
-          symbol={`↓${upstream.behind}`}
-          meaning={`${plural(upstream.behind, "commit")} to pull`}
-        />,
-      );
-    }
-
-    if (lifecycle._tag === "Finished") {
-      chips.push(
-        <Chip key="merged" tone="clean">
-          {lifecycle.pullRequest === null ? "Merged" : `Merged #${lifecycle.pullRequest}`}
-        </Chip>,
-      );
-    } else if (upstream?.gone === true) {
-      chips.push(
-        <Chip key="gone" tone="changes">
-          Remote deleted
-        </Chip>,
-      );
-    } else if (git.head._tag === "Branch" && upstream === null) {
-      chips.push(
-        <Chip key="upstream" tone="neutral">
-          No upstream
-        </Chip>,
-      );
-    }
-  }
+  const { git, merge, problem } = tree;
+  const upstream = git?.head._tag === "Branch" ? git.head.upstream : null;
+  const changes = git === null ? 0 : git.changed.total + git.untracked.total;
 
   return (
     <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium tabular-nums">
-      {chips}
+      {presence !== null && <Chip tone="changes">{presence}</Chip>}
+      {problem !== null && <Chip tone="danger">{problemChip(problem)}</Chip>}
+      {changes > 0 && (
+        <Glyph
+          className="text-changes"
+          symbol={`●${changes}`}
+          meaning={plural(changes, "changed file")}
+        />
+      )}
+      {upstream !== null && <SyncGlyphs ahead={upstream.ahead} behind={upstream.behind} />}
+      {merge !== null && (
+        <Chip tone="clean">
+          {merge._tag === "PullRequest" ? `Merged #${merge.pullRequest.number}` : "Merged"}
+        </Chip>
+      )}
+      {merge === null && upstream?.gone === true && <Chip tone="changes">Remote deleted</Chip>}
+      {git?.head._tag === "Branch" && upstream === null && merge === null && (
+        <Chip tone="neutral">No upstream</Chip>
+      )}
     </span>
   );
 }
@@ -188,7 +121,6 @@ function TreeRow({
   machine,
   clonePath,
   tree,
-  isMain,
   selected,
   onChoosePath,
 }: {
@@ -196,13 +128,12 @@ function TreeRow({
   readonly machine: Machine;
   readonly clonePath: string;
   readonly tree: WorkingTree;
-  readonly isMain: boolean;
   readonly selected: boolean;
   readonly onChoosePath: (path: string) => void;
 }) {
   const [removing, setRemoving] = useState(false);
   const mayRemove = useMayRun("RemoveWorktree");
-  const Icon = isMain ? FolderGit2Icon : GitForkIcon;
+  const Icon = tree.kind === "Main" ? FolderGit2Icon : GitForkIcon;
   const detailId = useId();
 
   const content = (
@@ -264,8 +195,8 @@ function TreeRow({
           id={detailId}
           repository={repository}
           machine={machine}
+          tree={tree}
           checkout={tree.entry.checkout}
-          lifecycle={tree.lifecycle}
           onShowWorkingTree={onChoosePath}
         />
       )}
@@ -297,7 +228,14 @@ export function WorkingTreeOutline({
   readonly onChoosePath: (path: string) => void;
   readonly onCleanUp: (() => void) | null;
 }) {
-  const [opened, setOpened] = useState<ReadonlySet<GroupKind>>(new Set());
+  const [toggled, setToggled] = useState<{
+    readonly selectedPath: string;
+    readonly groups: ReadonlyMap<GroupKind, boolean>;
+  }>({ selectedPath, groups: new Map() });
+
+  const overrides =
+    toggled.selectedPath === selectedPath ? toggled.groups : new Map<GroupKind, boolean>();
+
   const active = clone.linked.filter(({ lifecycle }) => lifecycle._tag === "Active");
 
   const groups = (["Finished", "RemoteGone"] as const).map((kind) => ({
@@ -305,14 +243,13 @@ export function WorkingTreeOutline({
     trees: clone.linked.filter(({ lifecycle }) => lifecycle._tag === kind),
   }));
 
-  const row = (tree: WorkingTree, isMain: boolean) => (
+  const row = (tree: WorkingTree) => (
     <TreeRow
       key={tree.path}
       repository={repository}
       machine={machine}
       clonePath={clone.path}
       tree={tree}
-      isMain={isMain}
       selected={tree.path === selectedPath}
       onChoosePath={onChoosePath}
     />
@@ -320,17 +257,25 @@ export function WorkingTreeOutline({
 
   const outline = (
     <ul>
-      {clone.main !== null && row(clone.main, true)}
+      {clone.main === null ? (
+        <li className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm" title={clone.path}>
+          <FolderGit2Icon aria-hidden="true" className="shrink-0 text-ink-muted" />
+          <span className="min-w-0 flex-1 truncate">{folderName(clone.path)}</span>
+          <span className="shrink-0 text-xs text-ink-muted">Clone not scanned</span>
+        </li>
+      ) : (
+        row(clone.main)
+      )}
       {clone.linked.length > 0 && (
         <li>
-          <ul className={clone.main === null ? "" : "ms-4 border-s border-line ps-1.5"}>
-            {active.map((tree) => row(tree, false))}
+          <ul className="ms-4 border-s border-line ps-1.5">
+            {active.map(row)}
             {groups.map(({ kind, trees }) => {
               if (trees.length === 0) {
                 return null;
               }
 
-              const open = opened.has(kind) || trees.some(({ path }) => path === selectedPath);
+              const open = overrides.get(kind) ?? trees.some(({ path }) => path === selectedPath);
 
               return (
                 <li key={kind}>
@@ -339,16 +284,9 @@ export function WorkingTreeOutline({
                       type="button"
                       aria-expanded={open}
                       onClick={() =>
-                        setOpened((previous) => {
-                          const next = new Set(previous);
-
-                          if (open) {
-                            next.delete(kind);
-                          } else {
-                            next.add(kind);
-                          }
-
-                          return next;
+                        setToggled({
+                          selectedPath,
+                          groups: new Map([...overrides, [kind, !open]]),
                         })
                       }
                       className="flex min-h-8 min-w-0 flex-1 items-center gap-2 rounded-lg px-2 text-start text-sm hover:bg-canvas"
@@ -375,7 +313,7 @@ export function WorkingTreeOutline({
                       </button>
                     )}
                   </div>
-                  {open && <ul>{trees.map((tree) => row(tree, false))}</ul>}
+                  {open && <ul>{trees.map(row)}</ul>}
                 </li>
               );
             })}
@@ -388,7 +326,7 @@ export function WorkingTreeOutline({
   return title === null ? (
     <div className="-mx-1">{outline}</div>
   ) : (
-    <ListSection title={title} count={clone.linked.length + (clone.main === null ? 0 : 1)}>
+    <ListSection title={title} count={workingTreesOf(clone).length}>
       <div className="-mx-1">{outline}</div>
     </ListSection>
   );

@@ -4,17 +4,19 @@ import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
 import { ProjectIcon } from "@/ui/ProjectIcon.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { TabList, TabPanel } from "@/ui/Tabs.tsx";
+import { clonePath } from "@fleetfrog/protocol/domain/checkout";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
+import { busyThreads } from "../../t3Code/t3CodeLookup.ts";
 import { cellFor } from "../cellSummary.ts";
 import { RepositoryActions } from "../RepositoryActions.tsx";
-import { outlineCell } from "../workingTrees.ts";
+import { outlineCell, workingTreesOf } from "../workingTrees.ts";
 import { AboutTab } from "./AboutTab.tsx";
 import { CloneSections } from "./CloneSections.tsx";
 import { FocusHeading } from "./FocusHeading.tsx";
 import { Crumb, PanelHeader } from "./PanelHeader.tsx";
 import { RepositoryLink } from "./RepositoryLink.tsx";
-import { busyThreadCount, T3CodeTab } from "./T3CodeTab.tsx";
+import { T3CodeTab } from "./T3CodeTab.tsx";
 import { WorkingTreesTab } from "./WorkingTreesTab.tsx";
 
 import type { Tab } from "@/ui/Tabs.tsx";
@@ -63,8 +65,18 @@ export function CellPanel({
 
   const hasT3Code = machine.t3Code !== null;
   const current = tab === "t3-code" && !hasT3Code ? "working-trees" : tab;
-  const busy = busyThreadCount(machine, clones);
-  const fetchedAt = clones[0]?.anchor?.git.lastFetchedAt ?? null;
+
+  const busy = busyThreads(
+    machine,
+    clones.flatMap(workingTreesOf).map((tree) => tree.path),
+  ).length;
+
+  const selectedClone =
+    entry === undefined
+      ? undefined
+      : clones.find((clone) => clone.path === clonePath(entry.checkout));
+
+  const fetchedAt = selectedClone?.anchor?.git.lastFetchedAt ?? null;
 
   const tabs: ReadonlyArray<Tab<CellTab>> = [
     { id: "working-trees", label: "Working trees" },
