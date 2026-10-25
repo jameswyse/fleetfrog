@@ -170,6 +170,36 @@ describe("DemoFleet", () => {
     }).pipe(passingTime, Effect.provide(DemoHub)),
   );
 
+  it.effect("lists linked worktrees only from their main checkout, as the agents do", () =>
+    Effect.gen(function* () {
+      const fleet = yield* fleetWhere(fullyReported);
+      const entries = fleet.repositories.flatMap(({ checkouts }) => checkouts);
+
+      const listed = (entry: MachineCheckout) =>
+        entry.checkout.status._tag === "Read"
+          ? entry.checkout.status.git.worktrees.map(({ path }) => path)
+          : [];
+
+      const linked = entries.filter(({ checkout }) => checkout.worktree._tag === "Linked");
+
+      expect(linked.length).toBeGreaterThan(0);
+
+      for (const entry of linked) {
+        const { worktree } = entry.checkout;
+
+        const main = entries.find(
+          (other) =>
+            other.machineId === entry.machineId &&
+            worktree._tag === "Linked" &&
+            other.checkout.path === worktree.mainPath,
+        );
+
+        expect(listed(entry)).toStrictEqual([]);
+        expect(main === undefined ? [] : listed(main)).toContain(entry.checkout.path);
+      }
+    }).pipe(passingTime, Effect.provide(DemoHub)),
+  );
+
   it.effect("fast-forwards a checkout that is behind and refuses one with changes", () =>
     Effect.gen(function* () {
       const fleet = yield* fleetWhere(fullyReported);
