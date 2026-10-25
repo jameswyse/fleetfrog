@@ -23,15 +23,6 @@ export function DiscardWarning() {
   );
 }
 
-export function StashPopInstructions({ path }: { readonly path: string }) {
-  return (
-    <>
-      To bring them back, run <code className="font-mono">git stash pop</code> in{" "}
-      <span className="font-mono break-all">{path}</span>.
-    </>
-  );
-}
-
 export function ChangesChoice({
   machine,
   value,

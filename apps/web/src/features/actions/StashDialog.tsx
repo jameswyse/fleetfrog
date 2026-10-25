@@ -5,7 +5,7 @@ import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { busyThreads } from "../t3Code/t3CodeLookup.ts";
 import { BusyThreadsNotice } from "../t3Code/T3CodeNotices.tsx";
-import { StashPopInstructions } from "./ChangesChoice.tsx";
+import { StashPopInstructions } from "./StashPopInstructions.tsx";
 import { useStartBatch } from "./useStartBatch.ts";
 
 import type { Checkout, GitStatus } from "@fleetfrog/protocol/domain/checkout";
@@ -41,7 +41,10 @@ export function StashDialog({
           consequence="Stashing takes the changes it's making out of the working tree while it works."
         />
         <p className="text-ink-muted">
-          <StashPopInstructions path={checkout.path} />
+          <StashPopInstructions
+            path={checkout.path}
+            branch={git.head._tag === "Detached" ? null : git.head.name}
+          />
         </p>
         <p role="status" className="text-danger">
           {failure}
