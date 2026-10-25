@@ -41,7 +41,9 @@ function problemOf(summaries: ReadonlyArray<CheckoutSummary>): CellProblem | nul
     return "Conflicts";
   }
 
-  return read.some(({ upstream }) => upstream === "gone") ? "UpstreamGone" : null;
+  return read.some(({ upstream, merged }) => upstream === "gone" && !merged)
+    ? "UpstreamGone"
+    : null;
 }
 
 export function summariseCell(entries: ReadonlyArray<MachineCheckout>): CellSummary | null {

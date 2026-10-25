@@ -5,7 +5,7 @@ import { MachineId } from "@fleetfrog/protocol/domain/machine";
 
 import { summariseCell } from "./cellSummary.ts";
 
-import type { Checkout, GitStatus } from "@fleetfrog/protocol/domain/checkout";
+import type { Checkout, GitStatus, MergedPullRequest } from "@fleetfrog/protocol/domain/checkout";
 import type { MachineCheckout } from "@fleetfrog/protocol/domain/fleet";
 
 const at = DateTime.makeUnsafe("2026-09-26T00:00:00Z");
@@ -14,7 +14,12 @@ const studio = MachineId.make("5b0c7a1e-7a0e-4f3e-9d63-2f8f7a8d0a01");
 
 function entry(
   path: string,
-  options: { readonly branch: string; readonly git?: Partial<GitStatus>; readonly main?: string },
+  options: {
+    readonly branch: string;
+    readonly git?: Partial<GitStatus>;
+    readonly main?: string;
+    readonly merged?: ReadonlyArray<MergedPullRequest>;
+  },
 ): MachineCheckout {
   const checkout: Checkout = {
     path,
@@ -51,7 +56,7 @@ function entry(
       remoteSha: "a",
       trackingSha: "a",
       pullRequests: [],
-      mergedPullRequests: [],
+      mergedPullRequests: options.merged ?? [],
       checkedAt: at,
     },
     scannedAt: at,
@@ -121,6 +126,43 @@ describe("summariseCell", () => {
     ]);
 
     expect(cell).toMatchObject({ branch: "feature", offDefault: true, problem: "UpstreamGone" });
+  });
+
+  it("doesn't flag a deleted upstream once the branch's pull request merged", () => {
+    const upstream = { name: "origin/fix", ahead: 0, behind: 0, gone: true };
+
+    const cell = summariseCell([
+      entry("/p/shop", { branch: "main" }),
+      entry("/p/shop-fix", {
+        branch: "fix",
+        main: "/p/shop",
+        git: {
+          head: { _tag: "Branch", name: "fix", upstream },
+          branches: {
+            items: [
+              {
+                name: "fix",
+                upstream,
+                tip: {
+                  sha: "f1e2",
+                  subject: "Fix",
+                  committedAt: at,
+                  merged: false,
+                  pushed: true,
+                  localCommits: 0,
+                },
+              },
+            ],
+            total: 1,
+          },
+        },
+        merged: [
+          { number: 12, url: "https://github.com/acme/shop/pull/12", branch: "fix", sha: "f1e2" },
+        ],
+      }),
+    ]);
+
+    expect(cell?.problem).toBeNull();
   });
 
   it("has no cell without checkouts", () => {

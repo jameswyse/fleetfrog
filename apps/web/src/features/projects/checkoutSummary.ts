@@ -1,3 +1,5 @@
+import { headStanding, isMergedStanding } from "../branches/branchTidying.ts";
+
 import type { Checkout, PullRequest, Upstream } from "@fleetfrog/protocol/domain/checkout";
 import type { MachineCheckout, Repository } from "@fleetfrog/protocol/domain/fleet";
 
@@ -13,6 +15,7 @@ export type CheckoutSummary =
       readonly ahead: number;
       readonly behind: number;
       readonly upstream: "tracking" | "none" | "gone";
+      readonly merged: boolean;
       readonly remoteMoved: boolean;
       readonly pullRequest: PullRequest | null;
       readonly hasChanges: boolean;
@@ -52,6 +55,7 @@ export function summariseCheckout(checkout: Checkout): CheckoutSummary {
   const untracked = git.untracked.total;
   const stashes = git.stashes.total;
   const upstreamState = trackingState(upstream);
+  const merged = isMergedStanding(headStanding(checkout));
 
   return {
     _tag: "Read",
@@ -63,13 +67,14 @@ export function summariseCheckout(checkout: Checkout): CheckoutSummary {
     ahead,
     behind,
     upstream: upstreamState,
+    merged,
     remoteMoved,
     pullRequest:
       head._tag === "Branch"
         ? (checkout.github?.pullRequests.find((pull) => pull.branch === head.name) ?? null)
         : null,
     hasChanges: changed + untracked + stashes > 0,
-    outOfSync: ahead + behind > 0 || upstreamState === "gone" || remoteMoved,
+    outOfSync: ahead + behind > 0 || (upstreamState === "gone" && !merged) || remoteMoved,
   };
 }
 
