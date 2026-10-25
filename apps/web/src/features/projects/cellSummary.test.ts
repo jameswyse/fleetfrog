@@ -138,23 +138,7 @@ describe("summariseCell", () => {
         main: "/p/shop",
         git: {
           head: { _tag: "Branch", name: "fix", upstream },
-          branches: {
-            items: [
-              {
-                name: "fix",
-                upstream,
-                tip: {
-                  sha: "f1e2",
-                  subject: "Fix",
-                  committedAt: at,
-                  merged: false,
-                  pushed: true,
-                  localCommits: 0,
-                },
-              },
-            ],
-            total: 1,
-          },
+          lastCommit: { sha: "f1e2", subject: "Fix", committedAt: at },
         },
         merged: [
           { number: 12, url: "https://github.com/acme/shop/pull/12", branch: "fix", sha: "f1e2" },

@@ -85,6 +85,41 @@ describe("summariseCheckout", () => {
     });
   });
 
+  it("stops counting a deleted upstream as out of sync once the branch's pull request merged", () => {
+    const github = {
+      defaultBranch: "main",
+      remoteSha: "a",
+      trackingSha: "a",
+      pullRequests: [],
+      mergedPullRequests: [
+        { number: 12, url: "https://github.com/acme/shop/pull/12", branch: "fix", sha: "f1e2" },
+      ],
+      checkedAt: at,
+    };
+
+    const onFix = (sha: string) =>
+      summariseCheckout(
+        checkout(
+          {
+            head: {
+              _tag: "Branch",
+              name: "fix",
+              upstream: { name: "origin/fix", ahead: 0, behind: 0, gone: true },
+            },
+            lastCommit: { sha, subject: "Fix", committedAt: at },
+          },
+          github,
+        ),
+      );
+
+    expect(onFix("f1e2")).toMatchObject({ upstream: "gone", merged: true, outOfSync: false });
+    expect(onFix("a-later-commit")).toMatchObject({
+      upstream: "gone",
+      merged: false,
+      outOfSync: true,
+    });
+  });
+
   it("counts stashes as changes and flags unmerged files as conflicts", () => {
     const summary = summariseCheckout(
       checkout({

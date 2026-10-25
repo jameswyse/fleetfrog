@@ -5,7 +5,7 @@ import { test } from "@e2e-dev/web";
 import { expect } from "e2e";
 
 import { fixturePaths, git, sandboxDirectory } from "../../tools/e2e/repositories.ts";
-import { cleanupEntry } from "./support.ts";
+import { cleanupEntry, selectedWorkingTree } from "./support.ts";
 
 const fixtures = fixturePaths(sandboxDirectory());
 
@@ -23,9 +23,9 @@ test("[agent] switch a checkout to another branch", async ({ app, agent, screen 
   await app.open("/");
   await expect(screen.getByRole("row", { name: /agent-switch-project/ })).toBeVisible();
   await agent.act(
-    "Open agent-switch-project's checkout on E2E machine, then use Local branches to switch it from main to feature/e2e.",
+    "Open agent-switch-project's checkout on E2E machine, then use its Switch branch menu to switch it from main to feature/e2e.",
   );
-  await expect(screen.getByRole("button", { name: "Switch to main", exact: true })).toBeVisible();
+  await expect(selectedWorkingTree(screen, "feature/e2e")).toBeVisible();
   await expect
     .poll(() => git(fixtures.agentSwitch, "branch", "--show-current"))
     .toBe("feature/e2e");

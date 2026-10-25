@@ -14,6 +14,20 @@ export async function openCheckout(app: App, screen: Screen, name: string) {
   ).toBeVisible();
 }
 
+export async function switchBranch(screen: Screen, branch: string) {
+  await screen
+    .getByRole("complementary")
+    .getByRole("button", { name: "Switch branch", exact: true })
+    .click();
+  await screen.getByRole("button", { name: `Switch to ${branch}` }).click();
+}
+
+export function selectedWorkingTree(screen: Screen, branch: string) {
+  return screen
+    .getByRole("complementary")
+    .getByRole("button", { name: new RegExp(`^${branch} `), expanded: true });
+}
+
 export function fleetSnapshot() {
   return withDashboard(dashboardUrl(), (client) =>
     client.WatchFleet().pipe(Stream.runHead, Effect.map(Option.getOrThrow)),

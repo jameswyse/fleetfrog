@@ -16,7 +16,8 @@ import type {
 } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
-import type { WorkingTreeLifecycle } from "../workingTrees.ts";
+import type { MergeProof } from "../../branches/branchTidying.ts";
+import type { WorkingTree, WorkingTreeProblem } from "../workingTrees.ts";
 
 const stateWords = {
   ".": "",
@@ -64,32 +65,31 @@ function ChangeCode({ file }: { readonly file: ChangedFile | null }) {
   );
 }
 
-function problemOf(checkout: Checkout): string | null {
-  if (checkout.status._tag === "Failed") {
-    return `Couldn't read this checkout: ${checkout.status.message}`;
+function problemText(problem: WorkingTreeProblem): string {
+  switch (problem._tag) {
+    case "Unreadable":
+      return `Couldn't read this checkout: ${problem.message}`;
+    case "Conflicts":
+      return problem.files === 1
+        ? "1 file has merge conflicts"
+        : `${problem.files} files have merge conflicts`;
+    case "Operation":
+      return `A ${problem.operation} is in progress`;
+
+    default: {
+      const _exhaustive: never = problem;
+
+      return _exhaustive;
+    }
   }
-
-  const { git } = checkout.status;
-
-  const conflicted = git.changed.items.filter(
-    ({ staged, unstaged }) => staged === "U" || unstaged === "U",
-  ).length;
-
-  if (conflicted > 0) {
-    return conflicted === 1
-      ? "1 file has merge conflicts"
-      : `${conflicted} files have merge conflicts`;
-  }
-
-  return git.operation === null ? null : `A ${git.operation} is in progress`;
 }
 
 function UpstreamLine({
   git,
-  lifecycle,
+  merge,
 }: {
   readonly git: GitStatus;
-  readonly lifecycle: WorkingTreeLifecycle;
+  readonly merge: MergeProof | null;
 }) {
   const { head } = git;
 
@@ -108,7 +108,7 @@ function UpstreamLine({
   }
 
   if (upstream.gone) {
-    return lifecycle._tag === "Finished" ? (
+    return merge !== null ? (
       <>
         Merged. <span className="font-mono">{upstream.name}</span> was deleted on the remote.
       </>
@@ -137,19 +137,18 @@ export function WorkingTreeDetail({
   id,
   repository,
   machine,
+  tree,
   checkout,
-  lifecycle,
   onShowWorkingTree,
 }: {
   readonly id: string;
   readonly repository: Repository;
   readonly machine: Machine;
+  readonly tree: WorkingTree;
   readonly checkout: Checkout;
-  readonly lifecycle: WorkingTreeLifecycle;
   readonly onShowWorkingTree: (path: string) => void;
 }) {
-  const git = checkout.status._tag === "Read" ? checkout.status.git : null;
-  const problem = problemOf(checkout);
+  const { git, problem } = tree;
   const head = git?.head ?? null;
 
   const pullRequest =
@@ -175,7 +174,7 @@ export function WorkingTreeDetail({
       {problem !== null && (
         <p className="flex items-start gap-2 text-sm text-danger">
           <TriangleAlertIcon className="mt-0.5 shrink-0" />
-          <span className="min-w-0 break-words">{problem}</span>
+          <span className="min-w-0 break-words">{problemText(problem)}</span>
         </p>
       )}
       <BusyThreadsNotice
@@ -185,7 +184,7 @@ export function WorkingTreeDetail({
       />
       {git !== null && (
         <p className="text-sm text-ink-muted">
-          <UpstreamLine git={git} lifecycle={lifecycle} />
+          <UpstreamLine git={git} merge={tree.merge} />
         </p>
       )}
       {pullRequest !== null && (

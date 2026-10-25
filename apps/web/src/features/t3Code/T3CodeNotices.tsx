@@ -21,6 +21,12 @@ function quoted(threads: ReadonlyArray<{ readonly title: string }>): string {
     : `${titles.slice(0, 2).join(", ")} and ${threads.length - 2} more`;
 }
 
+export const threadStateWords = {
+  Working: "Working",
+  Waiting: "Waiting for you",
+  Idle: null,
+} satisfies Record<T3CodeThread["state"], string | null>;
+
 export function threadDoing(thread: T3CodeThread): string {
   return thread.state === "Waiting" ? "is waiting for you" : "is working";
 }

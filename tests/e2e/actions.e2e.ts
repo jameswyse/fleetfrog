@@ -7,7 +7,7 @@ import { Effect } from "effect";
 
 import { withDashboard } from "../../tools/e2e/dashboard.ts";
 import { fixturePaths, git, sandboxDirectory } from "../../tools/e2e/repositories.ts";
-import { fleetSnapshot, openCheckout } from "./support.ts";
+import { fleetSnapshot, openCheckout, switchBranch } from "./support.ts";
 
 const directory = sandboxDirectory();
 const fixtures = fixturePaths(directory);
@@ -51,7 +51,7 @@ test("[deterministic] Git failure appears in checkout status and Activity", asyn
 
   try {
     await openCheckout(app, screen, "failure-project");
-    await screen.getByRole("button", { name: "Switch to feature/e2e", exact: true }).click();
+    await switchBranch(screen, "feature/e2e");
     await expect(screen.getByRole("status").filter({ hasText: "Switch:" })).toContainText(
       /Another git process|index.lock|Unable to create/,
     );

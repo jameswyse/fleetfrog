@@ -32,13 +32,21 @@ export function MenuItem({
 const moreButtonClass =
   "-me-2 grid size-8 shrink-0 place-items-center rounded-md text-ink-muted hover:bg-surface-raised hover:text-ink";
 
+const menuAlignment = {
+  start:
+    "supports-[position-area:bottom]:[position-area:bottom_span-right] supports-[position-area:bottom]:[position-try-fallbacks:flip-inline,flip-block]",
+  end: "supports-[position-area:bottom]:[position-area:bottom_span-left] supports-[position-area:bottom]:[position-try-fallbacks:flip-inline,flip-block]",
+} as const;
+
 export function Menu({
   label,
   trigger,
+  align = "end",
   children,
 }: {
   readonly label?: string;
   readonly trigger?: { readonly content: ReactNode; readonly className: string };
+  readonly align?: keyof typeof menuAlignment;
   readonly children: (close: () => void) => ReactNode;
 }) {
   const menuId = useId();
@@ -63,7 +71,7 @@ export function Menu({
       <div
         id={menuId}
         popover="auto"
-        className="w-64 rounded-lg border border-line bg-surface p-1 text-ink shadow-xl supports-[position-area:bottom]:inset-auto supports-[position-area:bottom]:m-0 supports-[position-area:bottom]:[position-area:bottom_span-left] supports-[position-area:bottom]:[position-try-fallbacks:flip-inline,flip-block]"
+        className={`w-max max-w-80 min-w-64 rounded-lg border border-line bg-surface p-1 text-ink shadow-xl supports-[position-area:bottom]:inset-auto supports-[position-area:bottom]:m-0 ${menuAlignment[align]}`}
       >
         {children(close)}
       </div>

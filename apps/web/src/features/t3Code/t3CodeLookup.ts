@@ -25,6 +25,14 @@ export function threadsAt(machine: Machine, path: string): ReadonlyArray<T3CodeT
   );
 }
 
+export function threadsByUrgency(machine: Machine, path: string): ReadonlyArray<T3CodeThread> {
+  return threadsAt(machine, path).toSorted(
+    (left, right) =>
+      urgency[left.state] - urgency[right.state] ||
+      right.updatedAt.epochMilliseconds - left.updatedAt.epochMilliseconds,
+  );
+}
+
 export function projectsAt(
   machine: Machine,
   paths: ReadonlyArray<string>,

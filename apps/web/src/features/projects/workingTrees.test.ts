@@ -97,6 +97,9 @@ function entry(
     readonly merged?: ReadonlyArray<MergedPullRequest>;
   },
 ): MachineCheckout {
+  const items = options.git?.branches?.items ?? branches;
+  const tip = items.find(({ name }) => name === options.branch)?.tip ?? null;
+
   const checkout: Checkout = {
     path,
     identity: { _tag: "Remote", host: "github.com", path: "acme/shop" },
@@ -120,11 +123,14 @@ function entry(
           },
         },
         operation: null,
-        lastCommit: null,
+        lastCommit:
+          tip === null
+            ? null
+            : { sha: tip.sha, subject: tip.subject, committedAt: tip.committedAt },
         changed: none,
         untracked: none,
         stashes: none,
-        branches: { items: branches, total: branches.length },
+        branches: { items, total: items.length },
         defaultBranch: "main",
         deletedBranches: none,
         droppedStashes: none,
@@ -178,26 +184,33 @@ describe("outlineCell", () => {
       outline.map((clone) => ({
         path: clone.path,
         main: clone.main?.path,
-        linked: clone.linked.map(({ path, presence }) => ({ path, presence })),
-        parked: clone.parked.map(({ name }) => name),
+        linked: new Set(clone.linked.map(({ path, presence }) => `${path} ${presence}`)),
+        parked: new Set(clone.parked.map(({ name }) => name)),
       })),
     ).toStrictEqual([
       {
         path: main,
         main,
-        linked: [
-          { path: "/Users/dev/wt/header", presence: "Present" },
-          { path: "/Users/dev/wt/gone", presence: "Missing" },
-        ],
-        parked: ["spike/cache"],
+        linked: new Set(["/Users/dev/wt/header Present", "/Users/dev/wt/gone Missing"]),
+        parked: new Set(["spike/cache"]),
       },
       {
         path: "/Users/dev/Other/shop",
         main: "/Users/dev/Other/shop",
-        linked: [],
-        parked: ["fix/header", "feat/search", "spike/cache"],
+        linked: new Set(),
+        parked: new Set(["fix/header", "feat/search", "spike/cache"]),
       },
     ]);
+  });
+
+  it("lists no other branches when it can't tell which branch the unscanned main checkout has", () => {
+    const [clone] = outlineCell({
+      machine: machineWith(),
+      ignoredBranches: [],
+      entries: [entry("/Users/dev/wt/header", { branch: "fix/header", main })],
+    });
+
+    expect(clone).toMatchObject({ path: main, main: null, parked: [], unreportedBranches: 0 });
   });
 
   it("finishes a clean worktree once its pull request merged at the branch's tip", () => {

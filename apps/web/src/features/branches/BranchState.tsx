@@ -6,6 +6,27 @@ import { branchStanding } from "./branchTidying.ts";
 
 import type { LocalBranch, MergedPullRequest, Upstream } from "@fleetfrog/protocol/domain/checkout";
 
+export function SyncGlyphs({ ahead, behind }: { readonly ahead: number; readonly behind: number }) {
+  return (
+    <>
+      {ahead > 0 && (
+        <Glyph
+          className="text-sync"
+          symbol={`↑${ahead}`}
+          meaning={`${plural(ahead, "commit")} to push`}
+        />
+      )}
+      {behind > 0 && (
+        <Glyph
+          className="text-sync"
+          symbol={`↓${behind}`}
+          meaning={`${plural(behind, "commit")} to pull`}
+        />
+      )}
+    </>
+  );
+}
+
 export function UpstreamState({ upstream }: { readonly upstream: Upstream | null }) {
   if (upstream === null) {
     return <Chip tone="neutral">No upstream</Chip>;
@@ -27,20 +48,7 @@ export function UpstreamState({ upstream }: { readonly upstream: Upstream | null
 
   return (
     <span className="flex gap-1.5 text-xs font-medium tabular-nums">
-      {upstream.ahead > 0 && (
-        <Glyph
-          className="text-sync"
-          symbol={`↑${upstream.ahead}`}
-          meaning={`${plural(upstream.ahead, "commit")} to push`}
-        />
-      )}
-      {upstream.behind > 0 && (
-        <Glyph
-          className="text-sync"
-          symbol={`↓${upstream.behind}`}
-          meaning={`${plural(upstream.behind, "commit")} to pull`}
-        />
-      )}
+      <SyncGlyphs ahead={upstream.ahead} behind={upstream.behind} />
     </span>
   );
 }

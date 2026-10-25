@@ -1,6 +1,12 @@
-import { headStanding, isMergedStanding } from "../branches/branchTidying.ts";
+import { mergeProof } from "../branches/branchTidying.ts";
 
-import type { Checkout, PullRequest, Upstream } from "@fleetfrog/protocol/domain/checkout";
+import type {
+  Checkout,
+  GitStatus,
+  Operation,
+  PullRequest,
+  Upstream,
+} from "@fleetfrog/protocol/domain/checkout";
 import type { MachineCheckout, Repository } from "@fleetfrog/protocol/domain/fleet";
 
 export type CheckoutSummary =
@@ -12,6 +18,7 @@ export type CheckoutSummary =
       readonly untracked: number;
       readonly stashes: number;
       readonly conflicts: boolean;
+      readonly operation: Operation | null;
       readonly ahead: number;
       readonly behind: number;
       readonly upstream: "tracking" | "none" | "gone";
@@ -21,6 +28,11 @@ export type CheckoutSummary =
       readonly hasChanges: boolean;
       readonly outOfSync: boolean;
     };
+
+export function conflictedFiles(git: GitStatus): number {
+  return git.changed.items.filter(({ staged, unstaged }) => staged === "U" || unstaged === "U")
+    .length;
+}
 
 function trackingState(upstream: Upstream | null): "tracking" | "none" | "gone" {
   if (upstream === null) {
@@ -55,7 +67,7 @@ export function summariseCheckout(checkout: Checkout): CheckoutSummary {
   const untracked = git.untracked.total;
   const stashes = git.stashes.total;
   const upstreamState = trackingState(upstream);
-  const merged = isMergedStanding(headStanding(checkout));
+  const merged = mergeProof(checkout) !== null;
 
   return {
     _tag: "Read",
@@ -63,7 +75,8 @@ export function summariseCheckout(checkout: Checkout): CheckoutSummary {
     changed,
     untracked,
     stashes,
-    conflicts: git.changed.items.some(({ staged, unstaged }) => staged === "U" || unstaged === "U"),
+    conflicts: conflictedFiles(git) > 0,
+    operation: git.operation,
     ahead,
     behind,
     upstream: upstreamState,

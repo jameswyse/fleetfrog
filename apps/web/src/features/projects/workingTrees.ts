@@ -1,27 +1,39 @@
 import { clonePath } from "@fleetfrog/protocol/domain/checkout";
 
-import { headStanding } from "../branches/branchTidying.ts";
+import { mergeProof } from "../branches/branchTidying.ts";
 import { busyThreads, threadsAt } from "../t3Code/t3CodeLookup.ts";
+import { conflictedFiles } from "./checkoutSummary.ts";
 
 import type {
   Checkout,
   GitStatus,
   LinkedWorktree,
   LocalBranch,
+  Operation,
 } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine, MachineCheckout } from "@fleetfrog/protocol/domain/fleet";
+
+import type { MergeProof } from "../branches/branchTidying.ts";
 
 export type WorkingTreeLifecycle =
   | { readonly _tag: "Active" }
   | { readonly _tag: "Finished"; readonly pullRequest: number | null }
   | { readonly _tag: "RemoteGone" };
 
+export type WorkingTreeProblem =
+  | { readonly _tag: "Unreadable"; readonly message: string }
+  | { readonly _tag: "Conflicts"; readonly files: number }
+  | { readonly _tag: "Operation"; readonly operation: Operation };
+
 export interface WorkingTree {
+  readonly kind: "Main" | "Linked";
   readonly path: string;
   readonly entry: MachineCheckout | null;
   readonly git: GitStatus | null;
   readonly branch: string | null;
   readonly presence: LinkedWorktree["state"];
+  readonly merge: MergeProof | null;
+  readonly problem: WorkingTreeProblem | null;
   readonly lifecycle: WorkingTreeLifecycle;
   readonly lastActive: number;
 }
@@ -32,6 +44,7 @@ export interface CloneOutline {
   readonly linked: ReadonlyArray<WorkingTree>;
   readonly anchor: { readonly checkout: Checkout; readonly git: GitStatus } | null;
   readonly parked: ReadonlyArray<LocalBranch>;
+  readonly unreportedBranches: number;
 }
 
 const active: WorkingTreeLifecycle = { _tag: "Active" };
@@ -40,15 +53,31 @@ function gitOf(checkout: Checkout): GitStatus | null {
   return checkout.status._tag === "Read" ? checkout.status.git : null;
 }
 
+function problemOf(checkout: Checkout): WorkingTreeProblem | null {
+  if (checkout.status._tag === "Failed") {
+    return { _tag: "Unreadable", message: checkout.status.message };
+  }
+
+  const { git } = checkout.status;
+  const files = conflictedFiles(git);
+
+  if (files > 0) {
+    return { _tag: "Conflicts", files };
+  }
+
+  return git.operation === null ? null : { _tag: "Operation", operation: git.operation };
+}
+
 function lifecycleOf(options: {
   readonly machine: Machine;
   readonly checkout: Checkout;
+  readonly merge: MergeProof | null;
   readonly ignoredBranches: ReadonlyArray<string>;
 }): WorkingTreeLifecycle {
-  const { checkout } = options;
+  const { checkout, merge } = options;
   const git = gitOf(checkout);
 
-  if (git === null || git.head._tag !== "Branch" || git.head.upstream === null) {
+  if (git === null || git.head._tag !== "Branch") {
     return active;
   }
 
@@ -66,19 +95,14 @@ function lifecycleOf(options: {
     return active;
   }
 
-  const standing = headStanding(checkout);
-
-  if (standing?._tag === "MergedPullRequest") {
-    return { _tag: "Finished", pullRequest: standing.pullRequest.number };
+  if (merge !== null) {
+    return {
+      _tag: "Finished",
+      pullRequest: merge._tag === "PullRequest" ? merge.pullRequest.number : null,
+    };
   }
 
-  if (upstream.gone) {
-    return standing?._tag === "Merged"
-      ? { _tag: "Finished", pullRequest: null }
-      : { _tag: "RemoteGone" };
-  }
-
-  return active;
+  return upstream?.gone === true ? { _tag: "RemoteGone" } : active;
 }
 
 function lastActiveAt(machine: Machine, checkout: Checkout): number {
@@ -96,18 +120,24 @@ function listedTree(options: {
 }): WorkingTree {
   const { checkout } = options.entry;
   const git = gitOf(checkout);
+  const merge = mergeProof(checkout);
+  const kind = checkout.worktree._tag;
 
   return {
+    kind,
     path: checkout.path,
     entry: options.entry,
     git,
     branch: git === null || git.head._tag === "Detached" ? null : git.head.name,
     presence: options.presence,
+    merge,
+    problem: problemOf(checkout),
     lifecycle:
-      checkout.worktree._tag === "Linked"
+      kind === "Linked"
         ? lifecycleOf({
             machine: options.machine,
             checkout,
+            merge,
             ignoredBranches: options.ignoredBranches,
           })
         : active,
@@ -141,11 +171,14 @@ function outlineClone(options: {
   const unlisted = reported
     .filter(({ path }) => !linkedEntries.some(({ checkout }) => checkout.path === path))
     .map((worktree): WorkingTree => ({
+      kind: "Linked",
       path: worktree.path,
       entry: null,
       git: null,
       branch: worktree.branch,
       presence: worktree.state,
+      merge: null,
+      problem: null,
       lifecycle: active,
       lastActive: 0,
     }));
@@ -166,13 +199,15 @@ function outlineClone(options: {
   );
 
   const checkedOut = new Set(trees.flatMap(({ branch }) => (branch === null ? [] : [branch])));
+  const branches = main === null ? undefined : anchor?.git.branches;
 
   return {
     path: options.path,
     main,
     linked,
     anchor: anchor ?? null,
-    parked: anchor?.git.branches.items.filter(({ name }) => !checkedOut.has(name)) ?? [],
+    parked: branches?.items.filter(({ name }) => !checkedOut.has(name)) ?? [],
+    unreportedBranches: branches === undefined ? 0 : branches.total - branches.items.length,
   };
 }
 

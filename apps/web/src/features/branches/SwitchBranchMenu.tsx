@@ -12,17 +12,11 @@ import { useStartBatch } from "../actions/useStartBatch.ts";
 import { BusyCheckoutDialog } from "../t3Code/BusyCheckoutDialog.tsx";
 import { busyThreads } from "../t3Code/t3CodeLookup.ts";
 import { BranchState } from "./BranchState.tsx";
-import { branchesInOtherWorktrees } from "./branchTidying.ts";
+import { branchesInOtherWorktrees, recentFirst } from "./branchTidying.ts";
 import { SwitchBranchDialog } from "./SwitchBranchDialog.tsx";
 
-import type { Checkout, GitStatus, LocalBranch } from "@fleetfrog/protocol/domain/checkout";
+import type { Checkout, GitStatus } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
-
-function recentFirst(left: LocalBranch, right: LocalBranch): number {
-  return (
-    (right.tip?.committedAt.epochMilliseconds ?? 0) - (left.tip?.committedAt.epochMilliseconds ?? 0)
-  );
-}
 
 export function SwitchBranchMenu({
   repository,
@@ -48,7 +42,22 @@ export function SwitchBranchMenu({
   const merged = checkout.github?.mergedPullRequests ?? [];
   const others = git.branches.items.filter(({ name }) => name !== current).toSorted(recentFirst);
   const free = others.filter(({ name }) => !elsewhere.has(name));
-  const taken = others.filter(({ name }) => elsewhere.has(name));
+
+  const taken = others.flatMap((branch) => {
+    const path = elsewhere.get(branch.name);
+
+    return path === undefined
+      ? []
+      : [
+          {
+            branch,
+            path,
+            listed: repository.checkouts.some(
+              (entry) => entry.machineId === machine.id && entry.checkout.path === path,
+            ),
+          },
+        ];
+  });
 
   const reasons = new Map(
     free.map(({ name }) => [name, switchSkipReason(machine, checkout, name)]),
@@ -98,7 +107,7 @@ export function SwitchBranchMenu({
   return (
     <>
       <Menu
-        label="Switch this working tree to another branch"
+        align="start"
         trigger={{
           content: (
             <>
@@ -135,6 +144,7 @@ export function SwitchBranchMenu({
                   }}
                 >
                   <span className="min-w-0 flex-1 truncate font-mono text-[13px]">
+                    <span className="sr-only">Switch to </span>
                     {branch.name}
                   </span>
                   <BranchState branch={branch} merged={merged} />
@@ -146,28 +156,28 @@ export function SwitchBranchMenu({
                 Checked out in another worktree
               </p>
             )}
-            {taken.map((branch) => {
-              const path = elsewhere.get(branch.name) ?? "";
-
-              return (
-                <MenuItem
-                  key={branch.name}
-                  icon={<GitForkIcon />}
-                  onClick={() => {
-                    close();
-                    onGoTo(path);
-                  }}
-                  aria-label={`Show the worktree at ${path}, which has ${branch.name} checked out`}
+            {taken.map(({ branch, path, listed }) => (
+              <MenuItem
+                key={branch.name}
+                icon={<GitForkIcon />}
+                disabled={!listed}
+                title={listed ? path : `FleetFrog doesn't list the worktree at ${path}.`}
+                onClick={() => {
+                  close();
+                  onGoTo(path);
+                }}
+                aria-label={`Show the worktree at ${path}, which has ${branch.name} checked out`}
+              >
+                <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-ink-muted">
+                  {branch.name}
+                </span>
+                <span
+                  className={`max-w-24 shrink-0 truncate text-xs ${listed ? "text-accent-text" : "text-ink-muted"}`}
                 >
-                  <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-ink-muted">
-                    {branch.name}
-                  </span>
-                  <span className="max-w-24 shrink-0 truncate text-xs text-accent-text">
-                    {folderName(path)}
-                  </span>
-                </MenuItem>
-              );
-            })}
+                  {folderName(path)}
+                </span>
+              </MenuItem>
+            ))}
           </div>
         )}
       </Menu>

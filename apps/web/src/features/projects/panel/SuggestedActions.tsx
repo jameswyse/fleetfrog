@@ -15,37 +15,44 @@ import type { ReactNode } from "react";
 
 import type { Machine } from "@fleetfrog/protocol/domain/fleet";
 
-import type { CloneOutline, WorkingTree } from "../workingTrees.ts";
+import type { CloneOutline, WorkingTree, WorkingTreeProblem } from "../workingTrees.ts";
 
-function problemOf(tree: WorkingTree): string | null {
-  if (tree.entry?.checkout.status._tag === "Failed") {
-    return "couldn't be read";
+function problemText(problem: WorkingTreeProblem): string {
+  switch (problem._tag) {
+    case "Unreadable":
+      return "couldn't be read";
+    case "Conflicts":
+      return "has merge conflicts";
+    case "Operation":
+      return `has a ${problem.operation} in progress`;
+
+    default: {
+      const _exhaustive: never = problem;
+
+      return _exhaustive;
+    }
   }
-
-  if (tree.git === null) {
-    return null;
-  }
-
-  if (tree.git.changed.items.some(({ staged, unstaged }) => staged === "U" || unstaged === "U")) {
-    return "has merge conflicts";
-  }
-
-  return tree.git.operation === null ? null : `has a ${tree.git.operation} in progress`;
 }
+
+const suggestionTones = {
+  plain: "",
+  danger: "text-danger",
+  changes: "text-changes",
+} as const;
 
 function Suggestion({
   icon,
-  tone = "",
+  tone = "plain",
   children,
   action,
 }: {
   readonly icon: ReactNode;
-  readonly tone?: string;
+  readonly tone?: keyof typeof suggestionTones;
   readonly children: ReactNode;
   readonly action: ReactNode;
 }) {
   return (
-    <li className={`flex items-center gap-2.5 px-3 py-2 text-sm ${tone}`}>
+    <li className={`flex items-center gap-2.5 px-3 py-2 text-sm ${suggestionTones[tone]}`}>
       <span aria-hidden="true" className="flex shrink-0">
         {icon}
       </span>
@@ -80,17 +87,13 @@ export function SuggestedActions({
   const finished = trees.filter(({ lifecycle }) => lifecycle._tag === "Finished");
 
   const remoteGone = trees.filter(
-    ({ git, lifecycle }) =>
-      lifecycle._tag !== "Finished" &&
-      git?.head._tag === "Branch" &&
-      git.head.upstream?.gone === true,
+    ({ git, merge }) =>
+      merge === null && git?.head._tag === "Branch" && git.head.upstream?.gone === true,
   );
 
-  const problems = trees.flatMap((tree) => {
-    const problem = problemOf(tree);
-
-    return problem === null ? [] : [{ tree, problem }];
-  });
+  const problems = trees.flatMap((tree) =>
+    tree.problem === null ? [] : [{ tree, problem: tree.problem }],
+  );
 
   const behind = trees.flatMap((tree) => {
     const checkout = tree.entry?.checkout;
@@ -120,14 +123,14 @@ export function SuggestedActions({
           <Suggestion
             key={`problem:${tree.path}`}
             icon={<TriangleAlertIcon />}
-            tone="text-danger"
+            tone="danger"
             action={
               <Button tone="quiet" className="min-h-7 px-2" onClick={() => onChoosePath(tree.path)}>
                 Show
               </Button>
             }
           >
-            {treeName(tree)} {problem}
+            {treeName(tree)} {problemText(problem)}
           </Suggestion>
         ))}
         {behind.map(({ tree, checkout, behind: commits }) => (
@@ -158,7 +161,7 @@ export function SuggestedActions({
           <Suggestion
             key={`gone:${tree.path}`}
             icon={<CloudOffIcon />}
-            tone="text-changes"
+            tone="changes"
             action={
               <Button tone="quiet" className="min-h-7 px-2" onClick={() => onChoosePath(tree.path)}>
                 Show
