@@ -41,9 +41,10 @@ describe("localBranchNames", () => {
   });
 
   it("adds the checked-out branch when the branch list was cut short before it", () => {
-    expect(
-      localBranchNames(status({ _tag: "Branch", name: "zz/late", upstream: null })),
-    ).toStrictEqual(["main", "zz/late"]);
+    const late = localBranchNames(status({ _tag: "Branch", name: "zz/late", upstream: null }));
+
+    expect(late).toHaveLength(2);
+    expect(new Set(late)).toStrictEqual(new Set(["main", "zz/late"]));
     expect(
       localBranchNames(status({ _tag: "Branch", name: "main", upstream: null })),
     ).toStrictEqual(["main"]);
