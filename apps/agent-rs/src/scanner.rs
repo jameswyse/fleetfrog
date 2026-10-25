@@ -13,7 +13,7 @@ use tokio::sync::watch;
 use crate::actions::archive::Folders;
 use crate::discovery::{archive_path, discover_checkouts, repository_checkouts, root_path};
 use crate::git::{self, CheckoutLocation};
-use crate::github::GithubReader;
+use crate::github::{self, GithubReader};
 use crate::hub::rpc::HubClient;
 use crate::protocol::{
     Checkout, CheckoutStatus, FolderStatus, Placement, ReportedRoot, ScanReport,
@@ -171,12 +171,7 @@ impl Scanner {
         // Archived checkouts don't need GitHub's view, which costs a request per repository.
         let github = match (&self.github, &git) {
             (Some(reader), Ok(status)) if location.placement == Placement::Projects => {
-                let branches: Vec<String> = status
-                    .branches
-                    .items
-                    .iter()
-                    .map(|branch| branch.name.clone())
-                    .collect();
+                let branches = github::local_branch_names(status);
 
                 reader.read(location, &branches, github_maximum_age).await
             }

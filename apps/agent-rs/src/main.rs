@@ -638,13 +638,8 @@ fn github(arguments: &[String]) -> ExitCode {
         let state = match git::locate_checkout(path).await {
             None => None,
             Some(location) => {
-                let branches: Vec<String> = match git::read_git_status(&location).await {
-                    Ok(status) => status
-                        .branches
-                        .items
-                        .into_iter()
-                        .map(|branch| branch.name)
-                        .collect(),
+                let branches = match git::read_git_status(&location).await {
+                    Ok(status) => github::local_branch_names(&status),
                     Err(_) => Vec::new(),
                 };
 
