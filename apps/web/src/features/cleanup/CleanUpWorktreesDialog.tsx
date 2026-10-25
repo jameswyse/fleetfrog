@@ -159,10 +159,13 @@ export function CleanUpWorktreesDialog({
   const checking = checks.some(({ check }) => check._tag === "Checking");
   const removal = removalRuns({ machineId, removable });
 
-  const deleteBranches = (
-    runs: readonly [TargetedRun, ...Array<TargetedRun>],
-    progress: Progress,
-  ) =>
+  const deleteBranches = ({
+    runs,
+    progress,
+  }: {
+    readonly runs: readonly [TargetedRun, ...Array<TargetedRun>];
+    readonly progress: Progress;
+  }) =>
     start({ _tag: "Targeted", runs }, (batchId) =>
       setStage({ _tag: "Deleting", batchId, progress }),
     );
@@ -188,10 +191,16 @@ export function CleanUpWorktreesDialog({
     }
 
     setStage({ _tag: "Removed", batchId: detail.batch.id, progress, runs });
-    deleteBranches(runs, progress);
+    deleteBranches({ runs, progress });
   };
 
-  const onDeleted = (detail: BatchDetail, progress: Progress) =>
+  const onDeleted = ({
+    detail,
+    progress,
+  }: {
+    readonly detail: BatchDetail;
+    readonly progress: Progress;
+  }) =>
     setStage({
       _tag: "Done",
       batchId: detail.batch.id,
@@ -282,7 +291,7 @@ export function CleanUpWorktreesDialog({
         {stage._tag === "Deleting" && (
           <BatchWatcher
             batchId={stage.batchId}
-            onFinished={(detail) => onDeleted(detail, stage.progress)}
+            onFinished={(detail) => onDeleted({ detail, progress: stage.progress })}
             onLost={onLost(stage.batchId)}
           />
         )}
@@ -346,7 +355,7 @@ export function CleanUpWorktreesDialog({
           {stage._tag === "Removed" && !working && (
             <>
               <Button onClick={onClose}>Close</Button>
-              <Button onClick={() => deleteBranches(stage.runs, stage.progress)}>Try again</Button>
+              <Button onClick={() => deleteBranches(stage)}>Try again</Button>
             </>
           )}
           {(stage._tag === "Done" || stage._tag === "Lost") && (
