@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -19,6 +19,10 @@ export function startT3CodeProcess(version = "0.0.46") {
 
     mkdirSync(install, { recursive: true });
     copyFileSync("/bin/sleep", executable);
+
+    if (process.platform === "darwin") {
+      execFileSync("codesign", ["--force", "--sign", "-", executable], { stdio: "pipe" });
+    }
 
     const server = yield* Effect.acquireRelease(
       Effect.sync(() => spawn(executable, ["600"], { stdio: "ignore" })),
