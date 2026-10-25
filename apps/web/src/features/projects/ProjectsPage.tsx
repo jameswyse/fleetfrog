@@ -129,10 +129,10 @@ export function ProjectsPage() {
       data-fills-viewport
       className="flex min-h-0 flex-1 flex-col lg:flex-row"
       onKeyDown={(event) => {
-        const inDialog =
-          event.target instanceof Element && event.target.closest("dialog, [popover]") !== null;
+        const inDialog = event.target instanceof Element && event.target.closest("dialog") !== null;
+        const popoverOpen = document.querySelector(":popover-open") !== null;
 
-        if (event.key === "Escape" && selection !== null && !inDialog) {
+        if (event.key === "Escape" && selection !== null && !inDialog && !popoverOpen) {
           close();
         }
       }}
