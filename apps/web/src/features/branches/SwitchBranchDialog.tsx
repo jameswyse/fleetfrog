@@ -4,7 +4,7 @@ import { Button } from "@/ui/Button.tsx";
 import { Dialog } from "@/ui/Dialog.tsx";
 import { plural } from "@/ui/plural.ts";
 
-import { ChangesChoice } from "../actions/ChangesChoice.tsx";
+import { ChangesChoice, StashPopInstructions } from "../actions/ChangesChoice.tsx";
 import { useStartBatch } from "../actions/useStartBatch.ts";
 import { busyThreads } from "../t3Code/t3CodeLookup.ts";
 import { BusyThreadsNotice } from "../t3Code/T3CodeNotices.tsx";
@@ -51,7 +51,11 @@ export function SwitchBranchDialog({
           machine={machine}
           value={handling}
           onChange={setHandling}
-          stash="They go into a new stash, and you can bring them back from the Stashes list."
+          stash={
+            <>
+              They go into a new stash. <StashPopInstructions path={checkout.path} />
+            </>
+          }
           discard="They go to the Trash instead of the Stashes list."
           unavailable={discardUnavailable}
         />

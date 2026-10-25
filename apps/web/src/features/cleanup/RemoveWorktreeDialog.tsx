@@ -10,7 +10,7 @@ import { plural } from "@/ui/plural.ts";
 import { Spinner } from "@/ui/Spinner.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
-import { ChangesChoice } from "../actions/ChangesChoice.tsx";
+import { ChangesChoice, StashPopInstructions } from "../actions/ChangesChoice.tsx";
 import { useStartBatch } from "../actions/useStartBatch.ts";
 import { busyThreads, worktreeThread } from "../t3Code/t3CodeLookup.ts";
 import { BusyThreadsNotice, WorktreeThreadNote } from "../t3Code/T3CodeNotices.tsx";
@@ -91,12 +91,14 @@ function changesSummary({ changedFiles, untrackedFiles }: WorktreeInspection): s
 function InspectionDetails({
   inspection,
   machine,
+  mainPath,
   handling,
   onHandlingChange,
   discardUnavailable,
 }: {
   readonly inspection: WorktreeInspection;
   readonly machine: Machine;
+  readonly mainPath: string;
   readonly handling: ChangesHandling;
   readonly onHandlingChange: (next: ChangesHandling) => void;
   readonly discardUnavailable: string | null;
@@ -124,7 +126,11 @@ function InspectionDetails({
             machine={machine}
             value={handling}
             onChange={onHandlingChange}
-            stash="They go into a stash first, and you can bring them back from the Stashes list."
+            stash={
+              <>
+                They go into a stash first. <StashPopInstructions path={mainPath} />
+              </>
+            }
             discard="They go to the Trash instead of the Stashes list."
             unavailable={discardUnavailable}
           />
@@ -239,6 +245,7 @@ export function RemoveWorktreeDialog({
             <InspectionDetails
               inspection={inspection}
               machine={machine}
+              mainPath={mainPath}
               handling={handling}
               onHandlingChange={setHandling}
               discardUnavailable={discardUnavailable}

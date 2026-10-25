@@ -5,6 +5,7 @@ import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { busyThreads } from "../t3Code/t3CodeLookup.ts";
 import { BusyThreadsNotice } from "../t3Code/T3CodeNotices.tsx";
+import { StashPopInstructions } from "./ChangesChoice.tsx";
 import { useStartBatch } from "./useStartBatch.ts";
 
 import type { Checkout, GitStatus } from "@fleetfrog/protocol/domain/checkout";
@@ -40,8 +41,7 @@ export function StashDialog({
           consequence="Stashing takes the changes it's making out of the working tree while it works."
         />
         <p className="text-ink-muted">
-          To bring the changes back, run <code className="font-mono">git stash pop</code> in{" "}
-          <span className="font-mono break-all">{checkout.path}</span>.
+          <StashPopInstructions path={checkout.path} />
         </p>
         <p role="status" className="text-danger">
           {failure}
