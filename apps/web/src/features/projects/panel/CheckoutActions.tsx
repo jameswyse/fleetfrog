@@ -7,6 +7,7 @@ import { requestHub, useRuns } from "@/rpc/hubConnection.ts";
 import { useMayRun } from "@/rpc/session.ts";
 import { Button } from "@/ui/Button.tsx";
 import { Menu, MenuItem } from "@/ui/Menu.tsx";
+import { useNow } from "@/ui/RelativeTime.tsx";
 
 import {
   discardSkipReason,
@@ -16,7 +17,7 @@ import {
   stashSkipReason,
 } from "../../actions/actionAvailability.ts";
 import { DiscardDialog } from "../../actions/DiscardDialog.tsx";
-import { activeRunFor, latestRunFor } from "../../actions/runLookup.ts";
+import { activeRunFor, recentRunFor } from "../../actions/runLookup.ts";
 import { RunStateText } from "../../actions/RunStateText.tsx";
 import { StashDialog } from "../../actions/StashDialog.tsx";
 import { useStartBatch } from "../../actions/useStartBatch.ts";
@@ -49,7 +50,7 @@ export function CheckoutActions({
   const { start, pending, failure } = useStartBatch();
   const [cancelling, startCancel] = useTransition();
   const active = activeRunFor(runs, { machineId: machine.id, checkout });
-  const latest = latestRunFor(runs, { machineId: machine.id, checkout });
+  const recent = recentRunFor(runs, { machineId: machine.id, checkout }, useNow());
   const fetchBlocked = machineBlocker(machine, "Fetch");
   const pullBlocked = pullSkipReason(machine, checkout);
   const git = checkout.status._tag === "Read" ? checkout.status.git : null;
@@ -78,7 +79,7 @@ export function CheckoutActions({
   const trashBlocked = machineBlocker(machine, linked === null ? "Trash" : "RemoveWorktree");
   const scope = { _tag: "Checkout", machineId: machine.id, path: checkout.path } as const;
   const agents = busyThreads(machine, [checkout.path]);
-  const shown = active ?? latest;
+  const shown = active ?? recent;
 
   return (
     <section aria-labelledby="checkout-actions" className="space-y-2">
