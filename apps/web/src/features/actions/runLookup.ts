@@ -52,11 +52,15 @@ export function activeRunOn(
 
 const recentRunWindowMilliseconds = 5 * 60_000;
 
-export function recentRunFor(
-  runs: RunsSnapshot,
-  target: CheckoutTarget,
-  now: number,
-): ActionRun | undefined {
+export function recentRunFor({
+  runs,
+  target,
+  now,
+}: {
+  readonly runs: RunsSnapshot;
+  readonly target: CheckoutTarget;
+  readonly now: number;
+}): ActionRun | undefined {
   return newest(
     runs.latest.filter(
       (run) => actsOn(run, target) && now - finishedAt(run) < recentRunWindowMilliseconds,

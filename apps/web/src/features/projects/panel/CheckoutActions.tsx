@@ -50,7 +50,7 @@ export function CheckoutActions({
   const { start, pending, failure } = useStartBatch();
   const [cancelling, startCancel] = useTransition();
   const active = activeRunFor(runs, { machineId: machine.id, checkout });
-  const recent = recentRunFor(runs, { machineId: machine.id, checkout }, useNow());
+  const recent = recentRunFor({ runs, target: { machineId: machine.id, checkout }, now: useNow() });
   const fetchBlocked = machineBlocker(machine, "Fetch");
   const pullBlocked = pullSkipReason(machine, checkout);
   const git = checkout.status._tag === "Read" ? checkout.status.git : null;
