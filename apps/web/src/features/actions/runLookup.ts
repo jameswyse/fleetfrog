@@ -50,8 +50,18 @@ export function activeRunOn(
   return targets.map((target) => activeRunFor(runs, target)).find((run) => run !== undefined);
 }
 
-export function latestRunFor(runs: RunsSnapshot, target: CheckoutTarget): ActionRun | undefined {
-  return newest(runs.latest.filter((run) => actsOn(run, target)));
+const recentRunMilliseconds = 5 * 60_000;
+
+export function recentRunFor(
+  runs: RunsSnapshot,
+  target: CheckoutTarget,
+  now: number,
+): ActionRun | undefined {
+  return newest(
+    runs.latest.filter(
+      (run) => actsOn(run, target) && now - finishedAt(run) < recentRunMilliseconds,
+    ),
+  );
 }
 
 export function activeCloneFor(runs: RunsSnapshot, target: CloneTarget): ActionRun | undefined {
