@@ -50,7 +50,7 @@ export function activeRunOn(
   return targets.map((target) => activeRunFor(runs, target)).find((run) => run !== undefined);
 }
 
-const recentRunMilliseconds = 5 * 60_000;
+const recentRunWindowMilliseconds = 5 * 60_000;
 
 export function recentRunFor(
   runs: RunsSnapshot,
@@ -59,7 +59,7 @@ export function recentRunFor(
 ): ActionRun | undefined {
   return newest(
     runs.latest.filter(
-      (run) => actsOn(run, target) && now - finishedAt(run) < recentRunMilliseconds,
+      (run) => actsOn(run, target) && now - finishedAt(run) < recentRunWindowMilliseconds,
     ),
   );
 }
