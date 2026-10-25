@@ -115,7 +115,7 @@ export function ProjectsPage() {
     const panelHadFocus = (document.activeElement?.closest(`#${projectPanelId}`) ?? null) !== null;
 
     void navigate({
-      search: ({ repo: _repo, machine: _machine, path: _path, ...rest }) => rest,
+      search: ({ repo: _repo, machine: _machine, path: _path, tab: _tab, ...rest }) => rest,
     });
 
     if (panelHadFocus && selection !== null) {
@@ -166,7 +166,15 @@ export function ProjectsPage() {
         onSelect={select}
         onChoosePath={(path) => {
           void navigate({
-            search: (previous) => ({ ...previous, path }),
+            search: ({ tab: _tab, ...previous }) => ({ ...previous, path }),
+            replace: true,
+          });
+        }}
+        tab={search.tab ?? "working-trees"}
+        onChooseTab={(tab) => {
+          void navigate({
+            search: ({ tab: _tab, ...previous }) =>
+              tab === "working-trees" ? previous : { ...previous, tab },
             replace: true,
           });
         }}

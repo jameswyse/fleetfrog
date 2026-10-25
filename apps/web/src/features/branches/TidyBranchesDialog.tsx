@@ -9,7 +9,6 @@ import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { useStartBatch } from "../actions/useStartBatch.ts";
-import { isPreselected } from "./branchTidying.ts";
 
 import type { Checkout, GitStatus } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
@@ -49,6 +48,7 @@ export function TidyBranchesDialog({
   candidates,
   kept,
   ignored,
+  initiallyChosen,
   onClose,
 }: {
   readonly repository: Repository;
@@ -58,13 +58,12 @@ export function TidyBranchesDialog({
   readonly candidates: ReadonlyArray<TidyCandidate>;
   readonly kept: ReadonlyArray<KeptBranch>;
   readonly ignored: ReadonlyArray<string>;
+  readonly initiallyChosen: ReadonlyArray<string>;
   readonly onClose: () => void;
 }) {
   const { start, pending, failure } = useStartBatch();
 
-  const [chosen, setChosen] = useState<ReadonlySet<string>>(
-    () => new Set(candidates.filter(isPreselected).map(({ name }) => name)),
-  );
+  const [chosen, setChosen] = useState<ReadonlySet<string>>(() => new Set(initiallyChosen));
 
   const defaultBranch = git.defaultBranch ?? checkout.github?.defaultBranch ?? "the default branch";
 

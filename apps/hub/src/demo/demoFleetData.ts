@@ -298,6 +298,18 @@ export const demoRepositories: ReadonlyArray<DemoRepository> = [
       { number: 47, title: "Run the hub with a demo fleet", branch: "feat/demo-fleet" },
       { number: 44, title: "Keep the grid's header in view", branch: "fix/sticky-header" },
       {
+        number: 43,
+        title: "Hide the update banner once agents update",
+        branch: "fix/update-banner",
+        merged: true,
+      },
+      {
+        number: 42,
+        title: "Show what the Trash takes up",
+        branch: "feat/trash-sizes",
+        merged: true,
+      },
+      {
         number: 41,
         title: "Clearer pairing instructions",
         branch: "fix/pairing-copy",
@@ -338,6 +350,39 @@ export const demoRepositories: ReadonlyArray<DemoRepository> = [
               minutesAgo: 3 * hour,
             },
             threads: [{ title: "Fix the grid's sticky header", state: "Idle", minutesAgo: 170 }],
+          },
+          {
+            folder: "t3-4f2a9c1e",
+            branch: {
+              name: "fix/update-banner",
+              commits: ["fix(web): hide the update banner once agents update"],
+              minutesAgo: 2 * day,
+              upstream: "Gone",
+            },
+            threads: [
+              { title: "Hide the update banner", state: "Idle", minutesAgo: 2 * day },
+              { title: "Review: update banner", state: "Idle", minutesAgo: 2 * day },
+            ],
+          },
+          {
+            folder: "fleetfrog-trash-sizes",
+            branch: {
+              name: "feat/trash-sizes",
+              commits: ["feat(web): show what the Trash takes up"],
+              minutesAgo: 4 * day,
+              upstream: "Gone",
+            },
+            threads: [{ title: "Show Trash sizes", state: "Idle", minutesAgo: 4 * day }],
+          },
+          {
+            folder: "t3-9b77e0d3",
+            branch: {
+              name: "spike/virtual-grid",
+              commits: ["spike(web): virtualise the grid's rows"],
+              minutesAgo: 6 * day,
+              upstream: "Gone",
+            },
+            threads: [{ title: "Try a virtualised grid", state: "Idle", minutesAgo: 6 * day }],
           },
         ],
         deletedBranches: [{ name: "spike/sqlite-wal", daysAgo: 2 }],
