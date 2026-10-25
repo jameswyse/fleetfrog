@@ -4,6 +4,8 @@ import { useMayRun } from "@/rpc/session.ts";
 
 import { machineBlocker } from "./actionAvailability.ts";
 
+import type { ReactNode } from "react";
+
 import type { Machine } from "@fleetfrog/protocol/domain/fleet";
 
 export type ChangesHandling = "Stash" | "Discard";
@@ -14,9 +16,19 @@ export function DiscardWarning() {
       <TriangleAlertIcon className="mt-0.5 shrink-0 text-danger" />
       <span>
         Discarded changes go to Cleanup → Trash. Until the Trash is emptied, you can restore them
-        from there as a stash and apply it. After that, they're gone for good.
+        from there as a stash and bring it back with{" "}
+        <code className="font-mono">git stash pop</code>. After that, they're gone for good.
       </span>
     </p>
+  );
+}
+
+export function StashPopInstructions({ path }: { readonly path: string }) {
+  return (
+    <>
+      To bring them back, run <code className="font-mono">git stash pop</code> in{" "}
+      <span className="font-mono break-all">{path}</span>.
+    </>
   );
 }
 
@@ -31,7 +43,7 @@ export function ChangesChoice({
   readonly machine: Machine;
   readonly value: ChangesHandling;
   readonly onChange: (next: ChangesHandling) => void;
-  readonly stash: string;
+  readonly stash: ReactNode;
   readonly discard: string;
   readonly unavailable: string | null;
 }) {
