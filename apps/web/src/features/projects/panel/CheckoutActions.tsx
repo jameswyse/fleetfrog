@@ -23,6 +23,7 @@ import { StashDialog } from "../../actions/StashDialog.tsx";
 import { useStartBatch } from "../../actions/useStartBatch.ts";
 import { planArchive } from "../../archive/archiveAvailability.ts";
 import { ArchiveDialog } from "../../archive/ArchiveDialog.tsx";
+import { SwitchBranchMenu } from "../../branches/SwitchBranchMenu.tsx";
 import { RemoveWorktreeDialog } from "../../cleanup/RemoveWorktreeDialog.tsx";
 import { TrashCheckoutDialog } from "../../cleanup/TrashCheckoutDialog.tsx";
 import { BusyCheckoutDialog } from "../../t3Code/BusyCheckoutDialog.tsx";
@@ -37,10 +38,12 @@ export function CheckoutActions({
   repository,
   machine,
   checkout,
+  onShowWorkingTree,
 }: {
   readonly repository: Repository;
   readonly machine: Machine;
   readonly checkout: Checkout;
+  readonly onShowWorkingTree: (path: string) => void;
 }) {
   const [dialog, setDialog] = useState<"pull" | "stash" | "discard" | "archive" | "trash" | null>(
     null,
@@ -106,6 +109,15 @@ export function CheckoutActions({
           >
             Stash changes
           </Button>
+        )}
+        {git !== null && (
+          <SwitchBranchMenu
+            repository={repository}
+            machine={machine}
+            checkout={checkout}
+            git={git}
+            onGoTo={onShowWorkingTree}
+          />
         )}
         {mayClean && (
           <Menu

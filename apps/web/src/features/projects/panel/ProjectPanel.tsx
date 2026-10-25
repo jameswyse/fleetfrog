@@ -14,6 +14,7 @@ import { RepositoryPanel } from "./RepositoryPanel.tsx";
 import type { Fleet } from "@fleetfrog/protocol/domain/fleet";
 
 import type { ProjectSelection, SelectionHistory } from "../ProjectGrid.tsx";
+import type { CellTab } from "./CellPanel.tsx";
 
 export const projectPanelId = "project-panel";
 
@@ -26,6 +27,8 @@ export function ProjectPanel({
   path,
   onSelect,
   onChoosePath,
+  tab,
+  onChooseTab,
   onClose,
 }: {
   readonly fleet: Fleet;
@@ -33,6 +36,8 @@ export function ProjectPanel({
   readonly path: string | null;
   readonly onSelect: (selection: ProjectSelection, history: SelectionHistory) => void;
   readonly onChoosePath: (path: string) => void;
+  readonly tab: CellTab;
+  readonly onChooseTab: (tab: CellTab) => void;
   readonly onClose: () => void;
 }) {
   const headingId = useId();
@@ -110,6 +115,8 @@ export function ProjectPanel({
           headingId={headingId}
           onSelect={onSelect}
           onChoosePath={onChoosePath}
+          tab={tab}
+          onChooseTab={onChooseTab}
           onClose={onClose}
         />
       )}

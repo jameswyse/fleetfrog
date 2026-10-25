@@ -1,7 +1,5 @@
 import { useState } from "react";
 
-import { ArchiveIcon } from "lucide-react";
-
 import { useRuns } from "@/rpc/hubConnection.ts";
 import { useMayRun } from "@/rpc/session.ts";
 import { Button } from "@/ui/Button.tsx";
@@ -12,7 +10,8 @@ import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 import { machineBlocker } from "../../actions/actionAvailability.ts";
 import { activeRunFor } from "../../actions/runLookup.ts";
 import { useStartBatch } from "../../actions/useStartBatch.ts";
-import { PanelSection, ShortList } from "./PanelSection.tsx";
+import { ListSection } from "./ListSection.tsx";
+import { ShortList } from "./PanelSection.tsx";
 
 import type { Checkout, GitStatus, Stash } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine } from "@fleetfrog/protocol/domain/fleet";
@@ -112,13 +111,13 @@ export function StashesSection({
   const [first, ...rest] = known;
 
   return (
-    <PanelSection title="Stashes" icon={ArchiveIcon} tone="neutral" count={git.stashes.total}>
+    <ListSection title="Stashes" count={git.stashes.total}>
       <ShortList
         items={git.stashes.items}
         total={git.stashes.total}
         noun="stashes"
         render={(stash) => (
-          <li key={stash.index} className="flex min-h-7 items-start gap-2 text-sm">
+          <li key={stash.index} className="flex min-h-7 items-start gap-2 px-1.5 text-sm">
             <span className="mt-0.5 shrink-0 rounded bg-canvas px-1.5 font-mono text-xs text-ink-muted">
               {stash.index}
             </span>
@@ -138,7 +137,7 @@ export function StashesSection({
         )}
       />
       {first !== undefined && rest.length > 0 && mayDrop && blocked === null && (
-        <div className="mt-3 border-t border-line pt-3">
+        <div className="mt-2 px-1.5">
           <Button disabled={busy} onClick={() => setDropping([first, ...rest])}>
             {known.length === git.stashes.total
               ? "Drop all stashes…"
@@ -146,7 +145,9 @@ export function StashesSection({
           </Button>
         </div>
       )}
-      {mayDrop && blocked !== null && <p className="mt-2 text-xs text-ink-muted">{blocked}.</p>}
+      {mayDrop && blocked !== null && (
+        <p className="mt-2 px-1.5 text-xs text-ink-muted">{blocked}.</p>
+      )}
       {dropping !== null && (
         <DropStashesDialog
           machine={machine}
@@ -155,6 +156,6 @@ export function StashesSection({
           onClose={() => setDropping(null)}
         />
       )}
-    </PanelSection>
+    </ListSection>
   );
 }
