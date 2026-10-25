@@ -11,6 +11,7 @@ import {
   openCheckout,
   requireIsolatedTrash,
   selectedWorkingTree,
+  switchMenuItem,
 } from "./support.ts";
 
 import type { App, Screen } from "e2e";
@@ -220,7 +221,7 @@ test("[deterministic] worktree removal stashes changes and preserves its branch"
     .getByRole("complementary")
     .getByRole("button", { name: "Switch branch", exact: true })
     .click();
-  await expect(screen.getByRole("button", { name: "Switch to feature/e2e" })).toHaveCount(0);
+  await expect(switchMenuItem(screen, "feature/e2e")).toHaveCount(0);
   await screen
     .getByRole("button", {
       name: /^Show the worktree at .*removable-worktree, which has feature\/e2e/,

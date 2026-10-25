@@ -2,7 +2,10 @@ import type { Checkout } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine } from "@fleetfrog/protocol/domain/fleet";
 import type { T3CodeProject, T3CodeThread } from "@fleetfrog/protocol/domain/t3Code";
 
-const urgency = { Waiting: 0, Working: 1, Idle: 2 } satisfies Record<T3CodeThread["state"], number>;
+export const threadUrgency = { Waiting: 0, Working: 1, Idle: 2 } satisfies Record<
+  T3CodeThread["state"],
+  number
+>;
 
 function reading(machine: Machine) {
   const read = machine.t3Code?.reading;
@@ -16,7 +19,7 @@ export function busyThreads(
 ): ReadonlyArray<T3CodeThread> {
   return (reading(machine)?.threads ?? [])
     .filter(({ path, state }) => state !== "Idle" && paths.includes(path))
-    .toSorted((left, right) => urgency[left.state] - urgency[right.state]);
+    .toSorted((left, right) => threadUrgency[left.state] - threadUrgency[right.state]);
 }
 
 export function threadsAt(machine: Machine, path: string): ReadonlyArray<T3CodeThread> {
@@ -28,7 +31,7 @@ export function threadsAt(machine: Machine, path: string): ReadonlyArray<T3CodeT
 export function threadsByUrgency(machine: Machine, path: string): ReadonlyArray<T3CodeThread> {
   return threadsAt(machine, path).toSorted(
     (left, right) =>
-      urgency[left.state] - urgency[right.state] ||
+      threadUrgency[left.state] - threadUrgency[right.state] ||
       right.updatedAt.epochMilliseconds - left.updatedAt.epochMilliseconds,
   );
 }

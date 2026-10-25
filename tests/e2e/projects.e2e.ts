@@ -98,7 +98,10 @@ test("[deterministic] pull fast-forwards from a local bare remote", async ({ app
     .getByRole("row", { name: /pull-project/ })
     .getByRole("button", { name: /main/ })
     .click();
-  await screen.getByRole("button", { name: "Pull", exact: true }).click();
+  await screen
+    .getByRole("region", { name: "Actions", exact: true })
+    .getByRole("button", { name: "Pull", exact: true })
+    .click();
   await expect(screen.getByRole("status").filter({ hasText: "Pull:" })).toContainText(
     "Pulled 1 commit",
   );

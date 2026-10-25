@@ -14,18 +14,26 @@ export async function openCheckout(app: App, screen: Screen, name: string) {
   ).toBeVisible();
 }
 
+function startingWith(text: string) {
+  return new RegExp(`^${text.replaceAll(/[$()*+.?[\\\]^{|}]/g, String.raw`\$&`)}(?: |$)`);
+}
+
+export function switchMenuItem(screen: Screen, branch: string) {
+  return screen.getByRole("button", { name: startingWith(`Switch to ${branch}`) });
+}
+
 export async function switchBranch(screen: Screen, branch: string) {
   await screen
     .getByRole("complementary")
     .getByRole("button", { name: "Switch branch", exact: true })
     .click();
-  await screen.getByRole("button", { name: `Switch to ${branch}` }).click();
+  await switchMenuItem(screen, branch).click();
 }
 
 export function selectedWorkingTree(screen: Screen, branch: string) {
   return screen
     .getByRole("complementary")
-    .getByRole("button", { name: new RegExp(`^${branch} `), expanded: true });
+    .getByRole("button", { name: startingWith(branch), expanded: true });
 }
 
 export function fleetSnapshot() {

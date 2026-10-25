@@ -70,7 +70,7 @@ export function ParkedBranches({
   const merged = clone.anchor?.checkout.github?.mergedPullRequests ?? [];
   const deletable = new Set(tidying?.candidates.map(({ name }) => name));
 
-  if (clone.parked.length === 0) {
+  if (clone.parked.length + clone.unreportedBranches === 0) {
     return null;
   }
 
@@ -91,6 +91,12 @@ export function ParkedBranches({
         )
       }
     >
+      {(clone.main === null || clone.main.git === null) && (
+        <p className="px-1.5 pb-1 text-xs text-ink-muted">
+          FleetFrog can't see which branch this clone's main checkout has, so one of these may be
+          checked out there.
+        </p>
+      )}
       <ShortList
         items={clone.parked.toSorted(recentFirst)}
         total={clone.parked.length + clone.unreportedBranches}

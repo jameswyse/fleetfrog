@@ -199,7 +199,7 @@ function outlineClone(options: {
   );
 
   const checkedOut = new Set(trees.flatMap(({ branch }) => (branch === null ? [] : [branch])));
-  const branches = main === null ? undefined : anchor?.git.branches;
+  const branches = anchor?.git.branches;
 
   return {
     path: options.path,

@@ -233,6 +233,10 @@ export function WorkingTreeOutline({
     readonly groups: ReadonlyMap<GroupKind, boolean>;
   }>({ selectedPath, groups: new Map() });
 
+  if (toggled.selectedPath !== selectedPath) {
+    setToggled({ selectedPath, groups: new Map() });
+  }
+
   const overrides =
     toggled.selectedPath === selectedPath ? toggled.groups : new Map<GroupKind, boolean>();
 

@@ -6,7 +6,7 @@ import { folderName } from "@/ui/folderName.ts";
 import { ProjectIcon } from "@/ui/ProjectIcon.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 
-import { projectsAt, threadsByUrgency } from "../../t3Code/t3CodeLookup.ts";
+import { projectsAt, threadsByUrgency, threadUrgency } from "../../t3Code/t3CodeLookup.ts";
 import { threadStateWords } from "../../t3Code/T3CodeNotices.tsx";
 import { workingTreesOf } from "../workingTrees.ts";
 import { ShortList } from "./PanelSection.tsx";
@@ -90,12 +90,14 @@ export function T3CodeTab({
 
   const groups = clones
     .flatMap(workingTreesOf)
-    .map((tree) => ({ tree, threads: threadsByUrgency(machine, tree.path) }))
-    .filter(({ threads }) => threads.length > 0)
+    .flatMap((tree) => {
+      const threads = threadsByUrgency(machine, tree.path);
+      const [first] = threads;
+
+      return first === undefined ? [] : [{ tree, threads, urgency: threadUrgency[first.state] }];
+    })
     .toSorted(
-      (left, right) =>
-        Number(right.threads[0]?.state !== "Idle") - Number(left.threads[0]?.state !== "Idle") ||
-        right.tree.lastActive - left.tree.lastActive,
+      (left, right) => left.urgency - right.urgency || right.tree.lastActive - left.tree.lastActive,
     );
 
   return (

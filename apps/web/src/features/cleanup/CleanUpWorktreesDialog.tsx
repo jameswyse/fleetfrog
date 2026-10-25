@@ -38,7 +38,7 @@ interface Progress {
 
 type Stage =
   | { readonly _tag: "Reviewing" }
-  | { readonly _tag: "Removing"; readonly batchId: BatchId }
+  | { readonly _tag: "Removing"; readonly batchId: BatchId; readonly attempted: number }
   | {
       readonly _tag: "Removed";
       readonly batchId: BatchId;
@@ -96,10 +96,12 @@ function BatchWatcher({
 export function CleanUpWorktreesDialog({
   machine,
   worktrees,
+  finished,
   onClose,
 }: {
   readonly machine: Machine;
   readonly worktrees: ReadonlyArray<FinishedWorktree>;
+  readonly finished: ReadonlyArray<FinishedWorktree>;
   readonly onClose: () => void;
 }) {
   const { start, pending, failure } = useStartBatch();
@@ -143,6 +145,10 @@ export function CleanUpWorktreesDialog({
       worktree,
       inspection: inspections.get(worktree.path) ?? { _tag: "Checking" },
       busy: busyThreads(machine, [worktree.path]).length > 0,
+      finished: finished.some(
+        ({ path, branch, sha }) =>
+          path === worktree.path && branch === worktree.branch && sha === worktree.sha,
+      ),
     }),
   }));
 
@@ -211,7 +217,7 @@ export function CleanUpWorktreesDialog({
   }[stage._tag];
 
   return (
-    <Dialog title={title} onClose={onClose} dismissible={!working}>
+    <Dialog title={title} onClose={onClose} dismissible={!working && !pending}>
       <div className="space-y-4 text-sm">
         {stage._tag === "Reviewing" && (
           <>
@@ -262,7 +268,7 @@ export function CleanUpWorktreesDialog({
           <p role="status" className="flex items-center gap-2">
             <Spinner />
             {stage._tag === "Removing"
-              ? `Removing ${plural(removable.length, "worktree")}…`
+              ? `Removing ${plural(stage.attempted, "worktree")}…`
               : "Moving their branches to the Trash…"}
           </p>
         )}
@@ -317,14 +323,16 @@ export function CleanUpWorktreesDialog({
         <div className="flex justify-end gap-3">
           {stage._tag === "Reviewing" && (
             <>
-              <Button onClick={onClose}>Cancel</Button>
+              <Button disabled={pending} onClick={onClose}>
+                Cancel
+              </Button>
               <Button
                 tone="danger"
                 disabled={checking || pending || removal === null}
                 onClick={() => {
                   if (removal !== null) {
                     start({ _tag: "Targeted", runs: removal }, (batchId) =>
-                      setStage({ _tag: "Removing", batchId }),
+                      setStage({ _tag: "Removing", batchId, attempted: removal.length }),
                     );
                   }
                 }}

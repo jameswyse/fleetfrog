@@ -96,6 +96,7 @@ export function WorkingTreesTab({
         <CleanUpWorktreesDialog
           machine={machine}
           worktrees={cleaning}
+          finished={finishedWorktrees(clones)}
           onClose={() => setCleaning(null)}
         />
       )}
