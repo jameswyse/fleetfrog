@@ -1,5 +1,11 @@
 # @fleetfrog/agent-ts
 
+## 0.11.0
+
+### Patch Changes
+
+- 67a20cd: Report merged and open pull requests for the checked-out branch even in a repository with more than 200 local branches, so its merge is recognised.
+
 ## 0.10.3
 
 No changes in this release.
