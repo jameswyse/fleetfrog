@@ -58,13 +58,53 @@ export function formatRelative(at: DateTime.Utc, currentTime: number): string {
   return "just now";
 }
 
-export function RelativeTime({ at }: { readonly at: DateTime.Utc }) {
+const ageUnits = [
+  { unit: "day", letter: "d", size: 86_400 },
+  { unit: "hour", letter: "h", size: 3600 },
+  { unit: "minute", letter: "m", size: 60 },
+] as const;
+
+const spokenAge = new Intl.RelativeTimeFormat(undefined, { numeric: "always" });
+
+function ageOf(at: DateTime.Utc, currentTime: number) {
+  const seconds = Math.max(0, Math.round((currentTime - DateTime.toEpochMillis(at)) / 1000));
+  const unit = ageUnits.find(({ size }) => seconds >= size);
+
+  return unit === undefined ? null : { ...unit, count: Math.floor(seconds / unit.size) };
+}
+
+export function formatAge(at: DateTime.Utc, currentTime: number): string {
+  const age = ageOf(at, currentTime);
+
+  return age === null ? "now" : `${age.count}${age.letter}`;
+}
+
+export function speakAge(at: DateTime.Utc, currentTime: number): string {
+  const age = ageOf(at, currentTime);
+
+  return age === null ? "just now" : spokenAge.format(-age.count, age.unit);
+}
+
+export function RelativeTime({
+  at,
+  format = "phrase",
+}: {
+  readonly at: DateTime.Utc;
+  readonly format?: "phrase" | "age";
+}) {
   const currentTime = useNow();
   const date = DateTime.toDate(at);
 
   return (
     <time dateTime={date.toISOString()} title={absolute.format(date)}>
-      {formatRelative(at, currentTime)}
+      {format === "phrase" ? (
+        formatRelative(at, currentTime)
+      ) : (
+        <>
+          <span aria-hidden="true">{formatAge(at, currentTime)}</span>
+          <span className="sr-only">{speakAge(at, currentTime)}</span>
+        </>
+      )}
     </time>
   );
 }

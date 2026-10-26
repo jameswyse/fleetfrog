@@ -64,6 +64,8 @@
   --canvas: light-dark(var(--neutral-97), var(--neutral-18));
   --surface: light-dark(var(--neutral-100), var(--neutral-22));
   --surface-raised: light-dark(var(--neutral-99), var(--neutral-25));
+  --fill: light-dark(var(--neutral-97), var(--neutral-25));
+  --fill-hover: light-dark(var(--neutral-93), var(--neutral-31));
   --line: light-dark(var(--neutral-91), var(--neutral-31));
   --ink: light-dark(var(--neutral-23), var(--neutral-93));
   --ink-muted: light-dark(var(--neutral-48), var(--neutral-72));
@@ -143,6 +145,8 @@
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
+  --color-fill: var(--fill);
+  --color-fill-hover: var(--fill-hover);
   --color-line: var(--line);
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);

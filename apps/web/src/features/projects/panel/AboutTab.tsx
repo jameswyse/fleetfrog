@@ -41,7 +41,7 @@ export function AboutTab({
     <div className="space-y-5">
       {(github !== null || onGithub) && (
         <ListSection title="GitHub">
-          <div className="px-1.5">
+          <div className="px-2.5 py-2">
             {github === null ? (
               <p className="text-sm text-ink-muted">
                 {machine.info.githubCli._tag === "Unavailable"
@@ -73,7 +73,7 @@ export function AboutTab({
 
         return (
           <ListSection key={clone.path} title={clones.length === 1 ? "On this machine" : "Clone"}>
-            <div className="px-1.5">
+            <div className="px-2.5 py-2">
               <Facts>
                 <Fact term="Clone">
                   <span className="font-mono text-[13px] [overflow-wrap:anywhere]">

@@ -54,7 +54,7 @@ test("[deterministic] stash tracked and untracked files, drop to trash and resto
 }) => {
   requireIsolatedTrash();
   await openCheckout(app, screen, "stash-project");
-  await screen.getByRole("button", { name: "Stash changes", exact: true }).click();
+  await screen.getByRole("button", { name: "Stash", exact: true }).click();
   await screen
     .getByRole("dialog")
     .getByRole("button", { name: "Stash 2 files", exact: true })
