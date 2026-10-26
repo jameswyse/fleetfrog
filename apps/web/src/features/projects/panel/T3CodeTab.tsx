@@ -127,10 +127,10 @@ export function T3CodeTab({
 }) {
   const trees = clones.flatMap(workingTreesOf);
 
-  const projects = projectsAt(
-    machine,
-    trees.map(({ path }) => path),
-  );
+  const projects = projectsAt(machine, [
+    ...clones.map(({ path }) => path),
+    ...trees.map(({ path }) => path),
+  ]);
 
   const autoPulled = projects.filter(({ autoPull }) => autoPull);
 
