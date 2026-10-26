@@ -1,8 +1,15 @@
 import { useId } from "react";
 
 import { Link } from "@tanstack/react-router";
-import { ChevronDownIcon, LogOutIcon, Settings2Icon, UserRoundIcon } from "lucide-react";
+import {
+  ArrowUpRightIcon,
+  ChevronDownIcon,
+  LogOutIcon,
+  Settings2Icon,
+  UserRoundIcon,
+} from "lucide-react";
 
+import { knownFleet, useHub } from "@/rpc/hubConnection.ts";
 import { signOut, useSession } from "@/rpc/session.ts";
 import { Avatar } from "@/ui/Avatar.tsx";
 import { MenuIcon, MenuItem, menuItemClass, Menu } from "@/ui/Menu.tsx";
@@ -22,6 +29,34 @@ function QuickTheme() {
         labelledBy={labelId}
         onPick={(colorScheme) => void changePreferences({ colorScheme })}
       />
+    </div>
+  );
+}
+
+function releaseUrl(version: string): string {
+  return `https://github.com/jameswyse/fleetfrog/releases/tag/v${version}`;
+}
+
+function HubVersion({ close }: { readonly close: () => void }) {
+  const fleet = knownFleet(useHub());
+
+  if (fleet === null) {
+    return null;
+  }
+
+  return (
+    <div className="mt-1 border-t border-line pt-1">
+      <a
+        href={releaseUrl(fleet.hubVersion)}
+        target="_blank"
+        rel="noreferrer"
+        onClick={close}
+        className="flex items-center justify-between gap-2.5 rounded px-3 py-1.5 text-xs text-ink-muted hover:bg-surface-raised hover:text-ink"
+      >
+        FleetFrog {fleet.hubVersion}
+        <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />
+        <span className="sr-only"> (opens in a new tab)</span>
+      </a>
     </div>
   );
 }
@@ -56,6 +91,7 @@ export function UserMenu() {
                 Appearance
               </Link>
             </div>
+            <HubVersion close={close} />
           </>
         )}
       </Menu>
@@ -110,6 +146,7 @@ export function UserMenu() {
               Sign out
             </MenuItem>
           </div>
+          <HubVersion close={close} />
         </>
       )}
     </Menu>
