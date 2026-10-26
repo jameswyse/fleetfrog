@@ -45,7 +45,9 @@ export function UserMenu() {
       >
         {(close) => (
           <>
-            <QuickTheme />
+            <div className="pb-1">
+              <QuickTheme />
+            </div>
             <div className="border-t border-line pt-1">
               <Link to="/account" onClick={close} className={menuItemClass}>
                 <MenuIcon>
