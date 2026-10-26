@@ -216,7 +216,7 @@ function TreeRow({
   );
 }
 
-type GroupKind = "Finished" | "RemoteGone";
+export type GroupKind = "Finished" | "RemoteGone";
 
 const groupWords = {
   Finished: { title: "Finished", note: "Merged and clean" },
@@ -230,7 +230,9 @@ export function WorkingTreeOutline({
   title,
   selectedPath,
   expandedPath,
+  groupOverrides,
   onTogglePath,
+  onToggleGroup,
   onChoosePath,
   onCleanUp,
 }: {
@@ -240,24 +242,12 @@ export function WorkingTreeOutline({
   readonly title: string | null;
   readonly selectedPath: string;
   readonly expandedPath: string | null;
+  readonly groupOverrides: ReadonlyMap<GroupKind, boolean>;
   readonly onTogglePath: (path: string) => void;
+  readonly onToggleGroup: (kind: GroupKind, open: boolean) => void;
   readonly onChoosePath: (path: string) => void;
   readonly onCleanUp: (() => void) | null;
 }) {
-  const fresh = { selectedPath, groups: new Map<GroupKind, boolean>() };
-
-  const [toggled, setToggled] = useState<{
-    readonly selectedPath: string;
-    readonly groups: ReadonlyMap<GroupKind, boolean>;
-  }>(fresh);
-
-  if (toggled.selectedPath !== selectedPath) {
-    setToggled(fresh);
-  }
-
-  const current = toggled.selectedPath === selectedPath ? toggled : fresh;
-  const overrides = current.groups;
-
   const active = clone.linked.filter(({ lifecycle }) => lifecycle._tag === "Active");
 
   const groups = (["Finished", "RemoteGone"] as const).map((kind) => ({
@@ -298,7 +288,8 @@ export function WorkingTreeOutline({
                 return null;
               }
 
-              const open = overrides.get(kind) ?? trees.some(({ path }) => path === selectedPath);
+              const open =
+                groupOverrides.get(kind) ?? trees.some(({ path }) => path === selectedPath);
 
               return (
                 <li key={kind}>
@@ -306,12 +297,7 @@ export function WorkingTreeOutline({
                     <button
                       type="button"
                       aria-expanded={open}
-                      onClick={() =>
-                        setToggled({
-                          ...current,
-                          groups: new Map([...overrides, [kind, !open]]),
-                        })
-                      }
+                      onClick={() => onToggleGroup(kind, !open)}
                       className="flex min-h-8 min-w-0 flex-1 items-center gap-2 rounded-lg px-2 text-start text-sm hover:bg-fill"
                     >
                       <ChevronRightIcon
