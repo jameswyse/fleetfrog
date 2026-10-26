@@ -1,5 +1,11 @@
 # @fleetfrog/web
 
+## 0.11.1
+
+### Patch Changes
+
+- 0f19658: Show the hub's version at the bottom of the account and Preferences menus, linking to its release notes.
+
 ## 0.11.0
 
 ### Minor Changes
