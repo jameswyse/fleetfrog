@@ -1,5 +1,12 @@
 # @fleetfrog/hub
 
+## 0.11.0
+
+### Patch Changes
+
+- d0b09d5: Report the same changed-file count in the demo's skipped pulls as the agents and the dashboard do, leaving out untracked files.
+- 790dfe2: Stop the demo listing a main checkout among a linked worktree's worktrees. Like the agents, it now lists linked worktrees only from the main checkout.
+
 ## 0.10.3
 
 ### Patch Changes
