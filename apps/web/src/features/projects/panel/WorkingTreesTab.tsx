@@ -15,6 +15,11 @@ import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
 import type { FinishedWorktree } from "../../cleanup/worktreeCleanUp.ts";
 import type { CloneOutline } from "../workingTrees.ts";
+import type { GroupKind } from "./WorkingTreeOutline.tsx";
+
+type GroupOverrides = ReadonlyMap<string, ReadonlyMap<GroupKind, boolean>>;
+
+const noGroupOverrides: GroupOverrides = new Map();
 
 function finishedWorktrees(clones: ReadonlyArray<CloneOutline>): ReadonlyArray<FinishedWorktree> {
   return clones.flatMap((clone) =>
@@ -41,19 +46,30 @@ export function WorkingTreesTab({
 }) {
   const [cleaning, setCleaning] = useState<ReadonlyArray<FinishedWorktree> | null>(null);
   const [closedPath, setClosedPath] = useState<string | null>(null);
+  const [groupOverrides, setGroupOverrides] = useState(noGroupOverrides);
   const [lastSelectedPath, setLastSelectedPath] = useState(selectedPath);
 
   if (lastSelectedPath !== selectedPath) {
     setLastSelectedPath(selectedPath);
     setClosedPath(null);
+    setGroupOverrides(noGroupOverrides);
   }
 
   const expandedPath = closedPath === selectedPath ? null : selectedPath;
 
   const choosePath = (path: string) => {
     setClosedPath(null);
+    setGroupOverrides(noGroupOverrides);
     onChoosePath(path);
   };
+
+  const toggleGroup = (clonePath: string, kind: GroupKind, open: boolean) =>
+    setGroupOverrides(
+      new Map([
+        ...groupOverrides,
+        [clonePath, new Map([...(groupOverrides.get(clonePath) ?? []), [kind, open]])],
+      ]),
+    );
 
   const togglePath = (path: string) =>
     path === expandedPath ? setClosedPath(path) : choosePath(path);
@@ -98,7 +114,9 @@ export function WorkingTreesTab({
             }
             selectedPath={selectedPath}
             expandedPath={expandedPath}
+            groupOverrides={groupOverrides.get(clone.path) ?? new Map()}
             onTogglePath={togglePath}
+            onToggleGroup={(kind, open) => toggleGroup(clone.path, kind, open)}
             onChoosePath={choosePath}
             onCleanUp={cleanUp([clone])}
           />
