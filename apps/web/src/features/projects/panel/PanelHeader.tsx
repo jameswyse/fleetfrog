@@ -7,16 +7,20 @@ export function PanelHeader({
   title,
   subtitle,
   actions,
+  tabs,
   onClose,
 }: {
   readonly headingId: string;
   readonly title: ReactNode;
   readonly subtitle?: ReactNode;
   readonly actions?: ReactNode;
+  readonly tabs?: ReactNode;
   readonly onClose?: () => void;
 }) {
   return (
-    <div className="sticky top-0 z-10 mb-4 border-b border-line bg-surface px-5 py-3">
+    <div
+      className={`sticky top-0 z-10 mb-4 border-b border-line bg-surface px-5 pt-3 ${tabs === undefined ? "pb-3" : ""}`}
+    >
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1">
           <h2
@@ -42,6 +46,7 @@ export function PanelHeader({
           </button>
         )}
       </div>
+      {tabs !== undefined && <div className="mt-2">{tabs}</div>}
     </div>
   );
 }

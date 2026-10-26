@@ -640,9 +640,14 @@ export function renderCheckouts(machine: SimMachine, now: DateTime.Utc): Array<C
           items: repository.droppedStashes.map(({ record }) => record),
           total: repository.droppedStashes.length,
         },
-        worktrees: treesOf(repository)
-          .filter((other) => other !== tree)
-          .map((other) => ({ path: other.path, branch: other.head, state: "Present" as const })),
+        worktrees:
+          tree === main
+            ? repository.linked.map((linked) => ({
+                path: linked.path,
+                branch: linked.head,
+                state: "Present" as const,
+              }))
+            : [],
         lastFetchedAt: repository.lastFetchedAt,
       };
 

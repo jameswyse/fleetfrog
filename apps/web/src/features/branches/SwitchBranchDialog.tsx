@@ -5,6 +5,7 @@ import { Dialog } from "@/ui/Dialog.tsx";
 import { plural } from "@/ui/plural.ts";
 
 import { ChangesChoice } from "../actions/ChangesChoice.tsx";
+import { StashPopInstructions } from "../actions/StashPopInstructions.tsx";
 import { useStartBatch } from "../actions/useStartBatch.ts";
 import { busyThreads } from "../t3Code/t3CodeLookup.ts";
 import { BusyThreadsNotice } from "../t3Code/T3CodeNotices.tsx";
@@ -32,6 +33,7 @@ export function SwitchBranchDialog({
   const { start, pending, failure } = useStartBatch();
   const [handling, setHandling] = useState<ChangesHandling>("Stash");
   const discarding = handling === "Discard";
+  const head = checkout.status._tag === "Read" ? checkout.status.git.head : null;
 
   let submitLabel = discarding ? "Discard and switch" : "Stash and switch";
 
@@ -51,7 +53,15 @@ export function SwitchBranchDialog({
           machine={machine}
           value={handling}
           onChange={setHandling}
-          stash="They go into a new stash, and you can bring them back from the Stashes list."
+          stash={
+            <>
+              They go into a new stash.{" "}
+              <StashPopInstructions
+                path={checkout.path}
+                branch={head === null || head._tag === "Detached" ? null : head.name}
+              />
+            </>
+          }
           discard="They go to the Trash instead of the Stashes list."
           unavailable={discardUnavailable}
         />

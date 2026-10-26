@@ -6,7 +6,7 @@ import { InspectionResult } from "@fleetfrog/protocol/domain/trash";
 
 import { discoverCheckouts } from "../discovery/discoverCheckouts.ts";
 import { locateCheckout, readGitStatus } from "../git/readCheckout.ts";
-import { makeGithubReader } from "../github/githubReader.ts";
+import { localBranchNames, makeGithubReader } from "../github/githubReader.ts";
 import { inspectCheckout } from "../inspect/inspectCheckout.ts";
 import { inspectWorktree } from "../inspect/inspectWorktree.ts";
 import { readT3Code } from "../t3Code/readT3Code.ts";
@@ -79,7 +79,7 @@ const github = (login: string, path: string) =>
             Effect.flatMap((git) =>
               makeGithubReader({ login })({
                 location,
-                localBranches: git.branches.items.map(({ name }) => name),
+                localBranches: localBranchNames(git),
                 maximumAge: Duration.zero,
               }),
             ),

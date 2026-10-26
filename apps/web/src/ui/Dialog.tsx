@@ -7,11 +7,13 @@ export function Dialog({
   onClose,
   children,
   placement = "centre",
+  dismissible = true,
 }: {
   readonly title: string;
   readonly onClose: () => void;
   readonly children: ReactNode;
   readonly placement?: "centre" | "side";
+  readonly dismissible?: boolean;
 }) {
   const titleId = useId();
   const opener = useRef<Element | null>(null);
@@ -43,6 +45,11 @@ export function Dialog({
         };
       }}
       aria-labelledby={titleId}
+      onCancel={(event) => {
+        if (!dismissible) {
+          event.preventDefault();
+        }
+      }}
       onClose={onClose}
       className={`overscroll-contain border-line bg-surface p-0 text-ink shadow-2xl ${position}`}
     >
@@ -53,8 +60,9 @@ export function Dialog({
         <button
           type="button"
           onClick={onClose}
+          disabled={!dismissible}
           aria-label="Close"
-          className="grid size-9 place-items-center rounded-md text-ink-muted hover:bg-surface-raised hover:text-ink"
+          className={`grid size-9 place-items-center rounded-md text-ink-muted hover:bg-surface-raised hover:text-ink ${dismissible ? "" : "invisible"}`}
         >
           <svg aria-hidden="true" viewBox="0 0 16 16" className="size-4" fill="none">
             <path

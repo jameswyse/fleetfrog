@@ -7,7 +7,15 @@ import type { CellProblem, CellSummary } from "./cellSummary.ts";
 export const problemWords = {
   Unreadable: "A checkout couldn't be read",
   Conflicts: "Merge conflicts",
-  UpstreamGone: "The upstream branch was deleted",
+  Operation: "A Git operation is in progress",
+  UpstreamGone: "The upstream branch was deleted without a merge",
+} satisfies Record<CellProblem, string>;
+
+export const problemTones = {
+  Unreadable: "text-danger",
+  Conflicts: "text-danger",
+  Operation: "text-danger",
+  UpstreamGone: "text-changes",
 } satisfies Record<CellProblem, string>;
 
 export function Glyph({
@@ -32,7 +40,7 @@ export function CellState({ cell }: { readonly cell: CellSummary }) {
     cell.problem !== null && (
       <Glyph
         key="problem"
-        className="text-danger"
+        className={problemTones[cell.problem]}
         symbol="!"
         meaning={problemWords[cell.problem]}
       />

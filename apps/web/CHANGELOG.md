@@ -1,5 +1,19 @@
 # @fleetfrog/web
 
+## 0.11.0
+
+### Minor Changes
+
+- fff1d3b: Show a repository's working trees on a machine as one outline: each worktree sits under its clone with its branch, changes and T3 Code thread, and opening one shows its actions, upstream, pull request, last commit, folder and changed files in one sectioned card, which closes again with a second click. Merged worktrees gather in a Finished group with a Clean up action that removes them and their branches together, and a Switch branch menu replaces the per-branch buttons. T3 Code threads move to their own tab as cards like T3 Code's sidebar, and repository details move to an About tab.
+
+### Patch Changes
+
+- 997349c: Show a checkout's finished action in the Projects side panel only for five minutes, so an old result no longer sits beside its current state. Older results stay in Activity.
+- 02d7009: Explain how to bring stashed changes back wherever FleetFrog stashes them: which branch to check out where, how to find FleetFrog's stash, and the `git stash pop --index` command that restores it. The Stashes list it pointed to before can only drop stashes.
+- 2032ee2: Stop flagging a branch whose upstream was deleted once it has merged, in the grid and the Out of sync filter. The grid now marks a deleted upstream with no merge in amber rather than red, and flags a Git operation in progress.
+- 855509c: Close only the open menu when you press Escape in the Projects side panel, so a second Escape closes the panel.
+- c7033e5: Expect T3 Code's database schema at migration 69.
+
 ## 0.10.3
 
 No changes in this release.

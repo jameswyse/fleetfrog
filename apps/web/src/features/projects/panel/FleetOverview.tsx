@@ -17,7 +17,7 @@ import { RelativeTime } from "@/ui/RelativeTime.tsx";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { busyThreads } from "../../t3Code/t3CodeLookup.ts";
-import { Glyph, problemWords } from "../CellContent.tsx";
+import { Glyph, problemTones, problemWords } from "../CellContent.tsx";
 import { cellFor, openPullRequests } from "../cellSummary.ts";
 import { PanelHeader } from "./PanelHeader.tsx";
 import { PanelSection, ShortList } from "./PanelSection.tsx";
@@ -63,7 +63,7 @@ function CellRow({
         onClick={() =>
           onSelect({ repository: item.repository.key, machine: item.machine.id }, "Push")
         }
-        className="flex w-full items-center gap-3 rounded-lg px-1.5 py-1 text-start text-sm hover:bg-canvas"
+        className="flex w-full items-center gap-3 rounded-lg px-1.5 py-1 text-start text-sm hover:bg-fill"
       >
         <span className="min-w-0 flex-1 truncate font-medium">{item.repository.label}</span>
         <span className="flex max-w-[35%] shrink-0 items-center gap-1.5 text-xs text-ink-muted">
@@ -127,7 +127,7 @@ function MachineRow({ fleet, machine }: { readonly fleet: Fleet; readonly machin
         <Link
           to="/settings/fleet/$machineId"
           params={{ machineId: machine.id }}
-          className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-sm hover:bg-canvas"
+          className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-sm hover:bg-fill"
         >
           {details}
         </Link>
@@ -214,7 +214,7 @@ export function FleetOverview({
                         "Push",
                       )
                     }
-                    className="w-full rounded-lg px-1.5 py-1 text-start text-sm hover:bg-canvas"
+                    className="w-full rounded-lg px-1.5 py-1 text-start text-sm hover:bg-fill"
                   >
                     <span className="flex items-baseline gap-3">
                       <span className="min-w-0 flex-1 truncate font-medium">{thread.title}</span>
@@ -258,9 +258,11 @@ export function FleetOverview({
                   item={item}
                   onSelect={onSelect}
                 >
-                  <span className="font-normal text-danger">
-                    {item.cell.problem === null ? null : problemWords[item.cell.problem]}
-                  </span>
+                  {item.cell.problem !== null && (
+                    <span className={`font-normal ${problemTones[item.cell.problem]}`}>
+                      {problemWords[item.cell.problem]}
+                    </span>
+                  )}
                 </CellRow>
               )}
             />
@@ -366,7 +368,7 @@ export function FleetOverview({
                     href={pull.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-baseline gap-2 rounded-lg px-1.5 py-1 text-sm hover:bg-canvas"
+                    className="flex items-baseline gap-2 rounded-lg px-1.5 py-1 text-sm hover:bg-fill"
                   >
                     <span className="min-w-0 flex-1 truncate">
                       <span className="text-accent-text">#{pull.number}</span> {pull.title}

@@ -68,12 +68,14 @@ export function ShortList<Item>({
   render,
   noun,
   listClassName = "space-y-1",
+  footerClassName = "",
 }: {
   readonly items: ReadonlyArray<Item>;
   readonly total: number;
   readonly render: (item: Item) => ReactNode;
   readonly noun: string;
   readonly listClassName?: string;
+  readonly footerClassName?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const limit = 8;
@@ -86,13 +88,13 @@ export function ShortList<Item>({
         <button
           type="button"
           onClick={() => setExpanded(true)}
-          className="mt-2 text-sm text-accent-text underline-offset-2 hover:underline"
+          className={`mt-2 text-sm text-accent-text underline-offset-2 hover:underline ${footerClassName}`}
         >
           Show {items.length - limit} more {noun}
         </button>
       )}
       {(expanded || items.length <= limit) && total > items.length && (
-        <p className="mt-2 text-xs text-ink-muted">
+        <p className={`mt-2 text-xs text-ink-muted ${footerClassName}`}>
           {total - items.length} more {noun} not listed
         </p>
       )}

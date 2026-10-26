@@ -44,9 +44,9 @@ test("[deterministic] checkout panel deep link and Escape restore grid focus", a
   expect(url).toContain("repo=");
   expect(url).toContain("machine=");
   await browser.reload();
-  await expect(screen.getByRole("button", { name: "Stash changes", exact: true })).toBeVisible();
+  await expect(screen.getByRole("button", { name: "Stash", exact: true })).toBeVisible();
   await screen.getByRole("button", { name: "Close", exact: true }).press("Escape");
-  await expect(screen.getByRole("button", { name: "Stash changes", exact: true })).toBeHidden();
+  await expect(screen.getByRole("button", { name: "Stash", exact: true })).toBeHidden();
   await expect(
     screen
       .getByRole("row")
@@ -62,7 +62,7 @@ test("[deterministic] narrow viewport supports navigation and checkout panels", 
 }) => {
   await browser.setViewport({ width: 390, height: 844 });
   await openCheckout(app, screen, "dirty-project");
-  await expect(screen.getByRole("button", { name: "Stash changes", exact: true })).toBeVisible();
+  await expect(screen.getByRole("button", { name: "Stash", exact: true })).toBeVisible();
   await screen.getByRole("button", { name: "Close", exact: true }).click();
   await expect(screen.getByRole("searchbox", { name: "Search repositories" })).toBeVisible();
   await app.open("/settings/scanning");

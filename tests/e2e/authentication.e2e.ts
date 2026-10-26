@@ -184,7 +184,7 @@ test("[deterministic] regular user can use projects but cannot open administrati
     .getByRole("row", { name: /^dirty-project / })
     .getByRole("button", { name: /main/ })
     .click();
-  await expect(screen.getByRole("button", { name: "Stash changes", exact: true })).toBeVisible();
+  await expect(screen.getByRole("button", { name: "Stash", exact: true })).toBeVisible();
   await expect(screen.getByRole("button", { name: "More actions for this checkout" })).toHaveCount(
     0,
   );

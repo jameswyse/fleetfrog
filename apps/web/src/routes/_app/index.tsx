@@ -11,6 +11,7 @@ const ProjectsSearch = Schema.Struct({
   repo: Schema.optionalKey(RepositoryKey),
   machine: Schema.optionalKey(MachineId),
   path: Schema.optionalKey(Schema.String),
+  tab: Schema.optionalKey(Schema.Literals(["t3-code", "about"])),
 });
 
 export const Route = createFileRoute("/_app/")({

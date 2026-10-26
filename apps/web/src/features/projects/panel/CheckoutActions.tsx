@@ -1,12 +1,13 @@
 import { useState, useTransition } from "react";
 
 import { Link } from "@tanstack/react-router";
-import { ArchiveIcon, Trash2Icon, Undo2Icon } from "lucide-react";
+import { ArchiveIcon, EllipsisIcon, Trash2Icon, Undo2Icon } from "lucide-react";
 
 import { requestHub, useRuns } from "@/rpc/hubConnection.ts";
 import { useMayRun } from "@/rpc/session.ts";
 import { Button } from "@/ui/Button.tsx";
 import { Menu, MenuItem } from "@/ui/Menu.tsx";
+import { useNow } from "@/ui/RelativeTime.tsx";
 
 import {
   discardSkipReason,
@@ -16,12 +17,13 @@ import {
   stashSkipReason,
 } from "../../actions/actionAvailability.ts";
 import { DiscardDialog } from "../../actions/DiscardDialog.tsx";
-import { activeRunFor, latestRunFor } from "../../actions/runLookup.ts";
+import { activeRunFor, recentRunFor } from "../../actions/runLookup.ts";
 import { RunStateText } from "../../actions/RunStateText.tsx";
 import { StashDialog } from "../../actions/StashDialog.tsx";
 import { useStartBatch } from "../../actions/useStartBatch.ts";
 import { planArchive } from "../../archive/archiveAvailability.ts";
 import { ArchiveDialog } from "../../archive/ArchiveDialog.tsx";
+import { SwitchBranchMenu } from "../../branches/SwitchBranchMenu.tsx";
 import { RemoveWorktreeDialog } from "../../cleanup/RemoveWorktreeDialog.tsx";
 import { TrashCheckoutDialog } from "../../cleanup/TrashCheckoutDialog.tsx";
 import { BusyCheckoutDialog } from "../../t3Code/BusyCheckoutDialog.tsx";
@@ -36,10 +38,12 @@ export function CheckoutActions({
   repository,
   machine,
   checkout,
+  onShowWorkingTree,
 }: {
   readonly repository: Repository;
   readonly machine: Machine;
   readonly checkout: Checkout;
+  readonly onShowWorkingTree: (path: string) => void;
 }) {
   const [dialog, setDialog] = useState<"pull" | "stash" | "discard" | "archive" | "trash" | null>(
     null,
@@ -49,7 +53,7 @@ export function CheckoutActions({
   const { start, pending, failure } = useStartBatch();
   const [cancelling, startCancel] = useTransition();
   const active = activeRunFor(runs, { machineId: machine.id, checkout });
-  const latest = latestRunFor(runs, { machineId: machine.id, checkout });
+  const recent = recentRunFor({ runs, target: { machineId: machine.id, checkout }, now: useNow() });
   const fetchBlocked = machineBlocker(machine, "Fetch");
   const pullBlocked = pullSkipReason(machine, checkout);
   const git = checkout.status._tag === "Read" ? checkout.status.git : null;
@@ -78,21 +82,23 @@ export function CheckoutActions({
   const trashBlocked = machineBlocker(machine, linked === null ? "Trash" : "RemoveWorktree");
   const scope = { _tag: "Checkout", machineId: machine.id, path: checkout.path } as const;
   const agents = busyThreads(machine, [checkout.path]);
-  const shown = active ?? latest;
+  const shown = active ?? recent;
 
   return (
-    <section aria-labelledby="checkout-actions" className="space-y-2">
+    <section aria-labelledby="checkout-actions" className="flex flex-col gap-2">
       <h3 id="checkout-actions" className="sr-only">
         Actions
       </h3>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-1.5">
         <Button
+          size="compact"
           disabled={fetchBlocked !== null || active !== undefined || pending}
           onClick={() => start({ _tag: "Fetch", scope })}
         >
           Fetch
         </Button>
         <Button
+          size="compact"
           disabled={pullBlocked !== null || active !== undefined || pending}
           onClick={() => (agents.length > 0 ? setDialog("pull") : start({ _tag: "Pull", scope }))}
         >
@@ -100,19 +106,45 @@ export function CheckoutActions({
         </Button>
         {hasChanges && (
           <Button
+            size="compact"
             disabled={stashBlocked !== null || active !== undefined || pending}
             onClick={() => setDialog("stash")}
           >
-            Stash changes
+            Stash
+          </Button>
+        )}
+        {git !== null && (
+          <SwitchBranchMenu
+            repository={repository}
+            machine={machine}
+            checkout={checkout}
+            git={git}
+            onGoTo={onShowWorkingTree}
+          />
+        )}
+        {active !== undefined && (
+          <Button
+            tone="quiet"
+            size="compact"
+            disabled={cancelling}
+            onClick={() =>
+              startCancel(async () => {
+                await requestHub((client) =>
+                  client.Cancel({ target: { _tag: "Run", runId: active.id } }),
+                );
+              })
+            }
+          >
+            {cancelling ? "Cancelling…" : "Cancel"}
           </Button>
         )}
         {mayClean && (
           <Menu
             label="More actions for this checkout"
             trigger={{
-              content: "More…",
+              content: <EllipsisIcon aria-hidden="true" className="size-4" />,
               className:
-                "inline-flex min-h-9 items-center rounded-md px-3 text-sm font-medium text-ink-muted hover:bg-surface-raised hover:text-ink",
+                "ms-auto grid size-8 place-items-center rounded-md text-ink-muted hover:bg-surface hover:text-ink",
             }}
           >
             {(close) => (
@@ -164,33 +196,18 @@ export function CheckoutActions({
             )}
           </Menu>
         )}
-        {active !== undefined && (
-          <Button
-            tone="quiet"
-            disabled={cancelling}
-            onClick={() =>
-              startCancel(async () => {
-                await requestHub((client) =>
-                  client.Cancel({ target: { _tag: "Run", runId: active.id } }),
-                );
-              })
-            }
-          >
-            {cancelling ? "Cancelling…" : "Cancel"}
-          </Button>
-        )}
       </div>
       {active === undefined && (fetchBlocked ?? pullBlocked) !== null && (
-        <p className="text-sm text-ink-muted">
+        <p className="text-xs text-ink-muted">
           {fetchBlocked === null
             ? `Pull isn't available: ${pullBlocked}.`
             : `Actions aren't available: ${fetchBlocked}.`}
         </p>
       )}
       {active === undefined && fetchBlocked === null && hasChanges && stashBlocked !== null && (
-        <p className="text-sm text-ink-muted">Stashing isn't available: {stashBlocked}.</p>
+        <p className="text-xs text-ink-muted">Stashing isn't available: {stashBlocked}.</p>
       )}
-      <p role="status" className="text-sm">
+      <p role="status" className="text-[13px] empty:sr-only">
         {failure !== null && <span className="text-danger">{failure}</span>}
         {failure === null && shown !== undefined && (
           <span className="flex flex-wrap items-baseline gap-x-2">

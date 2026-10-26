@@ -11,37 +11,17 @@ import { Spinner } from "@/ui/Spinner.tsx";
 import { machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
 import { ChangesChoice } from "../actions/ChangesChoice.tsx";
+import { StashPopInstructions } from "../actions/StashPopInstructions.tsx";
 import { useStartBatch } from "../actions/useStartBatch.ts";
 import { busyThreads, worktreeThread } from "../t3Code/t3CodeLookup.ts";
 import { BusyThreadsNotice, WorktreeThreadNote } from "../t3Code/T3CodeNotices.tsx";
+import { worktreeInspectionFrom } from "./worktreeInspection.ts";
 
-import type { HubResult } from "@/rpc/hubConnection.ts";
 import type { Machine } from "@fleetfrog/protocol/domain/fleet";
-import type { InspectionResult, WorktreeInspection } from "@fleetfrog/protocol/domain/trash";
+import type { WorktreeInspection } from "@fleetfrog/protocol/domain/trash";
 
 import type { ChangesHandling } from "../actions/ChangesChoice.tsx";
-
-type InspectionState =
-  | { readonly _tag: "Checking" }
-  | { readonly _tag: "Failed"; readonly message: string }
-  | { readonly _tag: "Ready"; readonly inspection: WorktreeInspection };
-
-function stateFrom(result: HubResult<InspectionResult>): InspectionState {
-  if (result._tag === "Failure") {
-    return { _tag: "Failed", message: result.message };
-  }
-
-  const { value } = result;
-
-  if (value._tag === "WorktreeInspected") {
-    return { _tag: "Ready", inspection: value.inspection };
-  }
-
-  return {
-    _tag: "Failed",
-    message: value._tag === "Failed" ? value.message : "The machine inspected the wrong thing.",
-  };
-}
+import type { WorktreeInspectionState } from "./worktreeInspection.ts";
 
 function keptWork(inspection: WorktreeInspection): ReadonlyArray<string> {
   const lines: Array<string> = [];
@@ -91,12 +71,14 @@ function changesSummary({ changedFiles, untrackedFiles }: WorktreeInspection): s
 function InspectionDetails({
   inspection,
   machine,
+  mainPath,
   handling,
   onHandlingChange,
   discardUnavailable,
 }: {
   readonly inspection: WorktreeInspection;
   readonly machine: Machine;
+  readonly mainPath: string;
   readonly handling: ChangesHandling;
   readonly onHandlingChange: (next: ChangesHandling) => void;
   readonly discardUnavailable: string | null;
@@ -124,7 +106,12 @@ function InspectionDetails({
             machine={machine}
             value={handling}
             onChange={onHandlingChange}
-            stash="They go into a stash first, and you can bring them back from the Stashes list."
+            stash={
+              <>
+                They go into a stash first.{" "}
+                <StashPopInstructions path={mainPath} branch={inspection.branch} />
+              </>
+            }
             discard="They go to the Trash instead of the Stashes list."
             unavailable={discardUnavailable}
           />
@@ -172,7 +159,7 @@ export function RemoveWorktreeDialog({
   readonly onClose: () => void;
 }) {
   const { start, pending, failure } = useStartBatch();
-  const [state, setState] = useState<InspectionState>({ _tag: "Checking" });
+  const [state, setState] = useState<WorktreeInspectionState>({ _tag: "Checking" });
   const [handling, setHandling] = useState<ChangesHandling>("Stash");
 
   useEffect(() => {
@@ -184,7 +171,7 @@ export function RemoveWorktreeDialog({
       );
 
       if (current) {
-        setState(stateFrom(result));
+        setState(worktreeInspectionFrom(result));
       }
     };
 
@@ -239,6 +226,7 @@ export function RemoveWorktreeDialog({
             <InspectionDetails
               inspection={inspection}
               machine={machine}
+              mainPath={mainPath}
               handling={handling}
               onHandlingChange={setHandling}
               discardUnavailable={discardUnavailable}

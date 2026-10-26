@@ -65,7 +65,13 @@ export function branchesInOtherWorktrees({
   return new Map([...listed, ...read]);
 }
 
-function standingOf(
+export function recentFirst(left: LocalBranch, right: LocalBranch): number {
+  return (
+    (right.tip?.committedAt.epochMilliseconds ?? 0) - (left.tip?.committedAt.epochMilliseconds ?? 0)
+  );
+}
+
+export function branchStanding(
   branch: LocalBranch & { readonly tip: BranchTip },
   merged: ReadonlyArray<MergedPullRequest>,
 ): BranchStanding {
@@ -122,7 +128,7 @@ export function tidyCandidates(options: {
       candidates.push({
         name,
         tip,
-        standing: standingOf({ ...branch, tip }, merged),
+        standing: branchStanding({ ...branch, tip }, merged),
         isDefault: name === defaultBranch,
       });
     }
@@ -131,10 +137,40 @@ export function tidyCandidates(options: {
   return { candidates, kept, ignored };
 }
 
-export function isMerged(candidate: TidyCandidate): boolean {
-  return candidate.standing._tag === "Merged" || candidate.standing._tag === "MergedPullRequest";
+export type MergeProof =
+  | { readonly _tag: "PullRequest"; readonly pullRequest: MergedPullRequest }
+  | { readonly _tag: "DefaultBranch" };
+
+export function mergeProof(checkout: Checkout): MergeProof | null {
+  if (checkout.status._tag !== "Read") {
+    return null;
+  }
+
+  const { git } = checkout.status;
+  const { head, lastCommit } = git;
+  const defaultBranch = git.defaultBranch ?? checkout.github?.defaultBranch ?? null;
+
+  if (head._tag !== "Branch" || head.name === defaultBranch || lastCommit === null) {
+    return null;
+  }
+
+  const pullRequest = checkout.github?.mergedPullRequests.find(
+    ({ branch, sha }) => branch === head.name && sha === lastCommit.sha,
+  );
+
+  if (pullRequest !== undefined) {
+    return { _tag: "PullRequest", pullRequest };
+  }
+
+  const tip = git.branches.items.find(({ name }) => name === head.name)?.tip ?? null;
+
+  return tip?.merged === true && head.upstream?.gone === true ? { _tag: "DefaultBranch" } : null;
 }
 
 export function isPreselected(candidate: TidyCandidate): boolean {
-  return isMerged(candidate) && !candidate.isDefault;
+  const { standing } = candidate;
+
+  return (
+    (standing._tag === "Merged" || standing._tag === "MergedPullRequest") && !candidate.isDefault
+  );
 }

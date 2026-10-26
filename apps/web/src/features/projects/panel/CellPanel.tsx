@@ -1,107 +1,105 @@
-import { FolderGit2Icon, GitForkIcon, LayersIcon, TriangleAlertIcon } from "lucide-react";
+import { useId } from "react";
 
 import { MachineKindIcon } from "@/ui/MachineKindIcon.tsx";
 import { ProjectIcon } from "@/ui/ProjectIcon.tsx";
+import { RelativeTime } from "@/ui/RelativeTime.tsx";
+import { TabList, TabPanel } from "@/ui/Tabs.tsx";
+import { clonePath } from "@fleetfrog/protocol/domain/checkout";
 import { machineKind, machineLabel } from "@fleetfrog/protocol/domain/fleet";
 
-import { CellState, problemWords } from "../CellContent.tsx";
-import { cellFor, summariseCell } from "../cellSummary.ts";
+import { busyThreads } from "../../t3Code/t3CodeLookup.ts";
+import { cellFor } from "../cellSummary.ts";
 import { RepositoryActions } from "../RepositoryActions.tsx";
-import { CheckoutSections } from "./CheckoutSections.tsx";
+import { outlineCell, workingTreesOf } from "../workingTrees.ts";
+import { AboutTab } from "./AboutTab.tsx";
 import { CloneSections } from "./CloneSections.tsx";
 import { FocusHeading } from "./FocusHeading.tsx";
 import { Crumb, PanelHeader } from "./PanelHeader.tsx";
-import { PanelSection } from "./PanelSection.tsx";
 import { RepositoryLink } from "./RepositoryLink.tsx";
+import { T3CodeTab } from "./T3CodeTab.tsx";
+import { WorkingTreesTab } from "./WorkingTreesTab.tsx";
 
-import type { Fleet, Machine, MachineCheckout, Repository } from "@fleetfrog/protocol/domain/fleet";
+import type { Tab } from "@/ui/Tabs.tsx";
+import type { Fleet, Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
 import type { ProjectSelection, SelectionHistory } from "../ProjectGrid.tsx";
 
-function folderName(path: string): string {
-  return path.split("/").findLast((part) => part !== "") ?? path;
-}
-
-function CheckoutPicker({
-  entries,
-  current,
-  onChoose,
-}: {
-  readonly entries: ReadonlyArray<MachineCheckout>;
-  readonly current: MachineCheckout;
-  readonly onChoose: (path: string) => void;
-}) {
-  return (
-    <PanelSection
-      title="Checkouts on this machine"
-      icon={LayersIcon}
-      tone="neutral"
-      count={entries.length}
-    >
-      <ul className="-mx-1.5 space-y-0.5">
-        {entries.map((entry) => {
-          const single = summariseCell([entry]);
-          const linked = entry.checkout.worktree._tag === "Linked";
-
-          return (
-            <li key={entry.checkout.path}>
-              <button
-                type="button"
-                aria-current={entry === current ? "true" : undefined}
-                onClick={() => onChoose(entry.checkout.path)}
-                title={entry.checkout.path}
-                className="flex w-full items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-start text-sm hover:bg-canvas aria-[current=true]:bg-accent-soft"
-              >
-                {linked ? (
-                  <GitForkIcon className="text-ink-muted" />
-                ) : (
-                  <FolderGit2Icon className="text-ink-muted" />
-                )}
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">
-                    {folderName(entry.checkout.path)}
-                  </span>
-                  <span className="block truncate text-xs text-ink-muted">
-                    <span className="font-mono">{single?.branch ?? "Unreadable"}</span>
-                    {linked ? " · worktree" : " · clone"}
-                  </span>
-                </span>
-                {single !== null && (
-                  <span className="flex shrink-0 items-baseline gap-1.5 text-xs font-medium tabular-nums">
-                    <CellState cell={single} />
-                  </span>
-                )}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-    </PanelSection>
-  );
-}
+export type CellTab = "working-trees" | "t3-code" | "about";
 
 export function CellPanel({
   fleet,
   repository,
   machine,
   path,
+  tab,
   headingId,
   onSelect,
   onChoosePath,
+  onChooseTab,
   onClose,
 }: {
   readonly fleet: Fleet;
   readonly repository: Repository;
   readonly machine: Machine;
   readonly path: string | null;
+  readonly tab: CellTab;
   readonly headingId: string;
   readonly onSelect: (selection: ProjectSelection, history: SelectionHistory) => void;
   readonly onChoosePath: (path: string) => void;
+  readonly onChooseTab: (tab: CellTab) => void;
   readonly onClose: () => void;
 }) {
+  const tabsId = useId();
   const cell = cellFor(repository, machine.id);
   const entry = cell?.entries.find(({ checkout }) => checkout.path === path) ?? cell?.primary;
   const offline = machine.connection._tag === "Offline";
+
+  const clones =
+    cell === null
+      ? []
+      : outlineCell({
+          machine,
+          entries: cell.entries,
+          ignoredBranches: fleet.cleanup.ignoredBranches,
+        });
+
+  const hasT3Code = machine.t3Code !== null;
+  const current = tab === "t3-code" && !hasT3Code ? "working-trees" : tab;
+
+  const busy = busyThreads(
+    machine,
+    clones.flatMap(workingTreesOf).map((tree) => tree.path),
+  ).length;
+
+  const selectedClone =
+    entry === undefined
+      ? undefined
+      : clones.find((clone) => clone.path === clonePath(entry.checkout));
+
+  const fetchedAt = selectedClone?.anchor?.git.lastFetchedAt ?? null;
+
+  const tabs: ReadonlyArray<Tab<CellTab>> = [
+    { id: "working-trees", label: "Working trees" },
+    ...(hasT3Code
+      ? [
+          {
+            id: "t3-code" as const,
+            label: (
+              <>
+                T3 Code
+                {busy > 0 && (
+                  <span className="rounded-full bg-sync-soft px-1.5 text-xs text-sync tabular-nums">
+                    {busy}
+                    <span className="sr-only"> busy</span>
+                  </span>
+                )}
+              </>
+            ),
+          },
+        ]
+      : []),
+    { id: "about", label: "About" },
+  ];
 
   return (
     <>
@@ -127,8 +125,28 @@ export function CellPanel({
             </Crumb>
           </>
         }
-        subtitle={<RepositoryLink identity={repository.identity} />}
+        subtitle={
+          <span className="flex min-w-0 items-center gap-1.5">
+            <RepositoryLink identity={repository.identity} />
+            {fetchedAt !== null && (
+              <span className="shrink-0">
+                · Fetched <RelativeTime at={fetchedAt} />
+              </span>
+            )}
+          </span>
+        }
         actions={<RepositoryActions fleet={fleet} repository={repository} />}
+        tabs={
+          cell === null ? undefined : (
+            <TabList
+              base={tabsId}
+              label="Repository on this machine"
+              tabs={tabs}
+              current={current}
+              onChoose={onChooseTab}
+            />
+          )
+        }
         onClose={onClose}
       />
       <FocusHeading key={cell === null ? "missing" : "present"} targetId={headingId} />
@@ -137,38 +155,30 @@ export function CellPanel({
           <CloneSections fleet={fleet} repository={repository} machine={machine} />
         </div>
       ) : (
-        <div className="space-y-3 px-4 pb-6">
-          {cell.entries
-            .filter((other) => other !== entry)
-            .flatMap((other) => {
-              const problem = summariseCell([other])?.problem ?? null;
-
-              return problem === null ? [] : [{ other, problem }];
-            })
-            .map(({ other, problem }) => (
-              <div
-                key={other.checkout.path}
-                className="flex items-start gap-2 rounded-xl border border-danger/30 bg-danger-soft px-3 py-2.5 text-sm text-danger"
-              >
-                <TriangleAlertIcon className="mt-0.5" />
-                <p className="min-w-0 flex-1">
-                  <span className="font-medium">{folderName(other.checkout.path)}</span>:{" "}
-                  {problemWords[problem]}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => onChoosePath(other.checkout.path)}
-                  className="shrink-0 underline-offset-2 hover:underline"
-                >
-                  Show it
-                </button>
-              </div>
-            ))}
-          {cell.entries.length > 1 && (
-            <CheckoutPicker entries={cell.entries} current={entry} onChoose={onChoosePath} />
-          )}
-          <CheckoutSections repository={repository} machine={machine} checkout={entry.checkout} />
-        </div>
+        <TabPanel base={tabsId} current={current}>
+          <div className="px-4 pb-6">
+            {current === "working-trees" && (
+              <WorkingTreesTab
+                repository={repository}
+                machine={machine}
+                clones={clones}
+                selectedPath={entry.checkout.path}
+                onChoosePath={onChoosePath}
+              />
+            )}
+            {current === "t3-code" && (
+              <T3CodeTab
+                repository={repository}
+                machine={machine}
+                clones={clones}
+                onChoosePath={onChoosePath}
+              />
+            )}
+            {current === "about" && (
+              <AboutTab repository={repository} machine={machine} clones={clones} />
+            )}
+          </div>
+        </TabPanel>
       )}
     </>
   );

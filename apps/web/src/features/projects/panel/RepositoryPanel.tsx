@@ -157,7 +157,7 @@ export function RepositoryPanel({
                     onClick={() =>
                       onSelect({ repository: repository.key, machine: machine.id }, "Push")
                     }
-                    className={`block w-full px-3 py-2.5 text-start hover:bg-canvas ${cell.problem === null ? "" : "bg-danger-soft"}`}
+                    className={`block w-full px-3 py-2.5 text-start hover:bg-fill ${cell.problem === null ? "" : "bg-danger-soft"}`}
                   >
                     <MachineLine machine={machine} />
                     <span className="mt-1.5 block">

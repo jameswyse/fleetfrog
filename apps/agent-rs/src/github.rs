@@ -11,7 +11,9 @@ use serde::Deserialize;
 use crate::git::CheckoutLocation;
 use crate::paths;
 use crate::process::{run_git, run_tool};
-use crate::protocol::{Count, GithubState, MergedPullRequest, PullRequest, RepositoryIdentity};
+use crate::protocol::{
+    Count, GitStatus, GithubState, Head, MergedPullRequest, PullRequest, RepositoryIdentity,
+};
 use crate::time::Utc;
 
 const QUERY: &str = "query($owner: String!, $name: String!) {
@@ -132,6 +134,23 @@ impl Reading {
 
         ((now.millis() - checked_at.millis()).max(0) as u128) < lifetime.as_millis()
     }
+}
+
+pub fn local_branch_names(status: &GitStatus) -> Vec<String> {
+    let mut names: Vec<String> = status
+        .branches
+        .items
+        .iter()
+        .map(|branch| branch.name.clone())
+        .collect();
+
+    if let Head::Branch { name, .. } = &status.head
+        && !names.contains(name)
+    {
+        names.push(name.clone());
+    }
+
+    names
 }
 
 pub struct GithubReader {

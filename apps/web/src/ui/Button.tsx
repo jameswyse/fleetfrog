@@ -7,16 +7,25 @@ const tones = {
   quiet: "text-ink-muted hover:bg-surface-raised hover:text-ink",
 } as const;
 
+const sizes = {
+  regular: "min-h-9 px-3 text-sm",
+  compact: "min-h-8 px-2.5 text-[13px]",
+} as const;
+
 export function Button({
   tone = "secondary",
+  size = "regular",
   className = "",
   type = "button",
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & { readonly tone?: keyof typeof tones }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  readonly tone?: keyof typeof tones;
+  readonly size?: keyof typeof sizes;
+}) {
   return (
     <button
       type={type}
-      className={`inline-flex min-h-9 items-center justify-center gap-2 rounded-md px-3 text-sm font-medium whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${tones[tone]} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-md font-medium whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${sizes[size]} ${tones[tone]} ${className}`}
       {...props}
     />
   );
