@@ -63,7 +63,7 @@ function CellRow({
         onClick={() =>
           onSelect({ repository: item.repository.key, machine: item.machine.id }, "Push")
         }
-        className="flex w-full items-center gap-3 rounded-lg px-1.5 py-1 text-start text-sm hover:bg-canvas"
+        className="flex w-full items-center gap-3 rounded-lg px-1.5 py-1 text-start text-sm hover:bg-fill"
       >
         <span className="min-w-0 flex-1 truncate font-medium">{item.repository.label}</span>
         <span className="flex max-w-[35%] shrink-0 items-center gap-1.5 text-xs text-ink-muted">
@@ -127,7 +127,7 @@ function MachineRow({ fleet, machine }: { readonly fleet: Fleet; readonly machin
         <Link
           to="/settings/fleet/$machineId"
           params={{ machineId: machine.id }}
-          className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-sm hover:bg-canvas"
+          className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-sm hover:bg-fill"
         >
           {details}
         </Link>
@@ -214,7 +214,7 @@ export function FleetOverview({
                         "Push",
                       )
                     }
-                    className="w-full rounded-lg px-1.5 py-1 text-start text-sm hover:bg-canvas"
+                    className="w-full rounded-lg px-1.5 py-1 text-start text-sm hover:bg-fill"
                   >
                     <span className="flex items-baseline gap-3">
                       <span className="min-w-0 flex-1 truncate font-medium">{thread.title}</span>
@@ -368,7 +368,7 @@ export function FleetOverview({
                     href={pull.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-baseline gap-2 rounded-lg px-1.5 py-1 text-sm hover:bg-canvas"
+                    className="flex items-baseline gap-2 rounded-lg px-1.5 py-1 text-sm hover:bg-fill"
                   >
                     <span className="min-w-0 flex-1 truncate">
                       <span className="text-accent-text">#{pull.number}</span> {pull.title}

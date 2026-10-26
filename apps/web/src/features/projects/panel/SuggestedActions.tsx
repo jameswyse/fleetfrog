@@ -125,7 +125,7 @@ export function SuggestedActions({
             icon={<TriangleAlertIcon />}
             tone="danger"
             action={
-              <Button tone="quiet" className="min-h-7 px-2" onClick={() => onChoosePath(tree.path)}>
+              <Button tone="quiet" size="compact" onClick={() => onChoosePath(tree.path)}>
                 Show
               </Button>
             }
@@ -139,7 +139,7 @@ export function SuggestedActions({
             icon={<span className="text-xs font-semibold text-sync tabular-nums">↓{commits}</span>}
             action={
               <Button
-                className="min-h-7 px-2"
+                size="compact"
                 disabled={
                   pending || activeRunFor(runs, { machineId: machine.id, checkout }) !== undefined
                 }
@@ -163,7 +163,7 @@ export function SuggestedActions({
             icon={<CloudOffIcon />}
             tone="changes"
             action={
-              <Button tone="quiet" className="min-h-7 px-2" onClick={() => onChoosePath(tree.path)}>
+              <Button tone="quiet" size="compact" onClick={() => onChoosePath(tree.path)}>
                 Show
               </Button>
             }
@@ -175,7 +175,7 @@ export function SuggestedActions({
           <Suggestion
             icon={<GitMergeIcon className="text-clean" />}
             action={
-              <Button className="min-h-7 px-2" onClick={onCleanUp}>
+              <Button size="compact" onClick={onCleanUp}>
                 Clean up…
               </Button>
             }

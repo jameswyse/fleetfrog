@@ -32,7 +32,7 @@ test("[deterministic] stash confirmation cancels without changing files", async 
   screen,
 }) => {
   await openCheckout(app, screen, "dirty-project");
-  await screen.getByRole("button", { name: "Stash changes", exact: true }).click();
+  await screen.getByRole("button", { name: "Stash", exact: true }).click();
   const dialog = screen.getByRole("dialog", { name: "Stash changes in dirty-project?" });
   await expect(dialog).toContainText("1 changed file");
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();

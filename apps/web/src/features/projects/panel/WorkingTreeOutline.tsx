@@ -1,6 +1,12 @@
 import { useId, useState } from "react";
 
-import { BotIcon, ChevronRightIcon, FolderGit2Icon, GitForkIcon } from "lucide-react";
+import {
+  BotIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  FolderGit2Icon,
+  GitForkIcon,
+} from "lucide-react";
 
 import { useMayRun } from "@/rpc/session.ts";
 import { Chip } from "@/ui/Chip.tsx";
@@ -15,7 +21,7 @@ import { threadsByUrgency } from "../../t3Code/t3CodeLookup.ts";
 import { threadStateWords } from "../../t3Code/T3CodeNotices.tsx";
 import { Glyph } from "../CellContent.tsx";
 import { workingTreesOf } from "../workingTrees.ts";
-import { ListSection } from "./ListSection.tsx";
+import { CountPill, ListCard, ListSection } from "./ListSection.tsx";
 import { WorkingTreeDetail } from "./WorkingTreeDetail.tsx";
 
 import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
@@ -50,7 +56,7 @@ function ThreadLine({ machine, tree }: { readonly machine: Machine; readonly tre
       )}
       {older.length > 0 && (
         <span
-          className="shrink-0 rounded-full bg-canvas px-1.5 tabular-nums"
+          className="shrink-0 rounded-full bg-chip px-1.5 tabular-nums"
           title={plural(older.length, "other thread")}
         >
           +{older.length}
@@ -121,14 +127,16 @@ function TreeRow({
   machine,
   clonePath,
   tree,
-  selected,
+  expanded,
+  onToggle,
   onChoosePath,
 }: {
   readonly repository: Repository;
   readonly machine: Machine;
   readonly clonePath: string;
   readonly tree: WorkingTree;
-  readonly selected: boolean;
+  readonly expanded: boolean;
+  readonly onToggle: () => void;
   readonly onChoosePath: (path: string) => void;
 }) {
   const [removing, setRemoving] = useState(false);
@@ -160,7 +168,7 @@ function TreeRow({
             type="button"
             onClick={() => setRemoving(true)}
             aria-label={`Remove the worktree at ${tree.path}`}
-            className="shrink-0 rounded px-1.5 py-0.5 text-xs text-ink-muted hover:bg-canvas hover:text-danger"
+            className="shrink-0 rounded px-1.5 py-0.5 text-xs text-ink-muted hover:bg-fill hover:text-danger"
           >
             Remove
           </button>
@@ -179,18 +187,22 @@ function TreeRow({
   }
 
   return (
-    <li>
+    <li className={expanded ? "overflow-hidden rounded-lg bg-fill" : undefined}>
       <button
         type="button"
-        aria-expanded={selected}
-        aria-controls={selected ? detailId : undefined}
-        onClick={() => onChoosePath(tree.path)}
+        aria-expanded={expanded}
+        aria-controls={expanded ? detailId : undefined}
+        onClick={onToggle}
         title={tree.path}
-        className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-start text-sm hover:bg-canvas aria-expanded:bg-accent-soft"
+        className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-start text-sm hover:bg-fill"
       >
         {content}
+        <ChevronDownIcon
+          aria-hidden="true"
+          className={`size-4 shrink-0 text-ink-muted transition-transform motion-reduce:transition-none ${expanded ? "rotate-180" : ""}`}
+        />
       </button>
-      {selected && (
+      {expanded && (
         <WorkingTreeDetail
           id={detailId}
           repository={repository}
@@ -217,6 +229,8 @@ export function WorkingTreeOutline({
   clone,
   title,
   selectedPath,
+  expandedPath,
+  onTogglePath,
   onChoosePath,
   onCleanUp,
 }: {
@@ -225,20 +239,24 @@ export function WorkingTreeOutline({
   readonly clone: CloneOutline;
   readonly title: string | null;
   readonly selectedPath: string;
+  readonly expandedPath: string | null;
+  readonly onTogglePath: (path: string) => void;
   readonly onChoosePath: (path: string) => void;
   readonly onCleanUp: (() => void) | null;
 }) {
+  const fresh = { selectedPath, groups: new Map<GroupKind, boolean>() };
+
   const [toggled, setToggled] = useState<{
     readonly selectedPath: string;
     readonly groups: ReadonlyMap<GroupKind, boolean>;
-  }>({ selectedPath, groups: new Map() });
+  }>(fresh);
 
   if (toggled.selectedPath !== selectedPath) {
-    setToggled({ selectedPath, groups: new Map() });
+    setToggled(fresh);
   }
 
-  const overrides =
-    toggled.selectedPath === selectedPath ? toggled.groups : new Map<GroupKind, boolean>();
+  const current = toggled.selectedPath === selectedPath ? toggled : fresh;
+  const overrides = current.groups;
 
   const active = clone.linked.filter(({ lifecycle }) => lifecycle._tag === "Active");
 
@@ -254,7 +272,8 @@ export function WorkingTreeOutline({
       machine={machine}
       clonePath={clone.path}
       tree={tree}
-      selected={tree.path === selectedPath}
+      expanded={tree.path === expandedPath}
+      onToggle={() => onTogglePath(tree.path)}
       onChoosePath={onChoosePath}
     />
   );
@@ -289,20 +308,18 @@ export function WorkingTreeOutline({
                       aria-expanded={open}
                       onClick={() =>
                         setToggled({
-                          selectedPath,
+                          ...current,
                           groups: new Map([...overrides, [kind, !open]]),
                         })
                       }
-                      className="flex min-h-8 min-w-0 flex-1 items-center gap-2 rounded-lg px-2 text-start text-sm hover:bg-canvas"
+                      className="flex min-h-8 min-w-0 flex-1 items-center gap-2 rounded-lg px-2 text-start text-sm hover:bg-fill"
                     >
                       <ChevronRightIcon
                         aria-hidden="true"
                         className={`shrink-0 text-ink-muted transition-transform motion-reduce:transition-none ${open ? "rotate-90" : ""}`}
                       />
                       <span className="font-medium">{groupWords[kind].title}</span>
-                      <span className="rounded-full bg-canvas px-1.5 text-xs font-medium text-ink-muted tabular-nums">
-                        {trees.length}
-                      </span>
+                      <CountPill count={trees.length} />
                       <span className="truncate text-xs text-ink-muted">
                         {groupWords[kind].note}
                       </span>
@@ -311,7 +328,7 @@ export function WorkingTreeOutline({
                       <button
                         type="button"
                         onClick={onCleanUp}
-                        className="shrink-0 rounded px-1.5 py-0.5 text-xs font-medium text-accent-text hover:bg-canvas"
+                        className="shrink-0 rounded px-1.5 py-0.5 text-xs font-medium text-accent-text hover:bg-fill"
                       >
                         Clean up…
                       </button>
@@ -328,10 +345,10 @@ export function WorkingTreeOutline({
   );
 
   return title === null ? (
-    <div className="-mx-1">{outline}</div>
+    <ListCard>{outline}</ListCard>
   ) : (
     <ListSection title={title} count={workingTreesOf(clone).length}>
-      <div className="-mx-1">{outline}</div>
+      {outline}
     </ListSection>
   );
 }

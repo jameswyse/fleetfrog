@@ -1,18 +1,20 @@
-import { GitPullRequestIcon, TriangleAlertIcon } from "lucide-react";
+import { BotIcon, GitPullRequestIcon, TriangleAlertIcon } from "lucide-react";
 
 import { PathText } from "@/ui/PathText.tsx";
 import { RelativeTime } from "@/ui/RelativeTime.tsx";
 
 import { busyThreads } from "../../t3Code/t3CodeLookup.ts";
-import { BusyThreadsNotice } from "../../t3Code/T3CodeNotices.tsx";
+import { busyThreadsSentence } from "../../t3Code/T3CodeNotices.tsx";
 import { CheckoutActions } from "./CheckoutActions.tsx";
-import { ShortList } from "./PanelSection.tsx";
+import { CountPill, sectionTitleClass } from "./ListSection.tsx";
+import { Fact, Facts, ShortList } from "./PanelSection.tsx";
 
 import type {
   ChangedFile,
   Checkout,
   FileState,
   GitStatus,
+  Upstream,
 } from "@fleetfrog/protocol/domain/checkout";
 import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
 
@@ -84,39 +86,28 @@ function problemText(problem: WorkingTreeProblem): string {
   }
 }
 
-function UpstreamLine({
-  git,
+function UpstreamValue({
+  upstream,
   merge,
 }: {
-  readonly git: GitStatus;
+  readonly upstream: Upstream | null;
   readonly merge: MergeProof | null;
 }) {
-  const { head } = git;
-
-  if (head._tag === "Detached") {
-    return <>Detached HEAD{git.lastCommit !== null && ` at ${git.lastCommit.sha.slice(0, 7)}`}</>;
-  }
-
-  if (head._tag === "Unborn") {
-    return <>No commits yet</>;
-  }
-
-  const { upstream } = head;
-
   if (upstream === null) {
-    return <>No upstream branch</>;
+    return <span className="text-ink-muted">None</span>;
   }
+
+  const name = <span className="font-mono text-[13px] break-all">{upstream.name}</span>;
 
   if (upstream.gone) {
     return merge !== null ? (
       <>
-        Merged. <span className="font-mono">{upstream.name}</span> was deleted on the remote.
+        {name} <span className="text-ink-muted">· deleted after merging</span>
       </>
     ) : (
-      <span className="text-changes">
-        <span className="font-mono">{upstream.name}</span> was deleted on the remote, and no merge
-        was found.
-      </span>
+      <>
+        {name} <span className="text-changes">· deleted, and no merge was found</span>
+      </>
     );
   }
 
@@ -127,10 +118,43 @@ function UpstreamLine({
 
   return (
     <>
-      Tracks <span className="font-mono">{upstream.name}</span>
-      {counts.length === 0 ? ", up to date" : `, ${counts.join(", ")}`}
+      {name}{" "}
+      <span className="text-ink-muted">
+        · {counts.length === 0 ? "up to date" : counts.join(", ")}
+      </span>
     </>
   );
+}
+
+function HeadFact({ git, merge }: { readonly git: GitStatus; readonly merge: MergeProof | null }) {
+  const { head } = git;
+
+  switch (head._tag) {
+    case "Branch":
+      return (
+        <Fact term="Upstream">
+          <UpstreamValue upstream={head.upstream} merge={merge} />
+        </Fact>
+      );
+    case "Detached":
+      return (
+        <Fact term="HEAD">
+          Detached{git.lastCommit !== null && ` at ${git.lastCommit.sha.slice(0, 7)}`}
+        </Fact>
+      );
+    case "Unborn":
+      return (
+        <Fact term="Commits">
+          <span className="text-ink-muted">None yet</span>
+        </Fact>
+      );
+
+    default: {
+      const _exhaustive: never = head;
+
+      return _exhaustive;
+    }
+  }
 }
 
 export function WorkingTreeDetail({
@@ -150,6 +174,7 @@ export function WorkingTreeDetail({
 }) {
   const { git, problem } = tree;
   const head = git?.head ?? null;
+  const threads = busyThreads(machine, [checkout.path]);
 
   const pullRequest =
     head?._tag === "Branch"
@@ -170,74 +195,93 @@ export function WorkingTreeDetail({
   const changes = git === null ? 0 : git.changed.total + git.untracked.total;
 
   return (
-    <div id={id} className="mt-1 mb-2 ms-7 space-y-3 rounded-lg border border-line p-3">
+    <div id={id} className="divide-y divide-line border-t border-line">
       {problem !== null && (
-        <p className="flex items-start gap-2 text-sm text-danger">
-          <TriangleAlertIcon className="mt-0.5 shrink-0" />
+        <p className="flex items-start gap-2 px-3 py-2 text-sm text-danger">
+          <TriangleAlertIcon aria-hidden="true" className="mt-0.5 shrink-0" />
           <span className="min-w-0 break-words">{problemText(problem)}</span>
         </p>
       )}
-      <BusyThreadsNotice
-        threads={busyThreads(machine, [checkout.path])}
-        where="in this working tree"
-        consequence="Pulling, switching branch or stashing here asks first."
-      />
-      {git !== null && (
-        <p className="text-sm text-ink-muted">
-          <UpstreamLine git={git} merge={tree.merge} />
-        </p>
-      )}
-      {pullRequest !== null && (
-        <a
-          href={pullRequest.url}
-          target="_blank"
-          rel="noreferrer"
-          className="flex items-start gap-2 text-sm text-accent-text hover:underline"
-        >
-          <GitPullRequestIcon className="mt-0.5 shrink-0" />
-          <span className="min-w-0">
-            #{pullRequest.number} {pullRequest.title}
-            {pullRequest.draft && <span className="text-ink-muted"> · draft</span>}
+      {threads.length > 0 && (
+        <p className="flex items-start gap-2 bg-sync-soft px-3 py-2 text-sm">
+          <BotIcon aria-hidden="true" className="mt-0.5 shrink-0 text-sync" />
+          <span className="min-w-0 break-words">
+            {busyThreadsSentence({ threads, where: "here" })}
           </span>
-          <span className="sr-only"> (opens in a new tab)</span>
-        </a>
-      )}
-      <CheckoutActions
-        repository={repository}
-        machine={machine}
-        checkout={checkout}
-        onShowWorkingTree={onShowWorkingTree}
-      />
-      {changes > 0 && (
-        <ShortList
-          items={files}
-          total={changes}
-          noun="changed files"
-          render={({ path, file }) => (
-            <li
-              key={path}
-              className="flex items-start gap-2 text-[13px]"
-              title={file === null ? "untracked" : describeChange(file)}
-            >
-              <ChangeCode file={file} />
-              <span className="min-w-0 font-mono break-all">{path}</span>
-              <span className="sr-only">
-                , {file === null ? "untracked" : describeChange(file)}
-              </span>
-            </li>
-          )}
-        />
-      )}
-      {git !== null && git.lastCommit !== null && (
-        <p className="text-sm text-ink-muted">
-          Last commit <span className="text-ink">{git.lastCommit.subject}</span> ·{" "}
-          <span className="font-mono">{git.lastCommit.sha.slice(0, 7)}</span> ·{" "}
-          <RelativeTime at={git.lastCommit.committedAt} />
         </p>
       )}
-      <p className="font-mono text-xs text-ink-muted [overflow-wrap:anywhere]">
-        <PathText path={checkout.path} />
-      </p>
+      <div className="px-3 py-2.5">
+        <CheckoutActions
+          repository={repository}
+          machine={machine}
+          checkout={checkout}
+          onShowWorkingTree={onShowWorkingTree}
+        />
+      </div>
+      <div className="px-3 py-2.5">
+        <Facts>
+          {git !== null && <HeadFact git={git} merge={tree.merge} />}
+          {pullRequest !== null && (
+            <Fact term="Pull request">
+              <a
+                href={pullRequest.url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-start gap-1.5 text-accent-text hover:underline"
+              >
+                <GitPullRequestIcon aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+                <span className="min-w-0">
+                  #{pullRequest.number} {pullRequest.title}
+                  {pullRequest.draft && <span className="text-ink-muted"> · draft</span>}
+                </span>
+                <span className="sr-only"> (opens in a new tab)</span>
+              </a>
+            </Fact>
+          )}
+          {git !== null && git.lastCommit !== null && (
+            <Fact term="Last commit">
+              <span className="block">{git.lastCommit.subject}</span>
+              <span className="block text-xs text-ink-muted">
+                <span className="font-mono">{git.lastCommit.sha.slice(0, 7)}</span> ·{" "}
+                <RelativeTime at={git.lastCommit.committedAt} />
+              </span>
+            </Fact>
+          )}
+          <Fact term="Folder">
+            <span className="font-mono text-[13px] text-ink-muted [overflow-wrap:anywhere]">
+              <PathText path={checkout.path} />
+            </span>
+          </Fact>
+        </Facts>
+      </div>
+      {changes > 0 && (
+        <section aria-labelledby={`${id}-changes`} className="px-3 py-2.5">
+          <div className="mb-2 flex items-center gap-2">
+            <h4 id={`${id}-changes`} className={sectionTitleClass}>
+              Changes
+            </h4>
+            <CountPill count={changes} />
+          </div>
+          <ShortList
+            items={files}
+            total={changes}
+            noun="changed files"
+            render={({ path, file }) => (
+              <li
+                key={path}
+                className="flex items-start gap-2 text-[13px]"
+                title={file === null ? "untracked" : describeChange(file)}
+              >
+                <ChangeCode file={file} />
+                <span className="min-w-0 font-mono break-all">{path}</span>
+                <span className="sr-only">
+                  , {file === null ? "untracked" : describeChange(file)}
+                </span>
+              </li>
+            )}
+          />
+        </section>
+      )}
     </div>
   );
 }

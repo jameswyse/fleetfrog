@@ -1,7 +1,7 @@
 import { useState, useTransition } from "react";
 
 import { Link } from "@tanstack/react-router";
-import { ArchiveIcon, Trash2Icon, Undo2Icon } from "lucide-react";
+import { ArchiveIcon, EllipsisIcon, Trash2Icon, Undo2Icon } from "lucide-react";
 
 import { requestHub, useRuns } from "@/rpc/hubConnection.ts";
 import { useMayRun } from "@/rpc/session.ts";
@@ -85,18 +85,20 @@ export function CheckoutActions({
   const shown = active ?? recent;
 
   return (
-    <section aria-labelledby="checkout-actions" className="space-y-2">
+    <section aria-labelledby="checkout-actions" className="flex flex-col gap-2">
       <h3 id="checkout-actions" className="sr-only">
         Actions
       </h3>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-1.5">
         <Button
+          size="compact"
           disabled={fetchBlocked !== null || active !== undefined || pending}
           onClick={() => start({ _tag: "Fetch", scope })}
         >
           Fetch
         </Button>
         <Button
+          size="compact"
           disabled={pullBlocked !== null || active !== undefined || pending}
           onClick={() => (agents.length > 0 ? setDialog("pull") : start({ _tag: "Pull", scope }))}
         >
@@ -104,10 +106,11 @@ export function CheckoutActions({
         </Button>
         {hasChanges && (
           <Button
+            size="compact"
             disabled={stashBlocked !== null || active !== undefined || pending}
             onClick={() => setDialog("stash")}
           >
-            Stash changes
+            Stash
           </Button>
         )}
         {git !== null && (
@@ -119,13 +122,29 @@ export function CheckoutActions({
             onGoTo={onShowWorkingTree}
           />
         )}
+        {active !== undefined && (
+          <Button
+            tone="quiet"
+            size="compact"
+            disabled={cancelling}
+            onClick={() =>
+              startCancel(async () => {
+                await requestHub((client) =>
+                  client.Cancel({ target: { _tag: "Run", runId: active.id } }),
+                );
+              })
+            }
+          >
+            {cancelling ? "Cancelling…" : "Cancel"}
+          </Button>
+        )}
         {mayClean && (
           <Menu
             label="More actions for this checkout"
             trigger={{
-              content: "More…",
+              content: <EllipsisIcon aria-hidden="true" className="size-4" />,
               className:
-                "inline-flex min-h-9 items-center rounded-md px-3 text-sm font-medium text-ink-muted hover:bg-surface-raised hover:text-ink",
+                "ms-auto grid size-8 place-items-center rounded-md text-ink-muted hover:bg-surface hover:text-ink",
             }}
           >
             {(close) => (
@@ -177,33 +196,18 @@ export function CheckoutActions({
             )}
           </Menu>
         )}
-        {active !== undefined && (
-          <Button
-            tone="quiet"
-            disabled={cancelling}
-            onClick={() =>
-              startCancel(async () => {
-                await requestHub((client) =>
-                  client.Cancel({ target: { _tag: "Run", runId: active.id } }),
-                );
-              })
-            }
-          >
-            {cancelling ? "Cancelling…" : "Cancel"}
-          </Button>
-        )}
       </div>
       {active === undefined && (fetchBlocked ?? pullBlocked) !== null && (
-        <p className="text-sm text-ink-muted">
+        <p className="text-xs text-ink-muted">
           {fetchBlocked === null
             ? `Pull isn't available: ${pullBlocked}.`
             : `Actions aren't available: ${fetchBlocked}.`}
         </p>
       )}
       {active === undefined && fetchBlocked === null && hasChanges && stashBlocked !== null && (
-        <p className="text-sm text-ink-muted">Stashing isn't available: {stashBlocked}.</p>
+        <p className="text-xs text-ink-muted">Stashing isn't available: {stashBlocked}.</p>
       )}
-      <p role="status" className="text-sm">
+      <p role="status" className="text-[13px] empty:sr-only">
         {failure !== null && <span className="text-danger">{failure}</span>}
         {failure === null && shown !== undefined && (
           <span className="flex flex-wrap items-baseline gap-x-2">

@@ -40,6 +40,24 @@ export function WorkingTreesTab({
   readonly onChoosePath: (path: string) => void;
 }) {
   const [cleaning, setCleaning] = useState<ReadonlyArray<FinishedWorktree> | null>(null);
+  const [closedPath, setClosedPath] = useState<string | null>(null);
+  const [lastSelectedPath, setLastSelectedPath] = useState(selectedPath);
+
+  if (lastSelectedPath !== selectedPath) {
+    setLastSelectedPath(selectedPath);
+    setClosedPath(null);
+  }
+
+  const expandedPath = closedPath === selectedPath ? null : selectedPath;
+
+  const choosePath = (path: string) => {
+    setClosedPath(null);
+    onChoosePath(path);
+  };
+
+  const togglePath = (path: string) =>
+    path === expandedPath ? setClosedPath(path) : choosePath(path);
+
   const mayRemove = useMayRun("RemoveWorktree");
   const mayDelete = useMayRun("DeleteBranches");
 
@@ -62,7 +80,7 @@ export function WorkingTreesTab({
       <SuggestedActions
         machine={machine}
         clones={clones}
-        onChoosePath={onChoosePath}
+        onChoosePath={choosePath}
         onCleanUp={cleanUp(clones)}
       />
       {clones.map((clone) => (
@@ -79,7 +97,9 @@ export function WorkingTreesTab({
                   : null
             }
             selectedPath={selectedPath}
-            onChoosePath={onChoosePath}
+            expandedPath={expandedPath}
+            onTogglePath={togglePath}
+            onChoosePath={choosePath}
             onCleanUp={cleanUp([clone])}
           />
           <ParkedBranches repository={repository} machine={machine} clone={clone} />

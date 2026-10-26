@@ -116,7 +116,7 @@ export function SwitchBranchMenu({
             </>
           ),
           className:
-            "inline-flex min-h-9 items-center gap-2 rounded-md border border-line bg-surface px-3 text-sm font-medium text-ink hover:bg-surface-raised",
+            "inline-flex min-h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[13px] font-medium text-ink hover:bg-surface-raised",
         }}
       >
         {(close) => (

@@ -14,7 +14,7 @@ import {
   tidyCandidates,
 } from "../../branches/branchTidying.ts";
 import { TidyBranchesDialog } from "../../branches/TidyBranchesDialog.tsx";
-import { ListSection } from "./ListSection.tsx";
+import { ListSection, shortListInCard } from "./ListSection.tsx";
 import { ShortList } from "./PanelSection.tsx";
 
 import type { Machine, Repository } from "@fleetfrog/protocol/domain/fleet";
@@ -84,7 +84,7 @@ export function ParkedBranches({
           <button
             type="button"
             onClick={() => setChosen(tidying.preselected)}
-            className="rounded px-1.5 py-0.5 text-xs font-medium text-accent-text hover:bg-canvas"
+            className="rounded px-1.5 py-0.5 text-xs font-medium text-accent-text hover:bg-fill"
           >
             Tidy branches…
           </button>
@@ -92,7 +92,7 @@ export function ParkedBranches({
       }
     >
       {(clone.main === null || clone.main.git === null) && (
-        <p className="px-1.5 pb-1 text-xs text-ink-muted">
+        <p className="px-2 py-1.5 text-xs text-ink-muted">
           FleetFrog can't see which branch this clone's main checkout has, so one of these may be
           checked out there.
         </p>
@@ -101,11 +101,11 @@ export function ParkedBranches({
         items={clone.parked.toSorted(recentFirst)}
         total={clone.parked.length + clone.unreportedBranches}
         noun="branches"
-        listClassName="-mx-1"
+        {...shortListInCard}
         render={(branch) => (
           <li
             key={branch.name}
-            className="flex min-h-8 items-center gap-2.5 rounded-lg ps-2 pe-0.5 text-sm hover:bg-canvas"
+            className="flex min-h-8 items-center gap-2.5 rounded-lg ps-2 pe-0.5 text-sm hover:bg-fill"
           >
             <GitBranchIcon aria-hidden="true" className="shrink-0 text-ink-muted" />
             <span className="min-w-0 flex-1 truncate font-mono text-[13px]">{branch.name}</span>

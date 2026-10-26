@@ -167,7 +167,12 @@ export function CellPanel({
               />
             )}
             {current === "t3-code" && (
-              <T3CodeTab machine={machine} clones={clones} onChoosePath={onChoosePath} />
+              <T3CodeTab
+                repository={repository}
+                machine={machine}
+                clones={clones}
+                onChoosePath={onChoosePath}
+              />
             )}
             {current === "about" && (
               <AboutTab repository={repository} machine={machine} clones={clones} />

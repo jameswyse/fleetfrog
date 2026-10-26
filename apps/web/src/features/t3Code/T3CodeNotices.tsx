@@ -31,6 +31,20 @@ export function threadDoing(thread: T3CodeThread): string {
   return thread.state === "Waiting" ? "is waiting for you" : "is working";
 }
 
+export function busyThreadsSentence({
+  threads,
+  where,
+}: {
+  readonly threads: ReadonlyArray<T3CodeThread>;
+  readonly where: string;
+}): string {
+  const [first] = threads;
+
+  return first !== undefined && threads.length === 1
+    ? `T3 Code ${threadDoing(first)} ${where}, on ${quoted(threads)}.`
+    : `T3 Code has ${threads.length} threads in progress ${where}: ${quoted(threads)}.`;
+}
+
 export function BusyThreadsNotice({
   threads,
   where,
@@ -40,19 +54,13 @@ export function BusyThreadsNotice({
   readonly where: string;
   readonly consequence: string;
 }) {
-  const [first] = threads;
-
-  if (first === undefined) {
+  if (threads.length === 0) {
     return null;
   }
 
   return (
     <Notice icon={<BotIcon aria-hidden="true" className="mt-0.5 text-sync" />}>
-      <p>
-        {threads.length === 1
-          ? `T3 Code ${threadDoing(first)} ${where}, on ${quoted(threads)}.`
-          : `T3 Code has ${threads.length} threads in progress ${where}: ${quoted(threads)}.`}
-      </p>
+      <p>{busyThreadsSentence({ threads, where })}</p>
       <p className="text-ink-muted">{consequence}</p>
     </Notice>
   );
