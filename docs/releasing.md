@@ -14,11 +14,13 @@ Describe each change people will notice in a changeset, naming the packages it c
 pnpm changeset --patch @fleetfrog/web -m 'Centre rows in the Projects grid.'
 ```
 
+Don't start a line of a summary with `pr:`, `pull:`, `pull request:`, `commit:`, `author:` or `user:`, in any case. The changelog generator reads the word after it as the change's pull request, commit or author and removes both from the entry. A wrong value links the entry to the wrong place, drops its link or stops the version step.
+
 Choose `minor` for a change that breaks something, such as a protocol change that needs the hub updated before the agents or a change to how the hub or agent stores data. Choose `patch` for everything else. Changesets raises every package to the highest bump among the pending changesets.
 
 ## Releasing a version
 
-The [release workflow](../.github/workflows/release.yml) runs on every push to `main`. While changesets are pending, it keeps a pull request named "chore(release): version packages" up to date. That pull request runs [`scripts/release/version.sh`](../scripts/release/version.sh). The script runs `pnpm changeset version`, which bumps every package and writes the changes into each package's `CHANGELOG.md`. It then runs `pnpm screenshots`, so the screenshots in the README and on the website, and the website's social preview image, show the interface being released.
+The [release workflow](../.github/workflows/release.yml) runs on every push to `main`. While changesets are pending, it keeps a pull request named "chore(release): version packages" up to date. That pull request runs [`scripts/release/version.sh`](../scripts/release/version.sh). The script runs `pnpm changeset version`, which bumps every package and writes the changes into each package's `CHANGELOG.md`. [`@changesets/changelog-github`](https://github.com/changesets/changesets/tree/main/packages/changelog-github) ends each entry with a link to the pull request that added its changeset, or to the commit when it was pushed straight to `main`. It looks them up with the release app's token, so `pnpm changeset version` fails locally without a `GITHUB_TOKEN` in the environment or in a `.env` file. The script then runs `pnpm screenshots`, so the screenshots in the README and on the website, and the website's social preview image, show the interface being released.
 
 Merging it releases the version. The workflow then:
 
