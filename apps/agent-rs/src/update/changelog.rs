@@ -1,6 +1,7 @@
 //! What changed in the agent between two versions, from the changelog changesets writes to
 //! `apps/agent-rs/CHANGELOG.md`: a `## <version>` section for each release, with entries such as
-//! `- de5e2e6: Fix …` under a heading for each kind of change, and continuation lines indented.
+//! `- Fix … ([#36](https://github.com/…))`, or `- de5e2e6: Fix …` in older releases, under a
+//! heading for each kind of change, and continuation lines indented.
 
 use std::cmp::Ordering;
 
@@ -15,7 +16,6 @@ pub const ENTRY_LIMIT: usize = 12;
 #[derive(Debug, PartialEq, Eq)]
 pub struct Release {
     pub version: String,
-    /// Each entry's lines, without the commit that made it.
     pub entries: Vec<Vec<String>>,
 }
 
@@ -47,6 +47,31 @@ fn without_commit(text: &str) -> &str {
     }
 }
 
+fn without_links(text: &str) -> String {
+    let mut plain = String::with_capacity(text.len());
+    let mut rest = text;
+
+    while let Some(open) = rest.find('[') {
+        let after_open = &rest[open + 1..];
+        let link = after_open
+            .split_once("](")
+            .filter(|(label, _)| !label.contains(['[', ']']))
+            .and_then(|(label, tail)| tail.find(')').map(|close| (label, &tail[close + 1..])));
+
+        if let Some((label, tail)) = link {
+            plain.push_str(&rest[..open]);
+            plain.push_str(label);
+            rest = tail;
+        } else {
+            plain.push_str(&rest[..=open]);
+            rest = after_open;
+        }
+    }
+
+    plain.push_str(rest);
+    plain
+}
+
 pub fn parse(markdown: &str) -> Vec<Release> {
     let mut releases: Vec<Release> = Vec::new();
     // Whether the last line belonged to an entry, which an indented line then continues.
@@ -69,18 +94,15 @@ pub fn parse(markdown: &str) -> Vec<Release> {
         if let Some(text) = line.strip_prefix("- ") {
             release
                 .entries
-                .push(vec![without_commit(text.trim()).to_string()]);
+                .push(vec![without_links(without_commit(text.trim()))]);
             in_entry = true;
         } else if line.trim().is_empty() {
             // A blank line separates an entry's paragraphs, so it doesn't end the entry.
         } else if in_entry && line.starts_with(char::is_whitespace) {
             if let Some(entry) = release.entries.last_mut() {
-                entry.push(
-                    line.strip_prefix("  ")
-                        .unwrap_or(line)
-                        .trim_end()
-                        .to_string(),
-                );
+                entry.push(without_links(
+                    line.strip_prefix("  ").unwrap_or(line).trim_end(),
+                ));
             }
         } else {
             in_entry = false;
@@ -148,6 +170,14 @@ mod tests {
 
     const CHANGELOG: &str = "# @fleetfrog/agent-rs
 
+## 0.4.0
+
+### Patch Changes
+
+- Run `fleetfrog update` [offline](docs/offline.md). ([#36](https://github.com/jameswyse/fleetfrog/pull/36))
+  Follow-up to [#35](https://github.com/jameswyse/fleetfrog/pull/35), [not a link].
+- Fix a crash. ([`b40ece2`](https://github.com/jameswyse/fleetfrog/commit/b40ece2))
+
 ## 0.3.0
 
 ### Minor Changes
@@ -179,10 +209,20 @@ mod tests {
     }
 
     #[test]
-    fn reads_entries_without_their_commits() {
+    fn reads_entries_without_their_commits_or_links() {
         assert_eq!(
             parse(CHANGELOG),
             vec![
+                release(
+                    "0.4.0",
+                    &[
+                        &[
+                            "Run `fleetfrog update` offline. (#36)",
+                            "Follow-up to #35, [not a link]."
+                        ],
+                        &["Fix a crash. (`b40ece2`)"]
+                    ]
+                ),
                 release(
                     "0.3.0",
                     &[

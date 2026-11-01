@@ -37,6 +37,7 @@
   },
   "devDependencies": {
     "@ai-sdk/openai": "4.0.98",
+    "@changesets/changelog-github": "1.0.1",
     "@changesets/cli": "3.0.3",
     "@e2e-dev/web": "0.15.2",
     "@effect/tsgo": "catalog:",
