@@ -1,5 +1,9 @@
 # @fleetfrog/protocol
 
+## 0.11.2
+
+No changes in this release.
+
 ## 0.11.1
 
 No changes in this release.
