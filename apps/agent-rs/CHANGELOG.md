@@ -1,5 +1,11 @@
 # @fleetfrog/agent-rs
 
+## 0.11.2
+
+### Patch Changes
+
+- Show links in the changes `fleetfrog update` lists as plain text, now that changelog entries link to their pull requests. ([#37](https://github.com/jameswyse/fleetfrog/pull/37))
+
 ## 0.11.1
 
 No changes in this release.
