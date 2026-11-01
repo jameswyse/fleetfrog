@@ -1,16 +1,16 @@
 import { mkdirSync, readdirSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
 
 import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { TestClock } from "effect/testing";
 
+import { openFixtureDatabase } from "../testing/fixtureDatabase.ts";
 import { temporaryDirectory } from "../testing/temporaryDirectory.ts";
 import { defaultMonogram, readT3Code } from "./readT3Code.ts";
 
 function createDatabase(file: string, options: { readonly withoutColumn?: string } = {}) {
-  const database = new DatabaseSync(file);
+  const database = openFixtureDatabase(file);
 
   const columns = (list: ReadonlyArray<string>) =>
     list.filter((column) => column !== options.withoutColumn).join(", ");
@@ -49,7 +49,7 @@ function createDatabase(file: string, options: { readonly withoutColumn?: string
 }
 
 function createV2Database(file: string) {
-  const database = new DatabaseSync(file);
+  const database = openFixtureDatabase(file);
 
   database.exec(`
     pragma journal_mode = wal;

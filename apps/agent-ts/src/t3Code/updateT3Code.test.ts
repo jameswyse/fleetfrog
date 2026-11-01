@@ -1,6 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
 
 import { describe, expect, it } from "@effect/vitest";
 import { Deferred, Effect, Fiber, Predicate } from "effect";
@@ -10,6 +9,7 @@ import {
   installFakeT3CodeCli,
   supportedDescriptor,
 } from "../testing/fakeT3CodeApp.ts";
+import { openFixtureDatabase } from "../testing/fixtureDatabase.ts";
 import {
   runningT3CodeServer,
   startT3CodeProcess,
@@ -29,7 +29,7 @@ import type { T3CodeUpdateSession } from "./updateT3Code.ts";
 const allowed: AgentPolicy = { allowedTiers: ["git", "cleanup", "update", "t3code"] };
 
 function addWorkingThread(file: string, id: string) {
-  const database = new DatabaseSync(file);
+  const database = openFixtureDatabase(file);
 
   database.exec(`
     insert into projection_threads values ('${id}', 'project', '${id}', null, null, null,
@@ -40,7 +40,7 @@ function addWorkingThread(file: string, id: string) {
 }
 
 function createDatabase(file: string, workingThreads: number) {
-  const database = new DatabaseSync(file);
+  const database = openFixtureDatabase(file);
 
   database.exec(`
     create table effect_sql_migrations (migration_id integer primary key, created_at text, name text);
@@ -158,7 +158,7 @@ describe("makeT3CodeUpdater", () => {
       yield* runningT3CodeServer(partial.userdata, true);
       createDatabase(partial.database, 0);
 
-      const database = new DatabaseSync(partial.database);
+      const database = openFixtureDatabase(partial.database);
 
       database.exec(`
         insert into projection_threads values ('garbled', 'project', 'Garbled', null, null, null,
