@@ -37,24 +37,22 @@ const Descriptor = Schema.Struct({
 
 const Ticket = Schema.Struct({ ticket: Schema.String });
 
-const FailureReason = Schema.Struct({
-  _tag: Schema.Literal("Fail"),
+const FailureReason = Schema.TaggedStruct("Fail", {
   error: Schema.Struct({ reason: Schema.String }),
 });
 
 const Exit = Schema.Union([
-  Schema.Struct({ _tag: Schema.Literal("Success") }),
-  Schema.Struct({ _tag: Schema.Literal("Failure"), cause: Schema.Array(Schema.Unknown) }),
+  Schema.TaggedStruct("Success", {}),
+  Schema.TaggedStruct("Failure", { cause: Schema.Array(Schema.Unknown) }),
 ]);
 
 const Envelope = Schema.Union([
-  Schema.Struct({ _tag: Schema.Literal("Ping") }),
-  Schema.Struct({
-    _tag: Schema.Literal("Chunk"),
+  Schema.TaggedStruct("Ping", {}),
+  Schema.TaggedStruct("Chunk", {
     requestId: Schema.String,
     values: Schema.Array(Schema.Unknown),
   }),
-  Schema.Struct({ _tag: Schema.Literal("Exit"), requestId: Schema.String, exit: Exit }),
+  Schema.TaggedStruct("Exit", { requestId: Schema.String, exit: Exit }),
 ]);
 type Envelope = typeof Envelope.Type;
 

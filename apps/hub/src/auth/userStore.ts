@@ -6,6 +6,7 @@ import {
   Effect,
   Layer,
   Option,
+  Predicate,
   Schema,
   Semaphore,
   Stream,
@@ -207,11 +208,7 @@ export class UserStore extends Context.Service<
       const find = (id: UserId) =>
         SubscriptionRef.get(records).pipe(
           Effect.map((all) => all.find((record) => record.id === id)),
-          Effect.flatMap((record) =>
-            record === undefined
-              ? Effect.fail(new UserNotFound({ userId: id }))
-              : Effect.succeed(record),
-          ),
+          Effect.filterOrFail(Predicate.isNotUndefined, () => new UserNotFound({ userId: id })),
         );
 
       const emailTaken = (email: string, except: UserId | null) =>

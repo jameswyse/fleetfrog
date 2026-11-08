@@ -6,27 +6,40 @@ cargo:
   enabled: true
 
 catalog:
-  "@effect/platform-node": 4.0.5
-  "@effect/sql-sqlite-node": 4.0.5
-  "@effect/tsgo": 0.55.0
-  "@effect/vitest": 4.0.5
-  "@types/node": 26.6.5
+  "@effect/platform-node": 4.1.2
+  "@effect/sql-sqlite-node": 4.1.2
+  "@effect/tsgo": 0.67.5
+  "@effect/vitest": 4.1.2
+  "@types/node": 26.6.6
   "@types/react": 19.3.0
   "@types/react-dom": 19.3.0
-  effect: 4.0.5
-  openid-client: 6.8.8
-  oxfmt: 0.74.0
+  effect: 4.1.2
+  openid-client: 6.8.9
+  oxfmt: 0.77.0
   # The root prepare script runs `effect-tsgo patch --oxlint`, which fails on oxlint versions newer
   # than the pinned @effect/tsgo supports. Move oxlint only as far as it allows.
-  oxlint: 1.89.0
+  oxlint: 1.92.0
   react: 19.3.1
   react-dom: 19.3.1
-  tsdown: 0.23.1
+  tsdown: 0.23.7
   typescript: 7.0.2
-  vite: 8.3.4
-  vitest: 5.0.5
+  vite: 8.3.6
+  vitest: 5.1.0
+
+overrides:
+  "@eslint/config-array>minimatch": 11.0.5
+  eslint>minimatch: 11.0.5
 
 minimumReleaseAge: 1440
+minimumReleaseAgeExclude:
+  - "@effect/tsgo@0.67.5"
+  - "@effect/tsgo-darwin-arm64@0.67.5"
+  - "@effect/tsgo-darwin-x64@0.67.5"
+  - "@effect/tsgo-linux-arm@0.67.5"
+  - "@effect/tsgo-linux-arm64@0.67.5"
+  - "@effect/tsgo-linux-x64@0.67.5"
+  - "@effect/tsgo-win32-arm64@0.67.5"
+  - "@effect/tsgo-win32-x64@0.67.5"
 minimumReleaseAgeExcludePrune: true
 trustPolicy: no-downgrade
 trustPolicyIgnoreAfter: 43200

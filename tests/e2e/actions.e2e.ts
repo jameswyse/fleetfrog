@@ -204,10 +204,6 @@ test("[deterministic] fleet rescan discovers a newly created repository", async 
 }) => {
   const url = app.baseUrl;
 
-  if (url === undefined) {
-    throw new Error("The dashboard URL is missing.");
-  }
-
   const { polling } = await fleetSnapshot();
 
   const setDiscoverySeconds = (discoverySeconds: number) =>

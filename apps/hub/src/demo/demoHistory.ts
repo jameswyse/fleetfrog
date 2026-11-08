@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { DateTime, Effect } from "effect";
+import { Array as Arr, DateTime, Effect } from "effect";
 
 import { ActionOutcome, ActionResult, SkipReason } from "@fleetfrog/protocol/domain/action";
 import { BatchId, RunId } from "@fleetfrog/protocol/domain/activity";
@@ -80,13 +80,17 @@ export const seedHistory = Effect.fn("seedHistory")(function* (options: {
       return machineId === undefined ? [] : [{ run, machineId, id: RunId.make(randomUUID()) }];
     });
 
+    if (!Arr.isReadonlyArrayNonEmpty(runs)) {
+      return;
+    }
+
     yield* store.createBatch({
       id: BatchId.make(randomUUID()),
       kind: batch.kind,
       scope: batch.scope,
       requestedAt,
       requestedBy: null,
-      runs: runs.map(({ run, machineId, id }): NewRun => ({
+      runs: Arr.map(runs, ({ run, machineId, id }): NewRun => ({
         id,
         machineId,
         machineName: machineName(run.machine),

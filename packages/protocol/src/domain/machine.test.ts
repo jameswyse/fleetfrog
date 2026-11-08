@@ -5,7 +5,7 @@ import { SystemUsage } from "./machine.ts";
 
 describe("SystemUsage", () => {
   it("reads disk usage reported before agents measured purgeable space", () => {
-    const usage = Schema.decodeUnknownSync(Schema.toCodecJson(SystemUsage))({
+    const usage = Schema.decodeSync(Schema.toCodecJson(SystemUsage))({
       disk: { totalBytes: 1000, freeBytes: 400 },
       memoryUsedBytes: null,
       loadAverage: [0.5, 0.4, 0.3],

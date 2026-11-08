@@ -279,10 +279,6 @@ test("[deterministic] OpenID Connect saves discovery settings and signs in throu
     await screen.getByRole("textbox", { name: "Client ID", exact: true }).fill("fleetfrog-e2e");
     await screen.getByLabel("Client secret", { exact: true }).fill("E2E provider client secret");
 
-    if (app.baseUrl === undefined) {
-      throw new Error("The dashboard URL is missing.");
-    }
-
     await screen.getByRole("textbox", { name: "Dashboard URL", exact: true }).fill(app.baseUrl);
     await screen
       .getByRole("textbox", { name: "Required group (optional)", exact: true })

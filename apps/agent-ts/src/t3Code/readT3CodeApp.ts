@@ -1,7 +1,7 @@
 import { readdir, readFile, readlink } from "node:fs/promises";
 import path from "node:path";
 
-import { Effect, Option, Schema } from "effect";
+import { Effect, Option, Predicate, Schema } from "effect";
 
 import { runTool } from "../process/runTool.ts";
 
@@ -50,13 +50,11 @@ function isRunning(pid: number): boolean {
 
 const executableOf = (pid: number) =>
   Effect.promise(() => readlink(`/proc/${pid}/exe`).catch(() => null)).pipe(
-    Effect.flatMap((linked) =>
-      linked === null
-        ? runTool("ps", "/", ["-o", "comm=", "-p", String(pid)]).pipe(
-            Effect.map((output) => output.trim() || null),
-            Effect.catchTag("CommandFailed", () => Effect.succeed(null)),
-          )
-        : Effect.succeed(linked),
+    Effect.filterOrElse(Predicate.isNotNull, () =>
+      runTool("ps", "/", ["-o", "comm=", "-p", String(pid)]).pipe(
+        Effect.map((output) => output.trim() || null),
+        Effect.catchTag("CommandFailed", () => Effect.succeed(null)),
+      ),
     ),
   );
 

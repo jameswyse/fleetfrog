@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { Context, DateTime, Effect, Layer, Stream, SubscriptionRef } from "effect";
+import { Array as Arr, Context, DateTime, Effect, Layer, Stream, SubscriptionRef } from "effect";
 
 import { HubCommand } from "@fleetfrog/protocol/agent/rpcs";
 import { ActionOutcome, ActionUpdate } from "@fleetfrog/protocol/domain/action";
@@ -97,7 +97,7 @@ export class ActionDispatcher extends Context.Service<
         start: Effect.fn("ActionDispatcher.start")(function* (request, requestedBy) {
           const plan = yield* planBatch(request, yield* fleet.current);
           const batchId = BatchId.make(randomUUID());
-          const runs = plan.runs.map((run) => ({ ...run, id: RunId.make(randomUUID()) }));
+          const runs = Arr.map(plan.runs, (run) => ({ ...run, id: RunId.make(randomUUID()) }));
 
           yield* store.createBatch({
             id: batchId,
@@ -105,7 +105,7 @@ export class ActionDispatcher extends Context.Service<
             scope: plan.scope,
             requestedAt: yield* DateTime.now,
             requestedBy,
-            runs: runs.map((run) => ({
+            runs: Arr.map(runs, (run) => ({
               id: run.id,
               machineId: run.machine.id,
               machineName: machineLabel(run.machine),

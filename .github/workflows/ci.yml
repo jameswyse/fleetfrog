@@ -24,7 +24,7 @@ jobs:
       - run: rustup toolchain install
         working-directory: apps/agent-rs
       # Installs the pnpm and Node.js versions in package.json's devEngines, then runs pnpm install.
-      - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           cache: true
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
@@ -41,7 +41,7 @@ jobs:
           persist-credentials: false
       - run: rustup toolchain install
         working-directory: apps/agent-rs
-      - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           cache: true
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
