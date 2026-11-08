@@ -31,15 +31,6 @@ overrides:
   eslint>minimatch: 11.0.5
 
 minimumReleaseAge: 1440
-minimumReleaseAgeExclude:
-  - "@effect/tsgo@0.67.5"
-  - "@effect/tsgo-darwin-arm64@0.67.5"
-  - "@effect/tsgo-darwin-x64@0.67.5"
-  - "@effect/tsgo-linux-arm@0.67.5"
-  - "@effect/tsgo-linux-arm64@0.67.5"
-  - "@effect/tsgo-linux-x64@0.67.5"
-  - "@effect/tsgo-win32-arm64@0.67.5"
-  - "@effect/tsgo-win32-x64@0.67.5"
 minimumReleaseAgeExcludePrune: true
 trustPolicy: no-downgrade
 trustPolicyIgnoreAfter: 43200
