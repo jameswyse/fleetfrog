@@ -2,7 +2,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "n
 import { createServer } from "node:http";
 import path from "node:path";
 
-import { NodeSocket } from "@effect/platform-node";
+import { NodeWS } from "@effect/platform-node";
 import { Effect, Predicate } from "effect";
 
 import type { Duplex } from "node:stream";
@@ -65,7 +65,7 @@ export function fakeT3CodeApp(options: {
           server.on("upgrade", (_request, socket) => stalled.push(socket));
         }
 
-        const sockets = new NodeSocket.NodeWS.WebSocketServer(
+        const sockets = new NodeWS.WebSocketServer(
           options.stallHandshake === true ? { noServer: true } : { server, path: "/ws" },
         );
 

@@ -106,10 +106,8 @@ const locateAll = Effect.fnUntraced(function* (
     [...new Set(candidates)],
     (candidate) =>
       locateCheckout(candidate).pipe(
-        Effect.flatMap((found) =>
-          Option.isNone(found)
-            ? Effect.succeed(found)
-            : placeLocation(found.value, archive).pipe(Effect.asSome),
+        Effect.filterOrElse(Option.isNone, (found) =>
+          placeLocation(found.value, archive).pipe(Effect.asSome),
         ),
       ),
     { concurrency: gitConcurrency },

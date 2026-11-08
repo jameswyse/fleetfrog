@@ -328,7 +328,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
             checkoutPlan(path, "Local", (location, output) => purgeStash(location, ref, output)),
           Checkout: ({ id }) => trashItemPlan(id, purgeCheckout),
         }),
-      Clone: ({ url, destination }) => {
+      Clone: ({ url, destination }): Plan => {
         const folders = options.folders();
 
         const checked = checkCloneDestination({

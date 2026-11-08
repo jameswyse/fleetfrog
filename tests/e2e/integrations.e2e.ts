@@ -19,10 +19,6 @@ test("[deterministic] T3 Code projects, threads and busy-action confirmation com
 }) => {
   const url = app.baseUrl;
 
-  if (url === undefined) {
-    throw new Error("The dashboard URL is missing.");
-  }
-
   await app.open("/settings/integrations/t3-code");
 
   try {
@@ -116,10 +112,6 @@ test("[deterministic] T3 Code discovers a real checkout outside the configured p
 
   expect(await hasCheckout()).toBe(false);
   const url = app.baseUrl;
-
-  if (url === undefined) {
-    throw new Error("The dashboard URL is missing.");
-  }
 
   try {
     await app.open("/settings/integrations/t3-code");

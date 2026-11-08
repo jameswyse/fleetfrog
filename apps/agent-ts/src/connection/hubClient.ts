@@ -1,4 +1,4 @@
-import { NodeHttpClient, NodeSocket } from "@effect/platform-node";
+import { NodeHttpClient, NodeWS } from "@effect/platform-node";
 import { Deferred, Effect, Layer, Schema } from "effect";
 import { RpcClient, RpcSerialization } from "effect/rpc";
 import { Socket } from "effect/socket";
@@ -47,7 +47,7 @@ export const makeHubClient = Effect.fn("makeHubClient")(function* (config: Agent
   const dropped = yield* Deferred.make<void>();
 
   const webSocket = Layer.succeed(Socket.WebSocketConstructor)((url) => {
-    const socket = new NodeSocket.NodeWS.WebSocket(url, {
+    const socket = new NodeWS.WebSocket(url, {
       headers: { authorization: `Bearer ${config.token}` },
       ...tls,
     });

@@ -11,6 +11,8 @@ import { UserId } from "@fleetfrog/protocol/domain/user";
 import { Migrations } from "../persistence/database.ts";
 import { ActivityStore } from "./activityStore.ts";
 
+import type { NonEmptyReadonlyArray } from "effect/Array";
+
 import type { ActionOutcome } from "@fleetfrog/protocol/domain/action";
 import type { ActivityFilter, ActivityPage, Actor } from "@fleetfrog/protocol/domain/activity";
 
@@ -50,7 +52,11 @@ function newRun(options: {
 
 const fetched: ActionOutcome = { _tag: "Succeeded", result: { _tag: "Fetched" } };
 
-const recordBatch = (minute: number, runs: ReadonlyArray<NewRun>, requestedBy: Actor = null) =>
+const recordBatch = (
+  minute: number,
+  runs: NonEmptyReadonlyArray<NewRun>,
+  requestedBy: Actor = null,
+) =>
   ActivityStore.use((store) => {
     const batchId = BatchId.make(id());
 

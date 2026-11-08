@@ -18,24 +18,24 @@
     "typegen": "tsr generate"
   },
   "dependencies": {
-    "@tanstack/react-router": "1.170.45",
+    "@tanstack/react-router": "1.170.46",
     "effect": "catalog:",
-    "lucide-react": "1.60.0",
+    "lucide-react": "1.70.0",
     "react": "catalog:",
     "react-dom": "catalog:"
   },
   "devDependencies": {
-    "@babel/core": "8.0.7",
+    "@babel/core": "8.1.0",
     "@fleetfrog/protocol": "workspace:*",
-    "@rolldown/plugin-babel": "0.2.4",
-    "@tailwindcss/vite": "4.3.3",
-    "@tanstack/router-cli": "1.167.45",
-    "@tanstack/router-plugin": "1.168.47",
+    "@rolldown/plugin-babel": "0.3.0",
+    "@tailwindcss/vite": "4.3.5",
+    "@tanstack/router-cli": "1.167.46",
+    "@tanstack/router-plugin": "1.168.48",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "@vitejs/plugin-react": "6.1.2",
+    "@vitejs/plugin-react": "6.2.1",
     "babel-plugin-react-compiler": "1.0.0",
-    "tailwindcss": "4.3.3",
+    "tailwindcss": "4.3.5",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"

@@ -86,7 +86,7 @@ describe("bodyLimit", () => {
 
       const refused = yield* post("x".repeat(17)).pipe(
         Effect.map((response) => response.status === 413),
-        Effect.catch(() => Effect.succeed(true)),
+        Effect.orElseSucceed(() => true),
       );
 
       expect(yield* Effect.promise(() => small.text())).toBe("x".repeat(16));

@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect";
+import { Array as Arr, Effect, Option } from "effect";
 
 import {
   MachineNotFound,
@@ -370,9 +370,11 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
       }),
   });
 
-  if (plan.runs.length === 0) {
+  const { runs } = plan;
+
+  if (!Arr.isReadonlyArrayNonEmpty(runs)) {
     return yield* new NothingToRun();
   }
 
-  return plan;
+  return { ...plan, runs };
 });

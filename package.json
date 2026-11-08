@@ -36,37 +36,37 @@
     "verify:uncached": "pnpm verify --force"
   },
   "devDependencies": {
-    "@ai-sdk/openai": "4.0.98",
+    "@ai-sdk/openai": "4.0.110",
     "@changesets/changelog-github": "1.0.1",
     "@changesets/cli": "3.0.3",
-    "@e2e-dev/web": "0.15.2",
+    "@e2e-dev/web": "0.15.5",
     "@effect/tsgo": "catalog:",
     "@fontsource-variable/inter": "5.3.0",
     "@fontsource-variable/jetbrains-mono": "5.3.0",
-    "@jameswyse/oxc-config": "0.6.0",
+    "@jameswyse/oxc-config": "0.6.2",
     "@types/node": "catalog:",
-    "ai": "7.0.147",
-    "e2e": "0.21.2",
+    "ai": "7.0.164",
+    "e2e": "0.23.0",
     "effect": "catalog:",
     "husky": "9.1.7",
     "lint-staged.sh": "0.6.9",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
-    "oxlint-tsgolint": "7.0.2004",
-    "playwright": "1.64.1",
+    "oxlint-tsgolint": "7.0.2006",
+    "playwright": "1.65.0",
     "turbo": "2.11.10",
     "typescript": "catalog:"
   },
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "12.14.0"
+      "version": "12.18.0"
     },
     "runtime": {
       "name": "node",
-      "version": "26.12.1",
+      "version": "26.13.0",
       "onFail": "download"
     }
   },
-  "packageManager": "pnpm@12.14.0"
+  "packageManager": "pnpm@12.18.0"
 }

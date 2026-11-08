@@ -108,7 +108,7 @@ export const ReceivedReport = Schema.Union([ScanReport, Schema.Struct({ _tag: Sc
 
 export const ReceivedUpdate = Schema.Union([
   ActionUpdate,
-  Schema.Struct({ _tag: Schema.Literal("Finished"), output: ReportedList(ReportedText) }),
+  Schema.TaggedStruct("Finished", { output: ReportedList(ReportedText) }),
   Schema.Struct({ _tag: Schema.String }),
 ]);
 

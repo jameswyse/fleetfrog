@@ -1,4 +1,4 @@
-import { Context, DateTime, Effect, Layer, Schema } from "effect";
+import { Array as Arr, Context, DateTime, Effect, Layer, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 
 import { BatchNotFound } from "@fleetfrog/protocol/dashboard/rpcs";
@@ -147,7 +147,7 @@ export class ActivityStore extends Context.Service<
       readonly scope: BatchScope;
       readonly requestedAt: DateTime.Utc;
       readonly requestedBy: Actor;
-      readonly runs: ReadonlyArray<NewRun>;
+      readonly runs: Arr.NonEmptyReadonlyArray<NewRun>;
     }) => Effect.Effect<void>;
     readonly markStarted: (
       run: UnfinishedRun & { readonly at: DateTime.Utc },
@@ -252,7 +252,7 @@ export class ActivityStore extends Context.Service<
               requested_by_json: batch.requestedBy === null ? null : encodeActor(batch.requestedBy),
             })}`;
             yield* sql`insert into action_runs ${sql.insert(
-              batch.runs.map((run) => ({
+              Arr.map(batch.runs, (run) => ({
                 id: run.id,
                 batch_id: batch.id,
                 machine_id: run.machineId,
