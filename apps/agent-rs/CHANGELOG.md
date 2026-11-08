@@ -1,5 +1,12 @@
 # @fleetfrog/agent-rs
 
+## 0.11.2
+
+### Patch Changes
+
+- Run on Node.js 26.13.0 and refresh runtime dependencies and build tooling. ([#39](https://github.com/jameswyse/fleetfrog/pull/39))
+- Show links in the changes `fleetfrog update` lists as plain text, now that changelog entries link to their pull requests. ([#37](https://github.com/jameswyse/fleetfrog/pull/37))
+
 ## 0.11.1
 
 No changes in this release.
