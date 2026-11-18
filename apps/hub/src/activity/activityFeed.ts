@@ -47,6 +47,9 @@ export class ActivityFeed extends Context.Service<
         Effect.map(DateTime.subtract({ days: activityRetentionDays })),
         Effect.flatMap(store.prune),
         Effect.andThen(invalidate),
+        Effect.catchTag("SqlError", (error) =>
+          Effect.logWarning(`Couldn't remove old activity: ${error.message}`),
+        ),
       );
 
       yield* pruneExpiredActivity.pipe(

@@ -14,6 +14,7 @@ import { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
 import { JsonColumn } from "../persistence/database.ts";
 
+import type { SqlError } from "effect/sql";
 
 import type {
   ActionBatch,
@@ -177,7 +178,7 @@ export class ActivityStore extends Context.Service<
     }) => Effect.Effect<ActivityPage>;
     readonly batch: (batchId: BatchId) => Effect.Effect<BatchDetail, BatchNotFound>;
     readonly recordEvent: (event: HubEvent, by: Actor) => Effect.Effect<void>;
-    readonly prune: (cutoff: DateTime.Utc) => Effect.Effect<void>;
+    readonly prune: (cutoff: DateTime.Utc) => Effect.Effect<void, SqlError.SqlError>;
   }
 >()("fleetfrog/ActivityStore") {
   static readonly layer = Layer.effect(this)(
@@ -441,7 +442,7 @@ export class ActivityStore extends Context.Service<
 
           yield* sql`delete from action_batches where requested_at < ${before}`;
           yield* sql`delete from hub_events where at < ${before}`;
-        }, Effect.orDie),
+        }, sql.withTransaction),
       };
     }),
   );
