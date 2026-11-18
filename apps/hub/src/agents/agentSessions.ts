@@ -9,6 +9,7 @@ import {
   Layer,
   Queue,
   Schema,
+  Semaphore,
   Stream,
   SubscriptionRef,
 } from "effect";
@@ -85,16 +86,15 @@ export class AgentSessions extends Context.Service<
       const sessions = new Map<MachineId, Session>();
       const online = yield* SubscriptionRef.make<ReadonlyMap<MachineId, OnlineAgent>>(new Map());
 
-      const publishOnline = Effect.suspend(() =>
-        SubscriptionRef.set(
-          online,
+      const publishOnline = SubscriptionRef.update(
+        online,
+        () =>
           new Map(
             [...sessions].map(([machineId, session]) => [
               machineId,
               { since: session.since, sessionId: session.id, capabilities: session.capabilities },
             ]),
           ),
-        ),
       );
 
       const configuration = Effect.fn("AgentSessions.configuration")(function* (
@@ -136,16 +136,27 @@ export class AgentSessions extends Context.Service<
         }
       });
 
-      const reconfigure = (machineId: MachineId) => {
-        const session = sessions.get(machineId);
+      const reconfiguring = yield* Semaphore.make(1);
 
-        return session === undefined
-          ? Effect.void
-          : configuration(machineId).pipe(
-              Effect.map((next) => sendConfiguration(session, next)),
-              Effect.catchTag("MachineNotFound", () => disconnect(machineId)),
-            );
-      };
+      const reconfigure = Effect.fn("AgentSessions.reconfigure")(
+        function* (machineId: MachineId) {
+          if (!sessions.has(machineId)) {
+            return;
+          }
+
+          const next = yield* configuration(machineId);
+          const session = sessions.get(machineId);
+
+          if (session !== undefined) {
+            sendConfiguration(session, next);
+          }
+        },
+        (effect, machineId) =>
+          effect.pipe(
+            Effect.catchTag("MachineNotFound", () => disconnect(machineId)),
+            Semaphore.withPermits(reconfiguring, 1),
+          ),
+      );
 
       yield* Stream.mergeAll(
         [
@@ -167,15 +178,19 @@ export class AgentSessions extends Context.Service<
 
       const expireSilentAgents = Effect.gen(function* () {
         const cutoff = (yield* Clock.currentTimeMillis) - heartbeatTimeoutSeconds * 1000;
+        const isSilent = (session: Session) => session.lastHeartbeatAt < cutoff;
+        const silent = [...sessions].filter(([, session]) => isSilent(session));
 
-        for (const [machineId, session] of sessions) {
-          if (session.lastHeartbeatAt < cutoff) {
-            yield* Effect.logInfo("Agent stopped responding").pipe(
-              Effect.annotateLogs({ machineId }),
-            );
-            yield* disconnect(machineId);
-            yield* machines.recordSeen(machineId);
+        for (const [machineId, session] of silent) {
+          if (sessions.get(machineId) !== session || !isSilent(session)) {
+            continue;
           }
+
+          yield* endSession(machineId, session);
+          yield* Effect.logInfo("Agent stopped responding").pipe(
+            Effect.annotateLogs({ machineId }),
+          );
+          yield* machines.recordSeen(machineId);
         }
       });
 
@@ -190,8 +205,6 @@ export class AgentSessions extends Context.Service<
         connect: Effect.fn("AgentSessions.connect")(function* ({ machineId, capabilities }) {
           const session = yield* Effect.acquireRelease(
             Effect.gen(function* () {
-              yield* disconnect(machineId);
-
               const since = yield* DateTime.now;
 
               const registered: Session = {
@@ -203,7 +216,13 @@ export class AgentSessions extends Context.Service<
                 configuration: null,
               };
 
+              const replaced = sessions.get(machineId);
               sessions.set(machineId, registered);
+              yield* publishOnline;
+
+              if (replaced !== undefined) {
+                yield* Queue.end(replaced.commands);
+              }
 
               return registered;
             }),
@@ -215,7 +234,6 @@ export class AgentSessions extends Context.Service<
                 : Queue.end(registered.commands).pipe(Effect.asVoid),
           );
 
-          yield* publishOnline;
           yield* reconfigure(machineId);
 
           return Stream.fromQueue(session.commands);

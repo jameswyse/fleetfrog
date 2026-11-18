@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import { DateTime, Effect, Stream } from "effect";
+import { DateTime, Deferred, Effect, Exit, Fiber, Scope, Stream, SubscriptionRef } from "effect";
 
 import { MachineId } from "@fleetfrog/protocol/domain/machine";
 
@@ -9,11 +9,8 @@ import { TestAgentSessions } from "./testAgentSessions.ts";
 
 const studio = MachineId.make("aaaaaaaa-0000-4000-8000-000000000000");
 
-const connectStudio = Effect.gen(function* () {
-  const machines = yield* MachineStore;
-  const sessions = yield* AgentSessions;
-
-  yield* machines.create({
+const pairStudio = MachineStore.use((machines) =>
+  machines.create({
     id: studio,
     tokenHash: "hash",
     info: {
@@ -28,9 +25,11 @@ const connectStudio = Effect.gen(function* () {
     },
     discoveryRoots: [],
     pairedAt: DateTime.makeUnsafe("2026-09-26T00:00:00.000Z"),
-  });
+  }),
+);
 
-  return yield* sessions.connect({
+const connectPairedStudio = AgentSessions.use((sessions) =>
+  sessions.connect({
     machineId: studio,
     capabilities: {
       actions: [],
@@ -41,8 +40,14 @@ const connectStudio = Effect.gen(function* () {
       updatesT3Code: false,
       updatesT3CodeApp: false,
     },
-  });
-});
+  }),
+);
+
+const connectStudio = pairStudio.pipe(Effect.andThen(connectPairedStudio));
+
+const onlineSession = AgentSessions.use(({ online }) =>
+  SubscriptionRef.get(online).pipe(Effect.map((agents) => agents.get(studio)?.sessionId)),
+);
 
 describe("AgentSessions", () => {
   it.effect("configures a connected agent again only when its configuration changes", () =>
@@ -62,6 +67,49 @@ describe("AgentSessions", () => {
       expect(
         sent.map((command) => (command._tag === "Configure" ? command.discoveryRoots : command)),
       ).toStrictEqual([[], ["~/Projects"]]);
+    }).pipe(Effect.scoped, Effect.provide(TestAgentSessions)),
+  );
+
+  it.effect("replaces a connection without showing the agent offline in between", () =>
+    Effect.gen(function* () {
+      const sessions = yield* AgentSessions;
+      const firstScope = yield* Scope.fork(yield* Scope.Scope);
+      const subscribed = yield* Deferred.make<void>();
+
+      const shown = yield* SubscriptionRef.changes(sessions.online).pipe(
+        Stream.tap(() => Deferred.succeed(subscribed, undefined)),
+        Stream.map((agents) => agents.get(studio)?.sessionId ?? "offline"),
+        Stream.take(3),
+        Stream.runCollect,
+        Effect.forkScoped,
+      );
+
+      yield* Deferred.await(subscribed);
+      yield* pairStudio;
+
+      const first = yield* connectPairedStudio.pipe(Scope.provide(firstScope));
+      const original = yield* onlineSession;
+      const second = yield* connectPairedStudio;
+      const replacement = yield* onlineSession;
+
+      expect(yield* Fiber.join(shown)).toStrictEqual(["offline", original, replacement]);
+      expect(replacement).not.toBe(original);
+
+      expect((yield* Stream.runCollect(first)).map(({ _tag }) => _tag)).toStrictEqual([
+        "Configure",
+      ]);
+
+      yield* Scope.close(firstScope, Exit.void);
+
+      expect(yield* onlineSession).toBe(replacement);
+
+      yield* sessions.refresh([studio]);
+      yield* sessions.disconnect(studio);
+
+      expect((yield* Stream.runCollect(second)).map(({ _tag }) => _tag)).toStrictEqual([
+        "Configure",
+        "Refresh",
+      ]);
     }).pipe(Effect.scoped, Effect.provide(TestAgentSessions)),
   );
 });
