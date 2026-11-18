@@ -41,15 +41,14 @@ const Stores = Layer.mergeAll(
   PreferencesStore.layer,
   ProjectLayoutStore.layer,
   ProjectIconStore.layer,
-  ProviderIconStore.layer,
-  DashboardPresence.layer,
-  LoginThrottle.layer,
 );
 
-const Auth = Layer.merge(OidcSignIn.layer, DashboardSessions.layer).pipe(
-  Layer.provideMerge(UserStore.layer),
-  Layer.provideMerge(AuthSettingsStore.layer),
-);
+const Auth = Layer.mergeAll(
+  OidcSignIn.layer,
+  DashboardSessions.layer,
+  LoginThrottle.layer,
+  ProviderIconStore.layer,
+).pipe(Layer.provideMerge(UserStore.layer), Layer.provideMerge(AuthSettingsStore.layer));
 
 const Pairing = PairingOffers.layer.pipe(Layer.provideMerge(AgentCertificate.layer));
 
@@ -61,7 +60,9 @@ const T3CodeReleases = Layer.unwrap(
 
 const Fleet = Layer.merge(FleetFeed.layer, ActivityFeed.layer).pipe(
   Layer.provideMerge(Layer.merge(AgentUpdates.layer, T3CodeUpdates.layer)),
-  Layer.provideMerge(Layer.merge(AgentSessions.layer, T3CodeReleases)),
+  Layer.provideMerge(AgentSessions.layer),
+  Layer.provideMerge(DashboardPresence.layer),
+  Layer.provide(T3CodeReleases),
 );
 
 const Requests = Layer.mergeAll(
