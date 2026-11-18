@@ -1,4 +1,4 @@
-import { Context, DateTime, Duration, Effect, Layer, PubSub, Stream } from "effect";
+import { Context, DateTime, Duration, Effect, Layer, PubSub, Schedule, Stream } from "effect";
 
 import { activityRetentionDays } from "@fleetfrog/protocol/domain/activity";
 
@@ -43,12 +43,14 @@ export class ActivityFeed extends Context.Service<
           Stream.mapEffect(() => read),
         );
 
-      yield* DateTime.now.pipe(
+      const pruneExpiredActivity = DateTime.now.pipe(
         Effect.map(DateTime.subtract({ days: activityRetentionDays })),
         Effect.flatMap(store.prune),
         Effect.andThen(invalidate),
-        Effect.andThen(Effect.sleep(pruneInterval)),
-        Effect.forever,
+      );
+
+      yield* pruneExpiredActivity.pipe(
+        Effect.repeat(Schedule.spaced(pruneInterval)),
         Effect.forkScoped,
       );
 

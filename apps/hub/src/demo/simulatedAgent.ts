@@ -1,4 +1,14 @@
-import { DateTime, Duration, Effect, FiberMap, PubSub, Schema, Semaphore, Stream } from "effect";
+import {
+  DateTime,
+  Duration,
+  Effect,
+  FiberMap,
+  PubSub,
+  Schedule,
+  Schema,
+  Semaphore,
+  Stream,
+} from "effect";
 import { RpcClient } from "effect/rpc";
 
 import { HubCommand, heartbeatSeconds, ScanReport } from "@fleetfrog/protocol/agent/rpcs";
@@ -188,18 +198,18 @@ export const runSimulatedAgent = Effect.fn("runSimulatedAgent")(function* (optio
         }).pipe(Effect.delay(t3CodeUpdateTime), Effect.forkScoped, Effect.asVoid),
     });
 
-  yield* send(client.Heartbeat()).pipe(
-    Effect.andThen(Effect.sleep(Duration.seconds(heartbeatSeconds))),
-    Effect.forever,
+  const sendHeartbeat = send(client.Heartbeat());
+
+  const reportUsage = DateTime.now.pipe(
+    Effect.flatMap((now) => send(client.ReportUsage({ usage: sampleUsage(machine.spec, now) }))),
+  );
+
+  yield* sendHeartbeat.pipe(
+    Effect.repeat(Schedule.spaced(Duration.seconds(heartbeatSeconds))),
     Effect.forkScoped,
   );
 
-  yield* DateTime.now.pipe(
-    Effect.flatMap((now) => send(client.ReportUsage({ usage: sampleUsage(machine.spec, now) }))),
-    Effect.andThen(Effect.sleep(usageInterval)),
-    Effect.forever,
-    Effect.forkScoped,
-  );
+  yield* reportUsage.pipe(Effect.repeat(Schedule.spaced(usageInterval)), Effect.forkScoped);
 
   yield* Effect.suspend(() => Effect.sleep(Duration.seconds(statusSeconds))).pipe(
     Effect.andThen(DateTime.now),

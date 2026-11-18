@@ -165,7 +165,7 @@ export class AgentSessions extends Context.Service<
         Effect.forkScoped,
       );
 
-      yield* Effect.gen(function* () {
+      const expireSilentAgents = Effect.gen(function* () {
         const cutoff = (yield* Clock.currentTimeMillis) - heartbeatTimeoutSeconds * 1000;
 
         for (const [machineId, session] of sessions) {
@@ -177,7 +177,13 @@ export class AgentSessions extends Context.Service<
             yield* machines.recordSeen(machineId);
           }
         }
-      }).pipe(Effect.delay(Duration.seconds(heartbeatSeconds)), Effect.forever, Effect.forkScoped);
+      });
+
+      yield* expireSilentAgents.pipe(
+        Effect.delay(Duration.seconds(heartbeatSeconds)),
+        Effect.forever,
+        Effect.forkScoped,
+      );
 
       return {
         online,

@@ -1,4 +1,4 @@
-import { Context, DateTime, Duration, Effect, Layer, SubscriptionRef } from "effect";
+import { Context, DateTime, Duration, Effect, Layer, Schedule, SubscriptionRef } from "effect";
 
 import { HubCommand } from "@fleetfrog/protocol/agent/rpcs";
 import { T3CodeNotUpdatable } from "@fleetfrog/protocol/dashboard/rpcs";
@@ -95,11 +95,7 @@ export class T3CodeUpdates extends Context.Service<
         });
       });
 
-      yield* expire.pipe(
-        Effect.andThen(Effect.sleep(Duration.minutes(1))),
-        Effect.forever,
-        Effect.forkScoped,
-      );
+      yield* expire.pipe(Effect.repeat(Schedule.spaced(Duration.minutes(1))), Effect.forkScoped);
 
       return {
         updates,
