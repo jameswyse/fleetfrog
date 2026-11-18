@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import { DateTime, Effect, Layer, Stream, SubscriptionRef } from "effect";
+import { DateTime, Deferred, Effect, Fiber, Layer, Stream, SubscriptionRef } from "effect";
 import { TestClock } from "effect/testing";
 
 import { T3CodeNotUpdatable } from "@fleetfrog/protocol/dashboard/rpcs";
@@ -217,6 +217,49 @@ describe("T3CodeUpdates", () => {
         version: latest,
         message: "T3 Code didn't report the new version within 35 minutes.",
       });
+    }).pipe(Effect.scoped, Effect.provide(TestUpdates)),
+  );
+
+  it.effect("publishes only the transitions that change an update", () =>
+    Effect.gen(function* () {
+      const updates = yield* T3CodeUpdates;
+
+      yield* connectMini(true, true).pipe(Effect.asVoid);
+
+      const subscribed = yield* Deferred.make<void>();
+
+      const published = yield* SubscriptionRef.changes(updates.updates).pipe(
+        Stream.tap(() => Deferred.succeed(subscribed, undefined)),
+        Stream.map((current) => current.get(mini)?._tag ?? "None"),
+        Stream.take(4),
+        Stream.runCollect,
+        Effect.forkScoped,
+      );
+
+      yield* Deferred.await(subscribed);
+      yield* updates.start(mini);
+      yield* Effect.flip(updates.start(mini));
+      yield* updates.finish({ machineId: mini, version: latest, outcome: { _tag: "Updated" } });
+      yield* updates.reported({
+        machineId: mini,
+        status: t3Code({ version: outdated, serviceManaged: true, startedAt: yield* earlier }),
+      });
+      yield* TestClock.adjust("2 minutes");
+      yield* updates.connected(mini);
+      yield* updates.finish({
+        machineId: mini,
+        version: latest,
+        outcome: {
+          _tag: "Failed",
+          message: "The agent reconnected before T3 Code's update finished.",
+        },
+      });
+      yield* updates.reported({
+        machineId: mini,
+        status: t3Code({ version: latest, serviceManaged: true, startedAt: yield* DateTime.now }),
+      });
+
+      expect(yield* Fiber.join(published)).toStrictEqual(["None", "Updating", "Failed", "None"]);
     }).pipe(Effect.scoped, Effect.provide(TestUpdates)),
   );
 

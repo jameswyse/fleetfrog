@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import { DateTime, Effect, Layer, Stream, SubscriptionRef } from "effect";
+import { DateTime, Deferred, Effect, Fiber, Layer, Stream, SubscriptionRef } from "effect";
 
 import { AgentNotUpdatable } from "@fleetfrog/protocol/dashboard/rpcs";
 import { MachineId } from "@fleetfrog/protocol/domain/machine";
@@ -83,6 +83,37 @@ describe("AgentUpdates", () => {
       yield* updates.connected({ machineId: studio, agentVersion: updates.targetVersion });
 
       expect((yield* SubscriptionRef.get(updates.updates)).has(studio)).toBe(false);
+    }).pipe(Effect.scoped, Effect.provide(TestUpdates)),
+  );
+
+  it.effect("publishes only the transitions that change an update", () =>
+    Effect.gen(function* () {
+      const updates = yield* AgentUpdates;
+
+      yield* connectStudio({ agentVersion: "0.0.1", updatesItself: true }).pipe(Effect.asVoid);
+
+      const subscribed = yield* Deferred.make<void>();
+
+      const published = yield* SubscriptionRef.changes(updates.updates).pipe(
+        Stream.tap(() => Deferred.succeed(subscribed, undefined)),
+        Stream.map((current) => current.get(studio)?._tag ?? "None"),
+        Stream.take(4),
+        Stream.runCollect,
+        Effect.forkScoped,
+      );
+
+      yield* Deferred.await(subscribed);
+      yield* updates.start(studio);
+      yield* Effect.flip(updates.start(studio));
+      yield* updates.connected({ machineId: studio, agentVersion: "0.0.1" });
+      yield* updates.fail({
+        machineId: studio,
+        version: updates.targetVersion,
+        message: "The agent reconnected on 0.0.1 before the update finished.",
+      });
+      yield* updates.connected({ machineId: studio, agentVersion: updates.targetVersion });
+
+      expect(yield* Fiber.join(published)).toStrictEqual(["None", "Updating", "Failed", "None"]);
     }).pipe(Effect.scoped, Effect.provide(TestUpdates)),
   );
 
