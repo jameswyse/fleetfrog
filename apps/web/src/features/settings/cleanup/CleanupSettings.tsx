@@ -13,7 +13,7 @@ import type { HubResult } from "@/rpc/hubConnection.ts";
 
 const whitespace = /\s/;
 
-function additionProblem(name: string, branches: ReadonlyArray<string>): string | null {
+function additionProblem(name: string, branches: ReadonlyArray<string>) {
   if (name === "") {
     return "Enter a branch name to add.";
   }

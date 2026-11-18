@@ -49,7 +49,7 @@ export class AuthSettingsStore extends Context.Service<
           ),
         ),
         overridden: authModeOverride !== null,
-        update: (auth) =>
+        update: Effect.fn("AuthSettingsStore.update")((auth) =>
           sql`insert into settings ${sql.insert({
             id: 1,
             polling_json: encodePolling(defaultPollingSettings),
@@ -58,6 +58,7 @@ export class AuthSettingsStore extends Context.Service<
             Effect.orDie,
             Effect.andThen(SubscriptionRef.set(settings, auth)),
           ),
+        ),
         watch: SubscriptionRef.changes(settings).pipe(
           Stream.map(({ passwords, provider, tailscale, gravatar, oidc }) => ({
             passwords,

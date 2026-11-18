@@ -32,7 +32,7 @@ const stateWords = {
   U: "conflicted",
 } satisfies Record<FileState, string>;
 
-function describeChange(file: ChangedFile): string {
+function describeChange(file: ChangedFile) {
   const staged = stateWords[file.staged];
   const unstaged = stateWords[file.unstaged];
 
@@ -46,7 +46,7 @@ const letterTones = new Map([
   ["A", "bg-clean/15 text-clean"],
 ]);
 
-function changeLetter(file: ChangedFile | null): string {
+function changeLetter(file: ChangedFile | null) {
   if (file === null) {
     return "??";
   }
@@ -67,7 +67,7 @@ function ChangeCode({ file }: { readonly file: ChangedFile | null }) {
   );
 }
 
-function problemText(problem: WorkingTreeProblem): string {
+function problemText(problem: WorkingTreeProblem) {
   switch (problem._tag) {
     case "Unreadable":
       return `Couldn't read this checkout: ${problem.message}`;

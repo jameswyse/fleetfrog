@@ -8,7 +8,7 @@ import { AgentSessions } from "./agentSessions.ts";
 
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 
-function failed(message: string): InspectionResult {
+function failed(message: string) {
   return InspectionResult.cases.Failed.make({ message });
 }
 
@@ -30,7 +30,11 @@ export class InspectionRequests extends Context.Service<
   static readonly layer = Layer.effect(this)(
     Effect.gen(function* () {
       const sessions = yield* AgentSessions;
-      const queries = makeAgentQueries({ timeout: Duration.minutes(3), unanswered: failed });
+
+      const queries = makeAgentQueries<InspectionResult>({
+        timeout: Duration.minutes(3),
+        unanswered: failed,
+      });
 
       return {
         inspect: Effect.fn("InspectionRequests.inspect")(function* ({ machineId, path, worktree }) {
@@ -52,8 +56,9 @@ export class InspectionRequests extends Context.Service<
             ? failed("The machine's agent needs updating before it can inspect worktrees.")
             : result;
         }),
-        answer: ({ machineId, requestId, result }) =>
+        answer: Effect.fn("InspectionRequests.answer")(({ machineId, requestId, result }) =>
           queries.answer({ machineId, requestId, value: result }),
+        ),
       };
     }),
   );

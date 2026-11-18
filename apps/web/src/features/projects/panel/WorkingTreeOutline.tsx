@@ -66,7 +66,7 @@ function ThreadLine({ machine, tree }: { readonly machine: Machine; readonly tre
   );
 }
 
-function problemChip(problem: NonNullable<WorkingTree["problem"]>): string {
+function problemChip(problem: NonNullable<WorkingTree["problem"]>) {
   switch (problem._tag) {
     case "Unreadable":
       return "Unreadable";

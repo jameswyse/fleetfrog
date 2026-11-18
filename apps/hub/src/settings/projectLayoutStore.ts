@@ -33,18 +33,20 @@ export class ProjectLayoutStore extends Context.Service<
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
 
-      const get = (userId: UserId | null) =>
-        (userId === null
-          ? sql`select open_project_layout_json as layout, open_project_layout_revision as revision from settings where id = 1`
-          : sql`select project_layout_json as layout, project_layout_revision as revision from users where id = ${userId}`
-        ).pipe(
-          Effect.flatMap(decodeRows),
-          Effect.map(([row]): SavedProjectLayout => ({
-            layout: row?.layout ?? unsavedProjectLayout.layout,
-            revision: row?.revision ?? unsavedProjectLayout.revision,
-          })),
-          Effect.orDie,
-        );
+      const get = Effect.fn("ProjectLayoutStore.get")(
+        (userId: UserId | null) =>
+          (userId === null
+            ? sql`select open_project_layout_json as layout, open_project_layout_revision as revision from settings where id = 1`
+            : sql`select project_layout_json as layout, project_layout_revision as revision from users where id = ${userId}`
+          ).pipe(
+            Effect.flatMap(decodeRows),
+            Effect.map(([row]) => ({
+              layout: row?.layout ?? unsavedProjectLayout.layout,
+              revision: row?.revision ?? unsavedProjectLayout.revision,
+            })),
+          ),
+        Effect.orDie,
+      );
 
       const write = (userId: UserId | null, layout: ProjectLayout, revision: number) =>
         (userId === null
@@ -59,8 +61,8 @@ export class ProjectLayoutStore extends Context.Service<
 
       return {
         get,
-        save: (userId, layout, revision) =>
-          Effect.gen(function* () {
+        save: Effect.fn("ProjectLayoutStore.save")(
+          function* (userId, layout, revision) {
             const current = yield* get(userId);
 
             if (current.revision !== revision) {
@@ -70,7 +72,10 @@ export class ProjectLayoutStore extends Context.Service<
             yield* write(userId, layout, revision + 1);
 
             return revision + 1;
-          }).pipe(sql.withTransaction, Effect.catchTag("SqlError", Effect.die)),
+          },
+          sql.withTransaction,
+          Effect.catchTag("SqlError", Effect.die),
+        ),
       };
     }),
   );

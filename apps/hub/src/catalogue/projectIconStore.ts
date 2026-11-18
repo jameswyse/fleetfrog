@@ -22,7 +22,7 @@ const imageTypes = new Set([
 
 const maximumIconBytes = 256 * 1024;
 
-function checkedBytes(icon: ProjectIconFile): Buffer | null {
+function checkedBytes(icon: ProjectIconFile) {
   const data = Buffer.from(icon.base64, "base64");
 
   return imageTypes.has(icon.mediaType) &&
@@ -74,18 +74,20 @@ export class ProjectIconStore extends Context.Service<
           sql.withTransaction,
           Effect.orDie,
         ),
-        find: (id) =>
-          sql`select media_type, data from project_icons
+        find: Effect.fn("ProjectIconStore.find")(
+          (id) =>
+            sql`select media_type, data from project_icons
               where id = ${id} and machine_id in (select id from machines) limit 1`.pipe(
-            Effect.flatMap(decodeRows),
-            Effect.map(([row]) =>
-              Option.map(Option.fromNullishOr(row), ({ media_type, data }) => ({
-                mediaType: media_type,
-                data,
-              })),
+              Effect.flatMap(decodeRows),
+              Effect.map(([row]) =>
+                Option.map(Option.fromNullishOr(row), ({ media_type, data }) => ({
+                  mediaType: media_type,
+                  data,
+                })),
+              ),
             ),
-            Effect.orDie,
-          ),
+          Effect.orDie,
+        ),
       };
     }),
   );

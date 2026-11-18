@@ -43,7 +43,7 @@ export function parseWorktreeList(output: string): ReadonlyArray<WorktreeRecord>
 export const listWorktrees = (directory: string) =>
   runGit(directory, ["worktree", "list", "--porcelain"]).pipe(Effect.map(parseWorktreeList));
 
-async function linksBack(worktree: string, commonDirectory: string): Promise<boolean> {
+async function linksBack(worktree: string, commonDirectory: string) {
   try {
     const link = (await readFile(path.join(worktree, ".git"), "utf8")).trim();
 
@@ -69,16 +69,16 @@ export const readLinkedWorktrees = Effect.fn("readLinkedWorktrees")(function* (
 
   return yield* Effect.promise(() =>
     Promise.all(
-      linked.map(async ({ path: worktree, branch, prunable }): Promise<LinkedWorktree> => {
+      linked.map(async ({ path: worktree, branch, prunable }) => {
         if (prunable) {
-          return { path: worktree, branch, state: "Missing" };
+          return { path: worktree, branch, state: "Missing" } satisfies LinkedWorktree;
         }
 
         return {
           path: worktree,
           branch,
           state: (await linksBack(worktree, location.commonDirectory)) ? "Present" : "Broken",
-        };
+        } satisfies LinkedWorktree;
       }),
     ),
   );

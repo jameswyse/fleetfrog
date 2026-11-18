@@ -23,7 +23,7 @@ import type { WorktreeInspection } from "@fleetfrog/protocol/domain/trash";
 import type { ChangesHandling } from "../actions/ChangesChoice.tsx";
 import type { WorktreeInspectionState } from "./worktreeInspection.ts";
 
-function keptWork(inspection: WorktreeInspection): ReadonlyArray<string> {
+function keptWork(inspection: WorktreeInspection) {
   const lines: Array<string> = [];
   const { unreachableCommits, locked } = inspection;
 
@@ -59,7 +59,7 @@ function MissingNote({ parentMissing }: { readonly parentMissing: boolean }) {
   );
 }
 
-function changesSummary({ changedFiles, untrackedFiles }: WorktreeInspection): string {
+function changesSummary({ changedFiles, untrackedFiles }: WorktreeInspection) {
   const parts = [
     changedFiles > 0 && plural(changedFiles, "changed file"),
     untrackedFiles > 0 && plural(untrackedFiles, "untracked file"),

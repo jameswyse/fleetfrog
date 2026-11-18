@@ -1,7 +1,7 @@
 import { enableCopyButtons } from "./copyButtons.ts";
 import { startPond } from "./pond.ts";
 
-function find<T extends Element>(selector: string, kind: abstract new () => T): T {
+function find<T extends Element>(selector: string, kind: abstract new () => T) {
   const found = document.querySelector(selector);
 
   if (!(found instanceof kind)) {

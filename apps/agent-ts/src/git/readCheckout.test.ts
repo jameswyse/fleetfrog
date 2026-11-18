@@ -9,7 +9,7 @@ import { inheritedEnvironment } from "../config/environment.ts";
 import { temporaryDirectory } from "../testing/temporaryDirectory.ts";
 import { locateCheckout, readGitStatus } from "./readCheckout.ts";
 
-function git(cwd: string, ...args: Array<string>): string {
+function git(cwd: string, ...args: Array<string>) {
   return execFileSync("git", args, {
     cwd,
     encoding: "utf8",

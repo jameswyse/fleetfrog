@@ -51,13 +51,16 @@ export function iconType(data: Uint8Array): IconType | null {
 
 const linkTag = /<link\b[^>]*>/giu;
 
-function attribute(tag: string, name: string): string | undefined {
-  const match = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, "iu").exec(tag);
+function attribute(tag: string, name: string) {
+  const match = new RegExp(
+    `\\b${RegExp.escape(name)}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`,
+    "iu",
+  ).exec(tag);
 
   return match?.[1] ?? match?.[2] ?? match?.[3];
 }
 
-function iconLinks(html: string, page: URL): ReadonlyArray<URL> {
+function iconLinks(html: string, page: URL) {
   const links = [...html.matchAll(linkTag)].flatMap(([tag]) => {
     const rel = attribute(tag, "rel")?.toLowerCase().split(/\s+/u) ?? [];
     const href = attribute(tag, "href");
@@ -77,7 +80,7 @@ function iconLinks(html: string, page: URL): ReadonlyArray<URL> {
 const maximumPageBytes = 1024 * 1024;
 const maximumCandidates = 5;
 
-async function download(url: URL, limit: number): Promise<{ url: URL; data: Uint8Array } | null> {
+async function download(url: URL, limit: number) {
   const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
 
   if (!response.ok || response.body === null) {
@@ -168,36 +171,37 @@ export class ProviderIconStore extends Context.Service<
 
       return {
         current,
-        find: (id) =>
-          sql`select media_type, data from provider_icon where hash = ${id}`.pipe(
-            Effect.flatMap(decodeData),
-            Effect.map(([row]) =>
-              Option.fromUndefinedOr(row).pipe(
-                Option.map(({ media_type, data }) => ({ mediaType: media_type, data })),
+        find: Effect.fn("ProviderIconStore.find")(
+          (id) =>
+            sql`select media_type, data from provider_icon where hash = ${id}`.pipe(
+              Effect.flatMap(decodeData),
+              Effect.map(([row]) =>
+                Option.fromUndefinedOr(row).pipe(
+                  Option.map(({ media_type, data }) => ({ mediaType: media_type, data })),
+                ),
               ),
             ),
-            Effect.orDie,
-          ),
-        replace: (icon) =>
-          Effect.gen(function* () {
-            yield* sql`delete from provider_icon`;
+          Effect.orDie,
+        ),
+        replace: Effect.fn("ProviderIconStore.replace")(function* (icon) {
+          yield* sql`delete from provider_icon`;
 
-            if (icon === null) {
-              return yield* SubscriptionRef.set(current, null);
-            }
+          if (icon === null) {
+            return yield* SubscriptionRef.set(current, null);
+          }
 
-            const hash = createHash("sha256").update(icon.data).digest("hex");
+          const hash = createHash("sha256").update(icon.data).digest("hex");
 
-            yield* sql`insert into provider_icon ${sql.insert({
-              id: 1,
-              hash,
-              media_type: icon.mediaType,
-              source: icon.source,
-              data: icon.data,
-            })}`;
+          yield* sql`insert into provider_icon ${sql.insert({
+            id: 1,
+            hash,
+            media_type: icon.mediaType,
+            source: icon.source,
+            data: icon.data,
+          })}`;
 
-            return yield* SubscriptionRef.set(current, { id: hash, source: icon.source });
-          }).pipe(Effect.orDie),
+          return yield* SubscriptionRef.set(current, { id: hash, source: icon.source });
+        }, Effect.orDie),
       };
     }),
   );

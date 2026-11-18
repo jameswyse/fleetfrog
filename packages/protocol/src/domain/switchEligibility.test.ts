@@ -2,14 +2,14 @@ import { describe, expect, it } from "@effect/vitest";
 
 import { switchBlocker } from "./switchEligibility.ts";
 
-import type { GitStatus, Head } from "./checkout.ts";
+import type { Head } from "./checkout.ts";
 
 function status(options: {
   readonly head?: Head;
   readonly changed?: number;
   readonly branches?: ReadonlyArray<string>;
   readonly branchTotal?: number;
-}): GitStatus {
+}) {
   const branches = options.branches ?? ["main", "feature"];
 
   return {

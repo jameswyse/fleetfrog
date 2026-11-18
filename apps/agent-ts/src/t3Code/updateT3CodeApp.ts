@@ -93,7 +93,7 @@ type CallEnd =
   | { readonly _tag: "Closed" }
   | { readonly _tag: "NotSent" };
 
-function envelopesIn(data: unknown): ReadonlyArray<Envelope> {
+function envelopesIn(data: unknown) {
   const parsed = Predicate.isString(data) ? Option.getOrNull(decodeMessage(data)) : null;
 
   return (Array.isArray(parsed) ? parsed : [parsed]).flatMap((item) =>
@@ -101,15 +101,10 @@ function envelopesIn(data: unknown): ReadonlyArray<Envelope> {
   );
 }
 
-function failureReason(cause: ReadonlyArray<unknown>): string | null {
+function failureReason(cause: ReadonlyArray<unknown>) {
   return (
     cause.flatMap((entry) => Option.toArray(decodeFailureReason(entry)))[0]?.error.reason ?? null
   );
-}
-
-interface Answer<A> {
-  readonly status: number;
-  readonly body: Option.Option<A>;
 }
 
 const describe = (error: unknown) => (error instanceof Error ? error.message : String(error));
@@ -121,7 +116,7 @@ const request = <A>(
 ) =>
   Effect.tryPromise({
     try: (signal) =>
-      fetch(url, { ...init, signal }).then(async (response): Promise<Answer<A>> => ({
+      fetch(url, { ...init, signal }).then(async (response) => ({
         status: response.status,
         body: await response.json().then(decode, () => Option.none()),
       })),
@@ -218,9 +213,9 @@ const openSocket = (url: string, connectTimeout: Duration.Duration) =>
       tag: string,
       payload: unknown,
       onValue: (value: unknown) => Effect.Effect<void, T3CodeAppUpdateFailed>,
-    ): Effect.fn.Return<CallEnd, T3CodeAppUpdateFailed> {
+    ) {
       if (socket.readyState !== WebSocket.OPEN) {
-        return { _tag: "NotSent" };
+        return { _tag: "NotSent" } satisfies CallEnd;
       }
 
       yield* send({ _tag: "Request", id, tag, payload, headers: [] });
@@ -229,7 +224,7 @@ const openSocket = (url: string, connectTimeout: Duration.Duration) =>
         const message = yield* Queue.take(received);
 
         if (message._tag === "Closed") {
-          return { _tag: "Closed" };
+          return { _tag: "Closed" } satisfies CallEnd;
         }
 
         if (message._tag === "Ping") {
@@ -240,9 +235,11 @@ const openSocket = (url: string, connectTimeout: Duration.Duration) =>
           yield* send({ _tag: "Ack", requestId: id });
           yield* Effect.forEach(message.values, onValue, { discard: true });
         } else {
-          return message.exit._tag === "Success"
-            ? { _tag: "Success" }
-            : { _tag: "Failure", reason: failureReason(message.exit.cause) };
+          return (
+            message.exit._tag === "Success"
+              ? { _tag: "Success" }
+              : { _tag: "Failure", reason: failureReason(message.exit.cause) }
+          ) satisfies CallEnd;
         }
       }
     });

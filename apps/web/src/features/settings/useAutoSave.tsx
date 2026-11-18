@@ -11,7 +11,7 @@ export type SaveState =
 export function useAutoSave() {
   const [state, setState] = useState<SaveState>({ _tag: "Idle" });
 
-  const save = <A,>(request: () => Promise<HubResult<A>>): Promise<HubResult<A>> => {
+  const save = <A,>(request: () => Promise<HubResult<A>>) => {
     setState({ _tag: "Saving" });
 
     return request().then((result) => {

@@ -21,9 +21,9 @@ interface FolderNote {
   readonly problem: boolean;
 }
 
-function folderNote(status: FolderStatus | null | undefined, repositories: number): FolderNote {
+function folderNote(status: FolderStatus | null | undefined, repositories: number) {
   if (status === undefined || status === null) {
-    return { text: "Not checked yet", problem: false };
+    return { text: "Not checked yet", problem: false } satisfies FolderNote;
   }
 
   if (status === "Folder") {
@@ -33,10 +33,13 @@ function folderNote(status: FolderStatus | null | undefined, repositories: numbe
     return { text, problem: false };
   }
 
-  return { text: status === "Missing" ? "Not found" : "Not a folder", problem: true };
+  return {
+    text: status === "Missing" ? "Not found" : "Not a folder",
+    problem: true,
+  } satisfies FolderNote;
 }
 
-function additionProblem(path: string, paths: ReadonlyArray<string>): string | null {
+function additionProblem(path: string, paths: ReadonlyArray<string>) {
   if (!path.startsWith("/") && !path.startsWith("~")) {
     return "Enter a full path, or one starting with ~.";
   }

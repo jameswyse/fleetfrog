@@ -6,7 +6,7 @@ import { SideDetail, SidePanel } from "../SettingsSection.tsx";
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 import type { T3CodeProvider } from "@fleetfrog/protocol/domain/t3Code";
 
-function providerNote(provider: T3CodeProvider): string | null {
+function providerNote(provider: T3CodeProvider) {
   if (!provider.ready) {
     return "not ready";
   }

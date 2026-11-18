@@ -22,7 +22,7 @@ describe("retryDelay", () => {
 describe("localBranchNames", () => {
   const none = { items: [], total: 0 };
 
-  const status = (head: GitStatus["head"]): GitStatus => ({
+  const status = (head: GitStatus["head"]) => ({
     head,
     operation: null,
     lastCommit: null,

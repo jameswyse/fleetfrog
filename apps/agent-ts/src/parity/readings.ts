@@ -92,7 +92,7 @@ const github = (login: string, path: string) =>
 const [command = "scan", ...rest] = process.argv.slice(2);
 const [first = "", second] = rest;
 
-function read(): Effect.Effect<unknown, unknown> {
+function read() {
   switch (command) {
     case "inspect":
       return inspect(first, second);
@@ -105,7 +105,9 @@ function read(): Effect.Effect<unknown, unknown> {
   }
 }
 
+const reading: Effect.Effect<unknown, unknown> = read();
+
 // oxlint-disable-next-line wyse/no-import-time-effects -- scripts/agentParity/compare.mjs runs this module as a script
 await Effect.runPromise(
-  read().pipe(Effect.flatMap((readings) => Console.log(JSON.stringify(readings)))),
+  reading.pipe(Effect.flatMap((readings) => Console.log(JSON.stringify(readings)))),
 );

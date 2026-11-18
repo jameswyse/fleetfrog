@@ -3,7 +3,7 @@ import { createLintConfig } from "@jameswyse/oxc-config/oxlint";
 const testFiles = ["**/*.test.{ts,tsx}"];
 const nodeModules = ["node:*", "node:*/**", "@effect/platform-node", "@effect/platform-node/**"];
 
-const base = createLintConfig({
+const config = createLintConfig({
   root: import.meta.dirname,
   react: ["apps/web/src/**/*.{ts,tsx}", "apps/site/src/**/*.ts"],
   node: ["apps/agent-ts/**/*.ts", "apps/hub/**/*.ts", "packages/**/*.ts"],
@@ -53,13 +53,8 @@ const base = createLintConfig({
       message: "The dashboard protocol is between the hub and the browser, apart from the agents'.",
     },
   ],
-});
-
-export default {
-  ...base,
-  ignorePatterns: [...base.ignorePatterns, "apps/web/src/routeTree.gen.ts"],
+  ignorePatterns: ["apps/web/src/routeTree.gen.ts"],
   overrides: [
-    ...base.overrides,
     {
       files: ["apps/web/src/routes/**/*.tsx"],
       rules: {
@@ -70,6 +65,10 @@ export default {
       },
     },
   ],
+});
+
+export default {
+  ...config,
   settings: {
     react: { version: "19.3.1" },
   },

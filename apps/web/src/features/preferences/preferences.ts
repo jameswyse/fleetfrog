@@ -9,7 +9,7 @@ import type { Preferences } from "@fleetfrog/protocol/domain/preferences";
 const colorSchemeKey = "fleetfrog.colorScheme";
 const blurPersonalKey = "fleetfrog.blurPersonal";
 
-function readItem(key: string): string | null {
+function readItem(key: string) {
   try {
     return localStorage.getItem(key);
     // oxlint-disable-next-line wyse/no-swallowed-errors -- Browsers that block site data throw on any use of storage.
@@ -18,7 +18,7 @@ function readItem(key: string): string | null {
   }
 }
 
-function writeItem(key: string, value: string | null): void {
+function writeItem(key: string, value: string | null) {
   try {
     if (value === null) {
       localStorage.removeItem(key);
@@ -29,21 +29,21 @@ function writeItem(key: string, value: string | null): void {
   } catch {}
 }
 
-function loadCopy(): Preferences {
+function loadCopy() {
   const colorScheme = readItem(colorSchemeKey);
 
   return {
     colorScheme: colorScheme === "light" || colorScheme === "dark" ? colorScheme : "system",
     blurPersonal: readItem(blurPersonalKey) === "on",
-  };
+  } satisfies Preferences;
 }
 
-function saveCopy({ colorScheme, blurPersonal }: Preferences): void {
+function saveCopy({ colorScheme, blurPersonal }: Preferences) {
   writeItem(colorSchemeKey, colorScheme === "system" ? null : colorScheme);
   writeItem(blurPersonalKey, blurPersonal ? "on" : null);
 }
 
-function apply({ colorScheme, blurPersonal }: Preferences): void {
+function apply({ colorScheme, blurPersonal }: Preferences) {
   const root = document.documentElement;
 
   if (colorScheme === "system") {
@@ -58,7 +58,7 @@ function apply({ colorScheme, blurPersonal }: Preferences): void {
 let preferences = loadCopy();
 const listeners = new Set<() => void>();
 
-function show(next: Preferences): void {
+function show(next: Preferences) {
   if (
     next.colorScheme === preferences.colorScheme &&
     next.blurPersonal === preferences.blurPersonal
@@ -74,7 +74,7 @@ function show(next: Preferences): void {
   }
 }
 
-function subscribe(listener: () => void): () => void {
+function subscribe(listener: () => void) {
   listeners.add(listener);
 
   return () => listeners.delete(listener);

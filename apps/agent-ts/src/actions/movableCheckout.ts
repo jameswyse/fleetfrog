@@ -37,7 +37,7 @@ export const exists = (target: string) =>
     ),
   );
 
-function isCrossDevice(error: unknown): boolean {
+function isCrossDevice(error: unknown) {
   return error instanceof Error && "code" in error && error.code === "EXDEV";
 }
 
@@ -47,28 +47,28 @@ type MoveResult =
   | { readonly _tag: "Failed"; readonly message: string };
 
 export const moveFolder = ({ from, to }: { readonly from: string; readonly to: string }) =>
-  Effect.promise(async (): Promise<MoveResult> => {
+  Effect.promise(async () => {
     const taken = await lstat(to).then(
       () => true,
       () => false,
     );
 
     if (taken) {
-      return { _tag: "Taken" };
+      return { _tag: "Taken" } satisfies MoveResult;
     }
 
     try {
       await mkdir(path.dirname(to), { recursive: true });
       await rename(from, to);
 
-      return { _tag: "Moved" };
+      return { _tag: "Moved" } satisfies MoveResult;
     } catch (error) {
       return {
         _tag: "Failed",
         message: isCrossDevice(error)
           ? `${to} is on a different disk from ${from}, and FleetFrog only moves checkouts within one disk.`
           : `Couldn't move ${from} to ${to}: ${String(error)}`,
-      };
+      } satisfies MoveResult;
     }
   });
 

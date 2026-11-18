@@ -54,7 +54,9 @@ export class ActivityFeed extends Context.Service<
 
       return {
         invalidate,
-        recordEvent: (event, by) => store.recordEvent(event, by).pipe(Effect.andThen(invalidate)),
+        recordEvent: Effect.fn("ActivityFeed.recordEvent")((event, by) =>
+          store.recordEvent(event, by).pipe(Effect.andThen(invalidate)),
+        ),
         watchRuns: onChange(
           Effect.all({
             activeBatches: store.activeBatches,
@@ -62,8 +64,10 @@ export class ActivityFeed extends Context.Service<
             latest: store.latestRuns,
           }),
         ),
-        watchActivity: (query) => onChange(store.activity(query)),
-        watchBatch: (batchId) => onChange(store.batch(batchId)),
+        watchActivity: (query) =>
+          onChange(store.activity(query)).pipe(Stream.withSpan("ActivityFeed.watchActivity")),
+        watchBatch: (batchId) =>
+          onChange(store.batch(batchId)).pipe(Stream.withSpan("ActivityFeed.watchBatch")),
       };
     }),
   );

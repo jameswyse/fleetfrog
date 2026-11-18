@@ -15,7 +15,7 @@ interface CloneTarget {
   readonly repositoryKey: RepositoryKey;
 }
 
-function actsOn(run: ActionRun, target: CheckoutTarget): boolean {
+function actsOn(run: ActionRun, target: CheckoutTarget) {
   return (
     run.machineId === target.machineId &&
     (run.path === target.checkout.path ||
@@ -23,7 +23,7 @@ function actsOn(run: ActionRun, target: CheckoutTarget): boolean {
   );
 }
 
-function clones(run: ActionRun, target: CloneTarget): boolean {
+function clones(run: ActionRun, target: CloneTarget) {
   return (
     run.request._tag === "Clone" &&
     run.machineId === target.machineId &&
@@ -31,11 +31,11 @@ function clones(run: ActionRun, target: CloneTarget): boolean {
   );
 }
 
-function finishedAt(run: ActionRun): number {
+function finishedAt(run: ActionRun) {
   return run.state._tag === "Finished" ? run.state.finishedAt.epochMilliseconds : 0;
 }
 
-function newest(runs: ReadonlyArray<ActionRun>): ActionRun | undefined {
+function newest(runs: ReadonlyArray<ActionRun>) {
   return runs.toSorted((left, right) => finishedAt(right) - finishedAt(left))[0];
 }
 

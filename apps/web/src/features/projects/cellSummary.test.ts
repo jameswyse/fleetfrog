@@ -6,7 +6,6 @@ import { MachineId } from "@fleetfrog/protocol/domain/machine";
 import { summariseCell } from "./cellSummary.ts";
 
 import type { Checkout, GitStatus, MergedPullRequest } from "@fleetfrog/protocol/domain/checkout";
-import type { MachineCheckout } from "@fleetfrog/protocol/domain/fleet";
 
 const at = DateTime.makeUnsafe("2026-09-26T00:00:00Z");
 const none = { items: [], total: 0 };
@@ -20,7 +19,7 @@ function entry(
     readonly main?: string;
     readonly merged?: ReadonlyArray<MergedPullRequest>;
   },
-): MachineCheckout {
+) {
   const checkout: Checkout = {
     path,
     identity: { _tag: "Remote", host: "github.com", path: "acme/shop" },

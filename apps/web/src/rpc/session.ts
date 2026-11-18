@@ -21,7 +21,7 @@ const decodeFailure = Schema.decodeUnknownOption(Schema.toCodecJson(LoginFailure
 let state: SessionState = { _tag: "Loading" };
 const listeners = new Set<() => void>();
 
-function setState(next: SessionState): void {
+function setState(next: SessionState) {
   state = next;
 
   for (const listener of listeners) {
@@ -29,7 +29,7 @@ function setState(next: SessionState): void {
   }
 }
 
-function subscribe(listener: () => void): () => void {
+function subscribe(listener: () => void) {
   listeners.add(listener);
 
   return () => listeners.delete(listener);
@@ -43,7 +43,7 @@ export function useSession(): SessionState {
   return useSyncExternalStore(subscribe, () => state);
 }
 
-function roleOf(current: SessionState): Role {
+function roleOf(current: SessionState) {
   return current._tag === "Known" && current.session._tag === "SignedIn"
     ? current.session.user.role
     : "admin";
@@ -76,7 +76,7 @@ export function settledSession(): Promise<SessionState> {
   });
 }
 
-function hasAccess(current: SessionState): boolean {
+function hasAccess(current: SessionState) {
   return current._tag !== "Loading" && !isSignedOut(current);
 }
 
@@ -95,12 +95,12 @@ export function whenAccessible(): Promise<void> {
   });
 }
 
-async function readSession(response: Response): Promise<Option.Option<Session>> {
+async function readSession(response: Response) {
   return decodeSession(await response.json());
 }
 
-function withoutAnswer(): SessionState {
-  return state._tag === "Known" ? state : { _tag: "Unreachable" };
+function withoutAnswer() {
+  return (state._tag === "Known" ? state : { _tag: "Unreachable" }) satisfies SessionState;
 }
 
 export async function refreshSession(): Promise<SessionState> {
@@ -143,13 +143,13 @@ const unreachable: Outcome = {
   message: "Can't reach the hub. Check that it's running, then try again.",
 };
 
-function waitMessage(seconds: number): string {
+function waitMessage(seconds: number) {
   return seconds < 90
     ? `Too many attempts. Try again in ${seconds} seconds.`
     : `Too many attempts. Try again in ${Math.ceil(seconds / 60)} minutes.`;
 }
 
-async function post(path: string, body: unknown): Promise<Response> {
+async function post(path: string, body: unknown) {
   return fetch(path, {
     method: "POST",
     headers: { "content-type": "application/json" },

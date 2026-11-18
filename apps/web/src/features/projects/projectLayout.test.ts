@@ -31,7 +31,7 @@ function repository(
     readonly committedAt?: string;
     readonly git?: Partial<GitStatus>;
   } = {},
-): Repository {
+) {
   const identity = options.identity ?? {
     _tag: "Remote",
     host: "github.com",
@@ -83,7 +83,7 @@ function repository(
         },
       },
     ],
-  };
+  } satisfies Repository;
 }
 
 const shop = repository("shop");

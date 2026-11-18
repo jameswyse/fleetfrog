@@ -11,7 +11,7 @@ import { discoverCheckouts } from "./discoverCheckouts.ts";
 
 const gitEnvironment = { ...inheritedEnvironment(), GIT_CONFIG_GLOBAL: "/dev/null" };
 
-function createRepository(directory: string): void {
+function createRepository(directory: string) {
   mkdirSync(directory, { recursive: true });
   execFileSync("git", ["init", "-q", "-b", "main", directory], { env: gitEnvironment });
   writeFileSync(path.join(directory, "readme.md"), `${directory}\n`);

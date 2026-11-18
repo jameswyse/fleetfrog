@@ -5,7 +5,10 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    "./*": "./src/*.ts"
+    "./agent/*": "./src/agent/*.ts",
+    "./dashboard/*": "./src/dashboard/*.ts",
+    "./domain/*": "./src/domain/*.ts",
+    "./pairing/*": "./src/pairing/*.ts"
   },
   "scripts": {
     "format": "oxfmt .",

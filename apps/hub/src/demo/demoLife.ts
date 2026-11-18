@@ -18,24 +18,27 @@ interface ThreadChange {
   readonly to: SimThread["state"];
 }
 
-function threadChange(threads: ReadonlyArray<SimThread>, roll: number): ThreadChange {
+function threadChange(threads: ReadonlyArray<SimThread>, roll: number) {
   const inState = (state: SimThread["state"]) => threads.filter((thread) => thread.state === state);
   const working = inState("Working");
 
   if (working.length < fewestWorking) {
-    return { from: [...inState("Waiting"), ...inState("Idle")], to: "Working" };
+    return {
+      from: [...inState("Waiting"), ...inState("Idle")],
+      to: "Working",
+    } satisfies ThreadChange;
   }
 
   if (working.length > mostWorking || roll >= 0.8) {
-    return { from: working, to: "Idle" };
+    return { from: working, to: "Idle" } satisfies ThreadChange;
   }
 
-  return roll < 0.6
-    ? { from: working, to: "Waiting" }
-    : { from: inState("Waiting"), to: "Working" };
+  return (
+    roll < 0.6 ? { from: working, to: "Waiting" } : { from: inState("Waiting"), to: "Working" }
+  ) satisfies ThreadChange;
 }
 
-function addCommit(remote: SimRemote, now: DateTime.Utc): void {
+function addCommit(remote: SimRemote, now: DateTime.Utc) {
   const subject = remote.spec.history[remote.history.length % remote.spec.history.length];
 
   remote.history.push({

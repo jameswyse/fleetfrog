@@ -24,13 +24,13 @@ class Refused extends Schema.TaggedError<Refused, { readonly brand: unique symbo
   message: Schema.String,
 }) {}
 
-function threadsRunning(count: number): string {
+function threadsRunning(count: number) {
   return count === 1
     ? "T3 Code is running 1 thread. Try again when it finishes."
     : `T3 Code is running ${count} threads. Try again when they finish.`;
 }
 
-function failureReason(result: ProgramResult): string {
+function failureReason(result: ProgramResult) {
   if (result._tag === "TimedOut") {
     return "T3 Code's updater took longer than 10 minutes and was stopped.";
   }
@@ -40,7 +40,7 @@ function failureReason(result: ProgramResult): string {
     : `T3 Code's updater exited with code ${result.code}.`;
 }
 
-function withOutput(reason: string, output: string): string {
+function withOutput(reason: string, output: string) {
   const lines = lastLines(output).slice(-maximumOutputCharacters);
 
   return lines === "" ? reason : `${reason}\n${lines}`;

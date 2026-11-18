@@ -8,7 +8,7 @@ import type { Checkout } from "@fleetfrog/protocol/domain/checkout";
 
 const now = DateTime.makeUnsafe("2026-10-20T00:00:00Z");
 
-function listedWorktrees(checkout: Checkout): ReadonlyArray<string> {
+function listedWorktrees(checkout: Checkout) {
   if (checkout.status._tag !== "Read") {
     throw new Error(`The demo couldn't read ${checkout.path}.`);
   }
@@ -22,7 +22,7 @@ function checkoutAt({
 }: {
   readonly checkouts: ReadonlyArray<Checkout>;
   readonly path: string;
-}): Checkout {
+}) {
   const found = checkouts.find((checkout) => checkout.path === path);
 
   if (found === undefined) {

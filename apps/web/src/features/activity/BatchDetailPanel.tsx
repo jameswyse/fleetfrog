@@ -19,7 +19,7 @@ const statusOrder = {
   Succeeded: 7,
 } as const;
 
-function rank(run: ActionRun): number {
+function rank(run: ActionRun) {
   return statusOrder[run.state._tag === "Finished" ? run.state.outcome._tag : run.state._tag];
 }
 

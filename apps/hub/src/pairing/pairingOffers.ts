@@ -14,7 +14,7 @@ import type { PairingOffer, TailscaleServeUnavailable } from "@fleetfrog/protoco
 
 const offerLifetime = Duration.minutes(pairingCodeLifetimeMinutes);
 
-function hashCode(code: string): string {
+function hashCode(code: string) {
   return createHash("sha256").update(code).digest("hex");
 }
 
@@ -71,7 +71,7 @@ export class PairingOffers extends Context.Service<
             expiresAt,
           };
         }),
-        redeem: (code) =>
+        redeem: Effect.fn("PairingOffers.redeem")((code) =>
           DateTime.now.pipe(
             Effect.flatMap((now) => {
               const hash = hashCode(code);
@@ -84,6 +84,7 @@ export class PairingOffers extends Context.Service<
                 : Effect.void;
             }),
           ),
+        ),
       };
     }),
   );

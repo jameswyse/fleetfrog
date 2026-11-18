@@ -12,7 +12,6 @@ import type { ActionKind, ActionRequest } from "@fleetfrog/protocol/domain/actio
 import type { BatchScope } from "@fleetfrog/protocol/domain/activity";
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 
-import type { NewRun } from "../activity/activityStore.ts";
 import type { DemoMachineKey } from "./demoFleetData.ts";
 import type { DemoWorld, SimMachine, SimRepository } from "./demoWorld.ts";
 
@@ -25,11 +24,11 @@ interface PastRun {
   readonly seconds: number;
 }
 
-function machineName(machine: SimMachine): string {
+function machineName(machine: SimMachine) {
   return machine.spec.prettyName ?? machine.spec.hostname;
 }
 
-function repositoryName(repository: SimRepository): string {
+function repositoryName(repository: SimRepository) {
   const { spec, identity } = repository.remote;
 
   return (
@@ -38,11 +37,11 @@ function repositoryName(repository: SimRepository): string {
   );
 }
 
-function pathOf(repository: SimRepository): string {
+function pathOf(repository: SimRepository) {
   return repository.main.path;
 }
 
-function fetched(repository: SimRepository): ReadonlyArray<string> {
+function fetched(repository: SimRepository) {
   return [`From ${repository.remote.originUrl ?? "origin"}`];
 }
 
@@ -90,7 +89,7 @@ export const seedHistory = Effect.fn("seedHistory")(function* (options: {
       scope: batch.scope,
       requestedAt,
       requestedBy: null,
-      runs: Arr.map(runs, ({ run, machineId, id }): NewRun => ({
+      runs: Arr.map(runs, ({ run, machineId, id }) => ({
         id,
         machineId,
         machineName: machineName(run.machine),
@@ -129,16 +128,19 @@ export const seedHistory = Effect.fn("seedHistory")(function* (options: {
         (repository) =>
           repository.remote.originUrl !== null && repository.placement._tag === "Projects",
       )
-      .map((repository): PastRun => ({
-        machine,
-        repository,
-        request: { _tag: "Fetch", path: pathOf(repository) },
-        outcome: ActionOutcome.cases.Succeeded.make({
-          result: ActionResult.cases.Fetched.make({}),
-        }),
-        output: fetched(repository),
-        seconds: 1.4,
-      })),
+      .map(
+        (repository) =>
+          ({
+            machine,
+            repository,
+            request: { _tag: "Fetch", path: pathOf(repository) },
+            outcome: ActionOutcome.cases.Succeeded.make({
+              result: ActionResult.cases.Fetched.make({}),
+            }),
+            output: fetched(repository),
+            seconds: 1.4,
+          }) satisfies PastRun,
+      ),
   );
 
   yield* record({ hoursAgo: 26, kind: "Fetch", scope: { _tag: "All" }, runs: fetchAll });

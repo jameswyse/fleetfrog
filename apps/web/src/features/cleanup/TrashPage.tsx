@@ -21,7 +21,7 @@ import type { ActionRun, TargetedRun } from "@fleetfrog/protocol/domain/activity
 
 import type { TrashEntry } from "./trashEntries.ts";
 
-function activeRunOn(active: ReadonlyArray<ActionRun>, entry: TrashEntry): ActionRun | undefined {
+function activeRunOn(active: ReadonlyArray<ActionRun>, entry: TrashEntry) {
   return active.find(
     (run) =>
       run.machineId === entry.machine.id &&
@@ -30,14 +30,14 @@ function activeRunOn(active: ReadonlyArray<ActionRun>, entry: TrashEntry): Actio
   );
 }
 
-function purgeRuns(entries: ReadonlyArray<TrashEntry>): ReadonlyArray<TargetedRun> {
-  return entries.map(({ machine, target }) => ({
-    machineId: machine.id,
-    request: { _tag: "Purge", target },
-  }));
+function purgeRuns(entries: ReadonlyArray<TrashEntry>) {
+  return entries.map(
+    ({ machine, target }) =>
+      ({ machineId: machine.id, request: { _tag: "Purge", target } }) satisfies TargetedRun,
+  );
 }
 
-function entryName({ item }: TrashEntry): string {
+function entryName({ item }: TrashEntry) {
   if (item._tag === "Stash") {
     return "this stash";
   }

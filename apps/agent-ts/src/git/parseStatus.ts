@@ -16,11 +16,11 @@ export interface ParsedStatus {
 
 const isFileState = Schema.is(FileState);
 
-function fileState(code: string | undefined): FileState {
+function fileState(code: string | undefined) {
   return code !== undefined && isFileState(code) ? code : ".";
 }
 
-function fieldsBeforePath(kind: string | undefined): number {
+function fieldsBeforePath(kind: string | undefined) {
   if (kind === "1") {
     return 8;
   }
@@ -38,13 +38,13 @@ function headFrom(parts: {
   readonly upstream: string | null;
   readonly ahead: number | null;
   readonly behind: number | null;
-}): Head {
+}) {
   if (parts.branch === null) {
-    return { _tag: "Detached" };
+    return { _tag: "Detached" } satisfies Head;
   }
 
   if (parts.commit === null) {
-    return { _tag: "Unborn", name: parts.branch };
+    return { _tag: "Unborn", name: parts.branch } satisfies Head;
   }
 
   return {
@@ -59,7 +59,7 @@ function headFrom(parts: {
             behind: parts.behind ?? 0,
             gone: parts.ahead === null,
           },
-  };
+  } satisfies Head;
 }
 
 export function parseStatus(output: string): ParsedStatus {

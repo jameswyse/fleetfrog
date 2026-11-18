@@ -34,7 +34,7 @@ export function conflictedFiles(git: GitStatus): number {
     .length;
 }
 
-function trackingState(upstream: Upstream | null): "tracking" | "none" | "gone" {
+function trackingState(upstream: Upstream | null) {
   if (upstream === null) {
     return "none";
   }

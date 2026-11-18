@@ -90,13 +90,13 @@ let runs: RunsSnapshot = noRuns;
 const listeners = new Set<() => void>();
 let outdated = false;
 
-function notify(): void {
+function notify() {
   for (const listener of listeners) {
     listener();
   }
 }
 
-function setState(next: HubState): void {
+function setState(next: HubState) {
   state = next;
   notify();
 }
@@ -105,7 +105,7 @@ export function knownFleet(hub: HubState): Fleet | null {
   return hub._tag === "Connecting" ? null : (hub.snapshot?.fleet ?? null);
 }
 
-function subscribe(listener: () => void): () => void {
+function subscribe(listener: () => void) {
   listeners.add(listener);
 
   return () => listeners.delete(listener);
@@ -123,7 +123,7 @@ export function useDashboardOutdated(): boolean {
   return useSyncExternalStore(subscribe, () => outdated);
 }
 
-function isSchemaMismatch(cause: Cause.Cause<unknown>): boolean {
+function isSchemaMismatch(cause: Cause.Cause<unknown>) {
   return cause.reasons.some((reason) => {
     if (Cause.isFailReason(reason)) {
       return Predicate.isTagged(reason.error, "SchemaError");
@@ -198,7 +198,7 @@ const session = Effect.gen(function* () {
   ),
 );
 
-function forget(): void {
+function forget() {
   runs = noRuns;
   setState({ _tag: "Connecting" });
 }

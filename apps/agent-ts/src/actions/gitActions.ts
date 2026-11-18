@@ -74,7 +74,7 @@ export const pullCheckout = Effect.fn("pullCheckout")(
 
 export const refCommit = (location: CheckoutLocation, ref: string) =>
   runGit(location.path, ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]).pipe(
-    Effect.map((output): string | null => output.trim()),
+    Effect.map((output) => output.trim()),
     Effect.catchTag("CommandFailed", () => Effect.succeed(null)),
   );
 
@@ -276,7 +276,7 @@ export const destinationProblems = {
   InArchive: "The destination can't be in the Archive folder.",
 } satisfies Record<Exclude<DestinationCheck["_tag"], "Valid">, string>;
 
-async function resolveExisting(target: string): Promise<string> {
+async function resolveExisting(target: string) {
   const missing: Array<string> = [];
   let existing = target;
 
@@ -299,7 +299,7 @@ async function destinationProblem(options: {
   readonly root: string;
   readonly home: string;
   readonly archive: string | null;
-}): Promise<string | null> {
+}) {
   const rootStat = await stat(options.root).catch(() => null);
 
   if (rootStat === null || !rootStat.isDirectory()) {
@@ -447,7 +447,7 @@ export const deleteBranches = Effect.fn("deleteBranches")(
   Effect.catchTag("CommandFailed", failedWith),
 );
 
-function deletedBranchName(ref: string): string | null {
+function deletedBranchName(ref: string) {
   return parseDeletedRef(ref)?.name ?? null;
 }
 

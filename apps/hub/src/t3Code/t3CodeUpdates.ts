@@ -155,91 +155,91 @@ export class T3CodeUpdates extends Context.Service<
             Effect.annotateLogs({ machineId }),
           );
         }),
-        finish: ({ machineId, version, outcome }) =>
-          outcome._tag === "Updated"
-            ? Effect.gen(function* () {
-                yield* Effect.logInfo(`The agent installed T3 Code ${version}`).pipe(
-                  Effect.annotateLogs({ machineId }),
-                );
+        finish: Effect.fn("T3CodeUpdates.finish")(function* ({ machineId, version, outcome }) {
+          if (outcome._tag !== "Updated") {
+            yield* Effect.logWarning(
+              `T3 Code couldn't update to ${version}: ${outcome.message}`,
+            ).pipe(Effect.annotateLogs({ machineId }));
 
-                const now = yield* DateTime.now;
+            yield* settle(
+              machineId,
+              T3CodeUpdate.cases.Failed.make({ version, message: outcome.message }),
+            );
 
-                const running = yield* machines.find(machineId).pipe(
-                  Effect.map((record) => record.t3Code?.server?.version ?? null),
-                  Effect.catchTag("MachineNotFound", () => Effect.succeed(null)),
-                );
+            return;
+          }
 
-                yield* SubscriptionRef.update(updates, (current) => {
-                  const update = current.get(machineId);
+          yield* Effect.logInfo(`The agent installed T3 Code ${version}`).pipe(
+            Effect.annotateLogs({ machineId }),
+          );
 
-                  if (update === undefined) {
-                    return current;
-                  }
+          const now = yield* DateTime.now;
 
-                  const next = new Map(current);
+          const running = yield* machines.find(machineId).pipe(
+            Effect.map((record) => record.t3Code?.server?.version ?? null),
+            Effect.catchTag("MachineNotFound", () => Effect.succeed(null)),
+          );
 
-                  if (running !== null && !isNewerT3Code(version, running)) {
-                    next.delete(machineId);
-                  } else {
-                    next.set(
-                      machineId,
-                      T3CodeUpdate.cases.Updating.make({
-                        version,
-                        since: update._tag === "Updating" ? update.since : now,
-                      }),
-                    );
-                  }
+          yield* SubscriptionRef.update(updates, (current) => {
+            const update = current.get(machineId);
 
-                  return next;
-                });
-              })
-            : Effect.logWarning(`T3 Code couldn't update to ${version}: ${outcome.message}`).pipe(
-                Effect.annotateLogs({ machineId }),
-                Effect.andThen(
-                  settle(
-                    machineId,
-                    T3CodeUpdate.cases.Failed.make({ version, message: outcome.message }),
-                  ),
-                ),
-              ),
-        reported: ({ machineId, status }) =>
-          Effect.gen(function* () {
-            const update = (yield* SubscriptionRef.get(updates)).get(machineId);
-            const server = status.server;
-
-            if (update === undefined || server === null || server.version === null) {
-              return;
+            if (update === undefined) {
+              return current;
             }
 
-            if (!isNewerT3Code(update.version, server.version)) {
-              yield* settle(machineId, null);
-            } else if (
-              update._tag === "Updating" &&
-              DateTime.isGreaterThan(server.startedAt, update.since)
-            ) {
-              yield* settle(
+            const next = new Map(current);
+
+            if (running !== null && !isNewerT3Code(version, running)) {
+              next.delete(machineId);
+            } else {
+              next.set(
                 machineId,
-                T3CodeUpdate.cases.Failed.make({
-                  version: update.version,
-                  message: `T3 Code restarted on ${server.version} instead.`,
+                T3CodeUpdate.cases.Updating.make({
+                  version,
+                  since: update._tag === "Updating" ? update.since : now,
                 }),
               );
             }
-          }),
-        connected: (machineId) =>
-          Effect.gen(function* () {
-            const update = (yield* SubscriptionRef.get(updates)).get(machineId);
 
-            if (update?._tag === "Updating") {
-              yield* settle(
-                machineId,
-                T3CodeUpdate.cases.Failed.make({
-                  version: update.version,
-                  message: "The agent reconnected before T3 Code's update finished.",
-                }),
-              );
-            }
-          }),
+            return next;
+          });
+        }),
+        reported: Effect.fn("T3CodeUpdates.reported")(function* ({ machineId, status }) {
+          const update = (yield* SubscriptionRef.get(updates)).get(machineId);
+          const server = status.server;
+
+          if (update === undefined || server === null || server.version === null) {
+            return;
+          }
+
+          if (!isNewerT3Code(update.version, server.version)) {
+            yield* settle(machineId, null);
+          } else if (
+            update._tag === "Updating" &&
+            DateTime.isGreaterThan(server.startedAt, update.since)
+          ) {
+            yield* settle(
+              machineId,
+              T3CodeUpdate.cases.Failed.make({
+                version: update.version,
+                message: `T3 Code restarted on ${server.version} instead.`,
+              }),
+            );
+          }
+        }),
+        connected: Effect.fn("T3CodeUpdates.connected")(function* (machineId) {
+          const update = (yield* SubscriptionRef.get(updates)).get(machineId);
+
+          if (update?._tag === "Updating") {
+            yield* settle(
+              machineId,
+              T3CodeUpdate.cases.Failed.make({
+                version: update.version,
+                message: "The agent reconnected before T3 Code's update finished.",
+              }),
+            );
+          }
+        }),
       };
     }),
   );

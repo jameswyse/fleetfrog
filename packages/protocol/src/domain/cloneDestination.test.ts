@@ -19,7 +19,7 @@ function machine(options: {
   readonly id: string;
   readonly home: string;
   readonly roots: ReadonlyArray<string>;
-}): Machine {
+}) {
   return {
     id: MachineId.make(options.id),
     info: {
@@ -46,10 +46,10 @@ function machine(options: {
     t3CodeUpdate: null,
     trash: [],
     t3Code: null,
-  };
+  } satisfies Machine;
 }
 
-function checkout(path: string, worktree: Checkout["worktree"] = { _tag: "Main" }): Checkout {
+function checkout(path: string, worktree: Checkout["worktree"] = { _tag: "Main" }) {
   return {
     path,
     identity: { _tag: "Remote", host: "github.com", path: "acme/shop" },
@@ -60,7 +60,7 @@ function checkout(path: string, worktree: Checkout["worktree"] = { _tag: "Main" 
     status: { _tag: "Failed", message: "" },
     github: null,
     scannedAt: now,
-  };
+  } satisfies Checkout;
 }
 
 const studio = machine({
@@ -75,7 +75,7 @@ const laptop = machine({
   roots: ["~/Code", "~/Projects"],
 });
 
-function repositoryAt(...checkouts: ReadonlyArray<Checkout>): Repository {
+function repositoryAt(...checkouts: ReadonlyArray<Checkout>) {
   return {
     key: RepositoryKey.make("remote:github.com/acme/shop"),
     identity: { _tag: "Remote", host: "github.com", path: "acme/shop" },
@@ -83,7 +83,7 @@ function repositoryAt(...checkouts: ReadonlyArray<Checkout>): Repository {
     label: "shop",
     icon: null,
     checkouts: checkouts.map((entry) => ({ machineId: studio.id, checkout: entry })),
-  };
+  } satisfies Repository;
 }
 
 describe("suggestCloneDestination", () => {

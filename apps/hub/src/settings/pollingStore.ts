@@ -32,12 +32,13 @@ export class PollingStore extends Context.Service<
 
       return {
         settings,
-        update: (polling) =>
+        update: Effect.fn("PollingStore.update")((polling) =>
           sql`insert into settings ${sql.insert({ id: 1, polling_json: encodePolling(polling) })}
               on conflict (id) do update set polling_json = excluded.polling_json`.pipe(
             Effect.orDie,
             Effect.andThen(SubscriptionRef.set(settings, polling)),
           ),
+        ),
       };
     }),
   );

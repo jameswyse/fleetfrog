@@ -32,7 +32,11 @@ export function configPath(): string {
 export class ConfigUnavailable extends Schema.TaggedError<
   ConfigUnavailable,
   { readonly brand: unique symbol }
->()("ConfigUnavailable", { path: Schema.String, message: Schema.String }) {}
+>()("ConfigUnavailable", {
+  path: Schema.String,
+  message: Schema.String,
+  cause: Schema.Defect(),
+}) {}
 
 export function isMissingFile(error: unknown): boolean {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
@@ -50,7 +54,7 @@ export const loadAgentConfig = Effect.gen(function* () {
 
         throw error;
       }),
-    catch: (error) => new ConfigUnavailable({ path: file, message: String(error) }),
+    catch: (error) => new ConfigUnavailable({ path: file, message: String(error), cause: error }),
   });
 
   if (Option.isNone(contents)) {
@@ -60,7 +64,8 @@ export const loadAgentConfig = Effect.gen(function* () {
   return Option.some(
     yield* decodeConfig(contents.value).pipe(
       Effect.mapError(
-        () => new ConfigUnavailable({ path: file, message: "The saved pairing is not valid." }),
+        (cause) =>
+          new ConfigUnavailable({ path: file, message: "The saved pairing is not valid.", cause }),
       ),
     ),
   );
@@ -71,7 +76,8 @@ export const ensureConfigWritable = Effect.tryPromise({
     await mkdir(configDirectory(), { recursive: true, mode: 0o700 });
     await access(configDirectory(), constants.W_OK);
   },
-  catch: (error) => new ConfigUnavailable({ path: configDirectory(), message: String(error) }),
+  catch: (error) =>
+    new ConfigUnavailable({ path: configDirectory(), message: String(error), cause: error }),
 });
 
 export const saveAgentConfig = (config: AgentConfig) =>
@@ -82,5 +88,6 @@ export const saveAgentConfig = (config: AgentConfig) =>
       await chmod(configDirectory(), 0o700);
       await chmod(configPath(), 0o600);
     },
-    catch: (error) => new ConfigUnavailable({ path: configPath(), message: String(error) }),
+    catch: (error) =>
+      new ConfigUnavailable({ path: configPath(), message: String(error), cause: error }),
   });

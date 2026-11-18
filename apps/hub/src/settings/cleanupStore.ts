@@ -34,7 +34,7 @@ export class CleanupStore extends Context.Service<
 
       return {
         settings,
-        update: (cleanup) =>
+        update: Effect.fn("CleanupStore.update")((cleanup) =>
           sql`insert into settings ${sql.insert({
             id: 1,
             polling_json: encodePolling(defaultPollingSettings),
@@ -43,6 +43,7 @@ export class CleanupStore extends Context.Service<
             Effect.orDie,
             Effect.andThen(SubscriptionRef.set(settings, cleanup)),
           ),
+        ),
       };
     }),
   );

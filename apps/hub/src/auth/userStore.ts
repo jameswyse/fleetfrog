@@ -6,7 +6,6 @@ import {
   Effect,
   Layer,
   Option,
-  Predicate,
   Schema,
   Semaphore,
   Stream,
@@ -82,7 +81,7 @@ export interface UploadedAvatar {
   readonly data: Uint8Array;
 }
 
-function toRecord(row: typeof UserRow.Type): UserRecord {
+function toRecord(row: typeof UserRow.Type) {
   return {
     id: row.id,
     email: row.email,
@@ -107,18 +106,20 @@ interface Describing {
   readonly providerInUse: boolean;
 }
 
-function avatarOf(record: UserRecord, { gravatar, providerInUse }: Describing): Avatar {
+function avatarOf(record: UserRecord, { gravatar, providerInUse }: Describing) {
   if (providerInUse && record.providerPicture !== null) {
-    return { _tag: "Provider", url: record.providerPicture };
+    return { _tag: "Provider", url: record.providerPicture } satisfies Avatar;
   }
 
   if (record.avatarId !== null) {
-    return { _tag: "Uploaded", id: record.avatarId };
+    return { _tag: "Uploaded", id: record.avatarId } satisfies Avatar;
   }
 
-  return gravatar
-    ? { _tag: "Gravatar", hash: createHash("sha256").update(record.email).digest("hex") }
-    : { _tag: "None" };
+  return (
+    gravatar
+      ? { _tag: "Gravatar", hash: createHash("sha256").update(record.email).digest("hex") }
+      : { _tag: "None" }
+  ) satisfies Avatar;
 }
 
 export function describeUser(record: UserRecord, describing: Describing): User {
@@ -205,11 +206,17 @@ export class UserStore extends Context.Service<
           Semaphore.withPermits(writes, 1),
         );
 
-      const find = (id: UserId) =>
-        SubscriptionRef.get(records).pipe(
-          Effect.map((all) => all.find((record) => record.id === id)),
-          Effect.filterOrFail(Predicate.isNotUndefined, () => new UserNotFound({ userId: id })),
+      const find = Effect.fn("UserStore.find")(function* (id: UserId) {
+        const record = (yield* SubscriptionRef.get(records)).find(
+          (candidate) => candidate.id === id,
         );
+
+        if (record === undefined) {
+          return yield* new UserNotFound({ userId: id });
+        }
+
+        return record;
+      });
 
       const emailTaken = (email: string, except: UserId | null) =>
         SubscriptionRef.get(records).pipe(
@@ -225,7 +232,7 @@ export class UserStore extends Context.Service<
 
       const now = DateTime.now.pipe(Effect.map(DateTime.formatIso));
 
-      const describing = (settings: AuthSettings): Describing => ({
+      const describing = (settings: AuthSettings) => ({
         gravatar: settings.gravatar,
         providerInUse: !auth.overridden && settings.provider,
       });
@@ -240,18 +247,20 @@ export class UserStore extends Context.Service<
             all.map((record) => describeUser(record, describing(settings))),
           ),
         ),
-        describe: (record) =>
+        describe: Effect.fn("UserStore.describe")((record) =>
           SubscriptionRef.get(auth.settings).pipe(
             Effect.map((settings) => describeUser(record, describing(settings))),
           ),
+        ),
         find,
-        findByEmail: (email) =>
+        findByEmail: Effect.fn("UserStore.findByEmail")((email) =>
           SubscriptionRef.get(records).pipe(
             Effect.map((all) =>
               Option.fromUndefinedOr(all.find((record) => record.email === email)),
             ),
           ),
-        create: (user) =>
+        ),
+        create: Effect.fn("UserStore.create")((user) =>
           write(
             Effect.gen(function* () {
               if (yield* emailTaken(user.email, null)) {
@@ -272,7 +281,8 @@ export class UserStore extends Context.Service<
               return id;
             }),
           ).pipe(Effect.flatMap((id) => find(id).pipe(Effect.orDie))),
-        update: ({ userId, email, displayName, role }) =>
+        ),
+        update: Effect.fn("UserStore.update")(({ userId, email, displayName, role }) =>
           write(
             Effect.gen(function* () {
               const record = yield* find(userId);
@@ -295,7 +305,8 @@ export class UserStore extends Context.Service<
               `.pipe(Effect.orDie, Effect.asVoid);
             }),
           ),
-        setPasswordHash: ({ userId, passwordHash }) =>
+        ),
+        setPasswordHash: Effect.fn("UserStore.setPasswordHash")(({ userId, passwordHash }) =>
           write(
             find(userId).pipe(
               Effect.andThen(
@@ -304,7 +315,8 @@ export class UserStore extends Context.Service<
               Effect.catchTag("SqlError", Effect.die),
             ),
           ),
-        setDisplayName: ({ userId, displayName }) =>
+        ),
+        setDisplayName: Effect.fn("UserStore.setDisplayName")(({ userId, displayName }) =>
           write(
             find(userId).pipe(
               Effect.andThen(
@@ -313,7 +325,8 @@ export class UserStore extends Context.Service<
               Effect.catchTag("SqlError", Effect.die),
             ),
           ),
-        setAvatar: ({ userId, avatar }) =>
+        ),
+        setAvatar: Effect.fn("UserStore.setAvatar")(({ userId, avatar }) =>
           write(
             Effect.gen(function* () {
               yield* find(userId);
@@ -329,17 +342,20 @@ export class UserStore extends Context.Service<
               }
             }),
           ),
-        findAvatar: (id) =>
-          sql`select media_type, data from user_avatars where id = ${id} limit 1`.pipe(
-            Effect.flatMap(decodeAvatars),
-            Effect.map(([row]) =>
-              Option.fromUndefinedOr(row).pipe(
-                Option.map(({ media_type, data }) => ({ mediaType: media_type, data })),
+        ),
+        findAvatar: Effect.fn("UserStore.findAvatar")(
+          (id) =>
+            sql`select media_type, data from user_avatars where id = ${id} limit 1`.pipe(
+              Effect.flatMap(decodeAvatars),
+              Effect.map(([row]) =>
+                Option.fromUndefinedOr(row).pipe(
+                  Option.map(({ media_type, data }) => ({ mediaType: media_type, data })),
+                ),
               ),
             ),
-            Effect.orDie,
-          ),
-        remove: (userId) =>
+          Effect.orDie,
+        ),
+        remove: Effect.fn("UserStore.remove")((userId) =>
           write(
             Effect.gen(function* () {
               const record = yield* find(userId);
@@ -356,7 +372,8 @@ export class UserStore extends Context.Service<
               );
             }),
           ),
-        signInFromProvider: (identity) =>
+        ),
+        signInFromProvider: Effect.fn("UserStore.signInFromProvider")((identity) =>
           write(
             Effect.gen(function* () {
               const all = yield* SubscriptionRef.get(records);
@@ -426,7 +443,8 @@ export class UserStore extends Context.Service<
               ),
             ),
           ),
-        signInFromTailscale: (identity) =>
+        ),
+        signInFromTailscale: Effect.fn("UserStore.signInFromTailscale")((identity) =>
           write(
             Effect.gen(function* () {
               const all = yield* SubscriptionRef.get(records);
@@ -466,7 +484,8 @@ export class UserStore extends Context.Service<
               return existing.id;
             }),
           ).pipe(Effect.flatMap((id) => find(id).pipe(Effect.orDie))),
-        recordSignIn: (userId) =>
+        ),
+        recordSignIn: Effect.fn("UserStore.recordSignIn")((userId) =>
           write(
             now.pipe(
               Effect.flatMap(
@@ -476,6 +495,7 @@ export class UserStore extends Context.Service<
               Effect.asVoid,
             ),
           ),
+        ),
       };
     }),
   );

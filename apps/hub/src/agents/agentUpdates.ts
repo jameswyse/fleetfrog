@@ -110,31 +110,31 @@ export class AgentUpdates extends Context.Service<
             Effect.annotateLogs({ machineId }),
           );
         }),
-        fail: ({ machineId, version, message }) =>
+        fail: Effect.fn("AgentUpdates.fail")(({ machineId, version, message }) =>
           Effect.logWarning(`The agent couldn't update to ${version}: ${message}`).pipe(
             Effect.annotateLogs({ machineId }),
             Effect.andThen(settle(machineId, AgentUpdate.cases.Failed.make({ version, message }))),
           ),
-        connected: ({ machineId, agentVersion }) =>
-          Effect.gen(function* () {
-            const update = (yield* SubscriptionRef.get(updates)).get(machineId);
+        ),
+        connected: Effect.fn("AgentUpdates.connected")(function* ({ machineId, agentVersion }) {
+          const update = (yield* SubscriptionRef.get(updates)).get(machineId);
 
-            if (update === undefined) {
-              return;
-            }
+          if (update === undefined) {
+            return;
+          }
 
-            if (compareVersions(agentVersion, update.version) >= 0) {
-              yield* settle(machineId, null);
-            } else if (update._tag === "Updating") {
-              yield* settle(
-                machineId,
-                AgentUpdate.cases.Failed.make({
-                  version: update.version,
-                  message: `The agent reconnected on ${agentVersion} before the update finished.`,
-                }),
-              );
-            }
-          }),
+          if (compareVersions(agentVersion, update.version) >= 0) {
+            yield* settle(machineId, null);
+          } else if (update._tag === "Updating") {
+            yield* settle(
+              machineId,
+              AgentUpdate.cases.Failed.make({
+                version: update.version,
+                message: `The agent reconnected on ${agentVersion} before the update finished.`,
+              }),
+            );
+          }
+        }),
       };
     }),
   );

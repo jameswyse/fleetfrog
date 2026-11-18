@@ -30,7 +30,7 @@ let queue: Promise<unknown> = Promise.resolve();
 let channel: BroadcastChannel | null = null;
 const listeners = new Set<() => void>();
 
-function refresh(): void {
+function refresh() {
   const next = pending.reduce((layout, change) => change(layout), confirmed.layout);
 
   if (next === shown) {
@@ -44,7 +44,7 @@ function refresh(): void {
   }
 }
 
-function confirm(saved: SavedProjectLayout, settled?: LayoutChange): void {
+function confirm(saved: SavedProjectLayout, settled?: LayoutChange) {
   if (saved.revision >= confirmed.revision) {
     confirmed = saved;
   }
@@ -56,13 +56,13 @@ function confirm(saved: SavedProjectLayout, settled?: LayoutChange): void {
   refresh();
 }
 
-function subscribe(listener: () => void): () => void {
+function subscribe(listener: () => void) {
   listeners.add(listener);
 
   return () => listeners.delete(listener);
 }
 
-async function persist(change: LayoutChange, startedIn: number): Promise<HubResult<void>> {
+async function persist(change: LayoutChange, startedIn: number) {
   for (let attempt = 1; ; attempt += 1) {
     if (startedIn !== generation) {
       return switchedViewer;
@@ -98,7 +98,7 @@ async function persist(change: LayoutChange, startedIn: number): Promise<HubResu
         channel?.postMessage(encodeBroadcast({ owner, saved: result.value.saved }));
       }
 
-      return { _tag: "Success", value: undefined };
+      return { _tag: "Success", value: undefined } satisfies HubResult<void>;
     }
 
     if (attempt === maximumAttempts) {
@@ -107,7 +107,7 @@ async function persist(change: LayoutChange, startedIn: number): Promise<HubResu
       return {
         _tag: "Failure",
         message: "Your layout kept changing in another tab or device. Try again.",
-      };
+      } satisfies HubResult<void>;
     }
 
     confirm(result.value.saved);

@@ -99,7 +99,7 @@ function upstreamOf({ checkout }: MachineCheckout) {
     : null;
 }
 
-function find(fleet: Fleet, matches: (entry: MachineCheckout) => boolean): MachineCheckout {
+function find(fleet: Fleet, matches: (entry: MachineCheckout) => boolean) {
   const found = fleet.repositories.flatMap(({ checkouts }) => checkouts).find(matches);
 
   if (found === undefined) {
@@ -109,7 +109,7 @@ function find(fleet: Fleet, matches: (entry: MachineCheckout) => boolean): Machi
   return found;
 }
 
-function current(fleet: Fleet, target: MachineCheckout): MachineCheckout | undefined {
+function current(fleet: Fleet, target: MachineCheckout) {
   return fleet.repositories
     .flatMap(({ checkouts }) => checkouts)
     .find(

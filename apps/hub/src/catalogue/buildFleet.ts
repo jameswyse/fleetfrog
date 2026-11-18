@@ -5,7 +5,7 @@ import { repositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
 import type { AgentUpdate } from "@fleetfrog/protocol/domain/agentUpdate";
 import type { CleanupSettings } from "@fleetfrog/protocol/domain/cleanup";
-import type { Fleet, Machine, MachineCheckout, Repository } from "@fleetfrog/protocol/domain/fleet";
+import type { Fleet, MachineCheckout, Repository } from "@fleetfrog/protocol/domain/fleet";
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 import type { PollingSettings } from "@fleetfrog/protocol/domain/polling";
 import type { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
@@ -19,7 +19,7 @@ const collator = new Intl.Collator("en", { sensitivity: "base", numeric: true })
 
 type CheckoutGroup = [MachineCheckout, ...Array<MachineCheckout>];
 
-function repositoryName(checkouts: CheckoutGroup): string {
+function repositoryName(checkouts: CheckoutGroup) {
   const { identity } = checkouts[0].checkout;
 
   if (identity._tag === "Remote") {
@@ -38,7 +38,7 @@ function repositoryName(checkouts: CheckoutGroup): string {
   );
 }
 
-function qualifier(identity: Repository["identity"]): string {
+function qualifier(identity: Repository["identity"]) {
   if (identity._tag === "RootCommit") {
     return identity.sha.slice(0, 7);
   }
@@ -48,9 +48,7 @@ function qualifier(identity: Repository["identity"]): string {
   return (owner.at(-1) === "_git" ? owner.slice(0, -1) : owner).join("/");
 }
 
-function labelsFor(
-  repositories: ReadonlyArray<Omit<Repository, "label">>,
-): Map<RepositoryKey, string> {
+function labelsFor(repositories: ReadonlyArray<Omit<Repository, "label">>) {
   const counts = new Map<string, number>();
 
   for (const { name } of repositories) {
@@ -76,7 +74,7 @@ function labelsFor(
 function t3CodeProjects(
   machines: ReadonlyArray<MachineRecord>,
   checkouts: ReadonlyArray<MachineCheckout>,
-): Map<RepositoryKey, T3CodeProject> {
+) {
   const byMachine = new Map(
     machines.map((machine) => [
       machine.id,
@@ -109,7 +107,7 @@ function t3CodeProjects(
 function withProjectTitles(
   labels: ReadonlyMap<RepositoryKey, string>,
   projects: ReadonlyMap<RepositoryKey, T3CodeProject>,
-): Map<RepositoryKey, string> {
+) {
   const shown = new Map(
     [...labels].map(([key, label]) => [key, projects.get(key)?.title ?? label] as const),
   );
@@ -138,7 +136,7 @@ function groupRepositories(
   checkouts: ReadonlyArray<MachineCheckout>,
   labels: ReadonlyMap<RepositoryKey, string>,
   projects: ReadonlyMap<RepositoryKey, T3CodeProject>,
-): ReadonlyArray<Repository> {
+) {
   const groups = new Map<RepositoryKey, CheckoutGroup>();
 
   for (const entry of checkouts) {
@@ -160,7 +158,7 @@ function groupRepositories(
   }));
 
   return named
-    .map((repository): Repository => ({
+    .map((repository) => ({
       ...repository,
       label: labels.get(repository.key) ?? repository.name,
       icon: projects.get(repository.key)?.icon ?? null,
@@ -188,7 +186,7 @@ export function buildFleet(sources: {
 }): Fleet {
   const { t3Code } = sources.integrations;
 
-  const machines = sources.machines.map((record): Machine => {
+  const machines = sources.machines.map((record) => {
     const agent = sources.online.get(record.id);
     const statuses = new Map(record.rootStatuses.map(({ path, status }) => [path, status]));
 

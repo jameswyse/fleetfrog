@@ -13,7 +13,7 @@ function Notice({ icon, children }: { readonly icon: ReactNode; readonly childre
   );
 }
 
-function quoted(threads: ReadonlyArray<{ readonly title: string }>): string {
+function quoted(threads: ReadonlyArray<{ readonly title: string }>) {
   const titles = threads.map(({ title }) => `“${title}”`);
 
   return titles.length < 3

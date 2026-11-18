@@ -21,7 +21,7 @@ const clipboardAvailable = window.isSecureContext && "clipboard" in navigator;
 const installCommand =
   "curl -fsSL https://github.com/jameswyse/fleetfrog/releases/latest/download/install.sh | sh";
 
-function agentUrl(offer: PairingOffer): string {
+function agentUrl(offer: PairingOffer) {
   return offer.endpoint._tag === "DashboardHost"
     ? `${offer.endpoint.scheme}://${window.location.hostname}:${offer.endpoint.port}`
     : offer.endpoint.url;
@@ -68,8 +68,8 @@ export function PairMachine() {
 
   const [copyOutcome, setCopyOutcome] = useState<CopyOutcome | null>(null);
 
-  const [state, createOffer, creating] = useActionState(
-    async (): Promise<OfferState> => {
+  const [state, createOffer, creating] = useActionState<OfferState>(
+    async () => {
       const result = await requestHub((client) => client.CreatePairingOffer());
 
       if (result._tag === "Failure") {

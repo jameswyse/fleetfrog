@@ -4,7 +4,7 @@ import { schemaDrift } from "@fleetfrog/protocol/domain/t3Code";
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 import type { T3CodeProject } from "@fleetfrog/protocol/domain/t3Code";
 
-function checkoutPaths(fleet: Fleet, machine: Machine): ReadonlySet<string> {
+function checkoutPaths(fleet: Fleet, machine: Machine) {
   return new Set(
     [...fleet.repositories, ...fleet.archive].flatMap(({ checkouts }) =>
       checkouts.flatMap(({ machineId, checkout }) =>

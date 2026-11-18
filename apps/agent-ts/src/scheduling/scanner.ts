@@ -37,18 +37,19 @@ function inspectRoots(roots: ReadonlyArray<string>) {
     Promise.all(
       roots.map((root) =>
         stat(rootPath(root)).then(
-          (found): ReportedRoot => ({
-            path: root,
-            status: found.isDirectory() ? "Folder" : "NotFolder",
-          }),
-          (): ReportedRoot => ({ path: root, status: "Missing" }),
+          (found) =>
+            ({
+              path: root,
+              status: found.isDirectory() ? "Folder" : "NotFolder",
+            }) satisfies ReportedRoot,
+          () => ({ path: root, status: "Missing" }) satisfies ReportedRoot,
         ),
       ),
     ),
   );
 }
 
-function contentKey(checkout: Checkout): string {
+function contentKey(checkout: Checkout) {
   return JSON.stringify(
     encodeCheckout({
       ...checkout,
@@ -302,8 +303,7 @@ export function makeScanner<ReportError>(options: {
 
     discovered: Deferred.await(firstWalk),
 
-    locate: (path: string): CheckoutLocation | undefined =>
-      locations.find((location) => location.path === path),
+    locate: (path: string) => locations.find((location) => location.path === path),
 
     rescanRepository: (commonDirectory: string) =>
       Effect.gen(function* () {

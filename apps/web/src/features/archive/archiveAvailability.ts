@@ -28,14 +28,14 @@ export type UnarchivePlan =
   | { readonly _tag: "Ready"; readonly destination: string }
   | { readonly _tag: "Blocked"; readonly reason: string };
 
-function roots(machine: Machine): ReadonlyArray<string> {
+function roots(machine: Machine) {
   return machine.discoveryRoots.map(({ path }) => path);
 }
 
 const unusableFolderReason =
   "The Archive folder holds one of this machine's project folders, so the agent ignores it";
 
-function archiveFolderUsable(machine: Machine): boolean {
+function archiveFolderUsable(machine: Machine) {
   return (
     machine.archiveFolder !== null &&
     checkArchiveFolder({

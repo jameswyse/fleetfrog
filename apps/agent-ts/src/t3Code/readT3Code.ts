@@ -18,12 +18,7 @@ import { t3CodeHome } from "../config/environment.ts";
 import { readT3CodeProviders, readT3CodeServer } from "./readT3CodeApp.ts";
 
 import type { ProjectIconFile } from "@fleetfrog/protocol/agent/rpcs";
-import type {
-  T3CodeProject,
-  T3CodeStatus,
-  T3CodeThread,
-  T3CodeThreadState,
-} from "@fleetfrog/protocol/domain/t3Code";
+import type { T3CodeThread } from "@fleetfrog/protocol/domain/t3Code";
 
 const v2Database = "statev2.sqlite";
 
@@ -91,17 +86,14 @@ const decodeProject = Schema.decodeUnknownOption(ProjectRow);
 const decodeV1Thread = Schema.decodeUnknownOption(ThreadRow);
 
 const decodeV2Thread = (row: unknown) =>
-  Option.map(
-    Schema.decodeUnknownOption(V2ThreadRow)(row),
-    ({ payload_json, ...thread }): ThreadRow => ({
-      ...thread,
-      waiting:
-        payload_json.lineage.relationshipToParent === "subagent" && thread.working === 0
-          ? 0
-          : thread.waiting,
-      worktree_path: payload_json.worktreePath,
-    }),
-  );
+  Option.map(Schema.decodeUnknownOption(V2ThreadRow)(row), ({ payload_json, ...thread }) => ({
+    ...thread,
+    waiting:
+      payload_json.lineage.relationshipToParent === "subagent" && thread.working === 0
+        ? 0
+        : thread.waiting,
+    worktree_path: payload_json.worktreePath,
+  }));
 
 const decodeMigration = Schema.decodeUnknownOption(MigrationRow);
 
@@ -182,7 +174,7 @@ const StoredIcon = Schema.Union([
 
 const decodeStoredIcon = Schema.decodeUnknownOption(Schema.fromJsonString(StoredIcon));
 
-function pickedIcon(json: string | null): ProjectIcon | "Unreadable" | null {
+function pickedIcon(json: string | null) {
   if (json === null) {
     return null;
   }
@@ -207,7 +199,7 @@ function pickedIcon(json: string | null): ProjectIcon | "Unreadable" | null {
   });
 }
 
-function normalise(title: string): string {
+function normalise(title: string) {
   return title.normalize("NFKC").trim();
 }
 
@@ -272,7 +264,7 @@ const imageTypes = new Map([
 
 const maximumIconBytes = 256 * 1024;
 
-async function readImage(folder: string, relativePath: string): Promise<ProjectIconFile | null> {
+async function readImage(folder: string, relativePath: string) {
   const file = await realpath(path.resolve(folder, relativePath)).catch(() => null);
   const mediaType = file === null ? undefined : imageTypes.get(path.extname(file).toLowerCase());
 
@@ -297,10 +289,7 @@ async function readImage(folder: string, relativePath: string): Promise<ProjectI
       };
 }
 
-async function findFavicon(
-  folder: string,
-  faviconPath: string | null,
-): Promise<ProjectIconFile | null> {
+async function findFavicon(folder: string, faviconPath: string | null) {
   for (const candidate of faviconPath === null ? faviconCandidates : [faviconPath]) {
     const image = await readImage(folder, candidate);
 
@@ -312,7 +301,7 @@ async function findFavicon(
   return null;
 }
 
-function threadState(row: ThreadRow): T3CodeThreadState {
+function threadState(row: ThreadRow) {
   if (row.waiting !== 0) {
     return "Waiting";
   }
@@ -409,7 +398,7 @@ export const readT3Code = Effect.fn("readT3Code")(function* (options: {
   const server = yield* readT3CodeServer(userdata);
   const providers = yield* readT3CodeProviders(path.join(path.dirname(userdata), "caches"));
 
-  const status = (reading: T3CodeReading): T3CodeStatus => ({
+  const status = (reading: T3CodeReading) => ({
     database: options.database,
     reading,
     server,
@@ -470,7 +459,7 @@ export const readT3Code = Effect.fn("readT3Code")(function* (options: {
 
   const projects = yield* Effect.promise(() =>
     Promise.all(
-      rows.success.projects.decoded.map(async (row: ProjectRow): Promise<T3CodeProject> => {
+      rows.success.projects.decoded.map(async (row: ProjectRow) => {
         const folder = await resolvePath(row.workspace_root);
         const picked = pickedIcon(row.project_icon_json);
 
@@ -508,19 +497,22 @@ export const readT3Code = Effect.fn("readT3Code")(function* (options: {
 
   const threads = yield* Effect.promise(() =>
     Promise.all(
-      current.map(async (row): Promise<T3CodeThread> => ({
-        id: row.thread_id,
-        projectId: row.project_id,
-        title: row.title,
-        path:
-          row.worktree_path === null
-            ? (folders.get(row.project_id) ?? "")
-            : await resolvePath(row.worktree_path),
-        worktree: row.worktree_path !== null,
-        state: threadState(row),
-        archived: row.archived !== 0,
-        updatedAt: row.updated_at,
-      })),
+      current.map(
+        async (row) =>
+          ({
+            id: row.thread_id,
+            projectId: row.project_id,
+            title: row.title,
+            path:
+              row.worktree_path === null
+                ? (folders.get(row.project_id) ?? "")
+                : await resolvePath(row.worktree_path),
+            worktree: row.worktree_path !== null,
+            state: threadState(row),
+            archived: row.archived !== 0,
+            updatedAt: row.updated_at,
+          }) satisfies T3CodeThread,
+      ),
     ),
   );
 

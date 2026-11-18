@@ -149,21 +149,21 @@ export function shortSha(sha: string): string {
   return sha.slice(0, 7);
 }
 
-function minutesBefore(now: DateTime.Utc, minutes: number): DateTime.Utc {
+function minutesBefore(now: DateTime.Utc, minutes: number) {
   return DateTime.subtract(now, { minutes });
 }
 
-function originUrlOf(identity: RepositoryIdentity): string | null {
+function originUrlOf(identity: RepositoryIdentity) {
   return identity._tag === "Remote" ? `https://${identity.host}/${identity.path}.git` : null;
 }
 
-function identityOf(remote: DemoRemote): RepositoryIdentity {
+function identityOf(remote: DemoRemote) {
   return remote._tag === "Remote"
     ? RepositoryIdentity.cases.Remote.make({ host: remote.host, path: remote.path })
     : RepositoryIdentity.cases.RootCommit.make({ sha: remote.rootCommit });
 }
 
-function createRemote(spec: DemoRepository, now: DateTime.Utc): SimRemote {
+function createRemote(spec: DemoRepository, now: DateTime.Utc) {
   const identity = identityOf(spec.remote);
 
   const reach = Math.max(
@@ -175,7 +175,7 @@ function createRemote(spec: DemoRepository, now: DateTime.Utc): SimRemote {
 
   const length = spec.history.length + reach;
 
-  const history = Array.from({ length }, (_, position): SimCommit => {
+  const history = Array.from({ length }, (_, position) => {
     const age = length - 1 - position;
 
     return {
@@ -218,7 +218,7 @@ function createRemote(spec: DemoRepository, now: DateTime.Utc): SimRemote {
   };
 }
 
-function createBranch(remote: SimRemote, spec: DemoBranch, now: DateTime.Utc): SimBranch {
+function createBranch(remote: SimRemote, spec: DemoBranch, now: DateTime.Utc) {
   const upstream = spec.upstream ?? "Tracking";
 
   return {
@@ -235,7 +235,7 @@ function createBranch(remote: SimRemote, spec: DemoBranch, now: DateTime.Utc): S
   };
 }
 
-function fileState(code: string | undefined): FileState {
+function fileState(code: string | undefined) {
   const states: ReadonlyArray<FileState> = [".", "M", "T", "A", "D", "R", "C", "U"];
 
   return states.find((state) => state === code) ?? ".";
@@ -269,7 +269,7 @@ function createThreads(
   path: string,
   threads: DemoCheckout["threads"],
   now: DateTime.Utc,
-): Array<SimThread> {
+) {
   return (threads ?? []).map((thread) => ({
     id: uuidFrom(key, path, thread.title),
     title: thread.title,
@@ -278,7 +278,7 @@ function createThreads(
   }));
 }
 
-function sizeOf(folder: string): number {
+function sizeOf(folder: string) {
   return (40 + (Number.parseInt(digest(folder).slice(0, 4), 16) % 900)) * mebibyte;
 }
 
@@ -287,7 +287,7 @@ function createRepository(
   remote: SimRemote,
   spec: DemoCheckout,
   now: DateTime.Utc,
-): SimRepository {
+) {
   const repository = remote.spec;
   const unfetched = spec.unfetched ?? 0;
   const fetched = remote.history.length - unfetched;
@@ -320,7 +320,7 @@ function createRepository(
     threads: createThreads(key, mainPath, spec.threads, now),
   };
 
-  const linked = (spec.worktrees ?? []).map((worktree): SimTree => {
+  const linked = (spec.worktrees ?? []).map((worktree) => {
     const path = `${machine.roots[repository.root]}/${worktree.folder}`;
 
     return {
@@ -428,7 +428,7 @@ function trashedRepository(
   machine: DemoMachine,
   item: DemoMachine["trash"][number],
   now: DateTime.Utc,
-): SimTrashEntry {
+) {
   const remote = createRemote(
     {
       key: `${machine.key}:trash:${item.folder}`,
@@ -484,7 +484,7 @@ export function buildWorld(options: {
     bySpec.set(spec.key, remote);
   }
 
-  const machines = options.machines.map((machine): SimMachine => ({
+  const machines = options.machines.map((machine) => ({
     spec: machine,
     repositories: options.repositories.flatMap((spec) => {
       const checkout = spec.checkouts[machine.key];
@@ -554,7 +554,7 @@ export function localCommitsOf(branch: SimBranch): number {
   return branch.upstream === "Gone" && branch.merged ? 0 : branch.commits.length;
 }
 
-function localBranches(repository: SimRepository): Array<LocalBranch> {
+function localBranches(repository: SimRepository) {
   const { defaultBranch } = repository.remote.spec;
   const tip = defaultTip(repository);
 
@@ -572,7 +572,7 @@ function localBranches(repository: SimRepository): Array<LocalBranch> {
           },
   };
 
-  const others = repository.branches.map((branch): LocalBranch => {
+  const others = repository.branches.map((branch) => {
     const head = branch.commits[0];
 
     const localCommits = localCommitsOf(branch);
@@ -614,7 +614,7 @@ export function renderCheckouts(machine: SimMachine, now: DateTime.Utc): Array<C
           }
         : null;
 
-    return treesOf(repository).map((tree): Checkout => {
+    return treesOf(repository).map((tree) => {
       const tip = branchTip(repository, tree.head);
 
       const git: GitStatus = {
@@ -669,15 +669,15 @@ export function renderCheckouts(machine: SimMachine, now: DateTime.Utc): Array<C
   });
 }
 
-function iconBytes(name: DemoIconName): Buffer {
+function iconBytes(name: DemoIconName) {
   return Buffer.from(demoIcons[name].base64, "base64");
 }
 
-function iconId(name: DemoIconName): string {
+function iconId(name: DemoIconName) {
   return createHash("sha256").update(iconBytes(name)).digest("hex");
 }
 
-function projectIcon(icon: DemoProjectIcon): ProjectIcon {
+function projectIcon(icon: DemoProjectIcon) {
   if (icon._tag === "Image") {
     return ProjectIcon.cases.Image.make({ id: iconId(icon.icon) });
   }

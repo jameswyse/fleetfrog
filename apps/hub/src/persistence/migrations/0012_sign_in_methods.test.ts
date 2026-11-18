@@ -5,7 +5,7 @@ import { SqlClient } from "effect/sql";
 
 import { AuthSettingsStore } from "../../auth/authSettingsStore.ts";
 import { HubConfig } from "../../hubConfig.ts";
-import { migrations } from "../database.ts";
+import { migrations } from "./registry.ts";
 
 const before = Object.fromEntries(Object.entries(migrations).filter(([name]) => name < "0012"));
 

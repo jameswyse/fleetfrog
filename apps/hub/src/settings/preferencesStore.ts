@@ -28,24 +28,29 @@ export class PreferencesStore extends Context.Service<
       const sql = yield* SqlClient.SqlClient;
 
       return {
-        get: (userId) =>
-          (userId === null
-            ? sql`select open_preferences_json as preferences from settings where id = 1`
-            : sql`select preferences_json as preferences from users where id = ${userId}`
-          ).pipe(
-            Effect.flatMap(decodeRows),
-            Effect.map(([row]) => row?.preferences ?? defaultPreferences),
-            Effect.orDie,
-          ),
-        set: (userId, preferences) =>
-          (userId === null
-            ? sql`insert into settings ${sql.insert({
-                id: 1,
-                polling_json: encodePolling(defaultPollingSettings),
-                open_preferences_json: encodePreferences(preferences),
-              })} on conflict (id) do update set open_preferences_json = excluded.open_preferences_json`
-            : sql`update users set preferences_json = ${encodePreferences(preferences)} where id = ${userId}`
-          ).pipe(Effect.orDie, Effect.asVoid),
+        get: Effect.fn("PreferencesStore.get")(
+          (userId) =>
+            (userId === null
+              ? sql`select open_preferences_json as preferences from settings where id = 1`
+              : sql`select preferences_json as preferences from users where id = ${userId}`
+            ).pipe(
+              Effect.flatMap(decodeRows),
+              Effect.map(([row]) => row?.preferences ?? defaultPreferences),
+            ),
+          Effect.orDie,
+        ),
+        set: Effect.fn("PreferencesStore.set")(
+          (userId, preferences) =>
+            userId === null
+              ? sql`insert into settings ${sql.insert({
+                  id: 1,
+                  polling_json: encodePolling(defaultPollingSettings),
+                  open_preferences_json: encodePreferences(preferences),
+                })} on conflict (id) do update set open_preferences_json = excluded.open_preferences_json`
+              : sql`update users set preferences_json = ${encodePreferences(preferences)} where id = ${userId}`,
+          Effect.orDie,
+          Effect.asVoid,
+        ),
       };
     }),
   );

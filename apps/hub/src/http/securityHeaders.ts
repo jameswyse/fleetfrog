@@ -16,10 +16,7 @@ export function inlineScriptHashes(html: string): ReadonlyArray<string> {
   );
 }
 
-function contentSecurityPolicy(
-  host: Option.Option<string>,
-  scriptHashes: ReadonlyArray<string>,
-): string {
+function contentSecurityPolicy(host: Option.Option<string>, scriptHashes: ReadonlyArray<string>) {
   const sockets = host.pipe(
     Option.filter((value) => hostPattern.test(value)),
     Option.map((value) => ` ws://${value} wss://${value}`),

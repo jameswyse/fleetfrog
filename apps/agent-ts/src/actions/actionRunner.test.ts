@@ -44,7 +44,7 @@ afterAll(() => {
   vi.unstubAllEnvs();
 });
 
-function git(cwd: string, ...args: Array<string>): string {
+function git(cwd: string, ...args: Array<string>) {
   return execFileSync("git", args, {
     cwd,
     encoding: "utf8",
@@ -79,7 +79,7 @@ const runIds = {
   second: RunId.make("00000000-0000-4000-8000-000000000002"),
 };
 
-function pathsHeldByHub(reports: ReadonlyArray<ScanReport>): Array<string> {
+function pathsHeldByHub(reports: ReadonlyArray<ScanReport>) {
   const paths = new Set<string>();
 
   for (const report of reports) {
@@ -470,7 +470,7 @@ describe("action runner", () => {
       });
       expect(
         git(clone, "for-each-ref", "--format=%(refname) %(objectname)", "refs/fleetfrog/deleted/"),
-      ).toMatch(new RegExp(`/detached-${sha.slice(0, 7)} ${sha}$`));
+      ).toMatch(new RegExp(`/detached-${RegExp.escape(`${sha.slice(0, 7)} ${sha}`)}$`));
     }),
   );
 

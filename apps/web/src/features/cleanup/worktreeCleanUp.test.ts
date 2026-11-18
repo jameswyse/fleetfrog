@@ -56,7 +56,7 @@ function finished(
   result:
     | { readonly _tag: "WorktreeRemoved" }
     | { readonly _tag: "BranchesDeleted"; readonly branches: number },
-): Pick<ActionRun, "request" | "state"> {
+) {
   return {
     request,
     state: {
@@ -77,17 +77,17 @@ function finished(
             : { _tag: "BranchesDeleted", branches: result.branches, skipped: [] },
       },
     },
-  };
+  } satisfies Pick<ActionRun, "request" | "state">;
 }
 
-function removal(worktree: FinishedWorktree): ActionRun["request"] {
+function removal(worktree: FinishedWorktree) {
   return {
     _tag: "RemoveWorktree",
     path: worktree.mainPath,
     worktree: worktree.path,
     fingerprint: "fp",
     discardChanges: false,
-  };
+  } satisfies ActionRun["request"];
 }
 
 describe("cleanUpCheck", () => {

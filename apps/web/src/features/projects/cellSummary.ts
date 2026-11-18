@@ -26,11 +26,11 @@ export interface CellSummary {
 
 type ReadSummary = Extract<CheckoutSummary, { _tag: "Read" }>;
 
-function isMain(entry: MachineCheckout): boolean {
+function isMain(entry: MachineCheckout) {
   return entry.checkout.worktree._tag === "Main";
 }
 
-function problemOf(summaries: ReadonlyArray<CheckoutSummary>): CellProblem | null {
+function problemOf(summaries: ReadonlyArray<CheckoutSummary>) {
   if (summaries.some(({ _tag }) => _tag === "Unreadable")) {
     return "Unreadable";
   }

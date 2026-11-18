@@ -15,7 +15,7 @@ function thread(
   path: string,
   state: T3CodeThread["state"],
   options: { readonly worktree?: boolean; readonly archived?: boolean } = {},
-): T3CodeThread {
+) {
   return {
     id: title,
     projectId: "p1",
@@ -28,7 +28,7 @@ function thread(
   };
 }
 
-function machineWith(threads: ReadonlyArray<T3CodeThread>): Machine {
+function machineWith(threads: ReadonlyArray<T3CodeThread>) {
   return {
     id: MachineId.make("aaaaaaaa-0000-4000-8000-000000000000"),
     info: {
@@ -67,7 +67,7 @@ function machineWith(threads: ReadonlyArray<T3CodeThread>): Machine {
       server: null,
       providers: [],
     },
-  };
+  } satisfies Machine;
 }
 
 const shop = "/Users/dev/Projects/shop";

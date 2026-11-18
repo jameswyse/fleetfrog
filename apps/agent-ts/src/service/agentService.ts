@@ -37,7 +37,7 @@ function serviceFile(file: string, write: () => Promise<void>) {
 const systemdUnitName = () => `${instanceNamed("fleetfrog")}.service`;
 const launchdLabel = () => instanceNamed("net.fleetfrog.agent");
 
-function serviceNode(script: string): string {
+function serviceNode(script: string) {
   const current = realpathSync(process.execPath);
 
   for (let directory = path.dirname(script); ; directory = path.dirname(directory)) {
@@ -53,7 +53,7 @@ function serviceNode(script: string): string {
   }
 }
 
-function agentCommand(): ReadonlyArray<string> {
+function agentCommand() {
   const script = process.argv[1];
 
   if (script === undefined) {
@@ -65,19 +65,19 @@ function agentCommand(): ReadonlyArray<string> {
   return [serviceNode(resolved), resolved, "run"];
 }
 
-function systemdUnitPath(): string {
+function systemdUnitPath() {
   return path.join(configHome(), "systemd", "user", systemdUnitName());
 }
 
-function launchdPlistPath(): string {
+function launchdPlistPath() {
   return path.join(homedir(), "Library", "LaunchAgents", `${launchdLabel()}.plist`);
 }
 
-function quoteSystemdArgument(argument: string): string {
+function quoteSystemdArgument(argument: string) {
   return `"${argument.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
 }
 
-function escapeXml(text: string): string {
+function escapeXml(text: string) {
   return text
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -85,16 +85,16 @@ function escapeXml(text: string): string {
     .replaceAll('"', "&quot;");
 }
 
-function serviceEnvironment(): ReadonlyArray<readonly [string, string]> {
+function serviceEnvironment() {
   const instance = currentInstance();
 
   return [
     ["PATH", executableSearchPath()],
     ...(instance === undefined ? [] : [[instanceVariable, instance] as const]),
-  ];
+  ] satisfies ReadonlyArray<readonly [string, string]>;
 }
 
-function systemdUnit(): string {
+function systemdUnit() {
   const instance = currentInstance();
 
   const environment = serviceEnvironment()
@@ -119,7 +119,7 @@ WantedBy=default.target
 `;
 }
 
-function launchdLogPath(): string {
+function launchdLogPath() {
   return path.join(homedir(), "Library", "Logs", `${instanceNamed("fleetfrog-agent")}.log`);
 }
 
@@ -146,7 +146,7 @@ function rotateLog(): void {
 
 export const logRotation = Logger.layer([Logger.make(rotateLog)], { mergeWithExisting: true });
 
-function launchdPlist(): string {
+function launchdPlist() {
   const logPath = launchdLogPath();
 
   const argumentsXml = agentCommand()
@@ -187,7 +187,7 @@ ${environmentXml}
 `;
 }
 
-function ignoreMissing(error: unknown): void {
+function ignoreMissing(error: unknown) {
   if (!isMissingFile(error)) {
     throw error;
   }

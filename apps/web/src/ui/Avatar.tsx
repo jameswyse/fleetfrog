@@ -5,7 +5,7 @@ import { Avatar as AvatarSource } from "@fleetfrog/protocol/domain/user";
 const whitespace = /\s+/u;
 const graphemes = new Intl.Segmenter();
 
-function initials(name: string): string {
+function initials(name: string) {
   const words = name.trim().split(whitespace);
   const letters = words.length === 1 ? [words[0]] : [words[0], words.at(-1)];
 
@@ -15,7 +15,7 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-function pictureUrl(avatar: AvatarSource, size: number): string | null {
+function pictureUrl(avatar: AvatarSource, size: number) {
   return AvatarSource.match(avatar, {
     Uploaded: ({ id }) => `/avatars/${id}`,
     Provider: ({ url }) => url,

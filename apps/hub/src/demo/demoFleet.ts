@@ -19,14 +19,12 @@ import { liven } from "./demoLife.ts";
 import { buildWorld, machineInfo } from "./demoWorld.ts";
 import { runSimulatedAgent } from "./simulatedAgent.ts";
 
-import type { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
-
 import type { DemoMachineKey } from "./demoFleetData.ts";
 import type { DemoWorld } from "./demoWorld.ts";
 
 const quietStart = Duration.seconds(90);
 
-function repositoryKeys(world: DemoWorld, keys: ReadonlyArray<string>): Array<RepositoryKey> {
+function repositoryKeys(world: DemoWorld, keys: ReadonlyArray<string>) {
   return keys.flatMap((key) =>
     [...world.remotes.values()].flatMap((remote) => (remote.spec.key === key ? [remote.key] : [])),
   );

@@ -5,11 +5,11 @@ export interface Tab<Id extends string> {
   readonly label: ReactNode;
 }
 
-function tabId(base: string, id: string): string {
+function tabId(base: string, id: string) {
   return `${base}-tab-${id}`;
 }
 
-function panelId(base: string): string {
+function panelId(base: string) {
   return `${base}-panel`;
 }
 

@@ -25,7 +25,7 @@ export interface CheckoutMove {
   readonly staying: ReadonlyArray<string>;
 }
 
-function overlaps(left: string, right: string): boolean {
+function overlaps(left: string, right: string) {
   return isWithin(left, right) || isWithin(right, left);
 }
 

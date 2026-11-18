@@ -35,15 +35,16 @@ const TestUpdates = AgentUpdates.layer.pipe(
   ),
 );
 
-const capabilities = (updatesItself: boolean): AgentCapabilities => ({
-  actions: [],
-  allowedTiers: ["update"],
-  policyReadable: true,
-  createsFolders: true,
-  updatesItself,
-  updatesT3Code: false,
-  updatesT3CodeApp: false,
-});
+const capabilities = (updatesItself: boolean) =>
+  ({
+    actions: [],
+    allowedTiers: ["update"],
+    policyReadable: true,
+    createsFolders: true,
+    updatesItself,
+    updatesT3Code: false,
+    updatesT3CodeApp: false,
+  }) satisfies AgentCapabilities;
 
 const connectStudio = Effect.fnUntraced(function* (options: {
   readonly agentVersion: string;

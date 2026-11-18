@@ -21,7 +21,7 @@ type GroupOverrides = ReadonlyMap<string, ReadonlyMap<GroupKind, boolean>>;
 
 const noGroupOverrides: GroupOverrides = new Map();
 
-function finishedWorktrees(clones: ReadonlyArray<CloneOutline>): ReadonlyArray<FinishedWorktree> {
+function finishedWorktrees(clones: ReadonlyArray<CloneOutline>) {
   return clones.flatMap((clone) =>
     clone.linked.flatMap(({ path, branch, git, lifecycle }) =>
       lifecycle._tag !== "Finished" || branch === null || git === null || git.lastCommit === null

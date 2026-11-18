@@ -12,7 +12,7 @@ import type { Repository } from "@fleetfrog/protocol/domain/fleet";
 const at = DateTime.makeUnsafe("2026-09-26T00:00:00Z");
 const none = { items: [], total: 0 };
 
-function checkout(git: Partial<GitStatus>, github: Checkout["github"] = null): Checkout {
+function checkout(git: Partial<GitStatus>, github: Checkout["github"] = null) {
   return {
     path: "/home/dev/Projects/shop",
     identity: { _tag: "Remote", host: "github.com", path: "acme/shop" },
@@ -44,10 +44,10 @@ function checkout(git: Partial<GitStatus>, github: Checkout["github"] = null): C
     },
     github,
     scannedAt: at,
-  };
+  } satisfies Checkout;
 }
 
-function repository(name: string, checkouts: ReadonlyArray<Checkout>): Repository {
+function repository(name: string, checkouts: ReadonlyArray<Checkout>) {
   return {
     key: RepositoryKey.make(`remote:github.com/acme/${name}`),
     identity: { _tag: "Remote", host: "github.com", path: `acme/${name}` },
@@ -58,7 +58,7 @@ function repository(name: string, checkouts: ReadonlyArray<Checkout>): Repositor
       machineId: MachineId.make("5b0c7a1e-7a0e-4f3e-9d63-2f8f7a8d0a01"),
       checkout: entry,
     })),
-  };
+  } satisfies Repository;
 }
 
 describe("summariseCheckout", () => {

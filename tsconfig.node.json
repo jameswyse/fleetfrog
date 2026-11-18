@@ -2,7 +2,7 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "allowImportingTsExtensions": true,
-    "lib": ["ES2024"],
+    "lib": ["ES2025"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "target": "ES2024",

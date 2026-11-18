@@ -2,7 +2,7 @@ import { DateTime } from "effect";
 
 import { listLimit } from "./parseStatus.ts";
 
-import type { Commit, LocalBranch, Upstream } from "@fleetfrog/protocol/domain/checkout";
+import type { Commit, LocalBranch } from "@fleetfrog/protocol/domain/checkout";
 
 export const branchFormat = [
   "%(HEAD)",
@@ -27,7 +27,7 @@ export interface ParsedBranches {
 
 const trackPart = /^(ahead|behind) (\d+)$/;
 
-function upstreamFrom(name: string, track: string): Upstream | null {
+function upstreamFrom(name: string, track: string) {
   if (name === "") {
     return null;
   }

@@ -82,22 +82,24 @@ const encodeEvent = Schema.encodeSync(JsonColumn(HubEvent));
 
 const activeStatuses = ["Queued", "Running"];
 
-function runState(row: RunRow): RunState {
+function runState(row: RunRow) {
   if (row.outcome_json !== null && row.finished_at !== null) {
     return {
       _tag: "Finished",
       startedAt: row.started_at,
       finishedAt: row.finished_at,
       outcome: row.outcome_json,
-    };
+    } satisfies RunState;
   }
 
-  return row.status === "Running" && row.started_at !== null
-    ? { _tag: "Running", startedAt: row.started_at, progress: row.progress }
-    : { _tag: "Queued" };
+  return (
+    row.status === "Running" && row.started_at !== null
+      ? { _tag: "Running", startedAt: row.started_at, progress: row.progress }
+      : { _tag: "Queued" }
+  ) satisfies RunState;
 }
 
-function toRun(row: RunRow): ActionRun {
+function toRun(row: RunRow) {
   return {
     id: row.id,
     batchId: row.batch_id,
@@ -209,7 +211,7 @@ export class ActivityStore extends Context.Service<
           machineNames.set(batch_id, [...(machineNames.get(batch_id) ?? []), machine_name]);
         }
 
-        return rows.map((row): ActionBatch => ({
+        return rows.map((row) => ({
           id: row.id,
           kind: row.kind,
           scope: row.scope_json,
@@ -270,17 +272,19 @@ export class ActivityStore extends Context.Service<
           sql.withTransaction,
           Effect.orDie,
         ),
-        markStarted: ({ at, ...run }) =>
-          sql`update action_runs set status = 'Running', started_at = ${DateTime.formatIso(at)}
-              where ${unfinishedRun(run)} returning id`.pipe(
-            Effect.map((rows) => rows.length > 0),
-            Effect.orDie,
-          ),
-        markProgress: ({ line, ...run }) =>
-          sql`update action_runs set progress = ${line} where ${unfinishedRun(run)} returning id`.pipe(
-            Effect.map((rows) => rows.length > 0),
-            Effect.orDie,
-          ),
+        markStarted: Effect.fn("ActivityStore.markStarted")(
+          ({ at, ...run }) =>
+            sql`update action_runs set status = 'Running', started_at = ${DateTime.formatIso(at)}
+              where ${unfinishedRun(run)} returning id`.pipe(Effect.map((rows) => rows.length > 0)),
+          Effect.orDie,
+        ),
+        markProgress: Effect.fn("ActivityStore.markProgress")(
+          ({ line, ...run }) =>
+            sql`update action_runs set progress = ${line} where ${unfinishedRun(run)} returning id`.pipe(
+              Effect.map((rows) => rows.length > 0),
+            ),
+          Effect.orDie,
+        ),
         markFinished: Effect.fn("ActivityStore.markFinished")(
           function* ({ outcome, output, at, ...run }) {
             const updated = yield* sql`update action_runs
@@ -298,17 +302,19 @@ export class ActivityStore extends Context.Service<
           sql.withTransaction,
           Effect.orDie,
         ),
-        unfinished: (within) =>
-          sql`select id, machine_id from action_runs where ${sql.and([
-            sql.in("status", activeStatuses),
-            within._tag === "Batch" ? sql`batch_id = ${within.batchId}` : "1=1",
-          ])}`.pipe(
-            Effect.flatMap(decodeTargets),
-            Effect.map((rows) =>
-              rows.map(({ id, machine_id }) => ({ runId: id, machineId: machine_id })),
+        unfinished: Effect.fn("ActivityStore.unfinished")(
+          (within) =>
+            sql`select id, machine_id from action_runs where ${sql.and([
+              sql.in("status", activeStatuses),
+              within._tag === "Batch" ? sql`batch_id = ${within.batchId}` : "1=1",
+            ])}`.pipe(
+              Effect.flatMap(decodeTargets),
+              Effect.map((rows) =>
+                rows.map(({ id, machine_id }) => ({ runId: id, machineId: machine_id })),
+              ),
             ),
-            Effect.orDie,
-          ),
+          Effect.orDie,
+        ),
         activeBatches:
           sql`select * from action_batches where finished_at is null order by requested_at`.pipe(
             Effect.flatMap(decodeBatches),
@@ -408,9 +414,9 @@ export class ActivityStore extends Context.Service<
             MachineRenamed: ({ machineId: id }) => id,
             DiscoveryRootsChanged: ({ machineId: id }) => id,
             ProjectFolderCreated: ({ machineId: id }) => id,
-            PollingChanged: (): MachineId | null => null,
-            CleanupChanged: (): MachineId | null => null,
-            IntegrationsChanged: (): MachineId | null => null,
+            PollingChanged: () => null,
+            CleanupChanged: () => null,
+            IntegrationsChanged: () => null,
             ArchiveFolderChanged: ({ machineId: id }) => id,
           });
 

@@ -36,7 +36,7 @@ export class IntegrationsStore extends Context.Service<
 
       return {
         settings,
-        update: (integrations) =>
+        update: Effect.fn("IntegrationsStore.update")((integrations) =>
           sql`insert into settings ${sql.insert({
             id: 1,
             polling_json: encodePolling(defaultPollingSettings),
@@ -45,6 +45,7 @@ export class IntegrationsStore extends Context.Service<
             Effect.orDie,
             Effect.andThen(SubscriptionRef.set(settings, integrations)),
           ),
+        ),
       };
     }),
   );

@@ -180,7 +180,7 @@ export function makeGithubReader(reader: { readonly login: string }) {
     const reading: Reading = fresh
       ? previous
       : yield* fetchRemote(owner, name).pipe(
-          Effect.map((state): Reading => ({ _tag: "Read", state })),
+          Effect.map((state) => ({ _tag: "Read", state }) satisfies Reading),
           Effect.tap(() =>
             previous?._tag === "Unavailable"
               ? Effect.logInfo(`GitHub state for ${identity.path} is available again`)
