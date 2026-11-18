@@ -73,5 +73,5 @@ const Requests = Layer.mergeAll(
 export const HubServices = Requests.pipe(
   Layer.provideMerge(Fleet),
   Layer.provideMerge(Layer.mergeAll(Stores, Auth, Pairing)),
-  Layer.provideMerge(Database),
+  Layer.provide(Database),
 );
