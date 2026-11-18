@@ -1,4 +1,3 @@
-import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
 import { DateTime, Effect, Layer } from "effect";
 
@@ -8,7 +7,7 @@ import { defaultPollingSettings } from "@fleetfrog/protocol/domain/polling";
 import { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 import { UserId } from "@fleetfrog/protocol/domain/user";
 
-import { Migrations } from "../persistence/database.ts";
+import { TestDatabase } from "../persistence/testDatabase.ts";
 import { ActivityStore } from "./activityStore.ts";
 
 import type { NonEmptyReadonlyArray } from "effect/Array";
@@ -18,9 +17,7 @@ import type { ActivityFilter, ActivityPage, Actor } from "@fleetfrog/protocol/do
 
 import type { NewRun } from "./activityStore.ts";
 
-const TestStore = ActivityStore.layer.pipe(
-  Layer.provide(Migrations.pipe(Layer.provideMerge(SqliteClient.layer({ filename: ":memory:" })))),
-);
+const TestStore = ActivityStore.layer.pipe(Layer.provide(TestDatabase));
 
 const studio = MachineId.make("aaaaaaaa-0000-4000-8000-000000000000");
 const laptop = MachineId.make("bbbbbbbb-0000-4000-8000-000000000000");

@@ -9,26 +9,14 @@ import { ActionDispatcher } from "../actions/actionDispatcher.ts";
 import { ActivityFeed } from "../activity/activityFeed.ts";
 import { FleetFeed } from "../catalogue/fleetFeed.ts";
 import { ProjectIconStore } from "../catalogue/projectIconStore.ts";
-import { HubConfig } from "../hubConfig.ts";
 import { HubServices } from "../hubServices.ts";
+import { testHubConfig } from "../testHubConfig.ts";
 import { DemoFleet } from "./demoFleet.ts";
 import { demoMachines } from "./demoFleetData.ts";
 
 import type { Fleet, MachineCheckout } from "@fleetfrog/protocol/domain/fleet";
 
-const config = Layer.succeed(HubConfig)({
-  dataDirectory: "unused",
-  host: null,
-  dashboardPort: 0,
-  agentPort: 0,
-  agentTls: "none",
-  agentUrl: null,
-  tailscaleSocket: null,
-  dashboardSocket: null,
-  webRoot: null,
-  authModeOverride: null,
-  demo: true,
-});
+const config = testHubConfig({ dashboardPort: 0, agentPort: 0, agentTls: "none", demo: true });
 
 const DemoHub = DemoFleet.pipe(Layer.provideMerge(HubServices), Layer.provideMerge(config));
 

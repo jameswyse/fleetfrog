@@ -1,39 +1,19 @@
-import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Layer, Stream, SubscriptionRef } from "effect";
-import { SqlClient } from "effect/sql";
+import { DateTime, Effect, Layer, Stream, SubscriptionRef } from "effect";
 
 import { AgentNotUpdatable } from "@fleetfrog/protocol/dashboard/rpcs";
 import { MachineId } from "@fleetfrog/protocol/domain/machine";
 
-import { DashboardPresence } from "../dashboard/dashboardPresence.ts";
 import { MachineStore } from "../machines/machineStore.ts";
-import { Migrations } from "../persistence/database.ts";
-import { CleanupStore } from "../settings/cleanupStore.ts";
-import { IntegrationsStore } from "../settings/integrationsStore.ts";
-import { PollingStore } from "../settings/pollingStore.ts";
 import { AgentSessions } from "./agentSessions.ts";
 import { AgentUpdates } from "./agentUpdates.ts";
+import { TestAgentSessions } from "./testAgentSessions.ts";
 
 import type { AgentCapabilities } from "@fleetfrog/protocol/domain/action";
 
 const studio = MachineId.make("aaaaaaaa-0000-4000-8000-000000000000");
 
-const TestUpdates = AgentUpdates.layer.pipe(
-  Layer.provideMerge(AgentSessions.layer),
-  Layer.provideMerge(
-    Layer.mergeAll(
-      MachineStore.layer,
-      PollingStore.layer,
-      CleanupStore.layer,
-      IntegrationsStore.layer,
-      DashboardPresence.layer,
-    ),
-  ),
-  Layer.provideMerge(
-    Migrations.pipe(Layer.provideMerge(SqliteClient.layer({ filename: ":memory:" }))),
-  ),
-);
+const TestUpdates = AgentUpdates.layer.pipe(Layer.provideMerge(TestAgentSessions));
 
 const capabilities = (updatesItself: boolean) =>
   ({
@@ -50,19 +30,12 @@ const connectStudio = Effect.fnUntraced(function* (options: {
   readonly agentVersion: string;
   readonly updatesItself: boolean;
 }) {
-  const sql = yield* SqlClient.SqlClient;
   const machines = yield* MachineStore;
   const sessions = yield* AgentSessions;
 
-  yield* sql`insert into machines ${sql.insert({
+  yield* machines.create({
     id: studio,
-    token_hash: "hash",
-    info_json: "{}",
-    discovery_roots_json: "[]",
-    paired_at: "2026-09-26T00:00:00.000Z",
-  })}`;
-  yield* machines.recordConnection({
-    machineId: studio,
+    tokenHash: "hash",
     info: {
       hostname: "studio",
       prettyName: null,
@@ -73,6 +46,8 @@ const connectStudio = Effect.fnUntraced(function* (options: {
       githubCli: { _tag: "Unavailable", reason: "" },
       system: null,
     },
+    discoveryRoots: [],
+    pairedAt: DateTime.makeUnsafe("2026-09-26T00:00:00.000Z"),
   });
 
   return yield* sessions.connect({

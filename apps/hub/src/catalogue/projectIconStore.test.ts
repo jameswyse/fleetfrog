@@ -1,13 +1,12 @@
 import { createHash } from "node:crypto";
 
-import { SqliteClient } from "@effect/sql-sqlite-node";
 import { expect, it } from "@effect/vitest";
 import { Effect, Layer, Option } from "effect";
 import { SqlClient } from "effect/sql";
 
 import { MachineId } from "@fleetfrog/protocol/domain/machine";
 
-import { Migrations } from "../persistence/database.ts";
+import { TestDatabase } from "../persistence/testDatabase.ts";
 import { ProjectIconStore } from "./projectIconStore.ts";
 
 const studio = MachineId.make("aaaaaaaa-0000-4000-8000-000000000000");
@@ -17,11 +16,7 @@ const other = createHash("sha256").update("<svg>other</svg>").digest("hex");
 const page = Buffer.from("<html></html>");
 const pageId = createHash("sha256").update(page).digest("hex");
 
-const TestStore = ProjectIconStore.layer.pipe(
-  Layer.provideMerge(
-    Migrations.pipe(Layer.provideMerge(SqliteClient.layer({ filename: ":memory:" }))),
-  ),
-);
+const TestStore = ProjectIconStore.layer.pipe(Layer.provideMerge(TestDatabase));
 
 const pairStudio = SqlClient.SqlClient.use(
   (sql) =>

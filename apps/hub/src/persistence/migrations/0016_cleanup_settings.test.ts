@@ -1,4 +1,3 @@
-import { SqliteClient, SqliteMigrator } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer, SubscriptionRef } from "effect";
 import { SqlClient } from "effect/sql";
@@ -7,11 +6,9 @@ import { defaultCleanupSettings } from "@fleetfrog/protocol/domain/cleanup";
 
 import { CleanupStore } from "../../settings/cleanupStore.ts";
 import { PollingStore } from "../../settings/pollingStore.ts";
-import { migrations } from "./registry.ts";
+import { upgradedTestDatabase } from "./upgradedTestDatabase.ts";
 
 import type { PollingSettings } from "@fleetfrog/protocol/domain/polling";
-
-const before = Object.fromEntries(Object.entries(migrations).filter(([name]) => name < "0016"));
 
 const polling: PollingSettings = {
   idleStatusSeconds: 60,
@@ -20,15 +17,14 @@ const polling: PollingSettings = {
   githubSeconds: 300,
 };
 
-const migratedDatabase = Layer.effectDiscard(
+const migratedDatabase = upgradedTestDatabase(
+  "0016",
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
 
-    yield* SqliteMigrator.run({ loader: SqliteMigrator.fromRecord(before) });
     yield* sql`insert into settings ${sql.insert({ id: 1, polling_json: JSON.stringify(polling) })}`;
-    yield* SqliteMigrator.run({ loader: SqliteMigrator.fromRecord(migrations) });
   }),
-).pipe(Layer.provideMerge(SqliteClient.layer({ filename: ":memory:" })));
+);
 
 const Stores = Layer.merge(CleanupStore.layer, PollingStore.layer);
 

@@ -1,4 +1,3 @@
-import { SqliteClient, SqliteMigrator } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { SqlClient } from "effect/sql";
@@ -9,11 +8,11 @@ import { UserId } from "@fleetfrog/protocol/domain/user";
 
 import { PreferencesStore } from "../../settings/preferencesStore.ts";
 import { ProjectLayoutStore } from "../../settings/projectLayoutStore.ts";
-import { migrations } from "./registry.ts";
+import { TestDatabase } from "../testDatabase.ts";
+import { upgradedTestDatabase } from "./upgradedTestDatabase.ts";
 
 import type { ProjectLayout } from "@fleetfrog/protocol/domain/projectLayout";
 
-const before = Object.fromEntries(Object.entries(migrations).filter(([name]) => name < "0015"));
 const ada = UserId.make("0b8f6a52-7f9e-4c55-9a8e-2f4a1c9d3e10");
 const grace = UserId.make("1c8f6a52-7f9e-4c55-9a8e-2f4a1c9d3e10");
 const shop = RepositoryKey.make("remote:github.com/acme/shop");
@@ -45,12 +44,12 @@ const user = (id: UserId, email: string, preferences: unknown) => ({
 });
 
 const Migrated = Stores.pipe(
-  Layer.provide(
-    Layer.effectDiscard(
+  Layer.provideMerge(
+    upgradedTestDatabase(
+      "0015",
       Effect.gen(function* () {
         const sql = yield* SqlClient.SqlClient;
 
-        yield* SqliteMigrator.run({ loader: SqliteMigrator.fromRecord(before) });
         yield* sql`insert into users ${sql.insert(
           user(ada, "ada@example.com", {
             colorScheme: "dark",
@@ -61,17 +60,12 @@ const Migrated = Stores.pipe(
         yield* sql`insert into users ${sql.insert(
           user(grace, "grace@example.com", { colorScheme: "light", blurPersonal: false }),
         )}`;
-        yield* SqliteMigrator.run({ loader: SqliteMigrator.fromRecord(migrations) });
       }),
     ),
   ),
-  Layer.provideMerge(SqliteClient.layer({ filename: ":memory:" })),
 );
 
-const Fresh = Stores.pipe(
-  Layer.provide(SqliteMigrator.layer({ loader: SqliteMigrator.fromRecord(migrations) })),
-  Layer.provide(SqliteClient.layer({ filename: ":memory:" })),
-);
+const Fresh = Stores.pipe(Layer.provide(TestDatabase));
 
 describe("0015_project_layouts", () => {
   it.effect("moves a layout saved with the preferences into its own column", () =>
