@@ -17,7 +17,7 @@ import type { Machine } from "@fleetfrog/protocol/domain/fleet";
 
 import type { CloneOutline, WorkingTree, WorkingTreeProblem } from "../workingTrees.ts";
 
-function problemText(problem: WorkingTreeProblem): string {
+function problemText(problem: WorkingTreeProblem) {
   switch (problem._tag) {
     case "Unreadable":
       return "couldn't be read";
@@ -62,7 +62,7 @@ function Suggestion({
   );
 }
 
-function treeName(tree: WorkingTree): ReactNode {
+function treeName(tree: WorkingTree) {
   return tree.branch === null ? (
     folderName(tree.path)
   ) : (

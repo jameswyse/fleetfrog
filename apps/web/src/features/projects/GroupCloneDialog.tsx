@@ -26,25 +26,18 @@ type Candidate =
   | { readonly _tag: "Clonable"; readonly repository: Repository; readonly draft: DestinationDraft }
   | { readonly _tag: "Unclonable"; readonly repository: Repository };
 
-function missingOn(
-  repositories: ReadonlyArray<Repository>,
-  machine: Machine,
-): ReadonlyArray<Repository> {
+function missingOn(repositories: ReadonlyArray<Repository>, machine: Machine) {
   return repositories.filter(
     ({ checkouts }) => !checkouts.some(({ machineId }) => machineId === machine.id),
   );
 }
 
-function candidatesFor(
-  fleet: Fleet,
-  repositories: ReadonlyArray<Repository>,
-  machine: Machine,
-): ReadonlyArray<Candidate> {
+function candidatesFor(fleet: Fleet, repositories: ReadonlyArray<Repository>, machine: Machine) {
   const occupied = new Set(checkoutPaths(fleet.repositories, machine.id));
 
-  return missingOn(repositories, machine).map((repository): Candidate => {
+  return missingOn(repositories, machine).map((repository) => {
     if (cloneSource(repository) === undefined) {
-      return { _tag: "Unclonable", repository };
+      return { _tag: "Unclonable", repository } satisfies Candidate;
     }
 
     const suggestion = suggestCloneDestination({
@@ -58,7 +51,7 @@ function candidatesFor(
 
     occupied.add(expandHome(draftPath(draft), machine.info.homeDirectory));
 
-    return { _tag: "Clonable", repository, draft };
+    return { _tag: "Clonable", repository, draft } satisfies Candidate;
   });
 }
 
@@ -66,7 +59,7 @@ function problemsFor(options: {
   readonly fleet: Fleet;
   readonly machine: Machine;
   readonly chosen: ReadonlyArray<{ readonly key: RepositoryKey; readonly draft: DestinationDraft }>;
-}): ReadonlyMap<RepositoryKey, string> {
+}) {
   const claimed = new Set<string>();
 
   return new Map(
@@ -97,7 +90,7 @@ function problemsFor(options: {
   );
 }
 
-function toggled<Key>(set: ReadonlySet<Key>, key: Key, on: boolean): ReadonlySet<Key> {
+function toggled<Key>(set: ReadonlySet<Key>, key: Key, on: boolean) {
   const next = new Set(set);
 
   if (on) {
@@ -125,7 +118,7 @@ function MachineClones({
   const { start, pending, failure } = useStartBatch();
   const [edits, setEdits] = useState<ReadonlyMap<RepositoryKey, DestinationDraft>>(() => new Map());
 
-  const rows = candidatesFor(fleet, repositories, machine).map((candidate): Candidate =>
+  const rows = candidatesFor(fleet, repositories, machine).map((candidate) =>
     candidate._tag === "Clonable"
       ? { ...candidate, draft: edits.get(candidate.repository.key) ?? candidate.draft }
       : candidate,

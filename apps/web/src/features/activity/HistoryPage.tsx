@@ -21,7 +21,7 @@ import type {
   ActivityFilter,
 } from "@fleetfrog/protocol/domain/activity";
 
-function eventMachine(event: HubEvent): string {
+function eventMachine(event: HubEvent) {
   return HubEvent.match(event, {
     MachinePaired: ({ machineName }) => machineName,
     MachineRemoved: ({ machineName }) => machineName,

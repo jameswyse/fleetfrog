@@ -45,7 +45,7 @@ const fields: ReadonlyArray<Field> = [
 
 const minimumSeconds = 5;
 
-function readInterval(input: HTMLInputElement, field: Field): number | null {
+function readInterval(input: HTMLInputElement, field: Field) {
   const seconds = Math.round(Number(input.value) * (field.unit === "minutes" ? 60 : 1));
 
   return input.value.trim() !== "" && Schema.is(PollingSettings.fields[field.name])(seconds)

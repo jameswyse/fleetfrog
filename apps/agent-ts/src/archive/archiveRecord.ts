@@ -20,7 +20,7 @@ const RecordJson = Schema.fromJsonString(ArchiveRecord);
 const decodeRecord = Schema.decodeUnknownOption(RecordJson);
 const encodeRecord = Schema.encodeSync(RecordJson);
 
-function recordPath(commonDirectory: string): string {
+function recordPath(commonDirectory: string) {
   return path.join(commonDirectory, "fleetfrog-archive.json");
 }
 

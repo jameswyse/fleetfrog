@@ -12,12 +12,12 @@ import { unknownT3CodeReleases } from "@fleetfrog/protocol/domain/t3CodeUpdate";
 
 import { describeIssue, t3CodeIssues, t3CodeNeedsAttention } from "./t3CodeHealth.ts";
 
-import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
+import type { Machine } from "@fleetfrog/protocol/domain/fleet";
 import type { T3CodeReading } from "@fleetfrog/protocol/domain/t3Code";
 
 const at = DateTime.makeUnsafe("2026-09-27T00:00:00Z");
 
-function machine(id: string, reading: T3CodeReading | null): Machine {
+function machine(id: string, reading: T3CodeReading | null) {
   return {
     id: MachineId.make(id),
     info: {
@@ -52,19 +52,20 @@ function machine(id: string, reading: T3CodeReading | null): Machine {
             server: null,
             providers: [],
           },
-  };
+  } satisfies Machine;
 }
 
-const read = (migration: number, unreadRecords = 0): T3CodeReading => ({
-  _tag: "Read",
-  schema: { migration, name: "Some migration" },
-  projects: [],
-  threads: [],
-  threadCount: 0,
-  unreadRecords,
-});
+const read = (migration: number, unreadRecords = 0) =>
+  ({
+    _tag: "Read",
+    schema: { migration, name: "Some migration" },
+    projects: [],
+    threads: [],
+    threadCount: 0,
+    unreadRecords,
+  }) satisfies T3CodeReading;
 
-function fleetOf(machines: ReadonlyArray<Machine>): Fleet {
+function fleetOf(machines: ReadonlyArray<Machine>) {
   return {
     hubVersion: "0.0.0",
     t3CodeReleases: unknownT3CodeReleases,

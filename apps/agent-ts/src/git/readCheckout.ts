@@ -13,13 +13,7 @@ import { listLimit, parseStatus } from "./parseStatus.ts";
 import { cloneableUrl, remoteIdentity } from "./remoteIdentity.ts";
 import { readLinkedWorktrees } from "./worktrees.ts";
 
-import type {
-  Commit,
-  GitStatus,
-  Operation,
-  Stash,
-  Worktree,
-} from "@fleetfrog/protocol/domain/checkout";
+import type { Commit, GitStatus, Operation, Worktree } from "@fleetfrog/protocol/domain/checkout";
 
 const stashLimit = 50;
 
@@ -67,7 +61,7 @@ const readStashes = Effect.fn("readStashes")(function* (directory: string) {
   return output
     .split("\n")
     .filter((line) => line !== "")
-    .map((line, index): Stash => {
+    .map((line, index) => {
       const [sha = "", message = ""] = line.split("\0");
 
       return { index, message, sha };
@@ -85,7 +79,7 @@ const readCommit = Effect.fn("readCommit")(function* (directory: string) {
   } satisfies Commit;
 });
 
-async function readLastFetch(commonDirectory: string): Promise<DateTime.Utc | null> {
+async function readLastFetch(commonDirectory: string) {
   const linked = await readdir(path.join(commonDirectory, "worktrees")).catch(() => []);
 
   const times = await Promise.all(
@@ -153,7 +147,7 @@ const operationMarkers: ReadonlyArray<readonly [string, Operation]> = [
   ["BISECT_LOG", "bisect"],
 ];
 
-async function readOperation(gitDirectory: string): Promise<Operation | null> {
+async function readOperation(gitDirectory: string) {
   const present = await Promise.all(
     operationMarkers.map(([marker]) =>
       stat(path.join(gitDirectory, marker)).then(

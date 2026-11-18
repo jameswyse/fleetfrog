@@ -6,7 +6,7 @@ import { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
 import { branchesInOtherWorktrees, isPreselected, tidyCandidates } from "./branchTidying.ts";
 
-import type { Checkout, GitStatus, LocalBranch } from "@fleetfrog/protocol/domain/checkout";
+import type { Checkout, GitStatus } from "@fleetfrog/protocol/domain/checkout";
 import type { Repository } from "@fleetfrog/protocol/domain/fleet";
 
 const at = DateTime.makeUnsafe("2026-09-26T00:00:00Z");
@@ -14,7 +14,7 @@ const at = DateTime.makeUnsafe("2026-09-26T00:00:00Z");
 function branch(
   name: string,
   tip: { readonly sha?: string; readonly merged?: boolean; readonly pushed?: boolean } = {},
-): LocalBranch {
+) {
   return {
     name,
     upstream: null,

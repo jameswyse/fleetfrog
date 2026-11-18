@@ -8,11 +8,11 @@ export function expandHome(path: string, home: string): string {
   return path.startsWith("~/") ? `${home.replace(/\/+$/, "")}${path.slice(1)}` : path;
 }
 
-function withoutTrailingSlashes(path: string): string {
+function withoutTrailingSlashes(path: string) {
   return path.length > 1 ? path.replace(/\/+$/, "") : path;
 }
 
-function isBelow(path: string, folder: string): boolean {
+function isBelow(path: string, folder: string) {
   const prefix = folder === "/" ? "/" : `${folder}/`;
 
   return path.startsWith(prefix) && path.length > prefix.length;
@@ -24,7 +24,7 @@ export function isWithin(path: string, folder: string): boolean {
   return path === normalised || isBelow(path, normalised);
 }
 
-function homeRelative(path: string, home: string): string | null {
+function homeRelative(path: string, home: string) {
   const normalisedHome = withoutTrailingSlashes(home);
 
   return isBelow(path, normalisedHome) ? `~${path.slice(normalisedHome.length)}` : null;
@@ -87,7 +87,7 @@ export function checkCloneDestination(options: {
     : { _tag: "Valid", path, root };
 }
 
-function mostCommon(values: ReadonlyArray<string>): string | undefined {
+function mostCommon(values: ReadonlyArray<string>) {
   const counts = new Map<string, number>();
 
   for (const value of values) {

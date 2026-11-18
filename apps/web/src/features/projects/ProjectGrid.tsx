@@ -50,7 +50,7 @@ export function findGridCell(selection: ProjectSelection): HTMLElement | null {
   );
 }
 
-function columnBackground(machine: Machine): string {
+function columnBackground(machine: Machine) {
   return machine.connection._tag === "Offline" ? "bg-canvas" : "bg-surface";
 }
 
@@ -69,16 +69,16 @@ const selectedRing =
 
 const selectedRowBackground = "bg-accent-soft";
 
-function stepFor(key: string): readonly [number, number] | null {
+function stepFor(key: string) {
   switch (key) {
     case "ArrowUp":
-      return [-1, 0];
+      return [-1, 0] as const;
     case "ArrowDown":
-      return [1, 0];
+      return [1, 0] as const;
     case "ArrowLeft":
-      return [0, -1];
+      return [0, -1] as const;
     case "ArrowRight":
-      return [0, 1];
+      return [0, 1] as const;
     default:
       return null;
   }
@@ -216,11 +216,7 @@ interface Drag {
   readonly hover: (sectionId: string | null) => void;
 }
 
-function dropChange(
-  dragged: Dragged | null,
-  arranged: ArrangedSection,
-  layout: ProjectLayout,
-): ((layout: ProjectLayout) => ProjectLayout) | null {
+function dropChange(dragged: Dragged | null, arranged: ArrangedSection, layout: ProjectLayout) {
   if (dragged === null) {
     return null;
   }
@@ -228,7 +224,8 @@ function dropChange(
   if (dragged._tag === "Repository") {
     return dropRepository(layout, dragged.repository, arranged) === null
       ? null
-      : (current) => dropRepository(current, dragged.repository, arranged) ?? current;
+      : (current: ProjectLayout) =>
+          dropRepository(current, dragged.repository, arranged) ?? current;
   }
 
   const { section } = arranged;
@@ -240,7 +237,8 @@ function dropChange(
   const ids = layout.groups.map(({ id }) => id);
   const side = ids.indexOf(dragged.groupId) < ids.indexOf(section.group.id) ? "After" : "Before";
 
-  return (current) => placeGroup(current, dragged.groupId, { side, targetId: section.group.id });
+  return (current: ProjectLayout) =>
+    placeGroup(current, dragged.groupId, { side, targetId: section.group.id });
 }
 
 const dropStateClasses = {
@@ -667,13 +665,13 @@ export function ProjectGrid({
     hover: setOver,
   };
 
-  const firstRows = arrangement.sections.reduce<ReadonlyArray<number>>(
-    (starts, { repositories, collapsed }, index) => [
-      ...starts,
-      (starts[index] ?? 0) + (collapsed ? 0 : repositories.length),
-    ],
-    [0],
-  );
+  const firstRows: Array<number> = [];
+  let rowOffset = 0;
+
+  for (const { repositories, collapsed } of arrangement.sections) {
+    firstRows.push(rowOffset);
+    rowOffset += collapsed ? 0 : repositories.length;
+  }
 
   const moveFocus = (event: KeyboardEvent<HTMLTableElement>) => {
     const step = stepFor(event.key);

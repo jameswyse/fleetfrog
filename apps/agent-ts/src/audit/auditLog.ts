@@ -46,7 +46,7 @@ export function auditLogPath(): string {
   return path.join(directory, "actions.log");
 }
 
-async function append(file: string, line: string): Promise<void> {
+async function append(file: string, line: string) {
   await mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
 
   const size = await stat(file).then(
@@ -61,7 +61,7 @@ async function append(file: string, line: string): Promise<void> {
   await appendFile(file, line, { mode: 0o600 });
 }
 
-function withoutCredentials(remoteUrl: string): string {
+function withoutCredentials(remoteUrl: string) {
   if (!remoteUrl.includes("://") || !URL.canParse(remoteUrl)) {
     return remoteUrl;
   }
@@ -77,12 +77,15 @@ function withoutCredentials(remoteUrl: string): string {
   return url.href;
 }
 
-function loggable(entry: AuditEntry): AuditEntry {
+function loggable(entry: AuditEntry) {
   if (
     (entry.event === "ActionStarted" || entry.event === "ActionRefused") &&
     entry.request._tag === "Clone"
   ) {
-    return { ...entry, request: { ...entry.request, url: withoutCredentials(entry.request.url) } };
+    return {
+      ...entry,
+      request: { ...entry.request, url: withoutCredentials(entry.request.url) },
+    };
   }
 
   return entry;

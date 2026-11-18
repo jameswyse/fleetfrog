@@ -177,6 +177,7 @@ function PasswordSection({ email }: { readonly email: string }) {
       return fail("new", `Use at least ${minimumPasswordLength} characters.`);
     }
 
+    // oxlint-disable-next-line wyse/no-timing-unsafe-comparison -- both values are the person's own form input in their browser
     if (newPassword !== values.get("confirm")) {
       return fail("confirm", "The new passwords don't match.");
     }

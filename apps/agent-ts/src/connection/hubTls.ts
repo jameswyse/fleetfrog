@@ -17,7 +17,7 @@ export class CertificateMismatch extends Schema.TaggedError<
   { readonly brand: unique symbol }
 >()("CertificateMismatch", { expected: Schema.String, received: Schema.String }) {}
 
-function toPem(certificate: PeerCertificate): string {
+function toPem(certificate: PeerCertificate) {
   const lines = certificate.raw.toString("base64").match(/.{1,64}/g) ?? [];
 
   return `-----BEGIN CERTIFICATE-----\n${lines.join("\n")}\n-----END CERTIFICATE-----\n`;

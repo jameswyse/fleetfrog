@@ -5,8 +5,6 @@ import { Effect } from "effect";
 import { checkFolderPath } from "@fleetfrog/protocol/domain/cloneDestination";
 import { FolderOutcome } from "@fleetfrog/protocol/domain/fleet";
 
-import type { Tier } from "@fleetfrog/protocol/domain/action";
-
 import type { AuditEntry } from "../audit/auditLog.ts";
 import type { ConfigUnavailable } from "../config/agentConfig.ts";
 import type { AgentPolicy } from "../config/agentPolicy.ts";
@@ -16,7 +14,7 @@ const pathProblems = {
   Hidden: "It's a hidden folder, or its path has . or .. segments.",
 } as const;
 
-function failed(message: string): FolderOutcome {
+function failed(message: string) {
   return FolderOutcome.cases.Failed.make({ message });
 }
 
@@ -24,7 +22,7 @@ function folderTier(options: {
   readonly path: string;
   readonly roots: ReadonlyArray<string>;
   readonly archiveFolder: string | null;
-}): Tier | null {
+}) {
   if (options.roots.includes(options.path)) {
     return "git";
   }

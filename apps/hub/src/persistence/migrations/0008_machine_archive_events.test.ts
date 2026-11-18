@@ -4,7 +4,7 @@ import { Effect, Layer } from "effect";
 import { SqlClient } from "effect/sql";
 
 import { ActivityStore } from "../../activity/activityStore.ts";
-import { migrations } from "../database.ts";
+import { migrations } from "./registry.ts";
 
 const before = Object.fromEntries(Object.entries(migrations).filter(([name]) => name < "0008"));
 

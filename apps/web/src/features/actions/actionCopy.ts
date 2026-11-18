@@ -64,7 +64,7 @@ export const tierNames = {
   t3code: "T3 Code update",
 } satisfies Record<Tier, string>;
 
-function capitalised(text: string): string {
+function capitalised(text: string) {
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 }
 
@@ -125,11 +125,11 @@ export function describeSkip(reason: SkipReason): string {
   });
 }
 
-function sentences(parts: ReadonlyArray<string | false>): string {
+function sentences(parts: ReadonlyArray<string | false>) {
   return parts.filter((part) => part !== false).join(". ");
 }
 
-function describeResult(result: ActionResult): string {
+function describeResult(result: ActionResult) {
   return ActionResult.match(result, {
     Fetched: () => "Fetched",
     FastForwarded: ({ commits }) => `Pulled ${plural(commits, "commit")}`,
@@ -192,15 +192,15 @@ export interface OutcomeText {
 
 export function describeOutcome(outcome: ActionOutcome): OutcomeText {
   return ActionOutcome.match(outcome, {
-    Succeeded: ({ result }): OutcomeText => ({ summary: describeResult(result), detail: null }),
-    Failed: ({ message }): OutcomeText => ({ summary: "Failed", detail: message }),
-    Skipped: ({ reason }): OutcomeText => ({ summary: "Skipped", detail: describeSkip(reason) }),
-    Cancelled: (): OutcomeText => ({ summary: "Cancelled", detail: null }),
-    Interrupted: (): OutcomeText => ({
+    Succeeded: ({ result }) => ({ summary: describeResult(result), detail: null }),
+    Failed: ({ message }) => ({ summary: "Failed", detail: message }),
+    Skipped: ({ reason }) => ({ summary: "Skipped", detail: describeSkip(reason) }),
+    Cancelled: () => ({ summary: "Cancelled", detail: null }),
+    Interrupted: () => ({
       summary: "Interrupted",
       detail: "The agent disconnected before it finished",
     }),
-    MachineOffline: (): OutcomeText => ({ summary: "Machine offline", detail: null }),
+    MachineOffline: () => ({ summary: "Machine offline", detail: null }),
   });
 }
 

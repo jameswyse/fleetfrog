@@ -13,11 +13,11 @@ import { SettingsRow } from "../SettingsSection.tsx";
 import type { AgentUpdate } from "@fleetfrog/protocol/domain/agentUpdate";
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 
-function changelogUrl(hubVersion: string): string {
+function changelogUrl(hubVersion: string) {
   return `https://github.com/jameswyse/fleetfrog/blob/v${hubVersion}/apps/agent-rs/CHANGELOG.md`;
 }
 
-function describeVersion(machine: Machine, hubVersion: string): string {
+function describeVersion(machine: Machine, hubVersion: string) {
   const { agentVersion } = machine.info;
 
   if (machine.update?._tag === "Updating") {
@@ -47,7 +47,7 @@ function updateLabel({
   readonly updating: boolean;
   readonly failure: AgentUpdate | null;
   readonly hubVersion: string;
-}): string {
+}) {
   if (updating) {
     return "Updating…";
   }

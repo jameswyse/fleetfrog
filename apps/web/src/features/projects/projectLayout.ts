@@ -93,7 +93,7 @@ export function ownerOf(identity: RepositoryIdentity): string | null {
   return slash <= 0 ? null : identity.path.slice(0, slash);
 }
 
-function ownerSectionId(identity: RepositoryIdentity): string {
+function ownerSectionId(identity: RepositoryIdentity) {
   const owner = ownerOf(identity);
 
   return identity._tag === "Remote" && owner !== null

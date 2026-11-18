@@ -7,7 +7,7 @@ import { Email, isHttpUrl } from "@fleetfrog/protocol/domain/user";
 import { AuthSettingsStore } from "./authSettingsStore.ts";
 import { UserStore } from "./userStore.ts";
 
-import type { OidcSettings, Role } from "@fleetfrog/protocol/domain/user";
+import type { OidcSettings } from "@fleetfrog/protocol/domain/user";
 
 import type { UserRecord } from "./userStore.ts";
 
@@ -51,7 +51,7 @@ export function callbackUrl(settings: OidcSettings): URL {
   return new URL("/auth/oidc/callback", settings.dashboardUrl);
 }
 
-function describe(cause: unknown): string {
+function describe(cause: unknown) {
   if (!(cause instanceof Error)) {
     return String(cause);
   }
@@ -59,7 +59,7 @@ function describe(cause: unknown): string {
   return cause.cause instanceof Error ? `${cause.message}: ${cause.cause.message}` : cause.message;
 }
 
-function roleFromGroups(adminGroup: string | null, groups: ReadonlyArray<string>): Role | null {
+function roleFromGroups(adminGroup: string | null, groups: ReadonlyArray<string>) {
   if (adminGroup === null) {
     return null;
   }
@@ -144,9 +144,9 @@ export class OidcSignIn extends Context.Service<
       );
 
       return {
-        check: (settings) => discover(settings).pipe(Effect.asVoid),
-        start: ({ intent, redirect }) =>
-          Effect.gen(function* () {
+        check: Effect.fn("OidcSignIn.check")((settings) => discover(settings), Effect.asVoid),
+        start: Effect.fn("OidcSignIn.start")(
+          function* ({ intent, redirect }) {
             const settings = yield* configured;
             const config = yield* discover(settings);
             const now = yield* Clock.currentTimeMillis;
@@ -181,125 +181,126 @@ export class OidcSignIn extends Context.Service<
               }),
               state,
             };
-          }).pipe(during(intent)),
-        finish: ({ url }) =>
-          Effect.gen(function* () {
-            const settings = yield* configured;
-            const config = yield* discover(settings);
-            const current = new URL(url, settings.dashboardUrl);
-            const state = current.searchParams.get("state") ?? "";
-            const started = pending.get(state);
-            const now = yield* Clock.currentTimeMillis;
+          },
+          (effect, { intent }) => effect.pipe(during(intent)),
+        ),
+        finish: Effect.fn("OidcSignIn.finish")(function* ({ url }) {
+          const settings = yield* configured;
+          const config = yield* discover(settings);
+          const current = new URL(url, settings.dashboardUrl);
+          const state = current.searchParams.get("state") ?? "";
+          const started = pending.get(state);
+          const now = yield* Clock.currentTimeMillis;
 
-            pending.delete(state);
+          pending.delete(state);
 
-            if (
-              started === undefined ||
-              now - started.startedAt > Duration.toMillis(pendingLifetime)
-            ) {
-              return yield* failure("Expired", "That sign-in took too long or was already used.");
+          if (
+            started === undefined ||
+            now - started.startedAt > Duration.toMillis(pendingLifetime)
+          ) {
+            return yield* failure("Expired", "That sign-in took too long or was already used.");
+          }
+
+          if (started.intent === "SignIn" && !(yield* auth.methods).provider) {
+            return yield* failure("ProviderOff", "Signing in through a provider is off.");
+          }
+
+          return yield* Effect.gen(function* () {
+            const providerError = current.searchParams.get("error_description");
+
+            if (providerError !== null) {
+              return yield* failure("ProviderRefused", `The provider said: ${providerError}`);
             }
 
-            if (started.intent === "SignIn" && !(yield* auth.methods).provider) {
-              return yield* failure("ProviderOff", "Signing in through a provider is off.");
+            const tokens = yield* Effect.tryPromise({
+              try: () =>
+                oidc.authorizationCodeGrant(config, current, {
+                  pkceCodeVerifier: started.verifier,
+                  expectedState: state,
+                  expectedNonce: started.nonce,
+                  idTokenExpected: true,
+                }),
+              catch: (cause) =>
+                failure(
+                  "Incomplete",
+                  `The provider didn't complete the sign-in. (${describe(cause)})`,
+                ),
+            });
+
+            const fromToken = tokens.claims();
+
+            if (fromToken === undefined) {
+              return yield* failure("Incomplete", "The provider didn't send an ID token.");
             }
 
-            return yield* Effect.gen(function* () {
-              const providerError = current.searchParams.get("error_description");
-
-              if (providerError !== null) {
-                return yield* failure("ProviderRefused", `The provider said: ${providerError}`);
-              }
-
-              const tokens = yield* Effect.tryPromise({
-                try: () =>
-                  oidc.authorizationCodeGrant(config, current, {
-                    pkceCodeVerifier: started.verifier,
-                    expectedState: state,
-                    expectedNonce: started.nonce,
-                    idTokenExpected: true,
-                  }),
-                catch: (cause) =>
-                  failure(
-                    "Incomplete",
-                    `The provider didn't complete the sign-in. (${describe(cause)})`,
-                  ),
-              });
-
-              const fromToken = tokens.claims();
-
-              if (fromToken === undefined) {
-                return yield* failure("Incomplete", "The provider didn't send an ID token.");
-              }
-
-              const fromUserInfo =
-                config.serverMetadata().userinfo_endpoint === undefined
-                  ? {}
-                  : yield* Effect.tryPromise({
-                      try: () => oidc.fetchUserInfo(config, tokens.access_token, fromToken.sub),
-                      catch: (cause) =>
-                        failure(
-                          "Incomplete",
-                          `The provider didn't share the profile. (${describe(cause)})`,
-                        ),
-                    });
-
-              const claims = decodeClaims({ ...fromToken, ...fromUserInfo });
-
-              if (Option.isNone(claims)) {
-                return yield* failure("NoIdentity", "The provider didn't say who signed in.");
-              }
-
-              const { sub, email, name, preferred_username, picture, groups = [] } = claims.value;
-              const address = decodeEmail(email);
-
-              if (Option.isNone(address)) {
-                return yield* failure(
-                  "NoEmail",
-                  "The provider didn't share an email address. Allow FleetFrog the email scope.",
-                );
-              }
-
-              if (settings.requiredGroup !== null && !groups.includes(settings.requiredGroup)) {
-                return yield* failure(
-                  "NotInRequiredGroup",
-                  `Only members of the ${settings.requiredGroup} group can sign in to FleetFrog.`,
-                );
-              }
-
-              const groupRole = roleFromGroups(settings.adminGroup, groups);
-
-              if (started.intent === "Activate" && groupRole === "user") {
-                return yield* failure(
-                  "NotInAdminGroup",
-                  `You aren't in the ${settings.adminGroup} group, which makes people admins, so turning this on would lock you out of Settings.`,
-                );
-              }
-
-              const { user, roleChanged } = yield* users
-                .signInFromProvider({
-                  issuer: config.serverMetadata().issuer,
-                  subject: sub,
-                  email: address.value,
-                  name: name ?? preferred_username ?? null,
-                  picture: picture !== undefined && isHttpUrl(picture) ? picture : null,
-                  emailVerified: claims.value.email_verified ?? null,
-                  role: started.intent === "Activate" ? "admin" : groupRole,
-                })
-                .pipe(
-                  Effect.catchTag("EmailTaken", () =>
-                    Effect.fail(
+            const fromUserInfo =
+              config.serverMetadata().userinfo_endpoint === undefined
+                ? {}
+                : yield* Effect.tryPromise({
+                    try: () => oidc.fetchUserInfo(config, tokens.access_token, fromToken.sub),
+                    catch: (cause) =>
                       failure(
-                        "EmailTaken",
-                        `Another FleetFrog user already has ${address.value} as their email. If it's yours, ask your provider's admin to mark it verified.`,
+                        "Incomplete",
+                        `The provider didn't share the profile. (${describe(cause)})`,
                       ),
+                  });
+
+            const claims = decodeClaims({ ...fromToken, ...fromUserInfo });
+
+            if (Option.isNone(claims)) {
+              return yield* failure("NoIdentity", "The provider didn't say who signed in.");
+            }
+
+            const { sub, email, name, preferred_username, picture, groups = [] } = claims.value;
+            const address = decodeEmail(email);
+
+            if (Option.isNone(address)) {
+              return yield* failure(
+                "NoEmail",
+                "The provider didn't share an email address. Allow FleetFrog the email scope.",
+              );
+            }
+
+            if (settings.requiredGroup !== null && !groups.includes(settings.requiredGroup)) {
+              return yield* failure(
+                "NotInRequiredGroup",
+                `Only members of the ${settings.requiredGroup} group can sign in to FleetFrog.`,
+              );
+            }
+
+            const groupRole = roleFromGroups(settings.adminGroup, groups);
+
+            if (started.intent === "Activate" && groupRole === "user") {
+              return yield* failure(
+                "NotInAdminGroup",
+                `You aren't in the ${settings.adminGroup} group, which makes people admins, so turning this on would lock you out of Settings.`,
+              );
+            }
+
+            const { user, roleChanged } = yield* users
+              .signInFromProvider({
+                issuer: config.serverMetadata().issuer,
+                subject: sub,
+                email: address.value,
+                name: name ?? preferred_username ?? null,
+                picture: picture !== undefined && isHttpUrl(picture) ? picture : null,
+                emailVerified: claims.value.email_verified ?? null,
+                role: started.intent === "Activate" ? "admin" : groupRole,
+              })
+              .pipe(
+                Effect.catchTag("EmailTaken", () =>
+                  Effect.fail(
+                    failure(
+                      "EmailTaken",
+                      `Another FleetFrog user already has ${address.value} as their email. If it's yours, ask your provider's admin to mark it verified.`,
                     ),
                   ),
-                );
+                ),
+              );
 
-              return { user, roleChanged, intent: started.intent, redirect: started.redirect };
-            }).pipe(during(started.intent));
-          }),
+            return { user, roleChanged, intent: started.intent, redirect: started.redirect };
+          }).pipe(during(started.intent));
+        }),
       };
     }),
   );

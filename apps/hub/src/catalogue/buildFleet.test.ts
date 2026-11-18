@@ -19,7 +19,7 @@ const pairedAt = DateTime.makeUnsafe("2026-09-01T00:00:00Z");
 const laptop = MachineId.make("5b0c7a1e-7a0e-4f3e-9d63-2f8f7a8d0a01");
 const desktop = MachineId.make("5b0c7a1e-7a0e-4f3e-9d63-2f8f7a8d0a02");
 
-function machine(id: MachineId, hostname: string): MachineRecord {
+function machine(id: MachineId, hostname: string) {
   return {
     id,
     info: {
@@ -44,10 +44,10 @@ function machine(id: MachineId, hostname: string): MachineRecord {
     lastSeenAt: null,
     lastDiscoveryAt: null,
     lastStatusAt: null,
-  };
+  } satisfies MachineRecord;
 }
 
-function checkout(path: string, identity: RepositoryIdentity): Checkout {
+function checkout(path: string, identity: RepositoryIdentity) {
   return {
     path,
     identity,
@@ -58,7 +58,7 @@ function checkout(path: string, identity: RepositoryIdentity): Checkout {
     status: { _tag: "Failed", message: "not read in this test" },
     github: null,
     scannedAt: pairedAt,
-  };
+  } satisfies Checkout;
 }
 
 describe("buildFleet", () => {
@@ -156,11 +156,12 @@ describe("buildFleet", () => {
   });
 
   it("labels a repository with its owner only when another shares its name", () => {
-    const remote = (host: string, path: string): RepositoryIdentity => ({
-      _tag: "Remote",
-      host,
-      path,
-    });
+    const remote = (host: string, path: string) =>
+      ({
+        _tag: "Remote",
+        host,
+        path,
+      }) satisfies RepositoryIdentity;
 
     const fleet = buildFleet({
       machines: [machine(laptop, "laptop")],
@@ -215,7 +216,7 @@ describe("buildFleet", () => {
       readonly path: string;
       readonly updatedAt: string;
       readonly icon?: T3CodeProject["icon"];
-    }): T3CodeProject => ({
+    }) => ({
       id: options.title,
       title: options.title,
       path: options.path,
@@ -228,22 +229,23 @@ describe("buildFleet", () => {
       id: MachineId,
       hostname: string,
       projects: ReadonlyArray<T3CodeProject>,
-    ): MachineRecord => ({
-      ...machine(id, hostname),
-      t3Code: {
-        database: "/home/dev/.t3/userdata/state.sqlite",
-        reading: {
-          _tag: "Read",
-          schema: { migration: 54, name: "ProjectionThreadsAutoSettleDisabledAt" },
-          projects,
-          threads: [],
-          threadCount: 0,
-          unreadRecords: 0,
+    ) =>
+      ({
+        ...machine(id, hostname),
+        t3Code: {
+          database: "/home/dev/.t3/userdata/state.sqlite",
+          reading: {
+            _tag: "Read",
+            schema: { migration: 54, name: "ProjectionThreadsAutoSettleDisabledAt" },
+            projects,
+            threads: [],
+            threadCount: 0,
+            unreadRecords: 0,
+          },
+          server: null,
+          providers: [],
         },
-        server: null,
-        providers: [],
-      },
-    });
+      }) satisfies MachineRecord;
 
     const build = (integrations: IntegrationSettings) =>
       buildFleet({

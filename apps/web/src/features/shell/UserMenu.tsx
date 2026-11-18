@@ -33,7 +33,7 @@ function QuickTheme() {
   );
 }
 
-function releaseUrl(version: string): string {
+function releaseUrl(version: string) {
   return `https://github.com/jameswyse/fleetfrog/releases/tag/v${version}`;
 }
 

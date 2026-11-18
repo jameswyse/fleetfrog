@@ -34,37 +34,46 @@ export function trashEntries(fleet: Fleet): ReadonlyArray<TrashEntry> {
 
       const { git } = checkout.status;
 
-      const branches = git.deletedBranches.items.map((branch): TrashEntry => ({
-        key: `${machineId}:${checkout.path}:${branch.ref}`,
-        machine,
-        repositoryLabel: repository.label,
-        target: { _tag: "Branch", path: checkout.path, ref: branch.ref },
-        deletedAt: branch.deletedAt,
-        item: { _tag: "Branch", branch },
-      }));
+      const branches = git.deletedBranches.items.map(
+        (branch) =>
+          ({
+            key: `${machineId}:${checkout.path}:${branch.ref}`,
+            machine,
+            repositoryLabel: repository.label,
+            target: { _tag: "Branch", path: checkout.path, ref: branch.ref },
+            deletedAt: branch.deletedAt,
+            item: { _tag: "Branch", branch },
+          }) satisfies TrashEntry,
+      );
 
-      const stashes = git.droppedStashes.items.map((stash): TrashEntry => ({
-        key: `${machineId}:${checkout.path}:${stash.ref}`,
-        machine,
-        repositoryLabel: repository.label,
-        target: { _tag: "Stash", path: checkout.path, ref: stash.ref },
-        deletedAt: stash.droppedAt,
-        item: { _tag: "Stash", stash },
-      }));
+      const stashes = git.droppedStashes.items.map(
+        (stash) =>
+          ({
+            key: `${machineId}:${checkout.path}:${stash.ref}`,
+            machine,
+            repositoryLabel: repository.label,
+            target: { _tag: "Stash", path: checkout.path, ref: stash.ref },
+            deletedAt: stash.droppedAt,
+            item: { _tag: "Stash", stash },
+          }) satisfies TrashEntry,
+      );
 
       return [...branches, ...stashes];
     }),
   );
 
   const checkouts = fleet.machines.flatMap((machine) =>
-    machine.trash.map((checkout): TrashEntry => ({
-      key: `${machine.id}:${checkout.id}`,
-      machine,
-      repositoryLabel: labels.get(repositoryKey(checkout.identity)) ?? checkout.directoryName,
-      target: { _tag: "Checkout", id: checkout.id },
-      deletedAt: checkout.trashedAt,
-      item: { _tag: "Checkout", checkout },
-    })),
+    machine.trash.map(
+      (checkout) =>
+        ({
+          key: `${machine.id}:${checkout.id}`,
+          machine,
+          repositoryLabel: labels.get(repositoryKey(checkout.identity)) ?? checkout.directoryName,
+          target: { _tag: "Checkout", id: checkout.id },
+          deletedAt: checkout.trashedAt,
+          item: { _tag: "Checkout", checkout },
+        }) satisfies TrashEntry,
+    ),
   );
 
   return [...refs, ...checkouts].toSorted(

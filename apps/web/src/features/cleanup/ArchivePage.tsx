@@ -28,7 +28,7 @@ interface ArchivedEntry {
   readonly checkout: Checkout;
 }
 
-function archivedEntries(fleet: Fleet): ReadonlyArray<ArchivedEntry> {
+function archivedEntries(fleet: Fleet) {
   const machines = new Map(fleet.machines.map((machine) => [machine.id, machine]));
 
   return fleet.archive.flatMap((repository) =>

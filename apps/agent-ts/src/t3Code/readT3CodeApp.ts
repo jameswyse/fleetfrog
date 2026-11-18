@@ -5,7 +5,7 @@ import { Effect, Option, Predicate, Schema } from "effect";
 
 import { runTool } from "../process/runTool.ts";
 
-import type { T3CodeProvider, T3CodeServer } from "@fleetfrog/protocol/domain/t3Code";
+import type { T3CodeServer } from "@fleetfrog/protocol/domain/t3Code";
 
 const RuntimeFile = Schema.fromJsonString(
   Schema.Struct({
@@ -38,7 +38,7 @@ const decodeProvider = Schema.decodeUnknownOption(ProviderFile);
 
 const readText = (file: string) => readFile(file, "utf8").catch(() => null);
 
-function isRunning(pid: number): boolean {
+function isRunning(pid: number) {
   try {
     process.kill(pid, 0);
 
@@ -122,7 +122,7 @@ export const readT3CodeProviders = Effect.fn("readT3CodeProviders")(function* (c
   return texts
     .flatMap((text) => (text === null ? [] : Option.toArray(decodeProvider(text))))
     .filter(({ enabled }) => enabled)
-    .map((provider): T3CodeProvider => {
+    .map((provider) => {
       const latest = provider.versionAdvisory?.latestVersion ?? null;
 
       return {

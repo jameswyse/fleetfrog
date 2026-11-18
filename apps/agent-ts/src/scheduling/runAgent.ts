@@ -42,12 +42,12 @@ const maximumRetryDelay = Duration.seconds(60);
 const usageInterval = Duration.minutes(1);
 const healthyConnection = Duration.seconds(60);
 
-function sameList(left: ReadonlyArray<string>, right: ReadonlyArray<string>): boolean {
+function sameList(left: ReadonlyArray<string>, right: ReadonlyArray<string>) {
   return left.length === right.length && left.every((item, index) => item === right[index]);
 }
 
 const readCapabilities = loadPolicy.pipe(
-  Effect.map(({ allowedTiers }): AgentCapabilities => ({
+  Effect.map(({ allowedTiers }) => ({
     actions: ActionKind.literals,
     allowedTiers,
     policyReadable: true,
@@ -56,15 +56,18 @@ const readCapabilities = loadPolicy.pipe(
     updatesT3Code: true,
     updatesT3CodeApp: true,
   })),
-  Effect.orElseSucceed((): AgentCapabilities => ({
-    actions: ActionKind.literals,
-    allowedTiers: [],
-    policyReadable: false,
-    createsFolders: true,
-    updatesItself: false,
-    updatesT3Code: true,
-    updatesT3CodeApp: true,
-  })),
+  Effect.orElseSucceed(
+    () =>
+      ({
+        actions: ActionKind.literals,
+        allowedTiers: [],
+        policyReadable: false,
+        createsFolders: true,
+        updatesItself: false,
+        updatesT3Code: true,
+        updatesT3CodeApp: true,
+      }) satisfies AgentCapabilities,
+  ),
 );
 
 const warnIfUnreadable = (capabilities: AgentCapabilities) =>

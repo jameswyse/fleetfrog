@@ -6,7 +6,7 @@ import { SqlClient } from "effect/sql";
 import { UserId } from "@fleetfrog/protocol/domain/user";
 
 import { PreferencesStore } from "../../settings/preferencesStore.ts";
-import { migrations } from "../database.ts";
+import { migrations } from "./registry.ts";
 
 const before = Object.fromEntries(Object.entries(migrations).filter(([name]) => name < "0014"));
 const ada = UserId.make("0b8f6a52-7f9e-4c55-9a8e-2f4a1c9d3e10");

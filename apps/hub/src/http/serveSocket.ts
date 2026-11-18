@@ -49,7 +49,7 @@ export const listenOnServeSocket = Effect.fnUntraced(function* (server: Server, 
   yield* Effect.logInfo(`Listening for Tailscale Serve on ${path}`);
 });
 
-function fromServe(request: HttpServerRequest.HttpServerRequest): boolean {
+function fromServe(request: HttpServerRequest.HttpServerRequest) {
   return serveConnections.has(NodeHttpServerRequest.toIncomingMessage(request).socket);
 }
 

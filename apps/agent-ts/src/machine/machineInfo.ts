@@ -21,7 +21,7 @@ export const agentVersion = packageJson.version;
 export const runsFromSource =
   "This agent runs from source, so it can't update itself. Update it with Git and restart it.";
 
-function currentPlatform(): Platform {
+function currentPlatform() {
   if (process.platform === "linux" || process.platform === "darwin") {
     return process.platform;
   }

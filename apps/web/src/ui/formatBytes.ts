@@ -2,7 +2,7 @@ const units = ["KB", "MB", "GB", "TB"] as const;
 const oneDecimal = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
 const wholeNumber = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
 
-function rounded(value: number): number {
+function rounded(value: number) {
   return value < 10 ? Math.round(value * 10) / 10 : Math.round(value);
 }
 

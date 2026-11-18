@@ -85,7 +85,7 @@ function checkoutSkipReason(
   checkout: Checkout,
   kind: ActionKind,
   blocker: (git: GitStatus) => SkipReason | null,
-): string | null {
+) {
   const blocked = machineBlocker(machine, kind);
 
   if (blocked !== null) {
@@ -141,7 +141,7 @@ export function switchSkipReason(
 
 export type PullScope = Exclude<ActionScope, { _tag: "Checkout" }>;
 
-function inScope(repository: Repository, scope: PullScope): boolean {
+function inScope(repository: Repository, scope: PullScope) {
   if (scope._tag === "Repository") {
     return repository.key === scope.repositoryKey;
   }

@@ -9,7 +9,7 @@ import { UserId } from "@fleetfrog/protocol/domain/user";
 
 import { PreferencesStore } from "../../settings/preferencesStore.ts";
 import { ProjectLayoutStore } from "../../settings/projectLayoutStore.ts";
-import { migrations } from "../database.ts";
+import { migrations } from "./registry.ts";
 
 import type { ProjectLayout } from "@fleetfrog/protocol/domain/projectLayout";
 

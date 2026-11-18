@@ -114,16 +114,19 @@ export function removalRuns(options: {
     readonly inspection: WorktreeInspection;
   }>;
 }): Targeted | null {
-  const [first, ...rest] = options.removable.map(({ worktree, inspection }): TargetedRun => ({
-    machineId: options.machineId,
-    request: {
-      _tag: "RemoveWorktree",
-      path: worktree.mainPath,
-      worktree: worktree.path,
-      fingerprint: inspection.fingerprint,
-      discardChanges: false,
-    },
-  }));
+  const [first, ...rest] = options.removable.map(
+    ({ worktree, inspection }) =>
+      ({
+        machineId: options.machineId,
+        request: {
+          _tag: "RemoveWorktree",
+          path: worktree.mainPath,
+          worktree: worktree.path,
+          fingerprint: inspection.fingerprint,
+          discardChanges: false,
+        },
+      }) satisfies TargetedRun,
+  );
 
   return first === undefined ? null : [first, ...rest];
 }
@@ -155,16 +158,18 @@ export function branchDeletionRuns(options: {
 }): Targeted | null {
   const [first, ...rest] = Array.from(
     Map.groupBy(options.removed, ({ mainPath }) => mainPath),
-    ([mainPath, clone]): TargetedRun | null => {
+    ([mainPath, clone]) => {
       const branches = new Map(clone.map(({ branch, sha }) => [branch, { name: branch, sha }]));
       const [branch, ...others] = branches.values();
 
-      return branch === undefined
-        ? null
-        : {
-            machineId: options.machineId,
-            request: { _tag: "DeleteBranches", path: mainPath, branches: [branch, ...others] },
-          };
+      return (
+        branch === undefined
+          ? null
+          : {
+              machineId: options.machineId,
+              request: { _tag: "DeleteBranches", path: mainPath, branches: [branch, ...others] },
+            }
+      ) satisfies TargetedRun | null;
     },
   ).filter((run) => run !== null);
 

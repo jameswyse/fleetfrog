@@ -16,10 +16,7 @@ export function makeAgentQueries<Answer>(options: {
   >();
 
   return {
-    ask: (
-      machineId: MachineId,
-      send: (requestId: string) => Effect.Effect<string | null>,
-    ): Effect.Effect<Answer> =>
+    ask: (machineId: MachineId, send: (requestId: string) => Effect.Effect<string | null>) =>
       Effect.gen(function* () {
         const requestId = randomUUID();
         const answer = yield* Deferred.make<Answer>();
@@ -45,7 +42,7 @@ export function makeAgentQueries<Answer>(options: {
       readonly machineId: MachineId;
       readonly requestId: string;
       readonly value: Answer;
-    }): Effect.Effect<void> =>
+    }) =>
       Effect.suspend(() => {
         const request = pending.get(answer.requestId);
 

@@ -71,7 +71,7 @@ const readPolicy = Effect.gen(function* () {
   const contents = yield* Effect.tryPromise({
     try: () =>
       readFile(file, "utf8").then(
-        (text): string | null => text,
+        (text) => text,
         (error: unknown) => {
           if (isMissingFile(error)) {
             return null;
@@ -80,7 +80,7 @@ const readPolicy = Effect.gen(function* () {
           throw error;
         },
       ),
-    catch: (error) => new ConfigUnavailable({ path: file, message: String(error) }),
+    catch: (error) => new ConfigUnavailable({ path: file, message: String(error), cause: error }),
   });
 
   if (contents === null) {
@@ -90,7 +90,8 @@ const readPolicy = Effect.gen(function* () {
   return yield* decodePolicy(contents).pipe(
     Effect.map(decidePolicy),
     Effect.mapError(
-      () => new ConfigUnavailable({ path: file, message: "The saved policy is not valid." }),
+      (cause) =>
+        new ConfigUnavailable({ path: file, message: "The saved policy is not valid.", cause }),
     ),
   );
 });
@@ -112,7 +113,8 @@ export const savePolicy = (policy: AgentPolicy) =>
       await chmod(staged, 0o600);
       await rename(staged, policyPath());
     },
-    catch: (error) => new ConfigUnavailable({ path: policyPath(), message: String(error) }),
+    catch: (error) =>
+      new ConfigUnavailable({ path: policyPath(), message: String(error), cause: error }),
   });
 
 const auditDefaults = (defaulted: ReadonlyArray<Tier>, policy: AgentPolicy) =>
@@ -135,17 +137,19 @@ export const recordPolicyDefaults = Effect.gen(function* () {
   return defaulted;
 });
 
+const unreadablePolicy: ReadPolicy = {
+  policy: { allowedTiers: [] },
+  defaulted: [],
+  incomplete: true,
+};
+
 export const changePolicy = Effect.fn("changePolicy")(function* (change: {
   readonly allow: ReadonlyArray<Tier>;
   readonly deny: ReadonlyArray<Tier>;
 }) {
   const current = yield* readPolicy.pipe(Effect.option);
 
-  const { policy, defaulted, incomplete } = Option.getOrElse(current, (): ReadPolicy => ({
-    policy: { allowedTiers: [] },
-    defaulted: [],
-    incomplete: true,
-  }));
+  const { policy, defaulted, incomplete } = Option.getOrElse(current, () => unreadablePolicy);
 
   const replacedDamaged = Option.isNone(current);
 

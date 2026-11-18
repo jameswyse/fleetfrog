@@ -8,11 +8,10 @@ import { outlineCell } from "./workingTrees.ts";
 import type {
   Checkout,
   GitStatus,
-  LocalBranch,
   MergedPullRequest,
   Upstream,
 } from "@fleetfrog/protocol/domain/checkout";
-import type { Machine, MachineCheckout } from "@fleetfrog/protocol/domain/fleet";
+import type { Machine } from "@fleetfrog/protocol/domain/fleet";
 import type { T3CodeThread } from "@fleetfrog/protocol/domain/t3Code";
 
 const at = DateTime.makeUnsafe("2026-10-20T00:00:00Z");
@@ -20,7 +19,7 @@ const none = { items: [], total: 0 };
 const studio = MachineId.make("aaaaaaaa-0000-4000-8000-000000000000");
 const main = "/Users/dev/Projects/shop";
 
-function machineWith(threads: ReadonlyArray<T3CodeThread> = []): Machine {
+function machineWith(threads: ReadonlyArray<T3CodeThread> = []) {
   return {
     id: studio,
     info: {
@@ -59,13 +58,10 @@ function machineWith(threads: ReadonlyArray<T3CodeThread> = []): Machine {
       server: null,
       providers: [],
     },
-  };
+  } satisfies Machine;
 }
 
-function branch(
-  name: string,
-  options: { readonly sha?: string; readonly merged?: boolean } = {},
-): LocalBranch {
+function branch(name: string, options: { readonly sha?: string; readonly merged?: boolean } = {}) {
   return {
     name,
     upstream: { name: `origin/${name}`, ahead: 0, behind: 0, gone: false },
@@ -96,7 +92,7 @@ function entry(
     readonly git?: Partial<GitStatus>;
     readonly merged?: ReadonlyArray<MergedPullRequest>;
   },
-): MachineCheckout {
+) {
   const items = options.git?.branches?.items ?? branches;
   const tip = items.find(({ name }) => name === options.branch)?.tip ?? null;
 

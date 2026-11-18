@@ -22,7 +22,7 @@ const filters: ReadonlyArray<{
   { value: "out-of-sync", label: "Out of sync", symbol: { text: "↑↓", className: "text-sync" } },
 ];
 
-function isTyping(target: EventTarget | null): boolean {
+function isTyping(target: EventTarget | null) {
   return (
     target instanceof HTMLElement &&
     (target.isContentEditable || target.closest("input, textarea, select, dialog") !== null)

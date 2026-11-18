@@ -8,7 +8,7 @@ import { AgentSessions } from "./agentSessions.ts";
 
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
 
-function failed(message: string): FolderOutcome {
+function failed(message: string) {
   return FolderOutcome.cases.Failed.make({ message });
 }
 
@@ -26,7 +26,11 @@ export class FolderRequests extends Context.Service<
   static readonly layer = Layer.effect(this)(
     Effect.gen(function* () {
       const sessions = yield* AgentSessions;
-      const queries = makeAgentQueries({ timeout: Duration.seconds(20), unanswered: failed });
+
+      const queries = makeAgentQueries<FolderOutcome>({
+        timeout: Duration.seconds(20),
+        unanswered: failed,
+      });
 
       return {
         create: Effect.fn("FolderRequests.create")(function* (machineId, path) {
@@ -44,8 +48,9 @@ export class FolderRequests extends Context.Service<
             sessions.send(machineId, HubCommand.cases.CreateFolder.make({ requestId, path })),
           );
         }),
-        answer: ({ machineId, requestId, outcome }) =>
+        answer: Effect.fn("FolderRequests.answer")(({ machineId, requestId, outcome }) =>
           queries.answer({ machineId, requestId, value: outcome }),
+        ),
       };
     }),
   );

@@ -183,7 +183,7 @@ function roleLockReason({
 }: {
   readonly isMe: boolean;
   readonly roleFromGroup: string | null;
-}): string | null {
+}) {
   if (roleFromGroup !== null) {
     return `Members of the ${roleFromGroup} group at the provider are admins, checked at each sign-in.`;
   }

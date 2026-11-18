@@ -127,7 +127,7 @@ export class MachineStore extends Context.Service<
       const toRecords = (rows: ReadonlyArray<unknown>) =>
         decodeRows(rows).pipe(
           Effect.map((decoded) =>
-            decoded.map((row): MachineRecord => ({
+            decoded.map((row) => ({
               id: row.id,
               info: row.info_json,
               customName: row.custom_name,
@@ -163,7 +163,7 @@ export class MachineStore extends Context.Service<
           Effect.flatMap(toRecords),
           Effect.orDie,
         ),
-        find: (machineId) =>
+        find: Effect.fn("MachineStore.find")((machineId) =>
           sql`select * from machines where id = ${machineId}`.pipe(
             Effect.flatMap(toRecords),
             Effect.orDie,
@@ -173,14 +173,19 @@ export class MachineStore extends Context.Service<
                 : Effect.succeed(record),
             ),
           ),
-        findIdByTokenHash: (tokenHash) =>
-          sql<{ id: string }>`select id from machines where token_hash = ${tokenHash}`.pipe(
-            Effect.flatMap(
-              Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ id: MachineId }))),
+        ),
+        findIdByTokenHash: Effect.fn("MachineStore.findIdByTokenHash")(
+          (tokenHash) =>
+            sql<{
+              id: string;
+            }>`select id from machines where token_hash = ${tokenHash}`.pipe(
+              Effect.flatMap(
+                Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ id: MachineId }))),
+              ),
+              Effect.map((rows) => Option.fromNullishOr(rows[0]?.id)),
             ),
-            Effect.map((rows) => Option.fromNullishOr(rows[0]?.id)),
-            Effect.orDie,
-          ),
+          Effect.orDie,
+        ),
         create: Effect.fn("MachineStore.create")(function* (machine) {
           yield* sql`insert into machines ${sql.insert({
             id: machine.id,
@@ -199,57 +204,68 @@ export class MachineStore extends Context.Service<
         recordSeen: Effect.fn("MachineStore.recordSeen")(function* (id) {
           yield* sql`update machines set last_seen_at = ${yield* now} where id = ${id}`;
         }, Effect.orDie),
-        recordScan: ({ machineId, kind, completedAt }) => {
-          const at = DateTime.formatIso(completedAt);
+        recordScan: Effect.fn("MachineStore.recordScan")(
+          ({ machineId, kind, completedAt }) => {
+            const at = DateTime.formatIso(completedAt);
 
-          return (
-            kind === "discovery"
+            return kind === "discovery"
               ? sql`update machines set last_discovery_at = ${at}, last_status_at = ${at} where id = ${machineId}`
-              : sql`update machines set last_status_at = ${at} where id = ${machineId}`
-          ).pipe(Effect.asVoid, Effect.orDie);
-        },
-        recordUsage: ({ machineId, usage }) =>
-          sql`update machines set usage_json = ${encodeUsage(usage)} where id = ${machineId}`.pipe(
-            Effect.asVoid,
-            Effect.orDie,
-          ),
-        recordRootStatuses: ({ machineId, roots }) =>
-          sql`update machines set root_statuses_json = ${encodeRootStatuses(roots)} where id = ${machineId}`.pipe(
-            Effect.asVoid,
-            Effect.orDie,
-          ),
-        rename: ({ machineId, customName }) =>
+              : sql`update machines set last_status_at = ${at} where id = ${machineId}`;
+          },
+          Effect.asVoid,
+          Effect.orDie,
+        ),
+        recordUsage: Effect.fn("MachineStore.recordUsage")(
+          ({ machineId, usage }) =>
+            sql`update machines set usage_json = ${encodeUsage(usage)} where id = ${machineId}`,
+          Effect.asVoid,
+          Effect.orDie,
+        ),
+        recordRootStatuses: Effect.fn("MachineStore.recordRootStatuses")(
+          ({ machineId, roots }) =>
+            sql`update machines set root_statuses_json = ${encodeRootStatuses(roots)} where id = ${machineId}`,
+          Effect.asVoid,
+          Effect.orDie,
+        ),
+        rename: Effect.fn("MachineStore.rename")(({ machineId, customName }) =>
           updateOne(
             machineId,
             sql`update machines set custom_name = ${customName} where id = ${machineId} returning id`,
           ),
-        setKind: ({ machineId, kind }) =>
+        ),
+        setKind: Effect.fn("MachineStore.setKind")(({ machineId, kind }) =>
           updateOne(
             machineId,
             sql`update machines set custom_kind = ${kind} where id = ${machineId} returning id`,
           ),
-        setDiscoveryRoots: ({ machineId, roots }) =>
+        ),
+        setDiscoveryRoots: Effect.fn("MachineStore.setDiscoveryRoots")(({ machineId, roots }) =>
           updateOne(
             machineId,
             sql`update machines set discovery_roots_json = ${encodeRoots(roots)} where id = ${machineId} returning id`,
           ),
-        recordTrash: ({ machineId, items }) =>
-          sql`update machines set trash_json = ${encodeTrash(items)} where id = ${machineId}`.pipe(
-            Effect.orDie,
-            Effect.asVoid,
-          ),
-        recordT3Code: ({ machineId, status }) =>
-          sql`update machines set t3code_json = ${encodeT3Code(status)} where id = ${machineId}`.pipe(
-            Effect.orDie,
-            Effect.asVoid,
-          ),
-        setArchiveFolder: ({ machineId, folder }) =>
+        ),
+        recordTrash: Effect.fn("MachineStore.recordTrash")(
+          ({ machineId, items }) =>
+            sql`update machines set trash_json = ${encodeTrash(items)} where id = ${machineId}`,
+          Effect.orDie,
+          Effect.asVoid,
+        ),
+        recordT3Code: Effect.fn("MachineStore.recordT3Code")(
+          ({ machineId, status }) =>
+            sql`update machines set t3code_json = ${encodeT3Code(status)} where id = ${machineId}`,
+          Effect.orDie,
+          Effect.asVoid,
+        ),
+        setArchiveFolder: Effect.fn("MachineStore.setArchiveFolder")(({ machineId, folder }) =>
           updateOne(
             machineId,
             sql`update machines set archive_folder = ${folder} where id = ${machineId} returning id`,
           ),
-        remove: (machineId) =>
+        ),
+        remove: Effect.fn("MachineStore.remove")((machineId) =>
           updateOne(machineId, sql`delete from machines where id = ${machineId} returning id`),
+        ),
       };
     }),
   );

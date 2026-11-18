@@ -142,18 +142,20 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
     path: string,
     network: Network,
     perform: (location: CheckoutLocation, output: ActionOutput) => Effect.Effect<ActionOutcome>,
-  ): Plan => {
+  ) => {
     const location = options.catalogue.locate(path);
 
-    return location === undefined
-      ? { _tag: "Refused", message: `This machine has no checkout at ${path}.` }
-      : {
-          _tag: "Ready",
-          lockKey: location.commonDirectory,
-          network,
-          perform: (output) => perform(location, output),
-          afterwards: () => options.catalogue.rescanRepository(location.commonDirectory),
-        };
+    return (
+      location === undefined
+        ? { _tag: "Refused", message: `This machine has no checkout at ${path}.` }
+        : {
+            _tag: "Ready",
+            lockKey: location.commonDirectory,
+            network,
+            perform: (output) => perform(location, output),
+            afterwards: () => options.catalogue.rescanRepository(location.commonDirectory),
+          }
+    ) satisfies Plan;
   };
 
   const movePlan = (
@@ -164,14 +166,14 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
       folders: Folders,
       output: ActionOutput,
     ) => Effect.Effect<ActionOutcome>,
-  ): Plan => {
+  ) => {
     const location = options.catalogue.locate(path);
 
     if (location === undefined || location.placement._tag !== from) {
       return {
         _tag: "Refused",
         message: `This machine has no ${from === "Archive" ? "archived " : ""}checkout at ${path}.`,
-      };
+      } satisfies Plan;
     }
 
     return {
@@ -184,45 +186,47 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
         (outcome.result._tag === "Archived" || outcome.result._tag === "Unarchived")
           ? options.catalogue.followRepository(location.commonDirectory, outcome.result.path)
           : options.catalogue.rescanRepository(location.commonDirectory),
-    };
+    } satisfies Plan;
   };
 
   const waitForDiscovery = options.catalogue.discovered.pipe(Effect.timeoutOption(discoveryWait));
 
   const inspectionOptions = options.loadPolicy.pipe(
-    Effect.map(({ allowedTiers }): InspectionOptions => ({
-      fetch: allowedTiers.includes("git") ? "Allowed" : "NotAllowed",
-    })),
-    Effect.orElseSucceed((): InspectionOptions => ({ fetch: "NotAllowed" })),
+    Effect.map(
+      ({ allowedTiers }) =>
+        ({
+          fetch: allowedTiers.includes("git") ? "Allowed" : "NotAllowed",
+        }) satisfies InspectionOptions,
+    ),
+    Effect.orElseSucceed(() => ({ fetch: "NotAllowed" }) satisfies InspectionOptions),
   );
 
   const removalPlan = (
     path: string,
     network: Network,
     remove: (location: CheckoutLocation, output: ActionOutput) => Effect.Effect<ActionOutcome>,
-  ): Plan => {
+  ) => {
     const location = options.catalogue.locate(path);
 
-    return location === undefined
-      ? { _tag: "Refused", message: `This machine has no checkout at ${path}.` }
-      : {
-          _tag: "Ready",
-          lockKey: location.commonDirectory,
-          network,
-          perform: (output) => remove(location, output),
-          afterwards: (outcome) =>
-            outcome._tag === "Succeeded"
-              ? options.catalogue
-                  .followRepository(location.commonDirectory, null)
-                  .pipe(Effect.andThen(options.catalogue.reportTrash))
-              : options.catalogue.rescanRepository(location.commonDirectory),
-        };
+    return (
+      location === undefined
+        ? { _tag: "Refused", message: `This machine has no checkout at ${path}.` }
+        : {
+            _tag: "Ready",
+            lockKey: location.commonDirectory,
+            network,
+            perform: (output) => remove(location, output),
+            afterwards: (outcome) =>
+              outcome._tag === "Succeeded"
+                ? options.catalogue
+                    .followRepository(location.commonDirectory, null)
+                    .pipe(Effect.andThen(options.catalogue.reportTrash))
+                : options.catalogue.rescanRepository(location.commonDirectory),
+          }
+    ) satisfies Plan;
   };
 
-  const mainLocation = (
-    path: string,
-    worktree: string,
-  ): Pick<CheckoutLocation, "path" | "commonDirectory"> | undefined => {
+  const mainLocation = (path: string, worktree: string) => {
     const main = options.catalogue.locate(path);
 
     if (main !== undefined) {
@@ -243,42 +247,45 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
       readonly fingerprint: string;
       readonly discardChanges: boolean;
     },
-  ): Plan => {
+  ) => {
     const location = mainLocation(path, removal.worktree);
 
-    return location === undefined
-      ? { _tag: "Refused", message: `This machine has no checkout at ${path}.` }
-      : {
-          _tag: "Ready",
-          lockKey: location.commonDirectory,
-          network: "Local",
-          perform: (output) => removeWorktree(location, removal, output),
-          afterwards: (outcome) =>
-            outcome._tag === "Succeeded"
-              ? options.catalogue.followRepository(location.commonDirectory, location.path)
-              : options.catalogue.rescanRepository(location.commonDirectory),
-        };
+    return (
+      location === undefined
+        ? { _tag: "Refused", message: `This machine has no checkout at ${path}.` }
+        : {
+            _tag: "Ready",
+            lockKey: location.commonDirectory,
+            network: "Local",
+            perform: (output) => removeWorktree(location, removal, output),
+            afterwards: (outcome) =>
+              outcome._tag === "Succeeded"
+                ? options.catalogue.followRepository(location.commonDirectory, location.path)
+                : options.catalogue.rescanRepository(location.commonDirectory),
+          }
+    ) satisfies Plan;
   };
 
   const trashItemPlan = (
     id: TrashId,
     act: (trash: string, id: TrashId, output: ActionOutput) => Effect.Effect<ActionOutcome>,
-  ): Plan => ({
-    _tag: "Ready",
-    lockKey: `trash:${id}`,
-    network: "Local",
-    perform: (output) => act(options.trashDirectory, id, output),
-    afterwards: (outcome) =>
-      outcome._tag === "Succeeded" &&
-      outcome.result._tag === "Restored" &&
-      outcome.result.path !== null
-        ? options.catalogue
-            .followRepository(null, outcome.result.path)
-            .pipe(Effect.andThen(options.catalogue.reportTrash))
-        : options.catalogue.reportTrash,
-  });
+  ) =>
+    ({
+      _tag: "Ready",
+      lockKey: `trash:${id}`,
+      network: "Local",
+      perform: (output) => act(options.trashDirectory, id, output),
+      afterwards: (outcome) =>
+        outcome._tag === "Succeeded" &&
+        outcome.result._tag === "Restored" &&
+        outcome.result.path !== null
+          ? options.catalogue
+              .followRepository(null, outcome.result.path)
+              .pipe(Effect.andThen(options.catalogue.reportTrash))
+          : options.catalogue.reportTrash,
+    }) satisfies Plan;
 
-  const plan = (request: ActionRequest): Plan =>
+  const plan = (request: ActionRequest) =>
     ActionRequest.match(request, {
       Fetch: ({ path }) => checkoutPlan(path, "Network", fetchRepository),
       Pull: ({ path }) => checkoutPlan(path, "Network", pullCheckout),
@@ -328,7 +335,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
             checkoutPlan(path, "Local", (location, output) => purgeStash(location, ref, output)),
           Checkout: ({ id }) => trashItemPlan(id, purgeCheckout),
         }),
-      Clone: ({ url, destination }): Plan => {
+      Clone: ({ url, destination }) => {
         const folders = options.folders();
 
         const checked = checkCloneDestination({
@@ -339,7 +346,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
         });
 
         if (checked._tag !== "Valid") {
-          return { _tag: "Refused", message: destinationProblems[checked._tag] };
+          return { _tag: "Refused", message: destinationProblems[checked._tag] } satisfies Plan;
         }
 
         return {
@@ -355,7 +362,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
             outcome._tag === "Succeeded"
               ? options.catalogue.followRepository(null, checked.path)
               : Effect.void,
-        };
+        } satisfies Plan;
       },
     });
 
@@ -395,10 +402,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
       }),
     );
 
-  const inspect = (request: {
-    readonly path: string;
-    readonly worktree: string | null;
-  }): Effect.Effect<InspectionResult> =>
+  const inspect = (request: { readonly path: string; readonly worktree: string | null }) =>
     Effect.gen(function* () {
       const { path, worktree } = request;
 
@@ -528,7 +532,7 @@ export const makeActionRunner = Effect.fn("makeActionRunner")(function* (options
         yield* Effect.forkScoped(reportProgress(runId, output));
 
         const running = planned.perform(output).pipe(
-          Effect.map((outcome): Performed => {
+          Effect.map((outcome) => {
             const performed = { outcome, afterwards: planned.afterwards(outcome) };
 
             settle(performed);

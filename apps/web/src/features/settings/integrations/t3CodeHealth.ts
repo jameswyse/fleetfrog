@@ -25,7 +25,7 @@ export type T3CodeIssue =
 
 const machineNames = new Intl.ListFormat("en-AU", { type: "conjunction" });
 
-function machineIssues(machine: Machine): ReadonlyArray<T3CodeIssue> {
+function machineIssues(machine: Machine) {
   const reading = machine.t3Code?.reading;
   const machines = [machine];
 
@@ -34,7 +34,9 @@ function machineIssues(machine: Machine): ReadonlyArray<T3CodeIssue> {
   }
 
   if (reading._tag === "Unreadable") {
-    return [{ _tag: "Unreadable", machines, message: reading.message }];
+    return [
+      { _tag: "Unreadable", machines, message: reading.message },
+    ] satisfies ReadonlyArray<T3CodeIssue>;
   }
 
   const direction = schemaDrift(reading.schema);
@@ -62,7 +64,7 @@ export function issueKey(issue: T3CodeIssue): string {
 export function t3CodeIssues(fleet: Fleet): ReadonlyArray<T3CodeIssue> {
   const issues = new Map<string, T3CodeIssue>();
 
-  for (const issue of fleet.machines.flatMap(machineIssues)) {
+  for (const issue of fleet.machines.flatMap<T3CodeIssue>(machineIssues)) {
     const key = issueKey(issue);
     const earlier = issues.get(key);
 

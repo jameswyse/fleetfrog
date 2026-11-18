@@ -26,7 +26,7 @@ function status(options: {
   readonly version: string | null;
   readonly serviceManaged?: boolean;
   readonly threads?: ReadonlyArray<T3CodeThreadState>;
-}): T3CodeStatus {
+}) {
   return {
     database: "/home/dev/.t3/userdata/statev2.sqlite",
     reading: {
@@ -53,7 +53,7 @@ function status(options: {
       serviceManaged: options.serviceManaged ?? true,
     },
     providers: [],
-  };
+  } satisfies T3CodeStatus;
 }
 
 function machine(
@@ -206,8 +206,7 @@ describe("canUpdateT3Code", () => {
       canUpdateT3Code(
         machine({
           ...read,
-          reading:
-            read.reading._tag === "Read" ? { ...read.reading, unreadRecords: 1 } : read.reading,
+          reading: { ...read.reading, unreadRecords: 1 },
         }),
         releases,
       ),

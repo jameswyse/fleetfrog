@@ -49,23 +49,28 @@ export interface CloneOutline {
 
 const active: WorkingTreeLifecycle = { _tag: "Active" };
 
-function gitOf(checkout: Checkout): GitStatus | null {
+function gitOf(checkout: Checkout) {
   return checkout.status._tag === "Read" ? checkout.status.git : null;
 }
 
-function problemOf(checkout: Checkout): WorkingTreeProblem | null {
+function problemOf(checkout: Checkout) {
   if (checkout.status._tag === "Failed") {
-    return { _tag: "Unreadable", message: checkout.status.message };
+    return {
+      _tag: "Unreadable",
+      message: checkout.status.message,
+    } satisfies WorkingTreeProblem | null;
   }
 
   const { git } = checkout.status;
   const files = conflictedFiles(git);
 
   if (files > 0) {
-    return { _tag: "Conflicts", files };
+    return { _tag: "Conflicts", files } satisfies WorkingTreeProblem | null;
   }
 
-  return git.operation === null ? null : { _tag: "Operation", operation: git.operation };
+  return (
+    git.operation === null ? null : { _tag: "Operation", operation: git.operation }
+  ) satisfies WorkingTreeProblem | null;
 }
 
 function lifecycleOf(options: {
@@ -73,7 +78,7 @@ function lifecycleOf(options: {
   readonly checkout: Checkout;
   readonly merge: MergeProof | null;
   readonly ignoredBranches: ReadonlyArray<string>;
-}): WorkingTreeLifecycle {
+}) {
   const { checkout, merge } = options;
   const git = gitOf(checkout);
 
@@ -99,13 +104,13 @@ function lifecycleOf(options: {
     return {
       _tag: "Finished",
       pullRequest: merge._tag === "PullRequest" ? merge.pullRequest.number : null,
-    };
+    } satisfies WorkingTreeLifecycle;
   }
 
-  return upstream?.gone === true ? { _tag: "RemoteGone" } : active;
+  return (upstream?.gone === true ? { _tag: "RemoteGone" } : active) satisfies WorkingTreeLifecycle;
 }
 
-function lastActiveAt(machine: Machine, checkout: Checkout): number {
+function lastActiveAt(machine: Machine, checkout: Checkout) {
   return Math.max(
     gitOf(checkout)?.lastCommit?.committedAt.epochMilliseconds ?? 0,
     ...threadsAt(machine, checkout.path).map(({ updatedAt }) => updatedAt.epochMilliseconds),
@@ -117,7 +122,7 @@ function listedTree(options: {
   readonly entry: MachineCheckout;
   readonly presence: LinkedWorktree["state"];
   readonly ignoredBranches: ReadonlyArray<string>;
-}): WorkingTree {
+}) {
   const { checkout } = options.entry;
   const git = gitOf(checkout);
   const merge = mergeProof(checkout);
@@ -150,7 +155,7 @@ function outlineClone(options: {
   readonly path: string;
   readonly entries: ReadonlyArray<MachineCheckout>;
   readonly ignoredBranches: ReadonlyArray<string>;
-}): CloneOutline {
+}) {
   const { machine, ignoredBranches } = options;
   const mainEntry = options.entries.find(({ checkout }) => checkout.worktree._tag === "Main");
   const reported = mainEntry === undefined ? [] : (gitOf(mainEntry.checkout)?.worktrees ?? []);
@@ -170,18 +175,21 @@ function outlineClone(options: {
 
   const unlisted = reported
     .filter(({ path }) => !linkedEntries.some(({ checkout }) => checkout.path === path))
-    .map((worktree): WorkingTree => ({
-      kind: "Linked",
-      path: worktree.path,
-      entry: null,
-      git: null,
-      branch: worktree.branch,
-      presence: worktree.state,
-      merge: null,
-      problem: null,
-      lifecycle: active,
-      lastActive: 0,
-    }));
+    .map(
+      (worktree) =>
+        ({
+          kind: "Linked",
+          path: worktree.path,
+          entry: null,
+          git: null,
+          branch: worktree.branch,
+          presence: worktree.state,
+          merge: null,
+          problem: null,
+          lifecycle: active,
+          lastActive: 0,
+        }) satisfies WorkingTree,
+    );
 
   const main =
     mainEntry === undefined

@@ -7,7 +7,7 @@ import type { App, Screen } from "e2e";
 
 export async function openCheckout(app: App, screen: Screen, name: string) {
   await app.open("/");
-  const row = screen.getByRole("row", { name: new RegExp(`^${name} `) });
+  const row = screen.getByRole("row", { name: new RegExp(`^${RegExp.escape(name)} `) });
   await row.getByRole("button", { name: /main/ }).first().click();
   await expect(
     screen.getByRole("button", { name: "More actions for this checkout" }),
@@ -15,7 +15,7 @@ export async function openCheckout(app: App, screen: Screen, name: string) {
 }
 
 function startingWith(text: string) {
-  return new RegExp(`^${text.replaceAll(/[$()*+.?[\\\]^{|}]/g, String.raw`\$&`)}(?: |$)`);
+  return new RegExp(`^${RegExp.escape(text)}(?: |$)`);
 }
 
 export function switchMenuItem(screen: Screen, branch: string) {

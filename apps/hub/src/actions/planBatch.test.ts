@@ -28,10 +28,7 @@ const everything: AgentCapabilities = {
   updatesT3CodeApp: false,
 };
 
-function machine(
-  id: string,
-  connection: { readonly capabilities: AgentCapabilities } | "offline",
-): Machine {
+function machine(id: string, connection: { readonly capabilities: AgentCapabilities } | "offline") {
   return {
     id: MachineId.make(id),
     info: {
@@ -61,7 +58,7 @@ function machine(
     t3Code: null,
     update: null,
     t3CodeUpdate: null,
-  };
+  } satisfies Machine;
 }
 
 const online = machine("aaaaaaaa-0000-4000-8000-000000000000", { capabilities: everything });
@@ -94,7 +91,7 @@ const locked = machine("dddddddd-0000-4000-8000-000000000000", {
 function checkout(
   path: string,
   options: { readonly linked?: boolean; readonly originUrl?: string | null } = {},
-): Checkout {
+) {
   return {
     path,
     identity: { _tag: "Remote", host: "github.com", path: "acme/shop" },
@@ -108,12 +105,12 @@ function checkout(
     status: { _tag: "Failed", message: "" },
     github: null,
     scannedAt: now,
-  };
+  } satisfies Checkout;
 }
 
 const shopKey = RepositoryKey.make("remote:github.com/acme/shop");
 
-function fleetWith(checkouts: Repository["checkouts"]): Fleet {
+function fleetWith(checkouts: Repository["checkouts"]) {
   return {
     hubVersion: "0.0.0",
     t3CodeReleases: unknownT3CodeReleases,
@@ -132,7 +129,7 @@ function fleetWith(checkouts: Repository["checkouts"]): Fleet {
     polling: defaultPollingSettings,
     cleanup: defaultCleanupSettings,
     integrations: defaultIntegrationSettings,
-  };
+  } satisfies Fleet;
 }
 
 const onEveryMachine = fleetWith([
@@ -144,7 +141,7 @@ const onEveryMachine = fleetWith([
   { machineId: locked.id, checkout: checkout("/home/dev/Projects/shop") },
 ]);
 
-function outcomeName(outcome: ActionOutcome | null): string | null {
+function outcomeName(outcome: ActionOutcome | null) {
   if (outcome === null) {
     return null;
   }

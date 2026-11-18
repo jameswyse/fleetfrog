@@ -9,7 +9,7 @@ function derive(
   password: string,
   salt: Buffer,
   { N, r, p }: { readonly N: number; readonly r: number; readonly p: number },
-): Effect.Effect<Buffer> {
+) {
   return Effect.callback<Buffer>((resume) => {
     scrypt(password, salt, keyLength, { N, r, p, maxmem: cost.maxmem }, (error, key) =>
       resume(error === null ? Effect.succeed(key) : Effect.die(error)),

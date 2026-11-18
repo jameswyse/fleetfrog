@@ -21,7 +21,7 @@ type ServeConfig = typeof ServeConfig.Type;
 
 const loopbackHosts = new Set(["127.0.0.1", "localhost"]);
 
-function proxiesTo(target: string, port: number): boolean {
+function proxiesTo(target: string, port: number) {
   if (!URL.canParse(target)) {
     return false;
   }

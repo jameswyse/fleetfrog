@@ -37,12 +37,12 @@ export function makeActionOutput() {
         }
       }
     },
-    progress: (): string | null => {
+    progress: () => {
       const line = (current || drawn || lines.at(-1)) ?? null;
 
       return line === null ? null : redactCredentials(line);
     },
-    tail: (): ReadonlyArray<string> => {
+    tail: () => {
       const pending = current === "" ? drawn : current;
 
       return (pending === "" ? lines : [...lines, pending])

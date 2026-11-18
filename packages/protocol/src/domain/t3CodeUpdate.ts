@@ -55,7 +55,7 @@ function versionParts(version: string) {
   };
 }
 
-function compareIdentifiers(left: string, right: string): number {
+function compareIdentifiers(left: string, right: string) {
   const leftNumber = /^\d+$/.test(left) ? Number(left) : null;
   const rightNumber = /^\d+$/.test(right) ? Number(right) : null;
 

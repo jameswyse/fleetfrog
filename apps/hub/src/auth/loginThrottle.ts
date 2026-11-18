@@ -54,7 +54,7 @@ export class LoginThrottle extends Context.Service<
     };
 
     return {
-      reserve: (attempt) =>
+      reserve: Effect.fn("LoginThrottle.reserve")((attempt) =>
         Clock.currentTimeMillis.pipe(
           Effect.map((now) => {
             const longest = Math.max(
@@ -76,7 +76,8 @@ export class LoginThrottle extends Context.Service<
             return Option.none();
           }),
         ),
-      succeeded: (attempt) =>
+      ),
+      succeeded: Effect.fn("LoginThrottle.succeeded")((attempt) =>
         Effect.sync(() => {
           failures.delete(emailKey(attempt.email));
 
@@ -88,6 +89,7 @@ export class LoginThrottle extends Context.Service<
             }
           }
         }),
+      ),
     };
   });
 }

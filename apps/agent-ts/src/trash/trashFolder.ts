@@ -20,7 +20,7 @@ const ItemJson = Schema.fromJsonString(Schema.toCodecJson(TrashedCheckout));
 const decodeItem = Schema.decodeUnknownOption(ItemJson);
 const encodeItem = Schema.encodeSync(ItemJson);
 
-function itemDirectory(trash: string, id: TrashId): string {
+function itemDirectory(trash: string, id: TrashId) {
   return path.join(trash, id);
 }
 
@@ -32,7 +32,7 @@ export function itemWorktreePath(trash: string, id: TrashId, name: string): stri
   return path.join(itemDirectory(trash, id), "worktrees", name);
 }
 
-function itemRecordPath(trash: string, id: TrashId): string {
+function itemRecordPath(trash: string, id: TrashId) {
   return path.join(itemDirectory(trash, id), "item.json");
 }
 

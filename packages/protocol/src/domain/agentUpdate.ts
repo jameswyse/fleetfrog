@@ -15,7 +15,7 @@ export const AgentUpdate = Schema.TaggedUnion({
 });
 export type AgentUpdate = typeof AgentUpdate.Type;
 
-function versionNumbers(version: string): ReadonlyArray<number> {
+function versionNumbers(version: string) {
   const match = /^(\d+)\.(\d+)\.(\d+)/.exec(version);
 
   return match === null ? [0, 0, 0] : match.slice(1).map(Number);

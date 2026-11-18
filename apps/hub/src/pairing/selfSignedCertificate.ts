@@ -3,7 +3,7 @@ import { generateKeyPairSync, randomBytes, sign } from "node:crypto";
 const ecdsaWithSha256 = Buffer.from([0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x04, 0x03, 0x02]);
 const commonNameOid = Buffer.from([0x06, 0x03, 0x55, 0x04, 0x03]);
 
-function derLength(length: number): Buffer {
+function derLength(length: number) {
   if (length < 0x80) {
     return Buffer.from([length]);
   }
@@ -17,7 +17,7 @@ function derLength(length: number): Buffer {
   return Buffer.from([0x80 | bytes.length, ...bytes]);
 }
 
-function der(tag: number, ...contents: ReadonlyArray<Buffer>): Buffer {
+function der(tag: number, ...contents: ReadonlyArray<Buffer>) {
   const content = Buffer.concat(contents);
 
   return Buffer.concat([Buffer.from([tag]), derLength(content.length), content]);
@@ -25,7 +25,7 @@ function der(tag: number, ...contents: ReadonlyArray<Buffer>): Buffer {
 
 const sequence = (...contents: ReadonlyArray<Buffer>) => der(0x30, ...contents);
 
-function derTime(date: Date): Buffer {
+function derTime(date: Date) {
   const iso = date.toISOString();
   const digits = `${iso.slice(0, 4)}${iso.slice(5, 7)}${iso.slice(8, 10)}${iso.slice(11, 13)}${iso.slice(14, 16)}${iso.slice(17, 19)}Z`;
 
@@ -34,7 +34,7 @@ function derTime(date: Date): Buffer {
     : der(0x18, Buffer.from(digits, "ascii"));
 }
 
-function toPem(label: string, body: Buffer): string {
+function toPem(label: string, body: Buffer) {
   const lines = body.toString("base64").match(/.{1,64}/g) ?? [];
 
   return `-----BEGIN ${label}-----\n${lines.join("\n")}\n-----END ${label}-----\n`;

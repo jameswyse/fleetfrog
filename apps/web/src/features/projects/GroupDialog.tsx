@@ -22,7 +22,7 @@ import type { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentit
 
 import type { GroupEdit } from "./layoutChanges.ts";
 
-function nameProblem(name: string, others: ReadonlyArray<ProjectGroup>): string | null {
+function nameProblem(name: string, others: ReadonlyArray<ProjectGroup>) {
   const trimmed = name.trim();
 
   if (trimmed === "") {
@@ -34,7 +34,7 @@ function nameProblem(name: string, others: ReadonlyArray<ProjectGroup>): string 
     : null;
 }
 
-function repositoryPath(repository: Repository): string {
+function repositoryPath(repository: Repository) {
   return repository.identity._tag === "Remote" ? repository.identity.path : "No remote";
 }
 

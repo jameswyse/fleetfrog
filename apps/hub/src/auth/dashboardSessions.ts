@@ -15,7 +15,7 @@ import type { Viewer } from "@fleetfrog/protocol/dashboard/rpcs";
 export const sessionCookie = "fleetfrog_session";
 export const sessionLifetime = Duration.days(30);
 
-function hashSessionToken(token: string): string {
+function hashSessionToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
@@ -73,67 +73,71 @@ export class DashboardSessions extends Context.Service<
       );
 
       return {
-        viewer: (headers) =>
-          Effect.gen(function* () {
-            if (!isSignInOn(yield* auth.methods)) {
-              return { _tag: "Anyone" } as const;
-            }
+        viewer: Effect.fn("DashboardSessions.viewer")(function* (headers) {
+          if (!isSignInOn(yield* auth.methods)) {
+            return { _tag: "Anyone" } as const;
+          }
 
-            const token = Headers.get(headers, "cookie").pipe(
-              Option.flatMap((header) =>
-                Option.fromUndefinedOr(Cookies.parseHeader(header)[sessionCookie]),
-              ),
-            );
+          const token = Headers.get(headers, "cookie").pipe(
+            Option.flatMap((header) =>
+              Option.fromUndefinedOr(Cookies.parseHeader(header)[sessionCookie]),
+            ),
+          );
 
-            if (Option.isNone(token)) {
-              return yield* new NotSignedIn();
-            }
+          if (Option.isNone(token)) {
+            return yield* new NotSignedIn();
+          }
 
-            const sessionHash = hashSessionToken(token.value);
+          const sessionHash = hashSessionToken(token.value);
 
-            const [session] = yield* sql`
+          const [session] = yield* sql`
               select user_id, expires_at from dashboard_sessions where token_hash = ${sessionHash}
             `.pipe(Effect.flatMap(decodeRows), Effect.orDie);
 
-            if (session === undefined || (yield* DateTime.isPast(session.expires_at))) {
-              return yield* new NotSignedIn();
-            }
+          if (session === undefined || (yield* DateTime.isPast(session.expires_at))) {
+            return yield* new NotSignedIn();
+          }
 
-            const user = yield* users
-              .find(session.user_id)
-              .pipe(Effect.catchTag("UserNotFound", () => Effect.fail(new NotSignedIn())));
+          const user = yield* users
+            .find(session.user_id)
+            .pipe(Effect.catchTag("UserNotFound", () => Effect.fail(new NotSignedIn())));
 
-            return { _tag: "SignedIn", userId: user.id, role: user.role, sessionHash } as const;
-          }),
-        start: (userId) =>
-          Effect.gen(function* () {
-            const token = randomBytes(32).toString("base64url");
+          return { _tag: "SignedIn", userId: user.id, role: user.role, sessionHash } as const;
+        }),
+        start: Effect.fn("DashboardSessions.start")(function* (userId) {
+          const token = randomBytes(32).toString("base64url");
 
-            yield* sql`insert into dashboard_sessions ${sql.insert({
-              token_hash: hashSessionToken(token),
-              user_id: userId,
-              created_at: DateTime.formatIso(yield* DateTime.now),
-              expires_at: yield* expiry,
-            })}`.pipe(Effect.orDie);
-            yield* users.recordSignIn(userId);
+          yield* sql`insert into dashboard_sessions ${sql.insert({
+            token_hash: hashSessionToken(token),
+            user_id: userId,
+            created_at: DateTime.formatIso(yield* DateTime.now),
+            expires_at: yield* expiry,
+          })}`.pipe(Effect.orDie);
+          yield* users.recordSignIn(userId);
 
-            return token;
-          }),
-        extend: (sessionHash) =>
-          expiry.pipe(
-            Effect.flatMap(
-              (expiresAt) =>
-                sql`update dashboard_sessions set expires_at = ${expiresAt} where token_hash = ${sessionHash}`,
+          return token;
+        }),
+        extend: Effect.fn("DashboardSessions.extend")(
+          (sessionHash) =>
+            expiry.pipe(
+              Effect.flatMap(
+                (expiresAt) =>
+                  sql`update dashboard_sessions set expires_at = ${expiresAt} where token_hash = ${sessionHash}`,
+              ),
             ),
-            Effect.orDie,
-            Effect.asVoid,
-          ),
-        end: (sessionHash) =>
+          Effect.orDie,
+          Effect.asVoid,
+        ),
+        end: Effect.fn("DashboardSessions.end")((sessionHash) =>
           sql`delete from dashboard_sessions where token_hash = ${sessionHash}`.pipe(
             Effect.orDie,
-            Effect.andThen(close((connection) => connection.sessionHash === sessionHash)),
+            Effect.andThen(
+              // oxlint-disable-next-line wyse/no-timing-unsafe-comparison -- matches stored session hashes to close sockets, not to authenticate a request
+              close((connection) => connection.sessionHash === sessionHash),
+            ),
           ),
-        endForUser: (userId, options) =>
+        ),
+        endForUser: Effect.fn("DashboardSessions.endForUser")((userId, options) =>
           sql`
             delete from dashboard_sessions
             where user_id = ${userId} and token_hash != ${options?.except ?? ""}
@@ -142,33 +146,39 @@ export class DashboardSessions extends Context.Service<
             Effect.andThen(
               close(
                 (connection) =>
-                  connection.userId === userId && connection.sessionHash !== options?.except,
+                  connection.userId === userId &&
+                  // oxlint-disable-next-line wyse/no-timing-unsafe-comparison -- matches stored session hashes to close sockets, not to authenticate a request
+                  connection.sessionHash !== options?.except,
               ),
             ),
           ),
+        ),
         endAll: sql`delete from dashboard_sessions`.pipe(
           Effect.orDie,
           Effect.andThen(close(() => true)),
         ),
-        endOthers: (sessionHash) =>
+        endOthers: Effect.fn("DashboardSessions.endOthers")((sessionHash) =>
           sql`delete from dashboard_sessions where token_hash != ${sessionHash}`.pipe(
             Effect.orDie,
-            Effect.andThen(close((connection) => connection.sessionHash !== sessionHash)),
+            Effect.andThen(
+              // oxlint-disable-next-line wyse/no-timing-unsafe-comparison -- matches stored session hashes to close sockets, not to authenticate a request
+              close((connection) => connection.sessionHash !== sessionHash),
+            ),
           ),
-        connect: (viewer, socket) =>
-          Effect.gen(function* () {
-            const connection: Connection = {
-              sessionHash: viewer._tag === "SignedIn" ? viewer.sessionHash : null,
-              userId: viewer._tag === "SignedIn" ? viewer.userId : null,
-              closed: yield* Deferred.make<void>(),
-            };
+        ),
+        connect: Effect.fn("DashboardSessions.connect")(function* (viewer, socket) {
+          const connection: Connection = {
+            sessionHash: viewer._tag === "SignedIn" ? viewer.sessionHash : null,
+            userId: viewer._tag === "SignedIn" ? viewer.userId : null,
+            closed: yield* Deferred.make<void>(),
+          };
 
-            connections.add(connection);
+          connections.add(connection);
 
-            yield* Effect.raceFirst(Effect.asVoid(socket), Deferred.await(connection.closed)).pipe(
-              Effect.ensuring(Effect.sync(() => connections.delete(connection))),
-            );
-          }),
+          yield* Effect.raceFirst(Effect.asVoid(socket), Deferred.await(connection.closed)).pipe(
+            Effect.ensuring(Effect.sync(() => connections.delete(connection))),
+          );
+        }),
       };
     }),
   );

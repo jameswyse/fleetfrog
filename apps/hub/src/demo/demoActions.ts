@@ -23,7 +23,6 @@ import {
 } from "./demoWorld.ts";
 
 import type { TrashTarget } from "@fleetfrog/protocol/domain/action";
-import type { SizedPath } from "@fleetfrog/protocol/domain/trash";
 
 import type { DemoWorld, SimMachine, SimRemote, SimRepository, SimTree } from "./demoWorld.ts";
 
@@ -35,7 +34,7 @@ export interface PlannedAction {
   readonly apply: () => void;
 }
 
-function skip(reason: SkipReason): PlannedAction {
+function skip(reason: SkipReason) {
   return {
     millis: 200,
     progress: [],
@@ -45,7 +44,7 @@ function skip(reason: SkipReason): PlannedAction {
   };
 }
 
-function fail(message: string, output: ReadonlyArray<string> = []): PlannedAction {
+function fail(message: string, output: ReadonlyArray<string> = []) {
   return {
     millis: 400,
     progress: [],
@@ -63,7 +62,7 @@ function succeed(
     readonly output?: ReadonlyArray<string>;
     readonly apply: () => void;
   },
-): PlannedAction {
+) {
   return {
     millis: options.millis,
     progress: options.progress ?? [],
@@ -73,12 +72,7 @@ function succeed(
   };
 }
 
-interface Located {
-  readonly repository: SimRepository;
-  readonly tree: SimTree;
-}
-
-function removeItem<T>(list: Array<T>, item: T): void {
+function removeItem<T>(list: Array<T>, item: T) {
   const index = list.indexOf(item);
 
   if (index !== -1) {
@@ -86,7 +80,7 @@ function removeItem<T>(list: Array<T>, item: T): void {
   }
 }
 
-function locate(machine: SimMachine, path: string): Located | null {
+function locate(machine: SimMachine, path: string) {
   for (const repository of machine.repositories) {
     const tree = treesOf(repository).find((candidate) => candidate.path === path);
 
@@ -98,29 +92,29 @@ function locate(machine: SimMachine, path: string): Located | null {
   return null;
 }
 
-function missing(path: string): PlannedAction {
+function missing(path: string) {
   return fail(`There's no repository at ${path}.`);
 }
 
-function basename(path: string): string {
+function basename(path: string) {
   return path.split("/").at(-1) ?? path;
 }
 
-function dirname(path: string): string {
+function dirname(path: string) {
   return path.split("/").slice(0, -1).join("/");
 }
 
-function pathTaken(machine: SimMachine, path: string): boolean {
+function pathTaken(machine: SimMachine, path: string) {
   return machine.repositories.some((repository) =>
     treesOf(repository).some((tree) => tree.path === path),
   );
 }
 
-function remoteLabel(remote: SimRemote): string {
+function remoteLabel(remote: SimRemote) {
   return remote.originUrl ?? "origin";
 }
 
-function fetchLines(repository: SimRepository): Array<string> {
+function fetchLines(repository: SimRepository) {
   const { remote } = repository;
   const before = remote.history[repository.fetched - 1];
   const after = remote.history.at(-1);
@@ -134,11 +128,11 @@ function fetchLines(repository: SimRepository): Array<string> {
   ];
 }
 
-function changeCount(tree: SimTree): number {
+function changeCount(tree: SimTree) {
   return tree.changed.length + tree.untracked.length;
 }
 
-function fingerprintOf(repository: SimRepository): string {
+function fingerprintOf(repository: SimRepository) {
   return digest(
     JSON.stringify({
       trees: treesOf(repository).map((tree) => [tree.path, tree.head, changeCount(tree)]),
@@ -150,7 +144,7 @@ function fingerprintOf(repository: SimRepository): string {
   );
 }
 
-function worktreeFingerprintOf(tree: SimTree): string {
+function worktreeFingerprintOf(tree: SimTree) {
   return digest(JSON.stringify([tree.path, tree.head, changeCount(tree)]));
 }
 
@@ -169,7 +163,7 @@ function unpushedBranches(repository: SimRepository) {
   ];
 }
 
-function hasUniqueWork(repository: SimRepository): boolean {
+function hasUniqueWork(repository: SimRepository) {
   return (
     unpushedBranches(repository).length > 0 ||
     repository.stashes.length > 0 ||
@@ -178,11 +172,11 @@ function hasUniqueWork(repository: SimRepository): boolean {
   );
 }
 
-function cachesOf(repository: SimRepository): Array<SizedPath> {
+function cachesOf(repository: SimRepository) {
   return [{ path: "node_modules/", sizeBytes: Math.round(repository.sizeBytes * 0.62) }];
 }
 
-function ignoredOf(repository: SimRepository): Array<SizedPath> {
+function ignoredOf(repository: SimRepository) {
   return repository.remote.spec.root === "work" ? [{ path: ".env.local", sizeBytes: 412 }] : [];
 }
 
@@ -252,7 +246,7 @@ export function inspect(
   });
 }
 
-function remoteForUrl(world: DemoWorld, url: string): SimRemote | null {
+function remoteForUrl(world: DemoWorld, url: string) {
   return [...world.remotes.values()].find((remote) => remote.originUrl === url) ?? null;
 }
 
@@ -268,11 +262,7 @@ function linkedMoves(moves: ReturnType<typeof plannedMoves>) {
   return moves.slice(1).map(({ from, to }) => ({ from, to }));
 }
 
-function planTrashTarget(
-  machine: SimMachine,
-  target: TrashTarget,
-  mode: "Restore" | "Purge",
-): PlannedAction {
+function planTrashTarget(machine: SimMachine, target: TrashTarget, mode: "Restore" | "Purge") {
   if (target._tag === "Checkout") {
     const entry = machine.trash.find(({ item }) => item.id === target.id);
 

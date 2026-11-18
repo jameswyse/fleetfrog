@@ -7,7 +7,7 @@ import { defaultIntegrationSettings } from "@fleetfrog/protocol/domain/t3Code";
 
 import { MachineStore } from "../../machines/machineStore.ts";
 import { IntegrationsStore } from "../../settings/integrationsStore.ts";
-import { migrations } from "../database.ts";
+import { migrations } from "./registry.ts";
 
 const before = Object.fromEntries(Object.entries(migrations).filter(([name]) => name < "0009"));
 

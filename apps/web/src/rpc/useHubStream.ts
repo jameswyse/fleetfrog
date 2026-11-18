@@ -11,7 +11,7 @@ export type StreamState<A> =
   | { readonly _tag: "Ready"; readonly value: A }
   | { readonly _tag: "Failed"; readonly message: string };
 
-function isConnectionLoss(cause: Cause.Cause<DashboardError>): boolean {
+function isConnectionLoss(cause: Cause.Cause<DashboardError>) {
   const error = Cause.findError(cause);
 
   return (

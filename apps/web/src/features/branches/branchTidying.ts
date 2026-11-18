@@ -48,13 +48,13 @@ export function branchesInOtherWorktrees({
 
   const read = clone
     .filter((entry) => entry.checkout.path !== checkout.path)
-    .flatMap(({ checkout: other }): ReadonlyArray<readonly [string, string]> =>
+    .flatMap<readonly [string, string]>(({ checkout: other }) =>
       other.status._tag === "Read" && other.status.git.head._tag === "Branch"
         ? [[other.status.git.head.name, other.path]]
         : [],
     );
 
-  const listed = clone.flatMap(({ checkout: other }): ReadonlyArray<readonly [string, string]> =>
+  const listed = clone.flatMap(({ checkout: other }) =>
     other.status._tag === "Read"
       ? other.status.git.worktrees
           .filter(({ path }) => path !== checkout.path)

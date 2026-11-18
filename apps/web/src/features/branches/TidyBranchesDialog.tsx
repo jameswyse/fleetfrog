@@ -24,13 +24,13 @@ interface Group {
   readonly tone: "normal" | "warning";
 }
 
-function detail(candidate: TidyCandidate): string | null {
+function detail(candidate: TidyCandidate) {
   const { standing } = candidate;
 
   return standing._tag === "MergedPullRequest" ? `Merged in #${standing.pullRequest.number}` : null;
 }
 
-function warning(candidate: TidyCandidate): string | null {
+function warning(candidate: TidyCandidate) {
   if (candidate.isDefault) {
     return "The default branch. You can check it out again from the remote";
   }

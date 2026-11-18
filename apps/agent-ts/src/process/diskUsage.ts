@@ -4,8 +4,8 @@ import { Effect } from "effect";
 
 const batchSize = 200;
 
-function runDu(cwd: string, paths: ReadonlyArray<string>): Promise<Map<string, number>> {
-  return new Promise((settle) => {
+function runDu(cwd: string, paths: ReadonlyArray<string>) {
+  return new Promise<Map<string, number>>((settle) => {
     execFile(
       "du",
       ["-sk", "--", ...paths],

@@ -277,7 +277,7 @@ function lockoutReason(
   self: UserRecord,
   method: keyof SignInSwitches,
   { tailscaleAvailable }: { readonly tailscaleAvailable: boolean },
-): string | null {
+) {
   const providerName = settings.oidc?.providerName ?? "the provider";
 
   const others = [

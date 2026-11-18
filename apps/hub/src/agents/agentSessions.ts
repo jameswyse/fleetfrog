@@ -107,17 +107,19 @@ export class AgentSessions extends Context.Service<
         });
       });
 
-      const disconnect = (machineId: MachineId) => {
-        const session = sessions.get(machineId);
-
-        if (session === undefined) {
-          return Effect.void;
-        }
-
+      const endSession = (machineId: MachineId, session: Session) => {
         sessions.delete(machineId);
 
         return Queue.end(session.commands).pipe(Effect.andThen(publishOnline));
       };
+
+      const disconnect = Effect.fn("AgentSessions.disconnect")(function* (machineId: MachineId) {
+        const session = sessions.get(machineId);
+
+        if (session !== undefined) {
+          yield* endSession(machineId, session);
+        }
+      });
 
       const reconfigure = (machineId: MachineId) => {
         const session = sessions.get(machineId);
@@ -186,7 +188,9 @@ export class AgentSessions extends Context.Service<
             }),
             (registered) =>
               sessions.get(machineId) === registered
-                ? disconnect(machineId).pipe(Effect.andThen(machines.recordSeen(machineId)))
+                ? endSession(machineId, registered).pipe(
+                    Effect.andThen(machines.recordSeen(machineId)),
+                  )
                 : Queue.end(registered.commands).pipe(Effect.asVoid),
           );
 
@@ -196,28 +200,23 @@ export class AgentSessions extends Context.Service<
           return Stream.fromQueue(session.commands);
         }),
         reconfigure,
-        advertise: ({ machineId, capabilities }) =>
-          Effect.suspend(() => {
-            const session = sessions.get(machineId);
+        advertise: Effect.fn("AgentSessions.advertise")(function* ({ machineId, capabilities }) {
+          const session = sessions.get(machineId);
 
-            if (session === undefined) {
-              return Effect.void;
-            }
-
+          if (session !== undefined) {
             session.capabilities = capabilities;
+            yield* publishOnline;
+          }
+        }),
+        send: Effect.fn("AgentSessions.send")(function* (machineId, command) {
+          const session = sessions.get(machineId);
 
-            return publishOnline;
-          }),
-        send: (machineId, command) =>
-          Effect.suspend(() => {
-            const session = sessions.get(machineId);
+          if (session === undefined) {
+            return null;
+          }
 
-            return session === undefined
-              ? Effect.succeed(null)
-              : Queue.offer(session.commands, command).pipe(
-                  Effect.map((offered) => (offered ? session.id : null)),
-                );
-          }),
+          return (yield* Queue.offer(session.commands, command)) ? session.id : null;
+        }),
         heartbeat: Effect.fnUntraced(function* (machineId) {
           const session = sessions.get(machineId);
 
@@ -225,7 +224,7 @@ export class AgentSessions extends Context.Service<
             session.lastHeartbeatAt = yield* Clock.currentTimeMillis;
           }
         }),
-        refresh: (machineIds) =>
+        refresh: Effect.fn("AgentSessions.refresh")((machineIds) =>
           Effect.forEach(
             machineIds === "all"
               ? [...sessions.values()]
@@ -233,6 +232,7 @@ export class AgentSessions extends Context.Service<
             (session) => Queue.offer(session.commands, HubCommand.cases.Refresh.make({})),
             { discard: true },
           ),
+        ),
         disconnect,
       };
     }),

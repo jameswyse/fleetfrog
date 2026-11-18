@@ -31,13 +31,13 @@ const outputs: ReadonlyArray<{
 
 const socialPreviewFile = "apps/site/public/og.png";
 
-function fontFace(family: string, file: string, style: "normal" | "italic" = "normal"): string {
+function fontFace(family: string, file: string, style: "normal" | "italic" = "normal") {
   const data = readFileSync(path.join(repository, file)).toString("base64");
 
   return `@font-face { font-family: "${family}"; font-style: ${style}; font-weight: 100 900; font-display: block; src: url(data:font/woff2;base64,${data}) format("woff2"); }`;
 }
 
-function dataUrl(mediaType: string, file: string): string {
+function dataUrl(mediaType: string, file: string) {
   return `data:${mediaType};base64,${readFileSync(path.join(repository, file)).toString("base64")}`;
 }
 
@@ -110,7 +110,7 @@ const encoder = `<script>
   }
 </script>`;
 
-async function capture(browser: Browser, url: string, scheme: ColorScheme): Promise<Buffer> {
+async function capture(browser: Browser, url: string, scheme: ColorScheme) {
   const context = await browser.newContext({
     viewport,
     deviceScaleFactor: pixelRatio,
@@ -136,7 +136,7 @@ async function capture(browser: Browser, url: string, scheme: ColorScheme): Prom
   }
 }
 
-async function frame(browser: Browser, screenshot: Buffer, scheme: ColorScheme): Promise<Buffer> {
+async function frame(browser: Browser, screenshot: Buffer, scheme: ColorScheme) {
   const page = await browser.newPage({
     viewport: { width: viewport.width + frameMargin * 2, height: viewport.height },
     deviceScaleFactor: pixelRatio,
@@ -163,7 +163,7 @@ async function frame(browser: Browser, screenshot: Buffer, scheme: ColorScheme):
   }
 }
 
-async function socialCard(browser: Browser, framed: Buffer): Promise<Buffer> {
+async function socialCard(browser: Browser, framed: Buffer) {
   const page = await browser.newPage({ viewport: socialPreviewSize, deviceScaleFactor: 1 });
 
   try {
@@ -184,7 +184,7 @@ async function socialCard(browser: Browser, framed: Buffer): Promise<Buffer> {
   }
 }
 
-async function encodeWebp(encoderPage: Page, png: Buffer, scale: number): Promise<Buffer> {
+async function encodeWebp(encoderPage: Page, png: Buffer, scale: number) {
   const source = JSON.stringify(`data:image/png;base64,${png.toString("base64")}`);
   const encoded = decodeBase64(await encoderPage.evaluate(`encodeWebp(${source}, ${scale})`));
 

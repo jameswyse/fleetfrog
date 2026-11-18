@@ -8,7 +8,7 @@ function status(options: {
   readonly head: Head;
   readonly changed?: number;
   readonly operation?: GitStatus["operation"];
-}): GitStatus {
+}) {
   return {
     head: options.head,
     operation: options.operation ?? null,
@@ -25,11 +25,12 @@ function status(options: {
   };
 }
 
-const tracking = (ahead: number, behind: number, gone = false): Head => ({
-  _tag: "Branch",
-  name: "main",
-  upstream: { name: "origin/main", ahead, behind, gone },
-});
+const tracking = (ahead: number, behind: number, gone = false) =>
+  ({
+    _tag: "Branch",
+    name: "main",
+    upstream: { name: "origin/main", ahead, behind, gone },
+  }) satisfies Head;
 
 describe("pullBlocker", () => {
   it("allows a clean branch with nothing to push, even with untracked files", () => {

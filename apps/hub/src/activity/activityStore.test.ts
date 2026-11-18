@@ -27,7 +27,7 @@ const laptop = MachineId.make("bbbbbbbb-0000-4000-8000-000000000000");
 const at = (minute: number) => DateTime.makeUnsafe(Date.UTC(2026, 8, 26, 12, minute));
 let nextId = 0;
 
-function id(): string {
+function id() {
   nextId += 1;
 
   return `00000000-0000-4000-8000-${String(nextId).padStart(12, "0")}`;
@@ -37,7 +37,7 @@ function newRun(options: {
   readonly machineId: MachineId;
   readonly path: string;
   readonly outcome?: ActionOutcome;
-}): NewRun {
+}) {
   return {
     id: RunId.make(id()),
     machineId: options.machineId,
@@ -47,7 +47,7 @@ function newRun(options: {
     path: options.path,
     request: { _tag: "Fetch", path: options.path },
     outcome: options.outcome ?? null,
-  };
+  } satisfies NewRun;
 }
 
 const fetched: ActionOutcome = { _tag: "Succeeded", result: { _tag: "Fetched" } };

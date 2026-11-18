@@ -18,11 +18,11 @@ import { SettingsRow } from "../SettingsSection.tsx";
 import type { Fleet, Machine } from "@fleetfrog/protocol/domain/fleet";
 import type { T3CodeUpdate } from "@fleetfrog/protocol/domain/t3CodeUpdate";
 
-function releaseUrl(version: string): string {
+function releaseUrl(version: string) {
   return `https://github.com/pingdotgg/t3code/releases/tag/v${version}`;
 }
 
-function describeVersion(machine: Machine, running: string, available: string): string {
+function describeVersion(machine: Machine, running: string, available: string) {
   const runs = `Runs ${running}. ${available} is available.`;
   const working = workingT3CodeThreads(machine.t3Code);
   const server = machine.t3Code?.server ?? null;
@@ -68,7 +68,7 @@ function updateLabel({
   readonly updating: boolean;
   readonly failure: T3CodeUpdate | null;
   readonly version: string;
-}): string {
+}) {
   if (updating) {
     return "Updating…";
   }

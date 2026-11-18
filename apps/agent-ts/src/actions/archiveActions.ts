@@ -94,7 +94,7 @@ export const archiveCheckout = Effect.fn("archiveCheckout")(
   Effect.catchTag("CommandFailed", failedWith),
 );
 
-function returnablePath(originalPath: string, folders: Folders): string | null {
+function returnablePath(originalPath: string, folders: Folders) {
   const checked = checkFolderPath({ path: originalPath, home: folders.home });
 
   if (checked._tag !== "Valid") {

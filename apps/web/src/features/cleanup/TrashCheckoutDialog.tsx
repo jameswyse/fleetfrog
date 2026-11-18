@@ -26,24 +26,24 @@ type InspectionState =
   | { readonly _tag: "Failed"; readonly message: string }
   | { readonly _tag: "Ready"; readonly inspection: Inspection };
 
-function stateFrom(result: HubResult<InspectionResult>): InspectionState {
+function stateFrom(result: HubResult<InspectionResult>) {
   if (result._tag === "Failure") {
-    return { _tag: "Failed", message: result.message };
+    return { _tag: "Failed", message: result.message } satisfies InspectionState;
   }
 
   const { value } = result;
 
   if (value._tag === "Inspected") {
-    return { _tag: "Ready", inspection: value.inspection };
+    return { _tag: "Ready", inspection: value.inspection } satisfies InspectionState;
   }
 
   return {
     _tag: "Failed",
     message: value._tag === "Failed" ? value.message : "The machine inspected the wrong thing.",
-  };
+  } satisfies InspectionState;
 }
 
-function uniqueWork(inspection: Inspection): ReadonlyArray<string> {
+function uniqueWork(inspection: Inspection) {
   const lines: Array<string> = [];
 
   if (inspection.remote._tag === "Unreachable") {

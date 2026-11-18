@@ -21,10 +21,7 @@ export function rootPath(root: string): string {
   return expandHome(root, homedir());
 }
 
-async function findRepositoryDirectories(
-  root: string,
-  skipped: string | null,
-): Promise<Array<string>> {
+async function findRepositoryDirectories(root: string, skipped: string | null) {
   const found: Array<string> = [];
 
   const pending: Array<{ readonly directory: string; readonly depth: number }> = [

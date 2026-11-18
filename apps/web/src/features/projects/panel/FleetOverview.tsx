@@ -35,7 +35,7 @@ interface FleetCell {
   readonly cell: CellSummary;
 }
 
-function fleetCells(fleet: Fleet): ReadonlyArray<FleetCell> {
+function fleetCells(fleet: Fleet) {
   return fleet.repositories.flatMap((repository) =>
     fleet.machines.flatMap((machine) => {
       const cell = cellFor(repository, machine.id);

@@ -45,7 +45,7 @@ function t3Code(server: {
   readonly version: string;
   readonly serviceManaged: boolean;
   readonly startedAt: DateTime.Utc;
-}): T3CodeStatus {
+}) {
   return {
     database: "/Users/dev/.t3/userdata/statev2.sqlite",
     reading: {
@@ -58,7 +58,7 @@ function t3Code(server: {
     },
     server: { ...server, port: 3773 },
     providers: [],
-  };
+  } satisfies T3CodeStatus;
 }
 
 const earlier = DateTime.now.pipe(Effect.map(DateTime.subtract({ hours: 1 })));

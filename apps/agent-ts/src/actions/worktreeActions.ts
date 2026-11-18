@@ -14,7 +14,7 @@ import type { WorktreeInspection } from "@fleetfrog/protocol/domain/trash";
 import type { CheckoutLocation } from "../git/readCheckout.ts";
 import type { ActionOutput } from "./actionOutput.ts";
 
-function forceFlags(inspection: WorktreeInspection): ReadonlyArray<string> {
+function forceFlags(inspection: WorktreeInspection) {
   if (inspection.locked !== null) {
     return ["--force", "--force"];
   }

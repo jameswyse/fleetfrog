@@ -51,7 +51,7 @@ function RemoveMachineDialog({
   readonly onClose: () => void;
   readonly onRemoved: () => void;
 }) {
-  const [error, remove, removing] = useActionState(async (): Promise<string | null> => {
+  const [error, remove, removing] = useActionState(async () => {
     const result = await requestHub((client) => client.RemoveMachine({ machineId: machine.id }));
 
     if (result._tag === "Failure") {

@@ -51,7 +51,7 @@ const tierPhrases = {
 
 const tierList = new Intl.ListFormat("en-AU", { type: "conjunction" });
 
-function capitalised(text: string): string {
+function capitalised(text: string) {
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 }
 

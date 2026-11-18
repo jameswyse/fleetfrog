@@ -24,15 +24,15 @@ interface Ripple {
   readonly reach: number;
 }
 
-function randomBetween(low: number, high: number): number {
+function randomBetween(low: number, high: number) {
   return low + Math.random() * (high - low);
 }
 
-function untidyStatus(): Status {
+function untidyStatus() {
   return Math.random() < 0.65 ? "changes" : "sync";
 }
 
-function lift(ripple: Ripple, dot: Dot, now: number): number {
+function lift(ripple: Ripple, dot: Dot, now: number) {
   const radius = (now - ripple.startedAt) * rippleSpeed;
   const strength = 1 - radius / ripple.reach;
 
@@ -45,7 +45,7 @@ function lift(ripple: Ripple, dot: Dot, now: number): number {
   return strength * Math.exp(-offset * offset);
 }
 
-function presenceAt(x: number, y: number, quiet: readonly DOMRect[]): number {
+function presenceAt(x: number, y: number, quiet: readonly DOMRect[]) {
   let nearest = Infinity;
 
   for (const box of quiet) {
@@ -60,7 +60,7 @@ function presenceAt(x: number, y: number, quiet: readonly DOMRect[]): number {
   return 0.2 + 0.8 * Math.min(nearest / quietMargin, 1);
 }
 
-function change(dot: Dot, status: Status, now: number): void {
+function change(dot: Dot, status: Status, now: number) {
   dot.previous = dot.status;
   dot.status = status;
   dot.changedAt = now;
@@ -100,7 +100,7 @@ export function startPond(
     return { x: box.x + box.width / 2 - pond.x, y: box.y + box.height / 2 - pond.y };
   }
 
-  function paint(dot: Dot, status: Status, weight: number, raised: number): void {
+  function paint(dot: Dot, status: Status, weight: number, raised: number) {
     const untidy = status !== "clean";
     const lifted = Math.min(raised, 1) * dot.presence;
 
@@ -111,7 +111,7 @@ export function startPond(
     context.fill();
   }
 
-  function draw(now: number): void {
+  function draw(now: number) {
     ripples = ripples.filter((ripple) => (now - ripple.startedAt) * rippleSpeed < ripple.reach);
     context.clearRect(0, 0, width, height);
 
@@ -136,7 +136,7 @@ export function startPond(
     }
   }
 
-  function layout(): void {
+  function layout() {
     const box = canvas.getBoundingClientRect();
     const ratio = Math.min(devicePixelRatio, 2);
     const centre = frogCentre();
@@ -172,7 +172,7 @@ export function startPond(
     draw(performance.now());
   }
 
-  function untidyOne(now: number): void {
+  function untidyOne(now: number) {
     const untidy = dots.filter((dot) => dot.status !== "clean").length;
     const dot = dots[Math.floor(Math.random() * dots.length)];
 
@@ -206,13 +206,13 @@ export function startPond(
     frame = requestAnimationFrame(tick);
   }
 
-  function start(): void {
+  function start() {
     if (frame === 0 && onScreen && !reducedMotion.matches) {
       frame = requestAnimationFrame(tick);
     }
   }
 
-  function stop(): void {
+  function stop() {
     cancelAnimationFrame(frame);
     frame = 0;
   }

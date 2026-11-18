@@ -7,7 +7,7 @@ import { defaultCleanupSettings } from "@fleetfrog/protocol/domain/cleanup";
 
 import { CleanupStore } from "../../settings/cleanupStore.ts";
 import { PollingStore } from "../../settings/pollingStore.ts";
-import { migrations } from "../database.ts";
+import { migrations } from "./registry.ts";
 
 import type { PollingSettings } from "@fleetfrog/protocol/domain/polling";
 

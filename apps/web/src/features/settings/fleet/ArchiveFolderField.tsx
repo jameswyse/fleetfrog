@@ -11,7 +11,7 @@ type Creation =
   | { readonly _tag: "Created" }
   | { readonly _tag: "Failed"; readonly message: string };
 
-function folderProblem(folder: string, machine: Machine): string | null {
+function folderProblem(folder: string, machine: Machine) {
   const check = checkArchiveFolder({
     folder,
     home: machine.info.homeDirectory,

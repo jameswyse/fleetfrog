@@ -48,7 +48,7 @@ const cacheNames = new Set([
 const cachePrefixes = [".next-"];
 const cacheSuffixes = [".tsbuildinfo", ".pyc"];
 
-function isCache(entry: string): boolean {
+function isCache(entry: string) {
   const name = path.posix.basename(entry.replace(/\/$/, ""));
 
   return (
