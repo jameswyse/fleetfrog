@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Option } from "effect";
 
 import { defaultAuthSettings, Email } from "@fleetfrog/protocol/domain/user";
 
@@ -47,6 +47,26 @@ it.effect("won't demote or remove the last admin", () =>
 
     expect((yield* users.find(user.id)).role).toBe("admin");
     expect((yield* Effect.flip(users.find(admin.id)))._tag).toBe("UserNotFound");
+  }).pipe(Effect.provide(TestStore)),
+);
+
+it.effect("replaces and clears an uploaded avatar", () =>
+  Effect.gen(function* () {
+    const users = yield* UserStore;
+    const user = yield* create("ada@example.com", "admin");
+    const png = (byte: number) => ({ mediaType: "image/png" as const, data: Uint8Array.of(byte) });
+
+    yield* users.setAvatar({ userId: user.id, avatar: png(1) });
+    yield* users.setAvatar({ userId: user.id, avatar: png(2) });
+
+    const { avatarId } = yield* users.find(user.id);
+    const stored = avatarId === null ? Option.none() : yield* users.findAvatar(avatarId);
+
+    expect(Option.getOrUndefined(stored)?.data).toStrictEqual(Uint8Array.of(2));
+
+    yield* users.setAvatar({ userId: user.id, avatar: null });
+
+    expect((yield* users.find(user.id)).avatarId).toBeNull();
   }).pipe(Effect.provide(TestStore)),
 );
 
