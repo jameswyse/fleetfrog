@@ -1,11 +1,10 @@
-import { SqliteClient } from "@effect/sql-sqlite-node";
 import { expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 
 import { defaultAuthSettings, Email } from "@fleetfrog/protocol/domain/user";
 
-import { HubConfig } from "../hubConfig.ts";
-import { Migrations } from "../persistence/database.ts";
+import { TestDatabase } from "../persistence/testDatabase.ts";
+import { testHubConfig } from "../testHubConfig.ts";
 import { AuthSettingsStore } from "./authSettingsStore.ts";
 import { UserStore } from "./userStore.ts";
 
@@ -13,22 +12,8 @@ import type { Role } from "@fleetfrog/protocol/domain/user";
 
 const TestStore = UserStore.layer.pipe(
   Layer.provideMerge(AuthSettingsStore.layer),
-  Layer.provide(Migrations.pipe(Layer.provideMerge(SqliteClient.layer({ filename: ":memory:" })))),
-  Layer.provide(
-    Layer.succeed(HubConfig)({
-      dataDirectory: "unused",
-      host: null,
-      dashboardPort: 7420,
-      agentPort: 7421,
-      agentTls: "self-signed",
-      agentUrl: null,
-      tailscaleSocket: null,
-      dashboardSocket: null,
-      webRoot: null,
-      authModeOverride: null,
-      demo: false,
-    }),
-  ),
+  Layer.provide(TestDatabase),
+  Layer.provide(testHubConfig()),
 );
 
 const create = (email: string, role: Role) =>

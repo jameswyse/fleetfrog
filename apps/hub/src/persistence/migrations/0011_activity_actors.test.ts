@@ -1,4 +1,3 @@
-import { SqliteClient, SqliteMigrator } from "@effect/sql-sqlite-node";
 import { expect, it } from "@effect/vitest";
 import { Effect, Layer, SubscriptionRef } from "effect";
 import { SqlClient } from "effect/sql";
@@ -7,16 +6,14 @@ import { defaultAuthSettings } from "@fleetfrog/protocol/domain/user";
 
 import { ActivityStore } from "../../activity/activityStore.ts";
 import { AuthSettingsStore } from "../../auth/authSettingsStore.ts";
-import { HubConfig } from "../../hubConfig.ts";
-import { migrations } from "./registry.ts";
+import { testHubConfig } from "../../testHubConfig.ts";
+import { upgradedTestDatabase } from "./upgradedTestDatabase.ts";
 
-const before = Object.fromEntries(Object.entries(migrations).filter(([name]) => name < "0010"));
-
-const OldDatabase = Layer.effectDiscard(
+const MigratedDatabase = upgradedTestDatabase(
+  "0010",
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
 
-    yield* SqliteMigrator.run({ loader: SqliteMigrator.fromRecord(before) });
     yield* sql`insert into settings ${sql.insert({
       id: 1,
       polling_json: JSON.stringify({
@@ -46,28 +43,12 @@ const OldDatabase = Layer.effectDiscard(
         },
       }),
     })}`;
-    yield* SqliteMigrator.run({ loader: SqliteMigrator.fromRecord(migrations) });
   }),
 );
 
 const TestStores = Layer.mergeAll(ActivityStore.layer, AuthSettingsStore.layer).pipe(
-  Layer.provide(OldDatabase),
-  Layer.provide(SqliteClient.layer({ filename: ":memory:" })),
-  Layer.provide(
-    Layer.succeed(HubConfig)({
-      dataDirectory: "unused",
-      host: null,
-      dashboardPort: 7420,
-      agentPort: 7421,
-      agentTls: "self-signed",
-      agentUrl: null,
-      tailscaleSocket: null,
-      dashboardSocket: null,
-      webRoot: null,
-      authModeOverride: null,
-      demo: false,
-    }),
-  ),
+  Layer.provide(MigratedDatabase),
+  Layer.provide(testHubConfig()),
 );
 
 it.effect(

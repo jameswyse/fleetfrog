@@ -1,14 +1,12 @@
-import { SqliteClient, SqliteMigrator } from "@effect/sql-sqlite-node";
 import { expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { SqlClient } from "effect/sql";
 
 import { ActivityStore } from "../../activity/activityStore.ts";
-import { migrations } from "./registry.ts";
+import { upgradedTestDatabase } from "./upgradedTestDatabase.ts";
 
-const before = Object.fromEntries(Object.entries(migrations).filter(([name]) => name < "0008"));
-
-const OldDatabase = Layer.effectDiscard(
+const MigratedDatabase = upgradedTestDatabase(
+  "0008",
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
 
@@ -20,7 +18,6 @@ const OldDatabase = Layer.effectDiscard(
       paired_at: pairedAt,
     });
 
-    yield* SqliteMigrator.run({ loader: SqliteMigrator.fromRecord(before) });
     yield* sql`insert into machines ${sql.insert([
       machine("aaaaaaaa-0000-4000-8000-000000000000", "2026-09-26T09:00:00.000Z", "Studio"),
       machine("bbbbbbbb-0000-4000-8000-000000000000", "2026-09-27T04:00:00.000Z", "Laptop"),
@@ -30,14 +27,10 @@ const OldDatabase = Layer.effectDiscard(
       machine_id: null,
       event_json: JSON.stringify({ _tag: "ArchiveFolderChanged", folder: "~/Projects/Archive" }),
     })}`;
-    yield* SqliteMigrator.run({ loader: SqliteMigrator.fromRecord(migrations) });
   }),
 );
 
-const TestStore = ActivityStore.layer.pipe(
-  Layer.provide(OldDatabase),
-  Layer.provide(SqliteClient.layer({ filename: ":memory:" })),
-);
+const TestStore = ActivityStore.layer.pipe(Layer.provide(MigratedDatabase));
 
 it.effect("gives each machine paired at the time its own hub-wide Archive folder change", () =>
   Effect.gen(function* () {

@@ -4,25 +4,13 @@ import { TestClock } from "effect/testing";
 
 import { pairingCodeLifetimeMinutes } from "@fleetfrog/protocol/pairing/pairingString";
 
-import { HubConfig } from "../hubConfig.ts";
+import { testHubConfig } from "../testHubConfig.ts";
 import { AgentCertificate } from "./agentCertificate.ts";
 import { PairingOffers } from "./pairingOffers.ts";
 
 const TestOffers = PairingOffers.layer.pipe(
   Layer.provide([
-    Layer.succeed(HubConfig)({
-      dataDirectory: "unused",
-      host: null,
-      dashboardPort: 7420,
-      agentPort: 7421,
-      agentTls: "self-signed",
-      agentUrl: null,
-      tailscaleSocket: null,
-      dashboardSocket: null,
-      webRoot: null,
-      authModeOverride: null,
-      demo: false,
-    }),
+    testHubConfig(),
     Layer.succeed(AgentCertificate)({
       tls: { certificatePem: "unused", privateKeyPem: "unused", fingerprint: "AB:CD" },
     }),

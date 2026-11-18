@@ -1,31 +1,13 @@
-import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
-import { DateTime, Effect, Layer, Stream } from "effect";
+import { DateTime, Effect, Stream } from "effect";
 
 import { MachineId } from "@fleetfrog/protocol/domain/machine";
 
-import { DashboardPresence } from "../dashboard/dashboardPresence.ts";
 import { MachineStore } from "../machines/machineStore.ts";
-import { Migrations } from "../persistence/database.ts";
-import { IntegrationsStore } from "../settings/integrationsStore.ts";
-import { PollingStore } from "../settings/pollingStore.ts";
 import { AgentSessions } from "./agentSessions.ts";
+import { TestAgentSessions } from "./testAgentSessions.ts";
 
 const studio = MachineId.make("aaaaaaaa-0000-4000-8000-000000000000");
-
-const TestSessions = AgentSessions.layer.pipe(
-  Layer.provideMerge(
-    Layer.mergeAll(
-      MachineStore.layer,
-      PollingStore.layer,
-      IntegrationsStore.layer,
-      DashboardPresence.layer,
-    ),
-  ),
-  Layer.provideMerge(
-    Migrations.pipe(Layer.provideMerge(SqliteClient.layer({ filename: ":memory:" }))),
-  ),
-);
 
 const connectStudio = Effect.gen(function* () {
   const machines = yield* MachineStore;
@@ -80,6 +62,6 @@ describe("AgentSessions", () => {
       expect(
         sent.map((command) => (command._tag === "Configure" ? command.discoveryRoots : command)),
       ).toStrictEqual([[], ["~/Projects"]]);
-    }).pipe(Effect.scoped, Effect.provide(TestSessions)),
+    }).pipe(Effect.scoped, Effect.provide(TestAgentSessions)),
   );
 });

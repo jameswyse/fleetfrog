@@ -1,4 +1,3 @@
-import { SqliteClient, SqliteMigrator } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { SqlClient } from "effect/sql";
@@ -6,18 +5,18 @@ import { SqlClient } from "effect/sql";
 import { UserId } from "@fleetfrog/protocol/domain/user";
 
 import { PreferencesStore } from "../../settings/preferencesStore.ts";
-import { migrations } from "./registry.ts";
+import { TestDatabase } from "../testDatabase.ts";
+import { upgradedTestDatabase } from "./upgradedTestDatabase.ts";
 
-const before = Object.fromEntries(Object.entries(migrations).filter(([name]) => name < "0014"));
 const ada = UserId.make("0b8f6a52-7f9e-4c55-9a8e-2f4a1c9d3e10");
 
 const Migrated = PreferencesStore.layer.pipe(
   Layer.provide(
-    Layer.effectDiscard(
+    upgradedTestDatabase(
+      "0014",
       Effect.gen(function* () {
         const sql = yield* SqlClient.SqlClient;
 
-        yield* SqliteMigrator.run({ loader: SqliteMigrator.fromRecord(before) });
         yield* sql`insert into settings ${sql.insert({
           id: 1,
           polling_json: JSON.stringify({
@@ -35,17 +34,12 @@ const Migrated = PreferencesStore.layer.pipe(
           password_hash: "unused",
           created_at: "2026-09-01T00:00:00.000Z",
         })}`;
-        yield* SqliteMigrator.run({ loader: SqliteMigrator.fromRecord(migrations) });
       }),
     ),
   ),
-  Layer.provide(SqliteClient.layer({ filename: ":memory:" })),
 );
 
-const Fresh = PreferencesStore.layer.pipe(
-  Layer.provide(SqliteMigrator.layer({ loader: SqliteMigrator.fromRecord(migrations) })),
-  Layer.provide(SqliteClient.layer({ filename: ":memory:" })),
-);
+const Fresh = PreferencesStore.layer.pipe(Layer.provide(TestDatabase));
 
 describe("0014_preferences", () => {
   it.effect("gives existing users and the open dashboard the defaults, then keeps each apart", () =>

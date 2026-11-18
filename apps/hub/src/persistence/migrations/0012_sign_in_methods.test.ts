@@ -1,13 +1,10 @@
-import { SqliteClient, SqliteMigrator } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer, SubscriptionRef } from "effect";
 import { SqlClient } from "effect/sql";
 
 import { AuthSettingsStore } from "../../auth/authSettingsStore.ts";
-import { HubConfig } from "../../hubConfig.ts";
-import { migrations } from "./registry.ts";
-
-const before = Object.fromEntries(Object.entries(migrations).filter(([name]) => name < "0012"));
+import { testHubConfig } from "../../testHubConfig.ts";
+import { upgradedTestDatabase } from "./upgradedTestDatabase.ts";
 
 const oidc = {
   providerName: "Authentik",
@@ -22,11 +19,11 @@ const oidc = {
 const storedAs = (mode: "none" | "local" | "oidc") =>
   AuthSettingsStore.layer.pipe(
     Layer.provide(
-      Layer.effectDiscard(
+      upgradedTestDatabase(
+        "0012",
         Effect.gen(function* () {
           const sql = yield* SqlClient.SqlClient;
 
-          yield* SqliteMigrator.run({ loader: SqliteMigrator.fromRecord(before) });
           yield* sql`insert into settings ${sql.insert({
             id: 1,
             polling_json: JSON.stringify({
@@ -37,43 +34,31 @@ const storedAs = (mode: "none" | "local" | "oidc") =>
             }),
             auth_json: JSON.stringify({ mode, gravatar: false, oidc }),
           })}`;
-          yield* SqliteMigrator.run({ loader: SqliteMigrator.fromRecord(migrations) });
         }),
       ),
     ),
-    Layer.provide(SqliteClient.layer({ filename: ":memory:" })),
-    Layer.provide(
-      Layer.succeed(HubConfig)({
-        dataDirectory: "unused",
-        host: null,
-        dashboardPort: 7420,
-        agentPort: 7421,
-        agentTls: "self-signed",
-        agentUrl: null,
-        tailscaleSocket: null,
-        dashboardSocket: null,
-        webRoot: null,
-        authModeOverride: null,
-        demo: false,
-      }),
-    ),
+    Layer.provide(testHubConfig()),
   );
+
+const switchesByMode = [
+  ["none", { passwords: false, provider: false }],
+  ["local", { passwords: true, provider: false }],
+  ["oidc", { passwords: false, provider: true }],
+] as const;
 
 describe("0012_sign_in_methods", () => {
-  it.each([
-    ["none", { passwords: false, provider: false }],
-    ["local", { passwords: true, provider: false }],
-    ["oidc", { passwords: false, provider: true }],
-  ] as const)("turns the %s mode into its own switches, keeping the rest", (mode, methods) =>
-    Effect.gen(function* () {
-      const auth = yield* AuthSettingsStore;
+  for (const [mode, methods] of switchesByMode) {
+    it.effect(`turns the ${mode} mode into its own switches, keeping the rest`, () =>
+      Effect.gen(function* () {
+        const auth = yield* AuthSettingsStore;
 
-      expect(yield* SubscriptionRef.get(auth.settings)).toStrictEqual({
-        ...methods,
-        tailscale: false,
-        gravatar: false,
-        oidc,
-      });
-    }).pipe(Effect.provide(storedAs(mode)), Effect.runPromise),
-  );
+        expect(yield* SubscriptionRef.get(auth.settings)).toStrictEqual({
+          ...methods,
+          tailscale: false,
+          gravatar: false,
+          oidc,
+        });
+      }).pipe(Effect.provide(storedAs(mode))),
+    );
+  }
 });

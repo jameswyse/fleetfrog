@@ -1,7 +1,5 @@
-import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
 import { DateTime, Effect, Layer, Stream, SubscriptionRef } from "effect";
-import { SqlClient } from "effect/sql";
 import { TestClock } from "effect/testing";
 
 import { T3CodeNotUpdatable } from "@fleetfrog/protocol/dashboard/rpcs";
@@ -9,12 +7,8 @@ import { MachineId } from "@fleetfrog/protocol/domain/machine";
 import { supportedT3CodeSchema } from "@fleetfrog/protocol/domain/t3Code";
 
 import { AgentSessions } from "../agents/agentSessions.ts";
-import { DashboardPresence } from "../dashboard/dashboardPresence.ts";
+import { TestAgentSessions } from "../agents/testAgentSessions.ts";
 import { MachineStore } from "../machines/machineStore.ts";
-import { Migrations } from "../persistence/database.ts";
-import { CleanupStore } from "../settings/cleanupStore.ts";
-import { IntegrationsStore } from "../settings/integrationsStore.ts";
-import { PollingStore } from "../settings/pollingStore.ts";
 import { T3CodeReleaseFeed } from "./t3CodeReleaseFeed.ts";
 import { T3CodeUpdates } from "./t3CodeUpdates.ts";
 
@@ -25,20 +19,8 @@ const latest = "0.0.46-nightly.20261012.3021";
 const outdated = "0.0.46-nightly.20261007.2787";
 
 const TestUpdates = T3CodeUpdates.layer.pipe(
-  Layer.provideMerge(AgentSessions.layer),
   Layer.provideMerge(T3CodeReleaseFeed.fixed({ stable: null, nightly: latest, preview: null })),
-  Layer.provideMerge(
-    Layer.mergeAll(
-      MachineStore.layer,
-      PollingStore.layer,
-      CleanupStore.layer,
-      IntegrationsStore.layer,
-      DashboardPresence.layer,
-    ),
-  ),
-  Layer.provideMerge(
-    Migrations.pipe(Layer.provideMerge(SqliteClient.layer({ filename: ":memory:" }))),
-  ),
+  Layer.provideMerge(TestAgentSessions),
 );
 
 function t3Code(server: {
@@ -67,19 +49,12 @@ const connectMini = Effect.fnUntraced(function* (
   serviceManaged: boolean,
   updatesT3CodeApp: boolean,
 ) {
-  const sql = yield* SqlClient.SqlClient;
   const machines = yield* MachineStore;
   const sessions = yield* AgentSessions;
 
-  yield* sql`insert into machines ${sql.insert({
+  yield* machines.create({
     id: mini,
-    token_hash: "hash",
-    info_json: "{}",
-    discovery_roots_json: "[]",
-    paired_at: "2026-09-26T00:00:00.000Z",
-  })}`;
-  yield* machines.recordConnection({
-    machineId: mini,
+    tokenHash: "hash",
     info: {
       hostname: "mini",
       prettyName: null,
@@ -90,6 +65,8 @@ const connectMini = Effect.fnUntraced(function* (
       githubCli: { _tag: "Unavailable", reason: "" },
       system: null,
     },
+    discoveryRoots: [],
+    pairedAt: DateTime.makeUnsafe("2026-09-26T00:00:00.000Z"),
   });
   yield* machines.recordT3Code({
     machineId: mini,

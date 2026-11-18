@@ -1,4 +1,3 @@
-import { SqliteClient, SqliteMigrator } from "@effect/sql-sqlite-node";
 import { expect, it } from "@effect/vitest";
 import { Effect, Layer, SubscriptionRef } from "effect";
 import { SqlClient } from "effect/sql";
@@ -7,15 +6,13 @@ import { defaultIntegrationSettings } from "@fleetfrog/protocol/domain/t3Code";
 
 import { MachineStore } from "../../machines/machineStore.ts";
 import { IntegrationsStore } from "../../settings/integrationsStore.ts";
-import { migrations } from "./registry.ts";
+import { upgradedTestDatabase } from "./upgradedTestDatabase.ts";
 
-const before = Object.fromEntries(Object.entries(migrations).filter(([name]) => name < "0009"));
-
-const OldDatabase = Layer.effectDiscard(
+const MigratedDatabase = upgradedTestDatabase(
+  "0009",
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
 
-    yield* SqliteMigrator.run({ loader: SqliteMigrator.fromRecord(before) });
     yield* sql`insert into machines ${sql.insert({
       id: "aaaaaaaa-0000-4000-8000-000000000000",
       token_hash: "hash",
@@ -40,7 +37,6 @@ const OldDatabase = Layer.effectDiscard(
         githubSeconds: 900,
       }),
     })}`;
-    yield* SqliteMigrator.run({ loader: SqliteMigrator.fromRecord(migrations) });
   }),
 );
 
@@ -56,8 +52,7 @@ it.effect("keeps machines and settings readable, with nothing read from T3 Code 
   }).pipe(
     Effect.provide(
       Layer.mergeAll(MachineStore.layer, IntegrationsStore.layer).pipe(
-        Layer.provide(OldDatabase),
-        Layer.provide(SqliteClient.layer({ filename: ":memory:" })),
+        Layer.provide(MigratedDatabase),
       ),
     ),
   ),

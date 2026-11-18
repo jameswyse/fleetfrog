@@ -52,7 +52,7 @@ function silentClient(port: number) {
 
 it.live("stops promptly with WebSockets open, closing them cleanly", () =>
   Effect.gen(function* () {
-    const scope = yield* Scope.make();
+    const scope = yield* Scope.fork(yield* Scope.Scope);
 
     const context = yield* Layer.buildWithScope(
       HttpRouter.serve(socketRoute).pipe(
