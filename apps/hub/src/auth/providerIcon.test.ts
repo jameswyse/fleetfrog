@@ -1,9 +1,10 @@
 import { createServer } from "node:http";
 
 import { expect, it } from "@effect/vitest";
-import { Effect, Option, Predicate } from "effect";
+import { Effect, Layer, Option, Predicate, SubscriptionRef } from "effect";
 
-import { fetchProviderIcon, iconType } from "./providerIcon.ts";
+import { TestDatabase } from "../persistence/testDatabase.ts";
+import { fetchProviderIcon, iconType, ProviderIconStore } from "./providerIcon.ts";
 
 const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
 const ico = new Uint8Array([0x00, 0x00, 0x01, 0x00, 1, 2, 3]);
@@ -71,3 +72,29 @@ it("reads the image type from its bytes and refuses anything else", () => {
   expect(iconType(new TextEncoder().encode("<html><script>alert(1)</script>"))).toBeNull();
   expect(iconType(new Uint8Array(300 * 1024).fill(0x89))).toBeNull();
 });
+
+it.effect("replaces and clears the stored icon", () =>
+  Effect.gen(function* () {
+    const icons = yield* ProviderIconStore;
+
+    const uploadedIcon = (byte: number) => ({
+      mediaType: "image/png" as const,
+      data: Uint8Array.of(byte),
+      source: "uploaded" as const,
+    });
+
+    yield* icons.replace(uploadedIcon(1));
+    yield* icons.replace(uploadedIcon(2));
+
+    const replacedId = (yield* SubscriptionRef.get(icons.current))?.id ?? "";
+
+    expect(Option.getOrUndefined(yield* icons.find(replacedId))?.data).toStrictEqual(
+      Uint8Array.of(2),
+    );
+
+    yield* icons.replace(null);
+
+    expect(yield* SubscriptionRef.get(icons.current)).toBeNull();
+    expect(Option.isNone(yield* icons.find(replacedId))).toBe(true);
+  }).pipe(Effect.provide(ProviderIconStore.layer.pipe(Layer.provide(TestDatabase)))),
+);
