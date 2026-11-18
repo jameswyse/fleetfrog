@@ -73,17 +73,23 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
     const throttle = yield* LoginThrottle;
     const buttonIcon = yield* ProviderIconStore;
 
-    const useProviderIcon = (issuerUrl: string) =>
-      fetchProviderIcon(issuerUrl).pipe(
-        Effect.flatMap((found) =>
-          buttonIcon.replace(
-            Option.match(found, {
-              onNone: () => null,
-              onSome: ({ data, mediaType }) => ({ data, mediaType, source: "provider" as const }),
-            }),
-          ),
-        ),
+    const useProviderIcon = Effect.fnUntraced(function* (issuerUrl: string) {
+      const replacing = yield* SubscriptionRef.get(buttonIcon.current);
+      const found = yield* fetchProviderIcon(issuerUrl);
+      const saved = yield* SubscriptionRef.get(auth.settings);
+
+      if (saved.oidc?.issuerUrl !== issuerUrl) {
+        return;
+      }
+
+      yield* buttonIcon.replaceIfCurrent(
+        replacing,
+        Option.match(found, {
+          onNone: () => null,
+          onSome: ({ data, mediaType }) => ({ data, mediaType, source: "provider" as const }),
+        }),
       );
+    });
 
     const dashboardSessions = yield* DashboardSessions;
 
@@ -376,7 +382,18 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
             .check(settings)
             .pipe(Effect.mapError(({ detail }) => new ProviderRejected({ message: detail })));
 
-          yield* auth.update({ ...current, oidc: settings });
+          const applied = yield* auth.modify((latest) =>
+            input.clientSecret !== null || latest.oidc === current.oidc
+              ? [true, { ...latest, oidc: settings }]
+              : [false, latest],
+          );
+
+          if (!applied) {
+            return yield* new ProviderRejected({
+              message:
+                "Someone else changed the OpenID Connect settings while these were checked. Review them and save again.",
+            });
+          }
 
           return (yield* SubscriptionRef.get(buttonIcon.current))?.source === "uploaded"
             ? undefined
@@ -400,10 +417,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
 
           return yield* buttonIcon.replace({ data: icon, mediaType, source: "uploaded" });
         }),
-      SetGravatar: ({ enabled }) =>
-        SubscriptionRef.get(auth.settings).pipe(
-          Effect.flatMap((settings) => auth.update({ ...settings, gravatar: enabled })),
-        ),
+      SetGravatar: ({ enabled }) => auth.update((latest) => ({ ...latest, gravatar: enabled })),
     };
   }),
 );

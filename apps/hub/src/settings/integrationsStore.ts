@@ -36,15 +36,19 @@ export class IntegrationsStore extends Context.Service<
 
       return {
         settings,
-        update: Effect.fn("IntegrationsStore.update")((integrations) =>
-          sql`insert into settings ${sql.insert({
-            id: 1,
-            polling_json: encodePolling(defaultPollingSettings),
-            integrations_json: encodeIntegrations(integrations),
-          })} on conflict (id) do update set integrations_json = excluded.integrations_json`.pipe(
-            Effect.orDie,
-            Effect.andThen(SubscriptionRef.set(settings, integrations)),
-          ),
+        update: Effect.fn("IntegrationsStore.update")(
+          (integrations) =>
+            SubscriptionRef.updateEffect(settings, () =>
+              sql`insert into settings ${sql.insert({
+                id: 1,
+                polling_json: encodePolling(defaultPollingSettings),
+                integrations_json: encodeIntegrations(integrations),
+              })} on conflict (id) do update set integrations_json = excluded.integrations_json`.pipe(
+                Effect.orDie,
+                Effect.as(integrations),
+              ),
+            ),
+          Effect.uninterruptible,
         ),
       };
     }),

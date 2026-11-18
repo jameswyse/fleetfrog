@@ -47,6 +47,37 @@ function cookieOptions(request: HttpServerRequest.HttpServerRequest) {
 }
 
 const forbidden = HttpServerResponse.text("Forbidden.", { status: 403 });
+
+type SignInRefusal =
+  | { readonly kind: "forbidden" }
+  | { readonly kind: "refused"; readonly reason: string };
+
+const notAuthorised: SignInRefusal = { kind: "forbidden" };
+
+const enableSignInMethod = Effect.fnUntraced(function* (
+  method: keyof SignInSwitches,
+  refusal: (latest: AuthSettings) => SignInRefusal | null,
+) {
+  const auth = yield* AuthSettingsStore;
+  const sessions = yield* DashboardSessions;
+
+  return yield* auth
+    .modify((latest) => {
+      const refused = refusal(latest);
+
+      const outcome: SignInRefusal | { readonly kind: "enabled"; readonly wasOn: boolean } =
+        refused ?? { kind: "enabled", wasOn: isSignInOn(latest) };
+
+      return [outcome, refused === null ? { ...latest, [method]: true } : latest];
+    })
+    .pipe(
+      Effect.tap((outcome) =>
+        outcome.kind === "enabled" && !outcome.wasOn ? sessions.endAll : Effect.void,
+      ),
+      Effect.uninterruptible,
+    );
+});
+
 const decodeEmail = Schema.decodeUnknownOption(Email);
 
 const describeSession = Effect.fnUntraced(function* (userId: UserId | null) {
@@ -346,11 +377,16 @@ const changeMethods = HttpRouter.add(
       return HttpServerResponse.text("Expected a change to how people sign in.", { status: 400 });
     }
 
-    const settings = yield* SubscriptionRef.get(auth.settings);
     const change = body.value;
-    const wasOn = isSignInOn(settings);
-    const providerName = settings.oidc?.providerName ?? "the provider";
     const signedIn = viewer.value._tag === "SignedIn" ? viewer.value : null;
+    const stillAuthorised = (latest: AuthSettings) => signedIn !== null || !isSignInOn(latest);
+
+    const refusalUnlessAuthorised = (latest: AuthSettings) =>
+      stillAuthorised(latest) ? null : notAuthorised;
+
+    const respondToRefusal = (refused: SignInRefusal) =>
+      refused.kind === "forbidden" ? forbidden : refuse(refused.reason);
+
     const self = signedIn === null ? null : yield* users.find(signedIn.userId).pipe(Effect.orDie);
     const current = describeSession(signedIn?.userId ?? null).pipe(Effect.flatMap(sessionJson));
 
@@ -360,24 +396,44 @@ const changeMethods = HttpRouter.add(
           return refuse(noOtherWayIn);
         }
 
-        const lockout = lockoutReason(settings, self, method, {
-          tailscaleAvailable: config.dashboardSocket !== null,
-        });
+        const lockout = yield* auth
+          .modify((latest) => {
+            const reason = lockoutReason(latest, self, method, {
+              tailscaleAvailable: config.dashboardSocket !== null,
+            });
+
+            return reason === null ? [null, { ...latest, [method]: false }] : [reason, latest];
+          })
+          .pipe(
+            Effect.tap((reason) =>
+              reason === null ? sessions.endOthers(signedIn.sessionHash) : Effect.void,
+            ),
+            Effect.uninterruptible,
+          );
 
         if (lockout !== null) {
           return refuse(lockout);
         }
-
-        yield* auth.update({ ...settings, [method]: false });
-        yield* sessions.endOthers(signedIn.sessionHash);
 
         return yield* current;
       });
 
     switch (change._tag) {
       case "TurnOff": {
-        yield* auth.update({ ...settings, passwords: false, provider: false, tailscale: false });
-        yield* sessions.endAll;
+        const turnedOff = yield* auth
+          .modify((latest) =>
+            stillAuthorised(latest)
+              ? [true, { ...latest, passwords: false, provider: false, tailscale: false }]
+              : [false, latest],
+          )
+          .pipe(
+            Effect.tap((done) => (done ? sessions.endAll : Effect.void)),
+            Effect.uninterruptible,
+          );
+
+        if (!turnedOff) {
+          return forbidden;
+        }
 
         return yield* HttpServerResponse.expireCookie(
           yield* sessionJson(yield* describeSession(null)),
@@ -388,6 +444,11 @@ const changeMethods = HttpRouter.add(
 
       case "EnablePasswords": {
         const passwordHash = yield* hashPassword(change.password);
+
+        if (!stillAuthorised(yield* SubscriptionRef.get(auth.settings))) {
+          return forbidden;
+        }
+
         const existing = yield* users.findByEmail(change.email);
 
         const userId = Option.isSome(existing)
@@ -409,32 +470,37 @@ const changeMethods = HttpRouter.add(
           yield* users.setPasswordHash({ userId, passwordHash });
         }
 
-        yield* auth.update({ ...settings, passwords: true });
+        const enabled = yield* enableSignInMethod("passwords", refusalUnlessAuthorised);
 
-        if (wasOn) {
-          return yield* current;
+        if (enabled.kind !== "enabled") {
+          return respondToRefusal(enabled);
         }
 
-        yield* sessions.endAll;
-
-        return yield* signIn(userId);
+        return enabled.wasOn ? yield* current : yield* signIn(userId);
       }
 
       case "DisablePasswords":
         return yield* turnOff("passwords");
 
       case "EnableProvider": {
-        if (settings.oidc === null) {
-          return refuse("Set up OpenID Connect first.");
-        }
+        const enabled = yield* enableSignInMethod("provider", (latest) => {
+          if (!stillAuthorised(latest)) {
+            return notAuthorised;
+          }
 
-        if (!wasOn) {
-          return refuse(`With sign-in off, turn it on by signing in through ${providerName}.`);
-        }
+          if (latest.oidc === null) {
+            return { kind: "refused", reason: "Set up OpenID Connect first." };
+          }
 
-        yield* auth.update({ ...settings, provider: true });
+          return isSignInOn(latest)
+            ? null
+            : {
+                kind: "refused",
+                reason: `With sign-in off, turn it on by signing in through ${latest.oidc.providerName}.`,
+              };
+        });
 
-        return yield* current;
+        return enabled.kind === "enabled" ? yield* current : respondToRefusal(enabled);
       }
 
       case "DisableProvider":
@@ -447,19 +513,21 @@ const changeMethods = HttpRouter.add(
           );
         }
 
+        if (!stillAuthorised(yield* SubscriptionRef.get(auth.settings))) {
+          return forbidden;
+        }
+
         const account = yield* tailnetAccount({ admin: true });
 
         if (Result.isFailure(account)) {
           return refuse(account.failure);
         }
 
-        yield* auth.update({ ...settings, tailscale: true });
+        const enabled = yield* enableSignInMethod("tailscale", refusalUnlessAuthorised);
 
-        if (!wasOn) {
-          yield* sessions.endAll;
-        }
-
-        return yield* signIn(account.success.id);
+        return enabled.kind === "enabled"
+          ? yield* signIn(account.success.id)
+          : respondToRefusal(enabled);
       }
 
       case "DisableTailscale":
@@ -591,13 +659,7 @@ const oidcCallback = HttpRouter.add(
         });
       }
 
-      const settings = yield* SubscriptionRef.get(auth.settings);
-
-      yield* auth.update({ ...settings, provider: true });
-
-      if (!isSignInOn(settings)) {
-        yield* sessions.endAll;
-      }
+      yield* enableSignInMethod("provider", () => null);
     } else if (roleChanged) {
       yield* sessions.endForUser(user.id);
     }

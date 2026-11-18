@@ -34,15 +34,19 @@ export class CleanupStore extends Context.Service<
 
       return {
         settings,
-        update: Effect.fn("CleanupStore.update")((cleanup) =>
-          sql`insert into settings ${sql.insert({
-            id: 1,
-            polling_json: encodePolling(defaultPollingSettings),
-            cleanup_json: encodeCleanup(cleanup),
-          })} on conflict (id) do update set cleanup_json = excluded.cleanup_json`.pipe(
-            Effect.orDie,
-            Effect.andThen(SubscriptionRef.set(settings, cleanup)),
-          ),
+        update: Effect.fn("CleanupStore.update")(
+          (cleanup) =>
+            SubscriptionRef.updateEffect(settings, () =>
+              sql`insert into settings ${sql.insert({
+                id: 1,
+                polling_json: encodePolling(defaultPollingSettings),
+                cleanup_json: encodeCleanup(cleanup),
+              })} on conflict (id) do update set cleanup_json = excluded.cleanup_json`.pipe(
+                Effect.orDie,
+                Effect.as(cleanup),
+              ),
+            ),
+          Effect.uninterruptible,
         ),
       };
     }),

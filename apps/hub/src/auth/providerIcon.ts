@@ -140,6 +140,12 @@ const decodeData = Schema.decodeUnknownEffect(
   Schema.Array(Schema.Struct({ media_type: IconType, data: Schema.Uint8Array })),
 );
 
+interface NewProviderIcon {
+  readonly data: Uint8Array;
+  readonly mediaType: IconType;
+  readonly source: ProviderIconSource;
+}
+
 export class ProviderIconStore extends Context.Service<
   ProviderIconStore,
   {
@@ -147,12 +153,10 @@ export class ProviderIconStore extends Context.Service<
     readonly find: (
       id: string,
     ) => Effect.Effect<Option.Option<{ readonly mediaType: IconType; readonly data: Uint8Array }>>;
-    readonly replace: (
-      icon: {
-        readonly data: Uint8Array;
-        readonly mediaType: IconType;
-        readonly source: ProviderIconSource;
-      } | null,
+    readonly replace: (icon: NewProviderIcon | null) => Effect.Effect<void>;
+    readonly replaceIfCurrent: (
+      expected: ProviderIcon | null,
+      icon: NewProviderIcon | null,
     ) => Effect.Effect<void>;
   }
 >()("fleetfrog/ProviderIconStore") {
@@ -169,6 +173,30 @@ export class ProviderIconStore extends Context.Service<
         stored === undefined ? null : { id: stored.hash, source: stored.source },
       );
 
+      const save = Effect.fnUntraced(function* (icon: NewProviderIcon | null) {
+        if (icon === null) {
+          yield* sql`delete from provider_icon`;
+
+          return null;
+        }
+
+        const hash = createHash("sha256").update(icon.data).digest("hex");
+
+        yield* sql`insert into provider_icon ${sql.insert({
+          id: 1,
+          hash,
+          media_type: icon.mediaType,
+          source: icon.source,
+          data: icon.data,
+        })} on conflict (id) do update set
+          hash = excluded.hash,
+          media_type = excluded.media_type,
+          source = excluded.source,
+          data = excluded.data`;
+
+        return { id: hash, source: icon.source } satisfies ProviderIcon;
+      });
+
       return {
         current,
         find: Effect.fn("ProviderIconStore.find")(
@@ -183,29 +211,21 @@ export class ProviderIconStore extends Context.Service<
             ),
           Effect.orDie,
         ),
-        replace: Effect.fn("ProviderIconStore.replace")(function* (icon) {
-          if (icon === null) {
-            yield* sql`delete from provider_icon`;
-
-            return yield* SubscriptionRef.set(current, null);
-          }
-
-          const hash = createHash("sha256").update(icon.data).digest("hex");
-
-          yield* sql`insert into provider_icon ${sql.insert({
-            id: 1,
-            hash,
-            media_type: icon.mediaType,
-            source: icon.source,
-            data: icon.data,
-          })} on conflict (id) do update set
-            hash = excluded.hash,
-            media_type = excluded.media_type,
-            source = excluded.source,
-            data = excluded.data`;
-
-          return yield* SubscriptionRef.set(current, { id: hash, source: icon.source });
-        }, Effect.orDie),
+        replace: Effect.fn("ProviderIconStore.replace")(
+          (icon) => SubscriptionRef.updateEffect(current, () => save(icon)),
+          Effect.orDie,
+          Effect.uninterruptible,
+        ),
+        replaceIfCurrent: Effect.fn("ProviderIconStore.replaceIfCurrent")(
+          (expected, icon) =>
+            SubscriptionRef.updateSomeEffect(current, (latest) =>
+              latest === expected
+                ? save(icon).pipe(Effect.map(Option.some))
+                : Effect.succeed(Option.none()),
+            ),
+          Effect.orDie,
+          Effect.uninterruptible,
+        ),
       };
     }),
   );

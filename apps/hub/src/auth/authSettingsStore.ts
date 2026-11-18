@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Schema, Stream, Struct, SubscriptionRef } from "effect";
+import { Context, Effect, Layer, Option, Schema, Stream, Struct, SubscriptionRef } from "effect";
 import { SqlClient } from "effect/sql";
 
 import { defaultPollingSettings, PollingSettings } from "@fleetfrog/protocol/domain/polling";
@@ -23,7 +23,10 @@ export class AuthSettingsStore extends Context.Service<
     readonly settings: SubscriptionRef.SubscriptionRef<AuthSettings>;
     readonly methods: Effect.Effect<SignInSwitches>;
     readonly overridden: boolean;
-    readonly update: (auth: AuthSettings) => Effect.Effect<void>;
+    readonly modify: <A>(
+      change: (current: AuthSettings) => readonly [A, AuthSettings],
+    ) => Effect.Effect<A>;
+    readonly update: (change: (current: AuthSettings) => AuthSettings) => Effect.Effect<void>;
     readonly watch: Stream.Stream<Omit<AuthSettingsView, "icon">>;
   }
 >()("fleetfrog/AuthSettingsStore") {
@@ -39,6 +42,22 @@ export class AuthSettingsStore extends Context.Service<
 
       const settings = yield* SubscriptionRef.make(stored?.auth_json ?? defaultAuthSettings);
 
+      const save = (auth: AuthSettings) =>
+        sql`insert into settings ${sql.insert({
+          id: 1,
+          polling_json: encodePolling(defaultPollingSettings),
+          auth_json: encodeAuth(auth),
+        })} on conflict (id) do update set auth_json = excluded.auth_json`.pipe(Effect.orDie);
+
+      const modify = <A>(change: (current: AuthSettings) => readonly [A, AuthSettings]) =>
+        SubscriptionRef.modifySomeEffect(settings, (current) => {
+          const [result, next] = change(current);
+
+          return next === current
+            ? Effect.succeed([result, Option.none()] as const)
+            : save(next).pipe(Effect.as([result, Option.some(next)] as const));
+        }).pipe(Effect.uninterruptible, Effect.withSpan("AuthSettingsStore.modify"));
+
       return {
         settings,
         methods: SubscriptionRef.get(settings).pipe(
@@ -49,15 +68,9 @@ export class AuthSettingsStore extends Context.Service<
           ),
         ),
         overridden: authModeOverride !== null,
-        update: Effect.fn("AuthSettingsStore.update")((auth) =>
-          sql`insert into settings ${sql.insert({
-            id: 1,
-            polling_json: encodePolling(defaultPollingSettings),
-            auth_json: encodeAuth(auth),
-          })} on conflict (id) do update set auth_json = excluded.auth_json`.pipe(
-            Effect.orDie,
-            Effect.andThen(SubscriptionRef.set(settings, auth)),
-          ),
+        modify,
+        update: Effect.fn("AuthSettingsStore.update")((change) =>
+          modify((current) => [undefined, change(current)]),
         ),
         watch: SubscriptionRef.changes(settings).pipe(
           Stream.map(({ passwords, provider, tailscale, gravatar, oidc }) => ({
