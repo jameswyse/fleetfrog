@@ -1,4 +1,4 @@
-import { Context, Duration, Effect, flow, Layer, Schema, SubscriptionRef } from "effect";
+import { Context, Duration, Effect, flow, Layer, Schedule, Schema, SubscriptionRef } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 
 import { t3CodeChannel, unknownT3CodeReleases } from "@fleetfrog/protocol/domain/t3CodeUpdate";
@@ -87,8 +87,7 @@ export class T3CodeReleaseFeed extends Context.Service<
         Effect.catch((error) =>
           Effect.logWarning(`Couldn't check GitHub for T3 Code releases: ${error.message}`),
         ),
-        Effect.andThen(Effect.sleep(refreshInterval)),
-        Effect.forever,
+        Effect.repeat(Schedule.spaced(refreshInterval)),
         Effect.forkScoped,
       );
 
