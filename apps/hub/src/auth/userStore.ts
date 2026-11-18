@@ -330,15 +330,19 @@ export class UserStore extends Context.Service<
           write(
             Effect.gen(function* () {
               yield* find(userId);
-              yield* sql`delete from user_avatars where user_id = ${userId}`.pipe(Effect.orDie);
 
-              if (avatar !== null) {
+              if (avatar === null) {
+                yield* sql`delete from user_avatars where user_id = ${userId}`.pipe(Effect.orDie);
+              } else {
                 yield* sql`insert into user_avatars ${sql.insert({
                   user_id: userId,
                   id: createHash("sha256").update(avatar.data).digest("hex"),
                   media_type: avatar.mediaType,
                   data: avatar.data,
-                })}`.pipe(Effect.orDie);
+                })} on conflict (user_id) do update set
+                  id = excluded.id,
+                  media_type = excluded.media_type,
+                  data = excluded.data`.pipe(Effect.orDie);
               }
             }),
           ),
@@ -364,9 +368,9 @@ export class UserStore extends Context.Service<
                 return yield* new LastAdmin();
               }
 
-              yield* sql`delete from user_avatars where user_id = ${userId}`.pipe(Effect.orDie);
-
-              return yield* sql`delete from users where id = ${userId}`.pipe(
+              return yield* sql`delete from user_avatars where user_id = ${userId}`.pipe(
+                Effect.andThen(sql`delete from users where id = ${userId}`),
+                sql.withTransaction,
                 Effect.orDie,
                 Effect.asVoid,
               );

@@ -184,9 +184,9 @@ export class ProviderIconStore extends Context.Service<
           Effect.orDie,
         ),
         replace: Effect.fn("ProviderIconStore.replace")(function* (icon) {
-          yield* sql`delete from provider_icon`;
-
           if (icon === null) {
+            yield* sql`delete from provider_icon`;
+
             return yield* SubscriptionRef.set(current, null);
           }
 
@@ -198,7 +198,11 @@ export class ProviderIconStore extends Context.Service<
             media_type: icon.mediaType,
             source: icon.source,
             data: icon.data,
-          })}`;
+          })} on conflict (id) do update set
+            hash = excluded.hash,
+            media_type = excluded.media_type,
+            source = excluded.source,
+            data = excluded.data`;
 
           return yield* SubscriptionRef.set(current, { id: hash, source: icon.source });
         }, Effect.orDie),
