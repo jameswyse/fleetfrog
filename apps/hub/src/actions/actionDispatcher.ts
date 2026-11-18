@@ -71,25 +71,29 @@ export class ActionDispatcher extends Context.Service<
         .unfinished({ _tag: "All" })
         .pipe(Effect.flatMap((runs) => Effect.forEach(runs, interrupt, { discard: true })));
 
+      const interruptLostRuns = Effect.gen(function* () {
+        const online = yield* SubscriptionRef.get(sessions.online);
+
+        const lost = [...dispatched].filter(
+          ([, { machineId, sessionId }]) => online.get(machineId)?.sessionId !== sessionId,
+        );
+
+        if (lost.length === 0) {
+          return;
+        }
+
+        for (const [runId] of lost) {
+          dispatched.delete(runId);
+        }
+
+        yield* Effect.forEach(lost, ([runId, { machineId }]) => interrupt({ runId, machineId }), {
+          discard: true,
+        });
+        yield* activity.invalidate;
+      });
+
       yield* SubscriptionRef.changes(sessions.online).pipe(
-        Stream.runForEach((online) =>
-          Effect.gen(function* () {
-            const lost = [...dispatched].filter(
-              ([, { machineId, sessionId }]) => online.get(machineId)?.sessionId !== sessionId,
-            );
-
-            if (lost.length === 0) {
-              return;
-            }
-
-            for (const [runId, { machineId }] of lost) {
-              dispatched.delete(runId);
-              yield* interrupt({ runId, machineId });
-            }
-
-            yield* activity.invalidate;
-          }),
-        ),
+        Stream.runForEach(() => interruptLostRuns),
         Effect.forkScoped,
       );
 
@@ -99,48 +103,53 @@ export class ActionDispatcher extends Context.Service<
           const batchId = BatchId.make(randomUUID());
           const runs = Arr.map(plan.runs, (run) => ({ ...run, id: RunId.make(randomUUID()) }));
 
-          yield* store.createBatch({
-            id: batchId,
-            kind: plan.kind,
-            scope: plan.scope,
-            requestedAt: yield* DateTime.now,
-            requestedBy,
-            runs: Arr.map(runs, (run) => ({
-              id: run.id,
-              machineId: run.machine.id,
-              machineName: machineLabel(run.machine),
-              repositoryKey: run.repository.key,
-              repositoryName: run.repository.label,
-              path: run.path,
-              request: run.request,
-              outcome: run.outcome,
-            })),
+          const dispatch = Effect.gen(function* () {
+            yield* store.createBatch({
+              id: batchId,
+              kind: plan.kind,
+              scope: plan.scope,
+              requestedAt: yield* DateTime.now,
+              requestedBy,
+              runs: Arr.map(runs, (run) => ({
+                id: run.id,
+                machineId: run.machine.id,
+                machineName: machineLabel(run.machine),
+                repositoryKey: run.repository.key,
+                repositoryName: run.repository.label,
+                path: run.path,
+                request: run.request,
+                outcome: run.outcome,
+              })),
+            });
+
+            for (const run of runs) {
+              if (run.outcome !== null) {
+                continue;
+              }
+
+              const sessionId = yield* sessions.send(
+                run.machine.id,
+                HubCommand.cases.RunAction.make({ runId: run.id, request: run.request }),
+              );
+
+              if (sessionId === null) {
+                yield* store.markFinished({
+                  runId: run.id,
+                  machineId: run.machine.id,
+                  outcome: ActionOutcome.cases.MachineOffline.make({}),
+                  output: [],
+                  at: yield* DateTime.now,
+                });
+              } else {
+                dispatched.set(run.id, { machineId: run.machine.id, sessionId });
+              }
+            }
+
+            yield* interruptLostRuns;
+            yield* activity.invalidate;
           });
 
-          for (const run of runs) {
-            if (run.outcome !== null) {
-              continue;
-            }
-
-            const sessionId = yield* sessions.send(
-              run.machine.id,
-              HubCommand.cases.RunAction.make({ runId: run.id, request: run.request }),
-            );
-
-            if (sessionId === null) {
-              yield* store.markFinished({
-                runId: run.id,
-                machineId: run.machine.id,
-                outcome: ActionOutcome.cases.MachineOffline.make({}),
-                output: [],
-                at: yield* DateTime.now,
-              });
-            } else {
-              dispatched.set(run.id, { machineId: run.machine.id, sessionId });
-            }
-          }
-
-          yield* activity.invalidate;
+          yield* dispatch.pipe(Effect.uninterruptible);
 
           return batchId;
         }),
