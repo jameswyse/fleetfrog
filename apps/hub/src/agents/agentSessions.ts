@@ -8,6 +8,7 @@ import {
   Effect,
   Layer,
   Queue,
+  Schema,
   Stream,
   SubscriptionRef,
 } from "effect";
@@ -34,12 +35,26 @@ export interface OnlineAgent {
   readonly capabilities: AgentCapabilities;
 }
 
+type Configuration = (typeof HubCommand.cases.Configure)["Type"];
+
+const sameConfiguration = Schema.toEquivalence(HubCommand.cases.Configure);
+
 interface Session {
   readonly id: string;
   readonly since: DateTime.Utc;
   capabilities: AgentCapabilities;
   readonly commands: Queue.Queue<HubCommand, Cause.Done>;
   lastHeartbeatAt: number;
+  configuration: Configuration | null;
+}
+
+function sendConfiguration(session: Session, next: Configuration) {
+  if (session.configuration !== null && sameConfiguration(session.configuration, next)) {
+    return;
+  }
+
+  session.configuration = next;
+  Queue.offerUnsafe(session.commands, next);
 }
 
 export class AgentSessions extends Context.Service<
@@ -127,9 +142,8 @@ export class AgentSessions extends Context.Service<
         return session === undefined
           ? Effect.void
           : configuration(machineId).pipe(
-              Effect.flatMap((command) => Queue.offer(session.commands, command)),
+              Effect.map((next) => sendConfiguration(session, next)),
               Effect.catchTag("MachineNotFound", () => disconnect(machineId)),
-              Effect.asVoid,
             );
       };
 
@@ -180,6 +194,7 @@ export class AgentSessions extends Context.Service<
                 capabilities,
                 commands: yield* Queue.unbounded<HubCommand, Cause.Done>(),
                 lastHeartbeatAt: DateTime.toEpochMillis(since),
+                configuration: null,
               };
 
               sessions.set(machineId, registered);
