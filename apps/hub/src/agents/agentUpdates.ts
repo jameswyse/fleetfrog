@@ -1,4 +1,4 @@
-import { Context, DateTime, Effect, Layer, SubscriptionRef } from "effect";
+import { Context, DateTime, Effect, Layer, Option, SubscriptionRef } from "effect";
 
 import { HubCommand } from "@fleetfrog/protocol/agent/rpcs";
 import { AgentNotUpdatable } from "@fleetfrog/protocol/dashboard/rpcs";
@@ -12,9 +12,12 @@ import { Connection } from "@fleetfrog/protocol/domain/fleet";
 import packageJson from "../../package.json" with { type: "json" };
 import { MachineStore } from "../machines/machineStore.ts";
 import { AgentSessions } from "./agentSessions.ts";
+import { clear, keep, set, transitionUpdate, withUpdate } from "./updateTransitions.ts";
 
 import type { MachineNotFound } from "@fleetfrog/protocol/dashboard/rpcs";
 import type { MachineId } from "@fleetfrog/protocol/domain/machine";
+
+import type { UpdateTransition } from "./updateTransitions.ts";
 
 export class AgentUpdates extends Context.Service<
   AgentUpdates,
@@ -42,18 +45,10 @@ export class AgentUpdates extends Context.Service<
       const targetVersion = packageJson.version;
       const updates = yield* SubscriptionRef.make<ReadonlyMap<MachineId, AgentUpdate>>(new Map());
 
-      const settle = (machineId: MachineId, update: AgentUpdate | null) =>
-        SubscriptionRef.update(updates, (current) => {
-          const next = new Map(current);
-
-          if (update === null) {
-            next.delete(machineId);
-          } else {
-            next.set(machineId, update);
-          }
-
-          return next;
-        });
+      const transition = (
+        machineId: MachineId,
+        decide: (update: AgentUpdate | undefined) => UpdateTransition<AgentUpdate>,
+      ) => transitionUpdate(updates, machineId, decide);
 
       return {
         targetVersion,
@@ -62,6 +57,7 @@ export class AgentUpdates extends Context.Service<
           const record = yield* machines.find(machineId);
           const agent = (yield* SubscriptionRef.get(sessions.online)).get(machineId);
           const since = yield* DateTime.now;
+          const claim = AgentUpdate.cases.Updating.make({ version: targetVersion, since });
 
           const connection =
             agent === undefined
@@ -71,38 +67,36 @@ export class AgentUpdates extends Context.Service<
                   capabilities: agent.capabilities,
                 });
 
-          const claimed = yield* SubscriptionRef.modify(updates, (current) => {
-            const machine = {
-              info: record.info,
-              connection,
-              update: current.get(machineId) ?? null,
-            };
+          const requestUpdate = Effect.gen(function* () {
+            const claimed = yield* SubscriptionRef.modifySome(updates, (current) => {
+              const machine = {
+                info: record.info,
+                connection,
+                update: current.get(machineId) ?? null,
+              };
 
-            if (!canUpdateAgent(machine, targetVersion)) {
-              return [false, current];
+              return canUpdateAgent(machine, targetVersion)
+                ? [true, Option.some(withUpdate(current, machineId, claim))]
+                : [false, Option.none()];
+            });
+
+            if (!claimed) {
+              return false;
             }
 
-            return [
-              true,
-              new Map(current).set(
-                machineId,
-                AgentUpdate.cases.Updating.make({ version: targetVersion, since }),
-              ),
-            ];
+            const sent = yield* sessions.send(
+              machineId,
+              HubCommand.cases.Update.make({ version: targetVersion }),
+            );
+
+            if (sent === null) {
+              yield* transition(machineId, (update) => (update === claim ? clear : keep));
+            }
+
+            return sent !== null;
           });
 
-          if (!claimed) {
-            return yield* new AgentNotUpdatable({ machineId });
-          }
-
-          const sent = yield* sessions.send(
-            machineId,
-            HubCommand.cases.Update.make({ version: targetVersion }),
-          );
-
-          if (sent === null) {
-            yield* settle(machineId, null);
-
+          if (!(yield* requestUpdate.pipe(Effect.uninterruptible))) {
             return yield* new AgentNotUpdatable({ machineId });
           }
 
@@ -113,28 +107,37 @@ export class AgentUpdates extends Context.Service<
         fail: Effect.fn("AgentUpdates.fail")(({ machineId, version, message }) =>
           Effect.logWarning(`The agent couldn't update to ${version}: ${message}`).pipe(
             Effect.annotateLogs({ machineId }),
-            Effect.andThen(settle(machineId, AgentUpdate.cases.Failed.make({ version, message }))),
+            Effect.andThen(
+              transition(machineId, (update) =>
+                update?._tag === "Failed" &&
+                update.version === version &&
+                update.message === message
+                  ? keep
+                  : set(AgentUpdate.cases.Failed.make({ version, message })),
+              ),
+            ),
           ),
         ),
-        connected: Effect.fn("AgentUpdates.connected")(function* ({ machineId, agentVersion }) {
-          const update = (yield* SubscriptionRef.get(updates)).get(machineId);
+        connected: Effect.fn("AgentUpdates.connected")(({ machineId, agentVersion }) =>
+          transition(machineId, (update) => {
+            if (update === undefined) {
+              return keep;
+            }
 
-          if (update === undefined) {
-            return;
-          }
+            if (compareVersions(agentVersion, update.version) >= 0) {
+              return clear;
+            }
 
-          if (compareVersions(agentVersion, update.version) >= 0) {
-            yield* settle(machineId, null);
-          } else if (update._tag === "Updating") {
-            yield* settle(
-              machineId,
-              AgentUpdate.cases.Failed.make({
-                version: update.version,
-                message: `The agent reconnected on ${agentVersion} before the update finished.`,
-              }),
-            );
-          }
-        }),
+            return update._tag === "Updating"
+              ? set(
+                  AgentUpdate.cases.Failed.make({
+                    version: update.version,
+                    message: `The agent reconnected on ${agentVersion} before the update finished.`,
+                  }),
+                )
+              : keep;
+          }),
+        ),
       };
     }),
   );
