@@ -14,6 +14,7 @@ import { RepositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
 import { JsonColumn } from "../persistence/database.ts";
 
+
 import type {
   ActionBatch,
   ActionRun,
@@ -306,7 +307,7 @@ export class ActivityStore extends Context.Service<
           (within) =>
             sql`select id, machine_id from action_runs where ${sql.and([
               sql.in("status", activeStatuses),
-              within._tag === "Batch" ? sql`batch_id = ${within.batchId}` : "1=1",
+              ...(within._tag === "Batch" ? [sql`batch_id = ${within.batchId}`] : []),
             ])}`.pipe(
               Effect.flatMap(decodeTargets),
               Effect.map((rows) =>
@@ -351,17 +352,25 @@ export class ActivityStore extends Context.Service<
             values.length > 0 ? [sql.in(column, values)] : [],
           );
 
-          const batchRows = yield* sql`select * from action_batches as batch where ${
+          const batchMatching =
             matching.length === 0
-              ? "1=1"
-              : sql`exists (select 1 from action_runs where batch_id = batch.id and ${sql.and(matching)})`
-          } order by requested_at desc limit ${limit + 1}`.pipe(Effect.flatMap(decodeBatches));
+              ? []
+              : [
+                  sql`exists (select 1 from action_runs where batch_id = batch.id and ${sql.and(matching)})`,
+                ];
+
+          const eventMatching =
+            filter.machineIds.length === 0 ? [] : [sql.in("machine_id", filter.machineIds)];
+
+          const batchRows = yield* sql`select * from action_batches as batch
+            where ${sql.and(batchMatching)}
+            order by requested_at desc limit ${limit + 1}`.pipe(Effect.flatMap(decodeBatches));
 
           const eventRows =
             filter.repositoryKeys.length === 0 && filter.outcomes.length === 0
-              ? yield* sql`select at, event_json, actor_json from hub_events where ${
-                  filter.machineIds.length === 0 ? "1=1" : sql.in("machine_id", filter.machineIds)
-                } order by at desc, id desc limit ${limit + 1}`.pipe(Effect.flatMap(decodeEvents))
+              ? yield* sql`select at, event_json, actor_json from hub_events
+                  where ${sql.and(eventMatching)}
+                  order by at desc, id desc limit ${limit + 1}`.pipe(Effect.flatMap(decodeEvents))
               : [];
 
           const batches = yield* summarise(batchRows);
