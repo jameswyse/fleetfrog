@@ -213,7 +213,7 @@ it.effect("uses the provider's name only while people sign in through it", () =>
 
     expect((yield* users.describe(current)).displayName).toBe("Ada");
 
-    yield* auth.update({ ...defaultAuthSettings, provider: true });
+    yield* auth.update(() => ({ ...defaultAuthSettings, provider: true }));
 
     const described = yield* users.describe(current);
 

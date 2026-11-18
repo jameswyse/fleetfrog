@@ -203,6 +203,7 @@ export class UserStore extends Context.Service<
           Effect.tap(() =>
             load.pipe(Effect.flatMap((rows) => SubscriptionRef.set(records, rows.map(toRecord)))),
           ),
+          Effect.uninterruptible,
           Semaphore.withPermits(writes, 1),
         );
 
