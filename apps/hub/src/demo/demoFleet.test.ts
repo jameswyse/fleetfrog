@@ -7,27 +7,12 @@ import { repositoryKey } from "@fleetfrog/protocol/domain/repositoryIdentity";
 
 import { ActionDispatcher } from "../actions/actionDispatcher.ts";
 import { ActivityFeed } from "../activity/activityFeed.ts";
-import { ActivityStore } from "../activity/activityStore.ts";
-import { AgentSessions } from "../agents/agentSessions.ts";
-import { AgentUpdates } from "../agents/agentUpdates.ts";
-import { FolderRequests } from "../agents/folderRequests.ts";
-import { InspectionRequests } from "../agents/inspectionRequests.ts";
-import { CheckoutStore } from "../catalogue/checkoutStore.ts";
 import { FleetFeed } from "../catalogue/fleetFeed.ts";
 import { ProjectIconStore } from "../catalogue/projectIconStore.ts";
-import { DashboardPresence } from "../dashboard/dashboardPresence.ts";
 import { HubConfig } from "../hubConfig.ts";
-import { MachineStore } from "../machines/machineStore.ts";
-import { Database } from "../persistence/database.ts";
-import { CleanupStore } from "../settings/cleanupStore.ts";
-import { IntegrationsStore } from "../settings/integrationsStore.ts";
-import { PollingStore } from "../settings/pollingStore.ts";
-import { ProjectLayoutStore } from "../settings/projectLayoutStore.ts";
-import { T3CodeReleaseFeed } from "../t3Code/t3CodeReleaseFeed.ts";
-import { T3CodeUpdates } from "../t3Code/t3CodeUpdates.ts";
+import { HubServices } from "../hubServices.ts";
 import { DemoFleet } from "./demoFleet.ts";
 import { demoMachines } from "./demoFleetData.ts";
-import { demoT3CodeReleases } from "./demoWorld.ts";
 
 import type { Fleet, MachineCheckout } from "@fleetfrog/protocol/domain/fleet";
 
@@ -45,32 +30,7 @@ const config = Layer.succeed(HubConfig)({
   demo: true,
 });
 
-const DemoHub = DemoFleet.pipe(
-  Layer.provideMerge(ActionDispatcher.layer),
-  Layer.provide(FolderRequests.layer),
-  Layer.provide(InspectionRequests.layer),
-  Layer.provideMerge(FleetFeed.layer),
-  Layer.provideMerge(ActivityFeed.layer),
-  Layer.provideMerge(AgentUpdates.layer),
-  Layer.provideMerge(T3CodeUpdates.layer),
-  Layer.provideMerge(AgentSessions.layer),
-  Layer.provideMerge(T3CodeReleaseFeed.fixed(demoT3CodeReleases)),
-  Layer.provideMerge(
-    Layer.mergeAll(
-      MachineStore.layer,
-      CheckoutStore.layer,
-      ActivityStore.layer,
-      PollingStore.layer,
-      CleanupStore.layer,
-      IntegrationsStore.layer,
-      ProjectLayoutStore.layer,
-      ProjectIconStore.layer,
-      DashboardPresence.layer,
-    ),
-  ),
-  Layer.provideMerge(Database),
-  Layer.provideMerge(config),
-);
+const DemoHub = DemoFleet.pipe(Layer.provideMerge(HubServices), Layer.provideMerge(config));
 
 const fleetWhere = (ready: (fleet: Fleet) => boolean) =>
   FleetFeed.use(({ watch }) =>
