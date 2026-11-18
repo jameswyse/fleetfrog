@@ -1,8 +1,8 @@
-import { mkdirSync } from "node:fs";
 import path from "node:path";
 
+import { NodeFileSystem } from "@effect/platform-node";
 import { SqliteClient, SqliteMigrator } from "@effect/sql-sqlite-node";
-import { Effect, Layer, Schema } from "effect";
+import { Effect, FileSystem, Layer, Schema } from "effect";
 
 import { HubConfig } from "../hubConfig.ts";
 import { migrations } from "./migrations/registry.ts";
@@ -15,11 +15,12 @@ const client = Layer.unwrap(
       return SqliteClient.layer({ filename: ":memory:" });
     }
 
-    mkdirSync(dataDirectory, { recursive: true });
+    const fs = yield* FileSystem.FileSystem;
+    yield* fs.makeDirectory(dataDirectory, { recursive: true });
 
     return SqliteClient.layer({ filename: path.join(dataDirectory, "fleetfrog.db") });
   }),
-);
+).pipe(Layer.provide(NodeFileSystem.layer));
 
 export const Migrations = SqliteMigrator.layer({ loader: SqliteMigrator.fromRecord(migrations) });
 
