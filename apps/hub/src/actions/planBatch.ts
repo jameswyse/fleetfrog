@@ -173,7 +173,7 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
     });
 
   const runFor = Effect.fnUntraced(function* (target: Target, actionRequest: ActionRequest) {
-    const machine = yield* findMachine(target.entry.machineId).pipe(Effect.orDie);
+    const machine = yield* findMachine(target.entry.machineId);
 
     return {
       machine,
@@ -228,17 +228,13 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
     );
   };
 
-  const locate = Effect.fnUntraced(function* (machineId: MachineId, targeted: TargetedRequest) {
+  const locate = (machine: Machine, targeted: TargetedRequest) => {
     const target = targetOf(targeted);
 
     if (target._tag === "Trashed") {
-      const item = (yield* findMachine(machineId)).trash.find(({ id }) => id === target.id);
-
-      if (item === undefined) {
-        return yield* new NothingToRun();
-      }
-
-      return { repository: trashedRepository(item), path: item.originalPath };
+      return Option.fromUndefinedOr(machine.trash.find(({ id }) => id === target.id)).pipe(
+        Option.map((item) => ({ repository: trashedRepository(item), path: item.originalPath })),
+      );
     }
 
     const paths =
@@ -249,17 +245,15 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
     const found = paths
       .map((path) =>
         candidates.find(
-          ({ entry }) => entry.machineId === machineId && entry.checkout.path === path,
+          ({ entry }) => entry.machineId === machine.id && entry.checkout.path === path,
         ),
       )
       .find((candidate) => candidate !== undefined);
 
-    if (found === undefined) {
-      return yield* new NothingToRun();
-    }
-
-    return { repository: found.repository, path: found.entry.checkout.path };
-  });
+    return Option.fromUndefinedOr(found).pipe(
+      Option.map(({ repository, entry }) => ({ repository, path: entry.checkout.path })),
+    );
+  };
 
   const targetedScope = (runs: ReadonlyArray<PlannedRun>) => {
     const [only, ...others] = runs;
@@ -356,7 +350,7 @@ export const planBatch = Effect.fn("planBatch")(function* (request: BatchRequest
           ({ machineId, request: targeted }: TargetedRun) =>
             Effect.gen(function* () {
               const machine = yield* findMachine(machineId);
-              const target = yield* locate(machineId, targeted).pipe(Effect.option);
+              const target = locate(machine, targeted);
 
               return Option.map(target, (found) => ({
                 machine,
