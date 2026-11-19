@@ -7,8 +7,8 @@ export const T3CodeSchema = Schema.Struct({ migration: Schema.Int, name: Reporte
 export type T3CodeSchema = typeof T3CodeSchema.Type;
 
 export const supportedT3CodeSchema: T3CodeSchema = {
-  migration: 69,
-  name: "ThreadMessageSearch",
+  migration: 98,
+  name: "ActiveShellIndexIndexes",
 };
 
 export function schemaDrift(schema: T3CodeSchema): "Current" | "Newer" | "Older" {
