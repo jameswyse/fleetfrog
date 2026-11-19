@@ -1,5 +1,5 @@
 import { Context, Duration, Effect, flow, Layer, Schedule, Schema, SubscriptionRef } from "effect";
-import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
+import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 
 import { t3CodeChannel, unknownT3CodeReleases } from "@fleetfrog/protocol/domain/t3CodeUpdate";
 
@@ -95,7 +95,7 @@ export class T3CodeReleaseFeed extends Context.Service<
 
       return { releases };
     }),
-  ).pipe(Layer.provide(FetchHttpClient.layer));
+  );
 
   static fixed(releases: T3CodeReleases) {
     return Layer.effect(this)(
