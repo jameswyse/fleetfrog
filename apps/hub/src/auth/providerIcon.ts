@@ -80,8 +80,10 @@ function iconLinks(html: string, page: URL) {
 const maximumPageBytes = 1024 * 1024;
 const maximumCandidates = 5;
 
-async function download(url: URL, limit: number) {
-  const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
+async function download(url: URL, limit: number, signal: AbortSignal) {
+  const response = await fetch(url, {
+    signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]),
+  });
 
   if (!response.ok || response.body === null) {
     return null;
@@ -107,10 +109,10 @@ async function download(url: URL, limit: number) {
 }
 
 export const fetchProviderIcon = (issuerUrl: string) =>
-  Effect.promise(async () => {
+  Effect.promise(async (signal) => {
     const site = new URL("/", issuerUrl);
     // oxlint-disable-next-line wyse/no-swallowed-errors -- A site that can't be reached has no icon.
-    const page = await download(site, maximumPageBytes).catch(() => null);
+    const page = await download(site, maximumPageBytes, signal).catch(() => null);
 
     const candidates = [
       ...(page === null
@@ -121,7 +123,8 @@ export const fetchProviderIcon = (issuerUrl: string) =>
 
     for (const candidate of candidates) {
       // oxlint-disable-next-line wyse/no-swallowed-errors -- A candidate that can't be downloaded isn't the provider's icon.
-      const data = (await download(candidate, maximumIconBytes).catch(() => null))?.data ?? null;
+      const downloaded = await download(candidate, maximumIconBytes, signal).catch(() => null);
+      const data = downloaded?.data ?? null;
       const mediaType = data === null ? null : iconType(data);
 
       if (data !== null && mediaType !== null) {
