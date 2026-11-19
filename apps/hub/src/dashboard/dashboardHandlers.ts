@@ -46,6 +46,7 @@ import { ProjectLayoutStore } from "../settings/projectLayoutStore.ts";
 import { T3CodeUpdates } from "../t3Code/t3CodeUpdates.ts";
 import { DashboardPresence } from "./dashboardPresence.ts";
 
+import type { UserNotFound } from "@fleetfrog/protocol/dashboard/rpcs";
 import type { Actor, HubEvent } from "@fleetfrog/protocol/domain/activity";
 
 export const DashboardHandlers = DashboardRpcs.toLayer(
@@ -119,9 +120,12 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
     const recordChange = (event: HubEvent) =>
       actor.pipe(Effect.flatMap((by) => activity.recordEvent(event, by)));
 
+    const missingUserAsSignedOut = <A, E, R>(effect: Effect.Effect<A, E | UserNotFound, R>) =>
+      effect.pipe(Effect.catchTag("UserNotFound", () => Effect.fail(new NotSignedIn())));
+
     const ownRecord = signedIn.pipe(
       Effect.flatMap(({ userId }) => users.find(userId)),
-      Effect.catchTag("UserNotFound", () => Effect.fail(new NotSignedIn())),
+      missingUserAsSignedOut,
     );
 
     return {
@@ -265,7 +269,9 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
             return yield* new ManagedByProvider();
           }
 
-          yield* users.setDisplayName({ userId: record.id, displayName }).pipe(Effect.orDie);
+          yield* users
+            .setDisplayName({ userId: record.id, displayName })
+            .pipe(missingUserAsSignedOut);
 
           return yield* ownRecord.pipe(Effect.flatMap(users.describe));
         }),
@@ -281,7 +287,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
             return yield* new InvalidAvatar();
           }
 
-          yield* users.setAvatar({ userId: record.id, avatar }).pipe(Effect.orDie);
+          yield* users.setAvatar({ userId: record.id, avatar }).pipe(missingUserAsSignedOut);
 
           return yield* ownRecord.pipe(Effect.flatMap(users.describe));
         }),
@@ -322,7 +328,7 @@ export const DashboardHandlers = DashboardRpcs.toLayer(
 
           yield* users
             .setPasswordHash({ userId: record.id, passwordHash: yield* hashPassword(newPassword) })
-            .pipe(Effect.orDie);
+            .pipe(missingUserAsSignedOut);
 
           return yield* dashboardSessions.endForUser(record.id, { except: sessionHash });
         }),
