@@ -1,5 +1,11 @@
 # @fleetfrog/protocol
 
+## 0.11.3
+
+### Patch Changes
+
+- Run on Node.js 26.13.1 and refresh runtime dependencies and build tooling. ([#40](https://github.com/jameswyse/fleetfrog/pull/40))
+
 ## 0.11.2
 
 ### Patch Changes

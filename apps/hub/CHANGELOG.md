@@ -1,5 +1,14 @@
 # @fleetfrog/hub
 
+## 0.11.3
+
+### Patch Changes
+
+- Run on Node.js 26.13.1 and refresh runtime dependencies and build tooling. ([#40](https://github.com/jameswyse/fleetfrog/pull/40))
+- Stop a stalled T3 Code release check from blocking later checks, and report a dashboard socket the hub can't replace as a startup error. Requests from a deleted account now show it as signed out, and a fetch or pull that includes a machine that's no longer paired says so, instead of failing with an internal error. ([#44](https://github.com/jameswyse/fleetfrog/pull/44))
+- Keep agent sessions, actions, updates and settings consistent when requests overlap or are cancelled. A reconnecting agent no longer appears offline or loses its connection, cancelling a request no longer stops a saved batch from being sent, and two people changing sign-in settings at once no longer undo each other. ([#43](https://github.com/jameswyse/fleetfrog/pull/43))
+- Keep the current avatar or sign-in button icon when replacing it fails, and keep removing old activity after a failed clean-up pass. ([#42](https://github.com/jameswyse/fleetfrog/pull/42))
+
 ## 0.11.2
 
 ### Patch Changes
