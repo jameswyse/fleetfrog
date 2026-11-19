@@ -235,4 +235,4 @@ export const runSimulatedAgent = Effect.fn("runSimulatedAgent")(function* (optio
     .pipe(
       Stream.runForEach((received) => (isHubCommand(received) ? handle(received) : Effect.void)),
     );
-});
+}, Effect.scoped);
