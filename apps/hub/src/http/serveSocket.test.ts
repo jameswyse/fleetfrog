@@ -1,11 +1,10 @@
-import { mkdtempSync, rmdirSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { createServer, request } from "node:http";
-import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { NodeHttpServer } from "@effect/platform-node";
+import { NodeFileSystem, NodeHttpServer } from "@effect/platform-node";
 import { describe, expect, it } from "@effect/vitest";
-import { Context, Effect, Layer, Option } from "effect";
+import { Context, Effect, FileSystem, Layer, Option, PlatformError } from "effect";
 import { HttpRouter, HttpServer, HttpServerRequest, HttpServerResponse } from "effect/http";
 
 import {
@@ -48,14 +47,18 @@ function get(target: { readonly port: number } | { readonly socketPath: string }
   });
 }
 
+const socketPathInTempFolder = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  const folder = yield* fs.makeTempDirectoryScoped({ prefix: "fleetfrog-serve-" });
+
+  return path.join(folder, "dashboard.sock");
+});
+
 describe("the dashboard socket", () => {
   it.effect("trusts Serve's headers only on connections through the socket", () =>
     Effect.gen(function* () {
-      const folder = mkdtempSync(path.join(tmpdir(), "fleetfrog-serve-"));
-      const socketPath = path.join(folder, "dashboard.sock");
+      const socketPath = yield* socketPathInTempFolder;
       const server = createServer();
-
-      yield* Effect.addFinalizer(() => Effect.sync(() => rmdirSync(folder)));
 
       const context = yield* Layer.build(
         Layer.effectDiscard(listenOnServeSocket(server, socketPath)).pipe(
@@ -77,7 +80,72 @@ describe("the dashboard socket", () => {
         host: "fleetfrog.tail1234.ts.net",
         address: "100.64.0.7",
       });
-    }).pipe(Effect.scoped),
+    }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
+  );
+});
+
+function leaveStaleSocket(socketPath: string) {
+  execFileSync(process.execPath, [
+    "-e",
+    `require("node:net").createServer().listen(${JSON.stringify(socketPath)}, () => process.exit())`,
+  ]);
+}
+
+const staleSocket = socketPathInTempFolder.pipe(
+  Effect.tap((socketPath) => Effect.sync(() => leaveStaleSocket(socketPath))),
+);
+
+const refusingRemoval = Layer.effect(FileSystem.FileSystem)(
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+
+    return {
+      ...fs,
+      remove: (pathOrDescriptor: string) =>
+        Effect.fail(
+          PlatformError.systemError({
+            _tag: "PermissionDenied",
+            module: "FileSystem",
+            method: "remove",
+            pathOrDescriptor,
+          }),
+        ),
+    };
+  }),
+).pipe(Layer.provide(NodeFileSystem.layer));
+
+describe("a socket left by an earlier run", () => {
+  it.effect("is replaced", () =>
+    Effect.gen(function* () {
+      const socketPath = yield* staleSocket;
+      const server = createServer();
+
+      yield* Layer.build(
+        Layer.effectDiscard(listenOnServeSocket(server, socketPath)).pipe(
+          Layer.provideMerge(HttpRouter.serve(probe)),
+          Layer.provideMerge(NodeHttpServer.layer(() => server, { port: 0, host: "127.0.0.1" })),
+        ),
+      );
+
+      expect(yield* get({ socketPath })).toMatchObject({ host: "fleetfrog.tail1234.ts.net" });
+    }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
+  );
+
+  it.effect("fails startup naming the socket when it can't be removed", () =>
+    Effect.gen(function* () {
+      const socketPath = yield* staleSocket;
+
+      const error = yield* listenOnServeSocket(createServer(), socketPath).pipe(
+        Effect.provide(refusingRemoval),
+        Effect.flip,
+      );
+
+      expect(error).toMatchObject({
+        _tag: "ServeSocketError",
+        path: socketPath,
+        cause: { reason: { _tag: "PermissionDenied", method: "remove" } },
+      });
+    }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer)),
   );
 });
 

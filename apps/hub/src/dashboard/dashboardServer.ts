@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import path from "node:path";
 
+import { NodeFileSystem } from "@effect/platform-node";
 import { ByteSize, Effect, Layer, Option } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse, HttpStaticServer } from "effect/http";
 import { RpcSerialization, RpcServer } from "effect/rpc";
@@ -133,6 +134,7 @@ export const DashboardServer = Layer.unwrap(
     return config.dashboardSocket === null
       ? dashboard
       : Layer.effectDiscard(listenOnServeSocket(server, config.dashboardSocket)).pipe(
+          Layer.provide(NodeFileSystem.layer),
           Layer.provideMerge(dashboard),
         );
   }),
