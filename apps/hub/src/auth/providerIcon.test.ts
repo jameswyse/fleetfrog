@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 
 import { expect, it } from "@effect/vitest";
-import { Effect, Layer, Option, Predicate, SubscriptionRef } from "effect";
+import { Duration, Effect, Fiber, Layer, Option, Predicate, SubscriptionRef } from "effect";
 
 import { TestDatabase } from "../persistence/testDatabase.ts";
 import { fetchProviderIcon, iconType, ProviderIconStore } from "./providerIcon.ts";
@@ -65,6 +65,52 @@ it.effect("falls back to /favicon.ico, and finds nothing on a site without icons
       Option.some({ data: ico, mediaType: "image/x-icon" }),
     );
     expect(yield* fetchProviderIcon(bare.url)).toStrictEqual(Option.none());
+  }).pipe(Effect.scoped),
+);
+
+const stalledSite = Effect.acquireRelease(
+  Effect.promise(
+    () =>
+      new Promise<{
+        url: string;
+        requested: Promise<void>;
+        abandoned: Promise<void>;
+        close: () => void;
+      }>((resolve) => {
+        let markRequested = () => {};
+        let markAbandoned = () => {};
+        const requested = new Promise<void>((done) => (markRequested = done));
+        const abandoned = new Promise<void>((done) => (markAbandoned = done));
+
+        const server = createServer((request) => {
+          request.socket.once("close", markAbandoned);
+          markRequested();
+        });
+
+        server.listen(0, "127.0.0.1", () => {
+          const address = server.address();
+          const port = Predicate.isObject(address) ? address.port : 0;
+
+          resolve({
+            url: `http://127.0.0.1:${String(port)}`,
+            requested,
+            abandoned,
+            close: () => server.close(),
+          });
+        });
+      }),
+  ),
+  ({ close }) => Effect.sync(close),
+);
+
+it.live("abandons a download when the request is cancelled", () =>
+  Effect.gen(function* () {
+    const provider = yield* stalledSite;
+    const discovery = yield* Effect.forkChild(fetchProviderIcon(provider.url));
+
+    yield* Effect.promise(() => provider.requested);
+    yield* Fiber.interrupt(discovery);
+    yield* Effect.promise(() => provider.abandoned).pipe(Effect.timeout(Duration.seconds(2)));
   }).pipe(Effect.scoped),
 );
 

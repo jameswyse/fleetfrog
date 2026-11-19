@@ -1,4 +1,5 @@
 import { Layer } from "effect";
+import { FetchHttpClient } from "effect/http";
 
 import { ActionDispatcher } from "./actions/actionDispatcher.ts";
 import { ActivityFeed } from "./activity/activityFeed.ts";
@@ -54,7 +55,9 @@ const Pairing = PairingOffers.layer.pipe(Layer.provideMerge(AgentCertificate.lay
 
 const T3CodeReleases = Layer.unwrap(
   HubConfig.useSync(({ demo }) =>
-    demo ? T3CodeReleaseFeed.fixed(demoT3CodeReleases) : T3CodeReleaseFeed.layer,
+    demo
+      ? T3CodeReleaseFeed.fixed(demoT3CodeReleases)
+      : T3CodeReleaseFeed.layer.pipe(Layer.provide(FetchHttpClient.layer)),
   ),
 );
 
