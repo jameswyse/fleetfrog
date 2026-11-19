@@ -1,8 +1,7 @@
-import { lstat, unlink } from "node:fs/promises";
 import { createServer } from "node:net";
 
 import { NodeHttpServerRequest } from "@effect/platform-node";
-import { Effect, Option, Schema } from "effect";
+import { Effect, FileSystem, Option, Schema } from "effect";
 import { Headers } from "effect/http";
 
 import type { Server } from "node:http";
@@ -23,12 +22,20 @@ export class ServeSocketError extends Schema.TaggedError<
 }) {}
 
 export const listenOnServeSocket = Effect.fnUntraced(function* (server: Server, path: string) {
-  yield* Effect.promise(() =>
-    lstat(path).then(
-      (stats) => (stats.isSocket() ? unlink(path) : undefined),
-      () => undefined,
-    ),
+  const fs = yield* FileSystem.FileSystem;
+
+  const isSocket = yield* fs.lstat(path).pipe(
+    Effect.map(({ type }) => type === "Socket"),
+    Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(false)),
+    Effect.mapError((cause) => new ServeSocketError({ path, cause })),
   );
+
+  if (isSocket) {
+    yield* fs
+      .remove(path, { force: true })
+      .pipe(Effect.mapError((cause) => new ServeSocketError({ path, cause })));
+  }
+
   yield* Effect.acquireRelease(
     Effect.callback<ReturnType<typeof createServer>, ServeSocketError>((resume) => {
       const listener = createServer((socket) => {
