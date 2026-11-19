@@ -6,6 +6,8 @@ import { Effect, Layer, Option, Predicate, SubscriptionRef } from "effect";
 import { TestDatabase } from "../persistence/testDatabase.ts";
 import { fetchProviderIcon, iconType, ProviderIconStore } from "./providerIcon.ts";
 
+import type { ProviderIconSource } from "@fleetfrog/protocol/domain/user";
+
 const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
 const ico = new Uint8Array([0x00, 0x00, 0x01, 0x00, 1, 2, 3]);
 
@@ -73,15 +75,19 @@ it("reads the image type from its bytes and refuses anything else", () => {
   expect(iconType(new Uint8Array(300 * 1024).fill(0x89))).toBeNull();
 });
 
+const storedIcon = (source: ProviderIconSource, byte: number) => ({
+  mediaType: "image/png" as const,
+  data: Uint8Array.of(byte),
+  source,
+});
+
+const uploadedIcon = (byte: number) => storedIcon("uploaded", byte);
+
+const TestIconStore = ProviderIconStore.layer.pipe(Layer.provide(TestDatabase));
+
 it.effect("replaces and clears the stored icon", () =>
   Effect.gen(function* () {
     const icons = yield* ProviderIconStore;
-
-    const uploadedIcon = (byte: number) => ({
-      mediaType: "image/png" as const,
-      data: Uint8Array.of(byte),
-      source: "uploaded" as const,
-    });
 
     yield* icons.replace(uploadedIcon(1));
     yield* icons.replace(uploadedIcon(2));
@@ -96,5 +102,34 @@ it.effect("replaces and clears the stored icon", () =>
 
     expect(yield* SubscriptionRef.get(icons.current)).toBeNull();
     expect(Option.isNone(yield* icons.find(replacedId))).toBe(true);
-  }).pipe(Effect.provide(ProviderIconStore.layer.pipe(Layer.provide(TestDatabase)))),
+  }).pipe(Effect.provide(TestIconStore)),
+);
+
+it.effect("replaces the icon only while it is still the one the caller expected", () =>
+  Effect.gen(function* () {
+    const icons = yield* ProviderIconStore;
+
+    const storedBytes = (id: string) =>
+      icons
+        .find(id)
+        .pipe(Effect.map(Option.match({ onNone: () => null, onSome: ({ data }) => data })));
+
+    const beforeUpload = yield* SubscriptionRef.get(icons.current);
+
+    yield* icons.replace(uploadedIcon(1));
+
+    const uploaded = yield* SubscriptionRef.get(icons.current);
+
+    yield* icons.replaceIfCurrent(beforeUpload, storedIcon("provider", 2));
+
+    expect(yield* SubscriptionRef.get(icons.current)).toStrictEqual(uploaded);
+    expect(yield* storedBytes(uploaded?.id ?? "")).toStrictEqual(Uint8Array.of(1));
+
+    yield* icons.replaceIfCurrent(uploaded, storedIcon("provider", 3));
+
+    const replaced = yield* SubscriptionRef.get(icons.current);
+
+    expect(replaced?.source).toBe("provider");
+    expect(yield* storedBytes(replaced?.id ?? "")).toStrictEqual(Uint8Array.of(3));
+  }).pipe(Effect.provide(TestIconStore)),
 );
