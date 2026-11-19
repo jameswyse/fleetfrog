@@ -12,6 +12,7 @@ const releasesUrl = "https://api.github.com/repos/pingdotgg/t3code/releases";
 const releasesPerPage = 100;
 const maximumPages = 5;
 const refreshInterval = Duration.hours(1);
+const refreshTimeout = Duration.minutes(1);
 
 export const GitHubRelease = Schema.Struct({ tag_name: Schema.String, draft: Schema.Boolean });
 export type GitHubRelease = typeof GitHubRelease.Type;
@@ -84,6 +85,7 @@ export class T3CodeReleaseFeed extends Context.Service<
       });
 
       yield* refresh.pipe(
+        Effect.timeout(refreshTimeout),
         Effect.catch((error) =>
           Effect.logWarning(`Couldn't check GitHub for T3 Code releases: ${error.message}`),
         ),
