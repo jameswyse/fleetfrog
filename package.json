@@ -22,7 +22,7 @@
     "lint:root": "oxlint tools/vitest tools/e2e tools/demo tests/e2e scripts e2e.config.ts oxfmt.config.ts oxlint.config.ts",
     "lint:staged": "lint-staged.sh \"oxlint --no-error-on-unmatched-pattern\" \"*.js\" \"*.[cm]js\" \"*.jsx\" \"*.ts\" \"*.[cm]ts\" \"*.tsx\"",
     "precommit": "pnpm format:staged; staged_format_exit=$?; pnpm lint:staged; staged_lint_exit=$?; pnpm typecheck; typecheck_exit=$?; test $staged_format_exit -eq 0 && test $staged_lint_exit -eq 0 && test $typecheck_exit -eq 0",
-    "prepare": "node scripts/installHooks.mjs && effect-tsgo patch --typescript --oxlint",
+    "prepare": "node scripts/installHooks.mjs && effect-tsgo patch --typescript",
     "screenshots": "node tools/demo/screenshots.ts",
     "test:e2e": "node tools/e2e/run.ts",
     "test:e2e:agent": "pnpm test:e2e tests/e2e/agent.e2e.ts",
@@ -52,8 +52,8 @@
     "lint-staged.sh": "0.6.9",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
-    "oxlint-tsgolint": "7.0.2007",
     "playwright": "1.65.1",
+    "tsrs": "7.1.0-beta.tsrs3",
     "turbo": "2.11.11",
     "typescript": "catalog:"
   },

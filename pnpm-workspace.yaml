@@ -16,8 +16,6 @@ catalog:
   effect: 4.1.4
   openid-client: 6.9.0
   oxfmt: 0.79.0
-  # The root prepare script runs `effect-tsgo patch --oxlint`, which fails on oxlint versions newer
-  # than the pinned @effect/tsgo supports. Move oxlint only as far as it allows.
   oxlint: 1.94.0
   react: 19.3.1
   react-dom: 19.3.1
@@ -32,6 +30,8 @@ minimumReleaseAgeExclude:
 minimumReleaseAgeExcludePrune: true
 trustPolicy: no-downgrade
 trustPolicyIgnoreAfter: 43200
+trustPolicyExclude:
+  - "tsrs@7.1.0-beta.tsrs3"
 strictDepBuilds: true
 # Wrangler, for the website, runs without these packages' install scripts: pnpm installs their
 # binaries as platform packages.
